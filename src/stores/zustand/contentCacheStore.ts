@@ -5,6 +5,7 @@ import { fileCommands, cacheCommands } from '../../services/tauriCommands';
 import type { FrontmatterOnly, FileMeta } from '../../services/tauriCommands';
 import { subscribeToWindowSync, type FileSavedPayload, type MemoChangedPayload, type SearchIndexUpdatedPayload } from '../../utils/windowSync';
 import { refreshActions } from './refreshStore';
+import { markAsSelfSaved } from '../../utils/selfSaveTracker';
 
 // Conditional logging - only in development
 const DEV = import.meta.env.DEV;
@@ -568,6 +569,9 @@ export async function initContentCacheSync(): Promise<void> {
         // Invalidate cache when another window saves a file
         log(`[ContentCache] FILE_SAVED from window ${payload.windowLabel}: ${payload.filePath}`);
         useContentCacheStore.getState().invalidateContent(payload.filePath);
+        // Sync self-save tracker across windows so the main window's file watcher
+        // won't treat this save as an external change
+        markAsSelfSaved(payload.filePath);
       },
       onMemoChanged: (payload: MemoChangedPayload) => {
         // Refresh calendar when another window changes memo/todo content

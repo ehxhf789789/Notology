@@ -87,9 +87,10 @@ export function AppInitializer({ children }: { children: ReactNode }) {
       unlisteners.push(await listen<{ conflict_path: string; original_path: string }>(
         'synology-conflict-detected', (e) => {
           const name = e.payload.original_path.split(/[/\\]/).pop() || '';
+          const conflictName = e.payload.conflict_path.split(/[/\\]/).pop() || '';
           modalActions.showAlertModal(
             '\uB3D9\uAE30\uD654 \uCDA9\uB3CC \uAC10\uC9C0',
-            `\uD30C\uC77C "${name}"\uC5D0 \uB3D9\uAE30\uD654 \uCDA9\uB3CC\uC774 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.\n\uCDA9\uB3CC \uD30C\uC77C\uACFC \uC6D0\uBCF8 \uD30C\uC77C\uC744 \uBE44\uAD50\uD558\uC5EC \uC218\uB3D9\uC73C\uB85C \uBCD1\uD569\uD574 \uC8FC\uC138\uC694.`
+            `\uD30C\uC77C "${name}"\uC5D0 \uB3D9\uAE30\uD654 \uCDA9\uB3CC\uC774 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.\n\nSynology Drive\uAC00 \uCDA9\uB3CC \uBC84\uC804\uC744 \uBCC4\uB3C4 \uD30C\uC77C\uB85C \uBCF4\uAD00\uD588\uC2B5\uB2C8\uB2E4:\n\u2192 ${conflictName}\n\n\uC6D0\uBCF8\uACFC \uCDA9\uB3CC \uD30C\uC77C\uC744 \uBE44\uAD50\uD558\uC5EC \uC218\uB3D9\uC73C\uB85C \uBCD1\uD569\uD574 \uC8FC\uC138\uC694.`
           );
         }
       ));

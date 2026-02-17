@@ -114,8 +114,15 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     externalMtime: number;
   } | null>(null);
 
+  // Transient notification for silent external reload (isDirty=false case)
+  const [externalReloadNotice, setExternalReloadNotice] = useState(false);
+
   // Note-level editing lock from another device
   const [remoteLock, setRemoteLock] = useState<NoteLockInfo | null>(null);
+
+  // Cooldown after conflict resolution to prevent watcher events from re-triggering conflict UI.
+  // Set to Date.now() after resolving; content reload checks this to suppress re-trigger.
+  const conflictResolvedAtRef = useRef(0);
 
   // Detect conflict copy: file name matches "{original} (내 변경 YYYY-MM-DD).md"
   // OPTIMIZED: Uses O(1) lookup instead of O(n) tree traversal
@@ -549,6 +556,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   // Accept external changes (discard my edits)
   const handleConflictAcceptExternal = useCallback(() => {
     if (!conflictState || !win.filePath) return;
+    conflictResolvedAtRef.current = Date.now();
     contentCacheActions.invalidateContent(win.filePath);
     refreshHoverWindowsForFile(win.filePath);
     setConflictState(null);
@@ -571,6 +579,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
     try {
       await fileCommands.writeFile(win.filePath, fmString, conflictState.myContent);
+      markAsSelfSaved(win.filePath);
       setFrontmatter(updatedFm);
       setIsDirty(false);
       fileCommands.getFileMtime(win.filePath).then(m => { mtimeOnLoadRef.current = m; });
@@ -584,6 +593,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     } catch (e) {
       console.error('HoverEditor: Conflict force save failed:', e);
     }
+    conflictResolvedAtRef.current = Date.now();
     setConflictState(null);
   }, [conflictState, win.filePath]);
 
@@ -605,6 +615,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
     try {
       await fileCommands.writeFile(copyPath, fmString, conflictState.myContent);
+      markAsSelfSaved(copyPath);
       appStoreActionsRef.current.refreshFileTree();
       notifyFileSaved(copyPath).catch(() => {});
       searchCommands.indexNote(copyPath).then(() => {
@@ -619,6 +630,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     // Load external version for this window
     contentCacheActions.invalidateContent(win.filePath);
     refreshHoverWindowsForFile(win.filePath);
+    conflictResolvedAtRef.current = Date.now();
     setConflictState(null);
     setIsDirty(false);
   }, [conflictState, win.filePath, vaultPath, refreshHoverWindowsForFile]);
@@ -864,7 +876,13 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     if (!editor || isLoadingRef.current) return;
 
     // If user is editing (isDirty), show conflict UI instead of silently overwriting
+    // BUT skip if conflict was JUST resolved (watcher event from our own save after Keep Mine / Save Both)
     if (isDirty) {
+      const msSinceResolved = Date.now() - conflictResolvedAtRef.current;
+      if (msSinceResolved < 5000) {
+        log(`[HoverEditor] Suppressing re-trigger — conflict resolved ${msSinceResolved}ms ago`);
+        return;
+      }
       log('[HoverEditor] External change detected while editing — showing conflict UI');
       // Capture current content directly from editor (always fresh, not stale closure)
       const currentContent = (editor.storage as any).markdown?.getMarkdown() || '';
@@ -897,12 +915,25 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     contentCacheActions.invalidateContent(win.filePath);
     contentCacheActions.getContent(win.filePath)
       .then(cached => {
+        // Content hash comparison: skip reload if only mtime changed (phantom change)
+        const currentBody = frontmatter?.canvas ? body : ((editor?.storage as any).markdown?.getMarkdown() || body);
+        if (cached.body === currentBody) {
+          log('[HoverEditor] Phantom change detected (mtime changed but content identical) — skipping reload');
+          fileCommands.getFileMtime(win.filePath).then(m => { mtimeOnLoadRef.current = m; });
+          isLoadingRef.current = false;
+          return;
+        }
+
         const fm = cached.frontmatter;
         setFrontmatter(fm);
         setBody(cached.body);
         setIsDirty(false);
         // Update mtime after external reload
         fileCommands.getFileMtime(win.filePath).then(m => { mtimeOnLoadRef.current = m; });
+
+        // Show brief "externally updated" notice
+        setExternalReloadNotice(true);
+        setTimeout(() => setExternalReloadNotice(false), 3000);
 
         // If this is a canvas note, parse canvas data from body
         if (fm?.canvas) {
@@ -1101,8 +1132,27 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     // Multi-window mode: save, index, then close
     if (isMultiWindow) {
       log('[HoverWindow] Multi-window mode detected, closing...');
-      // Save before closing if dirty
-      if (isDirty && frontmatter && editor) {
+      // If conflict UI is showing, auto-save my changes as a copy before closing (prevent data loss)
+      if (conflictState && win.filePath && vaultPath) {
+        try {
+          const timestamp = new Date().toISOString().slice(0, 10);
+          const closeParts = win.filePath.split(/[/\\]/);
+          const closeSep = win.filePath.includes('\\') ? '\\' : '/';
+          const closeBaseName = closeParts.pop()?.replace(/\.md$/, '') || 'note';
+          const closeDir = closeParts.join(closeSep);
+          const copyPath = `${closeDir}${closeSep}${closeBaseName} (내 변경 ${timestamp}).md`;
+          const fmString = serializeFrontmatter({
+            ...conflictState.myFrontmatter,
+            modified: getCurrentTimestamp(),
+          });
+          await fileCommands.writeFile(copyPath, fmString, conflictState.myContent);
+          markAsSelfSaved(copyPath);
+          log(`[HoverWindow] Conflict auto-saved as copy before close: ${copyPath}`);
+        } catch (err) {
+          console.error('[HoverWindow] Conflict auto-save FAILED on close:', err);
+        }
+      } else if (isDirty && frontmatter && editor) {
+        // Save before closing if dirty
         try {
           const currentBody = (editor.storage as any).markdown.getMarkdown();
           await saveFile(currentBody);
@@ -1142,23 +1192,28 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
     // If conflict UI is showing, auto-save my changes as a copy (prevent data loss)
     if (conflictState && win.filePath && vaultPath) {
-      const timestamp = new Date().toISOString().slice(0, 10);
-      const closeParts = win.filePath.split(/[/\\]/);
-      const closeSep = win.filePath.includes('\\') ? '\\' : '/';
-      const closeBaseName = closeParts.pop()?.replace(/\.md$/, '') || 'note';
-      const closeDir = closeParts.join(closeSep);
-      const copyPath = `${closeDir}${closeSep}${closeBaseName} (내 변경 ${timestamp}).md`;
-      const fmString = serializeFrontmatter({
-        ...conflictState.myFrontmatter,
-        modified: getCurrentTimestamp(),
-      });
-      await fileCommands.writeFile(copyPath, fmString, conflictState.myContent);
-      appStoreActionsRef.current.refreshFileTree();
-      searchCommands.indexNote(copyPath).then(() => {
-        refreshActions.incrementSearchRefresh();
-        notifySearchIndexUpdated(copyPath).catch(() => {});
-      }).catch(() => {});
-      log(`[HoverEditor] Conflict auto-saved as copy: ${copyPath}`);
+      try {
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const closeParts = win.filePath.split(/[/\\]/);
+        const closeSep = win.filePath.includes('\\') ? '\\' : '/';
+        const closeBaseName = closeParts.pop()?.replace(/\.md$/, '') || 'note';
+        const closeDir = closeParts.join(closeSep);
+        const copyPath = `${closeDir}${closeSep}${closeBaseName} (내 변경 ${timestamp}).md`;
+        const fmString = serializeFrontmatter({
+          ...conflictState.myFrontmatter,
+          modified: getCurrentTimestamp(),
+        });
+        await fileCommands.writeFile(copyPath, fmString, conflictState.myContent);
+        markAsSelfSaved(copyPath);
+        appStoreActionsRef.current.refreshFileTree();
+        searchCommands.indexNote(copyPath).then(() => {
+          refreshActions.incrementSearchRefresh();
+          notifySearchIndexUpdated(copyPath).catch(() => {});
+        }).catch(() => {});
+        log(`[HoverEditor] Conflict auto-saved as copy: ${copyPath}`);
+      } catch (err) {
+        console.error('[HoverEditor] Conflict auto-save FAILED on close:', err);
+      }
       return;
     }
 
@@ -1930,6 +1985,11 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
               {t('keepBoth', language)}
             </button>
           </div>
+        </div>
+      )}
+      {externalReloadNotice && !conflictState && (
+        <div className="hover-editor-external-reload-notice">
+          <span>{t('externallyUpdated', language)}</span>
         </div>
       )}
       {conflictCopyInfo && !conflictState && !conflictCopyBarDismissed && (

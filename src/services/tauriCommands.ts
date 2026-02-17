@@ -99,6 +99,9 @@ export const noteCommands = {
   updateFrontmatter: (notePath: string, newFrontmatterYaml: string) =>
     invoke<void>('update_note_frontmatter', { notePath, newFrontmatterYaml }),
 
+  touchNoteModified: (notePath: string) =>
+    invoke<void>('touch_note_modified', { notePath }),
+
   importAttachment: (sourcePath: string, notePath: string) =>
     invoke<string>('import_attachment', { sourcePath, notePath }),
 

@@ -2096,6 +2096,54 @@ fn update_note_frontmatter(
     Ok(())
 }
 
+/// Update only the `modified` field in frontmatter without touching the body.
+/// Used when comments/memos change — they live in a separate file but should
+/// still update the parent note's modification timestamp.
+#[tauri::command]
+fn touch_note_modified(note_path: String) -> Result<(), String> {
+    let path = Path::new(&note_path);
+    if !path.exists() {
+        return Err("Note does not exist".to_string());
+    }
+
+    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    if !content.starts_with("---") {
+        return Ok(()); // No frontmatter to update
+    }
+
+    let end_idx = match content[3..].find("\n---") {
+        Some(idx) => idx,
+        None => return Ok(()),
+    };
+
+    let fm_section = &content[4..3 + end_idx]; // between --- markers
+    let body = &content[3 + end_idx + 4..];
+    let now = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%:z").to_string();
+
+    // Replace existing modified line, or append it
+    let updated_fm = if let Some(mod_start) = fm_section.find("\nmodified:") {
+        let line_end = fm_section[mod_start + 1..]
+            .find('\n')
+            .map(|i| mod_start + 1 + i)
+            .unwrap_or(fm_section.len());
+        format!(
+            "{}modified: \"{}\"{}",
+            &fm_section[..mod_start + 1],
+            now,
+            &fm_section[line_end..]
+        )
+    } else if fm_section.starts_with("modified:") {
+        let line_end = fm_section.find('\n').unwrap_or(fm_section.len());
+        format!("modified: \"{}\"{}", now, &fm_section[line_end..])
+    } else {
+        format!("{}\nmodified: \"{}\"", fm_section, now)
+    };
+
+    let new_content = format!("---\n{}\n---{}", updated_fm, body);
+    atomic_write_file(path, new_content.as_bytes())?;
+    Ok(())
+}
+
 #[cfg(feature = "devtools")]
 #[tauri::command]
 fn toggle_devtools(webview_window: tauri::WebviewWindow) {
@@ -3090,6 +3138,7 @@ pub fn run() {
             rename_file_with_links,
             delete_note,
             update_note_frontmatter,
+            touch_note_modified,
             toggle_devtools,
             set_window_icon,
             create_hover_window,

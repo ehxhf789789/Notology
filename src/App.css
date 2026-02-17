@@ -4817,6 +4817,35 @@ html[data-theme="light"] .skeleton-line {
 }
 
 /* ============================================================ */
+/* External Reload Notice (silent update from another device)   */
+/* ============================================================ */
+
+.hover-editor-external-reload-notice {
+  display: flex;
+  align-items: center;
+  padding: 5px 12px;
+  background: linear-gradient(90deg, rgba(96, 165, 250, 0.12), rgba(96, 165, 250, 0.05));
+  border-bottom: 1px solid rgba(96, 165, 250, 0.2);
+  flex-shrink: 0;
+  animation: external-reload-enter 0.2s ease-out, external-reload-fade 3s ease-in-out;
+}
+
+.hover-editor-external-reload-notice span {
+  font-size: 11px;
+  color: #60a5fa;
+}
+
+@keyframes external-reload-enter {
+  from { opacity: 0; transform: translateY(-100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes external-reload-fade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ============================================================ */
 /* Hover Editor Conflict Copy Bar                               */
 /* ============================================================ */
 

@@ -1,4 +1,4 @@
-import { memoCommands } from '../services/tauriCommands';
+import { memoCommands, noteCommands } from '../services/tauriCommands';
 import type { NoteComment } from '../types';
 
 export interface LoadCommentsResult {
@@ -49,6 +49,11 @@ export async function saveComments(
     } catch (indexError) {
       console.warn('Failed to index memos:', indexError);
     }
+
+    // Update the parent note's modified timestamp
+    noteCommands.touchNoteModified(notePath).catch(err => {
+      console.warn('Failed to touch note modified:', err);
+    });
 
     return { comments: commentsToSave, mtime: newMtime };
   } catch (e) {

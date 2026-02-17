@@ -541,17 +541,17 @@ mod tests {
     fn test_conflict_attachment_detection() {
         use crate::search::watcher::{is_synology_conflict_file, get_original_from_conflict};
 
-        // Test attachment conflict file detection
-        assert!(is_synology_conflict_file("image (SynologyDrive Conflict).png"));
-        assert!(is_synology_conflict_file("document (SynologyDrive Conflict 2024-01-15).pptx"));
+        // Synology Drive 실제 형식: {원본}_{기기명}_{타임스탬프}_{충돌유형}.{확장자}
+        assert!(is_synology_conflict_file("image_PC_01-15-120000-2025_Conflict.png"));
+        assert!(is_synology_conflict_file("document_DiskStation_Jan-15-0901-2024_Conflict.pptx"));
         assert!(!is_synology_conflict_file("normal_file.png"));
 
-        // Test _att folder conflict detection
-        assert!(is_synology_conflict_file("Note_att (SynologyDrive Conflict)"));
-        assert!(is_synology_conflict_file("Work_att (Synology Conflict)"));
+        // _att 폴더의 충돌 파일도 감지
+        assert!(is_synology_conflict_file("Note_att_PC_01-15-120000-2025_Conflict"));
+        assert!(is_synology_conflict_file("Work_att_NAS_Jan-10-1200-2025_Conflict"));
 
-        // Test original path extraction from conflict _att folder
-        let conflict_folder = std::path::PathBuf::from("/vault/docs/Note_att (SynologyDrive Conflict)");
+        // 충돌 _att 폴더에서 원본 경로 추출
+        let conflict_folder = std::path::PathBuf::from("/vault/docs/Note_att_PC_01-15-120000-2025_Conflict");
         let original = get_original_from_conflict(&conflict_folder);
         assert!(original.is_some());
         assert_eq!(original.unwrap().file_name().unwrap().to_str().unwrap(), "Note_att");
@@ -561,9 +561,9 @@ mod tests {
     fn test_conflict_attachment_in_conflict_folder() {
         use crate::search::watcher::is_synology_conflict_file;
 
-        // Both the file and its _att folder can be conflicts independently
-        let folder_name = "Project_att (SynologyDrive Conflict)";
-        let file_name = "report (SynologyDrive Conflict).xlsx";
+        // 파일과 _att 폴더 모두 독립적으로 충돌 가능
+        let folder_name = "Project_att_MyPC_02-10-093000-2025_Conflict";
+        let file_name = "report_MyPC_02-10-093000-2025_Conflict.xlsx";
 
         assert!(is_synology_conflict_file(folder_name), "Conflict _att folder should be detected");
         assert!(is_synology_conflict_file(file_name), "Conflict attachment file should be detected");

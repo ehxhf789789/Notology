@@ -320,27 +320,60 @@ fn should_process_path(path: &Path, vault_path: &Path) -> bool {
 }
 
 /// Check if a filename matches Synology Drive conflict patterns.
-/// Synology Drive creates files like:
-///   "filename (SynologyDrive Conflict).md"
-///   "filename (SynologyDrive Conflict 2024-01-01).md"
-///   "filename (Synology Conflict).md" (older versions)
+///
+/// Synology Drive naming convention (official KB + real-world observation):
+///   `{original}_{DeviceName}_{Timestamp}_{ConflictType}[_{N}].{ext}`
+///
+/// Timestamp variants:
+///   Old: `Jan-03-0901-2025`       (MonthAbbr-DD-HHMM-YYYY)
+///   New: `11-19-114254-2025`      (MM-DD-HHMMSS-YYYY, numeric month, 6-digit time)
+///
+/// Conflict types (all 5 documented by Synology):
+///   Conflict, CaseConflict, WhiteSpaceConflict, TailCharacterConflict, TypeConflict
+///
+/// Multiple conflicts can stack on the same file:
+///   `file_PC_Jan-12-2342-2016_CaseConflict_PC_Jan-12-2351-2016_CaseConflict.md`
+///
+/// Examples (real-world):
+///   `workspace_HANBIN-LABMEET_11-19-114254-2025_Conflict.json`
+///   `notes_DiskStation_Jan-26-1200-2019_Conflict.md`
+///   `README_PC_Jan-01-0000-2024_CaseConflict_1.md`
 pub fn is_synology_conflict_file(file_name: &str) -> bool {
     let lower = file_name.to_lowercase();
-    lower.contains("(synologydrive conflict") || lower.contains("(synology conflict")
+    if !lower.contains("conflict") {
+        return false;
+    }
+    // Match: _{DeviceName}_{Timestamp}_{ConflictType}
+    // Timestamp old format: 3-letter month abbreviation, e.g. jan-03-0901-2025
+    // Timestamp new format: numeric month, e.g. 11-19-114254-2025
+    // ConflictType: Conflict, CaseConflict, WhiteSpaceConflict, TailCharacterConflict, TypeConflict
+    lazy_static::lazy_static! {
+        static ref SYNOLOGY_CONFLICT_RE: regex::Regex = regex::Regex::new(
+            r"(?i)_[^_]+_(?:[a-z]{3}-\d{1,2}-\d{4,6}-\d{4}|\d{1,2}-\d{1,2}-\d{4,6}-\d{4})_(?:Case|WhiteSpace|TailCharacter|Type)?Conflict"
+        ).unwrap();
+    }
+    SYNOLOGY_CONFLICT_RE.is_match(file_name)
 }
 
 /// Extract the original file path from a Synology conflict file path.
+/// Strips all conflict suffixes (including stacked ones) to recover the original name.
 pub fn get_original_from_conflict(conflict_path: &Path) -> Option<PathBuf> {
     let file_name = conflict_path.file_name()?.to_string_lossy().to_string();
 
-    let re = regex::Regex::new(r" \(Synology(?:Drive)? [Cc]onflict[^)]*\)").ok()?;
-    let original_name = re.replace(&file_name, "").to_string();
-
-    if original_name == file_name {
-        return None;
+    // Match the entire conflict suffix chain:
+    //   _{DeviceName}_{Timestamp}_{ConflictType}[_{N}]  (possibly repeated)
+    // This handles both single and stacked conflict suffixes.
+    lazy_static::lazy_static! {
+        static ref CONFLICT_SUFFIX_RE: regex::Regex = regex::Regex::new(
+            r"(?i)(?:_[^_]+_(?:[A-Za-z]{3}-\d{1,2}-\d{4,6}-\d{4}|\d{1,2}-\d{1,2}-\d{4,6}-\d{4})_(?:Case|WhiteSpace|TailCharacter|Type)?Conflict(?:_\d+)?)+"
+        ).unwrap();
+    }
+    let result = CONFLICT_SUFFIX_RE.replace(&file_name, "").to_string();
+    if result != file_name {
+        return conflict_path.parent().map(|p| p.join(result));
     }
 
-    conflict_path.parent().map(|p| p.join(original_name))
+    None
 }
 
 #[cfg(test)]
@@ -352,37 +385,121 @@ mod tests {
     // is_synology_conflict_file 테스트
     // =========================================================================
 
+    // -- 사용자 실제 환경에서 확인된 신형 형식 (숫자 월, HHMMSS) --
+
     #[test]
-    fn test_detects_synologydrive_conflict() {
-        assert!(is_synology_conflict_file("notes (SynologyDrive Conflict).md"));
+    fn test_detects_real_user_example() {
+        // 사용자가 실제로 확인한 Synology Drive 충돌 파일
+        assert!(is_synology_conflict_file(
+            "workspace_HANBIN-LABMEET_11-19-114254-2025_Conflict.json"
+        ));
     }
 
     #[test]
-    fn test_detects_synologydrive_conflict_with_date() {
-        assert!(is_synology_conflict_file("notes (SynologyDrive Conflict 2024-01-15).md"));
+    fn test_detects_numeric_timestamp_with_number_suffix() {
+        assert!(is_synology_conflict_file(
+            "notes_MyPC_03-25-093012-2026_Conflict_1.md"
+        ));
     }
 
     #[test]
-    fn test_detects_synology_conflict_old_format() {
-        assert!(is_synology_conflict_file("notes (Synology Conflict).md"));
+    fn test_detects_numeric_timestamp_case_conflict() {
+        assert!(is_synology_conflict_file(
+            "README_Desktop_01-05-120000-2025_CaseConflict.md"
+        ));
+    }
+
+    // -- 구형 형식 (월 약어, HHMM) — Synology KB 문서 기준 --
+
+    #[test]
+    fn test_detects_old_timestamp_format() {
+        assert!(is_synology_conflict_file(
+            "notes_Andy-PC_Jan-03-0901-2025_Conflict_1.md"
+        ));
+        assert!(is_synology_conflict_file(
+            "notes_DiskStation_Jan-26-1200-2019_Conflict.md"
+        ));
     }
 
     #[test]
-    fn test_detects_case_insensitive() {
-        assert!(is_synology_conflict_file("notes (synologydrive conflict).md"));
-        assert!(is_synology_conflict_file("notes (SYNOLOGYDRIVE CONFLICT).md"));
+    fn test_detects_old_format_case_conflict() {
+        assert!(is_synology_conflict_file(
+            "README_PC_Jan-01-0000-2024_CaseConflict_1.md"
+        ));
     }
+
+    // -- 5가지 충돌 유형 전체 --
+
+    #[test]
+    fn test_detects_all_conflict_types() {
+        // Conflict (동일 파일, 다른 내용)
+        assert!(is_synology_conflict_file(
+            "doc_PC_01-15-120000-2025_Conflict.md"
+        ));
+        // CaseConflict (대소문자 차이)
+        assert!(is_synology_conflict_file(
+            "doc_PC_01-15-120000-2025_CaseConflict.md"
+        ));
+        // WhiteSpaceConflict (공백 차이)
+        assert!(is_synology_conflict_file(
+            "doc_PC_01-15-120000-2025_WhiteSpaceConflict.md"
+        ));
+        // TailCharacterConflict (후행 마침표 등)
+        assert!(is_synology_conflict_file(
+            "doc_PC_01-15-120000-2025_TailCharacterConflict.md"
+        ));
+        // TypeConflict (파일/폴더 동명)
+        assert!(is_synology_conflict_file(
+            "doc_PC_01-15-120000-2025_TypeConflict.md"
+        ));
+    }
+
+    // -- 스택된 충돌 (동일 파일에 충돌이 반복 발생) --
+
+    #[test]
+    fn test_detects_stacked_conflicts() {
+        assert!(is_synology_conflict_file(
+            "IMG_001_PC_Jul-12-2342-2016_CaseConflict_PC_Jul-12-2351-2016_CaseConflict.jpg"
+        ));
+    }
+
+    // -- 한국어 파일명 --
+
+    #[test]
+    fn test_detects_korean_filename() {
+        assert!(is_synology_conflict_file(
+            "회의록_Main-NAS_02-15-143000-2026_Conflict_1.md"
+        ));
+    }
+
+    // -- 대소문자 무관 --
+
+    #[test]
+    fn test_case_insensitive() {
+        assert!(is_synology_conflict_file(
+            "file_PC_01-01-120000-2025_CONFLICT.md"
+        ));
+        assert!(is_synology_conflict_file(
+            "file_PC_01-01-120000-2025_conflict.md"
+        ));
+    }
+
+    // -- 일반 파일 거부 (오탐 방지) --
 
     #[test]
     fn test_rejects_normal_files() {
         assert!(!is_synology_conflict_file("normal_note.md"));
         assert!(!is_synology_conflict_file("meeting (2024-01-15).md"));
         assert!(!is_synology_conflict_file("conflict_notes.md"));
+        assert!(!is_synology_conflict_file("my_conflict_resolution.md"));
+        assert!(!is_synology_conflict_file("workspace.json"));
     }
 
     #[test]
-    fn test_detects_korean_filename_with_conflict() {
-        assert!(is_synology_conflict_file("회의록 (SynologyDrive Conflict).md"));
+    fn test_rejects_false_positive_with_conflict_in_name() {
+        // 파일명에 "conflict"가 있지만 Synology 패턴이 아닌 경우
+        assert!(!is_synology_conflict_file("git_conflict_merge.md"));
+        assert!(!is_synology_conflict_file("resolve_conflict_2025.md"));
     }
 
     // =========================================================================
@@ -390,35 +507,57 @@ mod tests {
     // =========================================================================
 
     #[test]
-    fn test_extracts_original_path() {
-        let conflict = PathBuf::from("/vault/notes (SynologyDrive Conflict).md");
+    fn test_extracts_original_from_real_example() {
+        let conflict = PathBuf::from("/vault/workspace_HANBIN-LABMEET_11-19-114254-2025_Conflict.json");
         let original = get_original_from_conflict(&conflict);
         assert_eq!(
             original,
-            Some(PathBuf::from("/vault/notes.md")),
-            "충돌 파일에서 원본 경로 추출"
+            Some(PathBuf::from("/vault/workspace.json")),
+            "사용자 실제 예시에서 원본 경로 추출"
         );
     }
 
     #[test]
-    fn test_extracts_original_with_date() {
-        let conflict = PathBuf::from("/vault/notes (SynologyDrive Conflict 2024-01-15).md");
+    fn test_extracts_original_old_timestamp() {
+        let conflict = PathBuf::from("/vault/notes_Andy-PC_Jan-03-0901-2025_Conflict_1.md");
         let original = get_original_from_conflict(&conflict);
         assert_eq!(
             original,
             Some(PathBuf::from("/vault/notes.md")),
-            "날짜 포함 충돌 파일에서 원본 경로 추출"
+            "구형 타임스탬프에서 원본 경로 추출"
         );
     }
 
     #[test]
-    fn test_extracts_original_old_format() {
-        let conflict = PathBuf::from("/vault/report (Synology Conflict).md");
+    fn test_extracts_original_with_number_suffix() {
+        let conflict = PathBuf::from("/vault/report_MyPC_03-25-093012-2026_Conflict_2.md");
         let original = get_original_from_conflict(&conflict);
         assert_eq!(
             original,
             Some(PathBuf::from("/vault/report.md")),
-            "구형식 충돌 파일에서 원본 경로 추출"
+            "번호 접미사 포함 충돌에서 원본 추출"
+        );
+    }
+
+    #[test]
+    fn test_extracts_original_from_stacked() {
+        let conflict = PathBuf::from("/vault/IMG_PC_Jul-12-2342-2016_CaseConflict_PC_Jul-12-2351-2016_CaseConflict.jpg");
+        let original = get_original_from_conflict(&conflict);
+        assert_eq!(
+            original,
+            Some(PathBuf::from("/vault/IMG.jpg")),
+            "스택된 충돌에서 원본 추출"
+        );
+    }
+
+    #[test]
+    fn test_extracts_original_korean() {
+        let conflict = PathBuf::from("/vault/회의록_Main-NAS_02-15-143000-2026_Conflict_1.md");
+        let original = get_original_from_conflict(&conflict);
+        assert_eq!(
+            original,
+            Some(PathBuf::from("/vault/회의록.md")),
+            "한국어 파일명에서 원본 추출"
         );
     }
 
@@ -431,7 +570,7 @@ mod tests {
 
     #[test]
     fn test_preserves_directory_structure() {
-        let conflict = PathBuf::from("/vault/Projects/Work/memo (SynologyDrive Conflict).md");
+        let conflict = PathBuf::from("/vault/Projects/Work/memo_PC_01-10-090000-2025_Conflict.md");
         let original = get_original_from_conflict(&conflict);
         assert_eq!(
             original,
@@ -501,14 +640,14 @@ mod tests {
     #[test]
     fn test_conflict_file_passes_process_check_but_detected_separately() {
         let vault = PathBuf::from("/vault");
-        let conflict = PathBuf::from("/vault/note (SynologyDrive Conflict).md");
+        let conflict = PathBuf::from("/vault/note_PC_01-15-120000-2025_Conflict.md");
 
         // .md 파일이므로 should_process_path는 true
         assert!(should_process_path(&conflict, &vault), "충돌 파일도 .md이므로 처리 대상");
 
         // 하지만 is_synology_conflict_file로 별도 감지
         assert!(
-            is_synology_conflict_file("note (SynologyDrive Conflict).md"),
+            is_synology_conflict_file("note_PC_01-15-120000-2025_Conflict.md"),
             "충돌 파일로 감지되어야 함"
         );
     }
