@@ -35,8 +35,8 @@ function parseParticipants(value: string): Participant[] {
   if (!value.trim()) return [];
 
   const participants: Participant[] = [];
-  // Match [[fileName|@displayName]] or plain text separated by comma
-  const wikiLinkRegex = /\[\[([^\]|]+)\|@([^\]]+)\]\]/g;
+  // Match [[fileName|displayName]] or legacy [[fileName|@displayName]] format
+  const wikiLinkRegex = /\[\[([^\]|]+)\|@?([^\]]+)\]\]/g;
 
   let lastIndex = 0;
   let match;
@@ -45,7 +45,6 @@ function parseParticipants(value: string): Participant[] {
     // Add any plain text before this match
     const textBefore = value.substring(lastIndex, match.index).trim();
     if (textBefore) {
-      // Split by comma for plain text participants
       textBefore.split(',').forEach(name => {
         const trimmed = name.trim();
         if (trimmed) {
@@ -91,7 +90,7 @@ function parseParticipants(value: string): Participant[] {
 function serializeParticipants(participants: Participant[]): string {
   return participants.map(p => {
     if (p.isContact && p.fileName) {
-      return `[[${p.fileName}|@${p.displayName}]]`;
+      return `[[${p.fileName}|${p.displayName}]]`;
     }
     return p.displayName;
   }).join(', ');
@@ -124,7 +123,7 @@ function ParticipantInput({ value, onChange, placeholder }: ParticipantInputProp
           if (note.note_type === 'CONTACT') {
             const fileName = note.path.split(/[/\\]/).pop()?.replace(/\.md$/, '') || '';
             contacts.push({
-              displayName: note.title || fileName,
+              displayName: (note.title || fileName).replace(/_/g, ' '),
               fileName,
               path: note.path,
             });
@@ -140,7 +139,7 @@ function ParticipantInput({ value, onChange, placeholder }: ParticipantInputProp
     loadContacts();
   }, []);
 
-  // Search contacts
+  // Search contacts — always searches as you type, no @ prefix needed
   const searchContacts = useCallback((query: string): ContactInfo[] => {
     const lowerQuery = query.toLowerCase();
     return allContacts
@@ -156,11 +155,10 @@ function ParticipantInput({ value, onChange, placeholder }: ParticipantInputProp
     const newValue = e.target.value;
     setInputValue(newValue);
 
-    // Check for @ at the beginning or after space
+    // Auto-search contacts as user types (no @ prefix required)
     const trimmed = newValue.trim();
-    if (trimmed.startsWith('@') || newValue.includes(' @')) {
-      const query = trimmed.startsWith('@') ? trimmed.substring(1) : trimmed.split(' @').pop() || '';
-      const results = searchContacts(query);
+    if (trimmed.length > 0) {
+      const results = searchContacts(trimmed);
       setSuggestions(results);
       setShowSuggestions(results.length > 0);
       setSelectedIndex(0);
@@ -188,7 +186,7 @@ function ParticipantInput({ value, onChange, placeholder }: ParticipantInputProp
   }, [addParticipant]);
 
   const addPlainText = useCallback(() => {
-    const trimmed = inputValue.trim().replace(/^@/, ''); // Remove leading @ if present
+    const trimmed = inputValue.trim();
     if (trimmed) {
       addParticipant({
         id: `plain-${trimmed}-${Date.now()}`,
@@ -270,7 +268,6 @@ function ParticipantInput({ value, onChange, placeholder }: ParticipantInputProp
       <div className="participant-chips-container" onClick={() => inputRef.current?.focus()}>
         {participants.map(p => (
           <span key={p.id} className={`participant-chip ${p.isContact ? 'contact' : 'plain'}`}>
-            {p.isContact && <span className="participant-chip-icon">@</span>}
             <span className="participant-chip-name">{p.displayName}</span>
             <button
               type="button"
@@ -315,7 +312,7 @@ function ParticipantInput({ value, onChange, placeholder }: ParticipantInputProp
                 {contact.displayName.charAt(0).toUpperCase()}
               </div>
               <div className="participant-suggestion-info">
-                <div className="participant-suggestion-name">@{contact.displayName}</div>
+                <div className="participant-suggestion-name">{contact.displayName}</div>
                 {contact.organization && (
                   <div className="participant-suggestion-org">{contact.organization}</div>
                 )}

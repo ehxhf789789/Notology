@@ -5,12 +5,24 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>notology-project</title>
+    <script>
+      // Hover windows: apply theme + inline bg INSTANTLY before CSS even parses
+      // Main window: no URL params, skip — CSS handles default dark bg
+      var __t = new URLSearchParams(window.location.search).get('theme');
+      if (__t) {
+        if (__t === 'system') __t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', __t);
+        // Inline style = highest priority, takes effect BEFORE <style> tag is parsed
+        document.documentElement.style.backgroundColor = __t === 'light' ? '#f5f5f5' : '#1e1e1e';
+      }
+    </script>
     <style>
-      /* Prevent white flash before CSS loads - matches dark theme */
+      /* Main window default (no URL param) — will be overridden by data-theme for hover windows */
+      html { background-color: #1e1e1e; }
+      html[data-theme="light"] { background-color: #f5f5f5; }
       html, body, #root {
         margin: 0;
         padding: 0;
-        background-color: #1e1e1e;
         min-height: 100vh;
       }
     </style>

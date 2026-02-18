@@ -453,10 +453,6 @@ function Settings({ onClose }: SettingsProps) {
                       <span className="trigger-desc">{t('triggerMention', language)}</span>
                     </div>
                     <div className="suggestion-trigger-item">
-                      <code className="trigger-code">@@</code>
-                      <span className="trigger-desc">{t('triggerImageEmbed', language)}</span>
-                    </div>
-                    <div className="suggestion-trigger-item">
                       <code className="trigger-code">//</code>
                       <span className="trigger-desc">{t('triggerAttachment', language)}</span>
                     </div>

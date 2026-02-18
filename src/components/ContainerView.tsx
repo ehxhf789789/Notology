@@ -16,6 +16,7 @@ import {
 } from '../stores/zustand';
 import { useContainerConfigs } from '../stores/zustand/vaultConfigStore';
 import { useTemplateStore } from '../stores/zustand/templateStore';
+import { useNoteTypeCacheStore } from '../stores/zustand/noteTypeCacheStore';
 import { createNote, createFolder, createNoteWithTemplate, selectContainer } from '../stores/appActions';
 import { useDropTarget } from '../hooks/useDragDrop';
 import { getEditorExtensions } from '../utils/editorConfig';
@@ -364,6 +365,21 @@ function ContainerView() {
       }, 1000);
     },
   });
+
+  // Refresh decorations when noteTypeCache updates (wiki link icons/colors)
+  useEffect(() => {
+    if (!editor) return;
+    const unsub = useNoteTypeCacheStore.subscribe((state, prev) => {
+      if (state.cache !== prev.cache && !editor.isDestroyed) {
+        try {
+          const { tr } = editor.state;
+          tr.setMeta('externalDecorationRefresh', true);
+          editor.view.dispatch(tr);
+        } catch { /* editor may be transitional */ }
+      }
+    });
+    return unsub;
+  }, [editor]);
 
   const saveFile = useCallback(async (currentBody?: string) => {
     if (!folderNotePath || !frontmatter) return;

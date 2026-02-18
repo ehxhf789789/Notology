@@ -8,6 +8,8 @@ import {
   updateModifiedTimestamp,
 } from '../utils/frontmatterUtils';
 import { refreshActions } from '../stores/zustand/refreshStore';
+import { markAsSelfSaved } from '../utils/selfSaveTracker';
+import { notifyFileSaved, notifySearchIndexUpdated } from '../utils/windowSync';
 
 interface UseFrontmatterReturn {
   frontmatter: Frontmatter | null;
@@ -110,9 +112,16 @@ export function useFrontmatter(filePath: string | null): UseFrontmatterReturn {
       const yaml = await frontmatterToYaml(frontmatter);
       await noteCommands.updateFrontmatter(filePath, yaml);
 
-      // Re-index in background (don't block UI for Tantivy commit)
+      // Mark as self-saved to prevent false "external change" warnings from file watcher
+      markAsSelfSaved(filePath);
+
+      // Notify other windows about save (for cache invalidation)
+      notifyFileSaved(filePath).catch(() => {});
+
+      // Re-index in background, then notify all windows
       searchCommands.indexNote(filePath).then(() => {
         incrementSearchRefresh();
+        notifySearchIndexUpdated(filePath).catch(() => {});
       }).catch((err) => {
         console.error('Background index failed:', err);
       });

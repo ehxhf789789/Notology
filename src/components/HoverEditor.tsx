@@ -23,9 +23,12 @@ import { createNote, createNoteWithTemplate, createFolder, deleteNote, deleteFol
 import { settingsActions } from '../stores/zustand/settingsStore';
 import { useDropTarget } from '../hooks/useDragDrop';
 import type { NoteFrontmatter, NoteComment, CanvasData, CanvasSelection } from '../types';
+import type { FacetedTags } from '../types/frontmatter';
 import { serializeFrontmatter, getCurrentTimestamp } from '../utils/frontmatter';
+import { getFlatTags } from '../utils/frontmatterUtils';
 import { loadComments, saveComments } from '../utils/comments';
 import { markAsSelfSaved } from '../utils/selfSaveTracker';
+import { registerEditorSave, unregisterEditorSave } from '../utils/editorSaveRegistry';
 import { notifyFileSaved, notifyMemoChanged, notifySearchIndexUpdated } from '../utils/windowSync';
 import EditorToolbar from './EditorToolbar';
 import EditorContextMenu from './EditorContextMenu';
@@ -430,7 +433,9 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         // If body was loaded before editor was ready, set content now
         if (pendingBodyRef.current !== null && !contentSetRef.current) {
           const setContentStart = performance.now();
+          isLoadingRef.current = true; // Guard: prevent onUpdate from firing during setContent
           pooledEditor.commands.setContent(pendingBodyRef.current);
+          isLoadingRef.current = false;
           contentSetRef.current = true;
           pendingBodyRef.current = null;
           logTiming(`Editor setContent (deferred) (${(performance.now() - setContentStart).toFixed(1)}ms)`);
@@ -445,11 +450,25 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       editorPool.init().then(doAcquire);
     }
 
-    // Release on unmount
+    // Release on unmount — save dirty content first (critical for HMR / refresh)
     return () => {
       if (editorRef.current) {
-        editorRef.current.off('update');
-        editorPool.release(editorRef.current);
+        // Flush pending auto-save timer
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = null;
+        }
+        // Save dirty content before releasing (fire-and-forget)
+        const ed = editorRef.current;
+        const fm = frontmatterRef.current;
+        if (isDirtyRef.current && ed && !ed.isDestroyed && fm && !isLoadingRef.current) {
+          const markdown = (ed.storage as any).markdown.getMarkdown();
+          const updatedFm = { ...fm, modified: getCurrentTimestamp() };
+          const fmString = serializeFrontmatter(updatedFm);
+          fileCommands.writeFile(win.filePath, fmString, markdown).catch(() => {});
+        }
+        ed.off('update');
+        editorPool.release(ed);
         editorRef.current = null;
       }
       // Reset acquisition flag so re-mount can acquire again
@@ -475,6 +494,13 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     const bodyToSave = currentBody !== undefined ? currentBody : bodyRef.current;
     if (!win.filePath || !fm) return;
 
+    // Guard: never save while content is still loading (prevents empty-body overwrites
+    // during HMR re-mounts or rapid file switches)
+    if (isLoadingRef.current) {
+      log('[HoverEditor] saveFile skipped — content still loading');
+      return;
+    }
+
     // Optimistic locking: check if file was modified externally (Synology sync)
     if (mtimeOnLoadRef.current > 0) {
       const currentMtime = await fileCommands.getFileMtime(win.filePath);
@@ -497,9 +523,10 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
     // Optimistic patch BEFORE disk write: update Search UI instantly (0ms)
     // Even if writeFile fails, next Tantivy refresh will correct the data
+    const noteFileName = win.filePath.split(/[\\/]/).pop()?.replace(/\.md$/, '') || '';
     refreshActions.patchNote({
       path: win.filePath,
-      title: updatedFm.title || win.filePath.split(/[\\/]/).pop()?.replace(/\.md$/, '') || '',
+      title: updatedFm.title || noteFileName,
       note_type: updatedFm.type || '',
       tags: updatedFm.tags || [],
       created: updatedFm.created || '',
@@ -507,6 +534,10 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       has_body: bodyToSave.length > 0,
       comment_count: commentsRef.current.length,
     });
+    // Keep noteTypeCache in sync so wiki link decorations show correct icons/colors
+    if (updatedFm.type && noteFileName) {
+      noteTypeCacheActions.patchNoteType(noteFileName, updatedFm.type);
+    }
 
     try {
       await fileCommands.writeFile(win.filePath, fmString, bodyToSave);
@@ -520,8 +551,12 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       const estimatedMtime = Date.now();
       contentCacheActions.updateContent(win.filePath, bodyToSave, updatedFm, estimatedMtime);
 
-      // Parallelize: mtime refresh, notifications, and indexing
-      // mtime refresh runs in background to update ref for next conflict check
+      // Immediately update mtime ref to prevent race condition:
+      // rapid consecutive saves (e.g., link paste → link card generation)
+      // could trigger false conflict if async getFileMtime hasn't resolved yet
+      mtimeOnLoadRef.current = estimatedMtime;
+
+      // Correct with real mtime from disk (non-blocking)
       fileCommands.getFileMtime(win.filePath).then(realMtime => {
         mtimeOnLoadRef.current = realMtime;
         // Correct cache mtime if significantly different
@@ -542,14 +577,38 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         notifySearchIndexUpdated(win.filePath).catch(() => {});
       }).catch(() => {});
       memoCommands.indexNoteMemos(win.filePath).catch(() => {});
-
-      // Notify other windows about memo/todo changes (cross-window calendar sync)
-      notifyMemoChanged(win.filePath).catch(() => {});
     } catch (e) {
       console.error('HoverEditor: Failed to save:', e);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [win.filePath]);
+
+  // ========== EMERGENCY SAVE REGISTRY (beforeunload) ==========
+  // Register a flush callback so that on page refresh/close, any pending
+  // auto-save timers are flushed and dirty content is written immediately.
+  const isDirtyRef = useRef(false);
+  isDirtyRef.current = isDirty;
+
+  useEffect(() => {
+    registerEditorSave(win.id, () => {
+      // Clear any pending debounced save
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      // If dirty, write file immediately (fire-and-forget)
+      const ed = editorRef.current;
+      const fm = frontmatterRef.current;
+      if (isDirtyRef.current && ed && !ed.isDestroyed && fm && !isLoadingRef.current) {
+        const markdown = (ed.storage as any).markdown.getMarkdown();
+        const updatedFm = { ...fm, modified: getCurrentTimestamp() };
+        const fmString = serializeFrontmatter(updatedFm);
+        // Fire-and-forget: Tauri IPC sends the message before page unloads
+        fileCommands.writeFile(win.filePath, fmString, markdown).catch(() => {});
+      }
+    });
+    return () => unregisterEditorSave(win.id);
+  }, [win.id, win.filePath]);
 
   // ========== CONFLICT RESOLUTION HANDLERS ==========
 
@@ -1017,49 +1076,108 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   // Wiki-link resolution uses ref-based callbacks (resolveLinkRef.current)
   // which automatically access the latest fileTree without needing a re-render.
 
+  // Helper: optimistic patch for comment changes (instant Search UI update)
+  const patchNoteForComments = useCallback((commentCount: number) => {
+    const fm = frontmatterRef.current;
+    if (!fm || !win.filePath) return;
+    refreshActions.patchNote({
+      path: win.filePath,
+      title: fm.title || win.filePath.split(/[\\/]/).pop()?.replace(/\.md$/, '') || '',
+      note_type: fm.type || '',
+      tags: fm.tags || [],
+      created: fm.created || '',
+      modified: getCurrentTimestamp(),
+      has_body: bodyRef.current.length > 0,
+      comment_count: commentCount,
+    });
+  }, [win.filePath]);
+
+  // Helper: after saveComments (which calls touchNoteModified), refresh the .md mtime
+  // so HoverEditor's conflict detection doesn't mistake our own save as external
+  const refreshMtimeAfterCommentSave = useCallback(() => {
+    if (!win.filePath) return;
+    // Delay slightly to ensure touchNoteModified's disk write has completed
+    setTimeout(() => {
+      fileCommands.getFileMtime(win.filePath).then(mtime => {
+        mtimeOnLoadRef.current = mtime;
+      }).catch(() => {});
+    }, 200);
+  }, [win.filePath]);
+
   const handleAddComment = useCallback(async (comment: NoteComment) => {
     const updated = [...comments, comment];
     setComments(updated);
+    patchNoteForComments(updated.length);
     const result = await saveComments(win.filePath, updated, commentsMtimeRef.current);
     commentsMtimeRef.current = result.mtime;
     if (result.comments !== updated) setComments(result.comments);
-    refreshActions.batchRefresh({ search: true, calendar: true });
+    refreshActions.batchRefresh({ calendar: true });
     notifyMemoChanged(win.filePath).catch(() => {});
+    refreshMtimeAfterCommentSave();
     // Clear preserved selection and task mode after adding comment
     setPreservedSelection(null);
     setPendingTaskMode(false);
-  }, [comments, win.filePath]);
+  }, [comments, win.filePath, patchNoteForComments, refreshMtimeAfterCommentSave]);
 
   const handleDeleteComment = useCallback(async (commentId: string) => {
     const updated = comments.filter(c => c.id !== commentId);
     setComments(updated);
+    patchNoteForComments(updated.length);
     const result = await saveComments(win.filePath, updated, commentsMtimeRef.current);
     commentsMtimeRef.current = result.mtime;
     if (result.comments !== updated) setComments(result.comments);
-    refreshActions.batchRefresh({ search: true, calendar: true });
+    refreshActions.batchRefresh({ calendar: true });
     notifyMemoChanged(win.filePath).catch(() => {});
+    refreshMtimeAfterCommentSave();
     if (activeCommentId === commentId) setActiveCommentId(null);
-  }, [comments, win.filePath, activeCommentId]);
+  }, [comments, win.filePath, activeCommentId, patchNoteForComments, refreshMtimeAfterCommentSave]);
 
   const handleResolveComment = useCallback(async (commentId: string) => {
     const updated = comments.map(c => c.id === commentId ? { ...c, resolved: !c.resolved } : c);
     setComments(updated);
+    patchNoteForComments(updated.length);
     const result = await saveComments(win.filePath, updated, commentsMtimeRef.current);
     commentsMtimeRef.current = result.mtime;
     if (result.comments !== updated) setComments(result.comments);
-    refreshActions.batchRefresh({ search: true, calendar: true });
+    refreshActions.batchRefresh({ calendar: true });
     notifyMemoChanged(win.filePath).catch(() => {});
-  }, [comments, win.filePath]);
+    refreshMtimeAfterCommentSave();
+  }, [comments, win.filePath, patchNoteForComments, refreshMtimeAfterCommentSave]);
 
   const handleUpdateComment = useCallback(async (commentId: string, updatedComment: NoteComment) => {
     const updated = comments.map(c => c.id === commentId ? updatedComment : c);
     setComments(updated);
+    patchNoteForComments(updated.length);
     const result = await saveComments(win.filePath, updated, commentsMtimeRef.current);
     commentsMtimeRef.current = result.mtime;
     if (result.comments !== updated) setComments(result.comments);
-    refreshActions.batchRefresh({ search: true, calendar: true });
+    refreshActions.batchRefresh({ calendar: true });
     notifyMemoChanged(win.filePath).catch(() => {});
-  }, [comments, win.filePath]);
+    refreshMtimeAfterCommentSave();
+  }, [comments, win.filePath, patchNoteForComments, refreshMtimeAfterCommentSave]);
+
+  // Optimistic patch when tags are saved via TagPanel
+  const handleTagPanelSaved = useCallback((newTags: FacetedTags) => {
+    const fm = frontmatterRef.current;
+    if (!fm || !win.filePath) return;
+
+    refreshActions.patchNote({
+      path: win.filePath,
+      title: fm.title || win.filePath.split(/[\\/]/).pop()?.replace(/\.md$/, '') || '',
+      note_type: fm.type || '',
+      tags: getFlatTags(newTags),
+      created: fm.created || '',
+      modified: getCurrentTimestamp(),
+      has_body: bodyRef.current.length > 0,
+      comment_count: commentsRef.current.length,
+    });
+
+    // Refresh mtime so HoverEditor's conflict detection doesn't mistake
+    // TagPanel's own save as an external modification
+    fileCommands.getFileMtime(win.filePath).then(mtime => {
+      mtimeOnLoadRef.current = mtime;
+    }).catch(() => {});
+  }, [win.filePath]);
 
   // Toggle comment panel (view only — memo/task adding is via context menu)
   const handleToggleComments = useCallback(() => {
@@ -1856,6 +1974,9 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     return normalizedPath.includes('_att/');
   }, [win.filePath]);
 
+  // Container notes cannot have tags assigned
+  const isContainerNote = frontmatter?.type?.toUpperCase() === 'CONTAINER';
+
   // Detect if this is a folder note (filename matches parent folder name)
   const folderPath = useMemo(() => {
     const parts = win.filePath.replace(/\\/g, '/').split('/');
@@ -1931,15 +2052,17 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         <div className="hover-editor-header-actions">
           {!isAttachmentFile && (
             <>
-              <button
-                className={`hover-editor-fm-toggle ${showTags ? 'active' : ''}`}
-                onClick={() => setShowTags(!showTags)}
-                onMouseDown={(e) => e.stopPropagation()}
-                onDoubleClick={(e) => e.stopPropagation()}
-                title={t('tags', language)}
-              >
-                <Tags size={14} />
-              </button>
+              {!isContainerNote && (
+                <button
+                  className={`hover-editor-fm-toggle ${showTags ? 'active' : ''}`}
+                  onClick={() => setShowTags(!showTags)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  title={t('tags', language)}
+                >
+                  <Tags size={14} />
+                </button>
+              )}
               <button
                 className={`hover-editor-fm-toggle ${showComments ? 'active' : ''}`}
                 onClick={handleToggleComments}
@@ -2069,13 +2192,13 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         )}
         {showTags && vaultPath && !folderPath && (
           <div className="hover-editor-tag-panel">
-            <TagPanel filePath={win.filePath} vaultPath={vaultPath} />
+            <TagPanel filePath={win.filePath} vaultPath={vaultPath} onSaved={handleTagPanelSaved} />
           </div>
         )}
       </div>
       {showTags && vaultPath && folderPath && (
         <div className="hover-editor-tag-section" data-drop-target={`hover-editor-${win.id}`}>
-          <TagPanel filePath={win.filePath} vaultPath={vaultPath} />
+          <TagPanel filePath={win.filePath} vaultPath={vaultPath} onSaved={handleTagPanelSaved} />
         </div>
       )}
       {folderPath && (
@@ -2097,7 +2220,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
             }}
             onCreateFolder={async () => {
               try {
-                await appStoreActionsRef.current.createFolder('새 폴더', folderPath);
+                await appStoreActionsRef.current.createFolder(t('newFolder', language), folderPath);
               } catch (e) {
                 console.error('Failed to create folder:', e);
               }

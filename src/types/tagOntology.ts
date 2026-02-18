@@ -28,9 +28,11 @@ export interface TagNode {
 
 export type FacetNamespace = 'domain' | 'who' | 'org' | 'ctx';
 
-export const FACET_NAMESPACES: Array<{ namespace: FacetNamespace; label: string; description: string }> = [
-  { namespace: 'domain', label: '주제', description: '노트의 주요 주제나 분야' },
-  { namespace: 'who', label: '대상', description: '관련된 인물, 조직, 프로젝트' },
-  { namespace: 'org', label: '맥락', description: '작성 배경, 상황, 용도' },
-  { namespace: 'ctx', label: '상태', description: '진행 상태, 우선순위' },
+export type FacetIconName = 'BookOpen' | 'Users' | 'Building2' | 'Activity';
+
+export const FACET_NAMESPACES: Array<{ namespace: FacetNamespace; label: string; description: string; icon: FacetIconName }> = [
+  { namespace: 'domain', label: '주제', description: '노트의 주요 주제나 분야', icon: 'BookOpen' },
+  { namespace: 'who', label: '대상', description: '관련된 인물, 조직, 프로젝트', icon: 'Users' },
+  { namespace: 'org', label: '맥락', description: '작성 배경, 상황, 용도', icon: 'Building2' },
+  { namespace: 'ctx', label: '상태', description: '진행 상태, 우선순위', icon: 'Activity' },
 ];

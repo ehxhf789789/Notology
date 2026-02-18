@@ -574,9 +574,10 @@ export async function initContentCacheSync(): Promise<void> {
         markAsSelfSaved(payload.filePath);
       },
       onMemoChanged: (payload: MemoChangedPayload) => {
-        // Refresh calendar when another window changes memo/todo content
+        // Refresh search + calendar when another window changes memo/todo content
         log(`[ContentCache] MEMO_CHANGED from window ${payload.windowLabel}: ${payload.filePath}`);
-        refreshActions.refreshCalendar();
+        useContentCacheStore.getState().invalidateContent(payload.filePath);
+        refreshActions.batchRefresh({ search: true, calendar: true });
       },
       onSearchIndexUpdated: (payload: SearchIndexUpdatedPayload) => {
         // Refresh search when another window updates the index

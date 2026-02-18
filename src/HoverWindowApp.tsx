@@ -17,11 +17,19 @@ import ContextMenu from './components/ContextMenu';
 import RenameDialog from './components/RenameDialog';
 import ConfirmDeleteModal from './components/ConfirmDeleteModal';
 import AlertModal from './components/AlertModal';
-import { useTheme } from './stores/zustand';
+import { useTheme, settingsActions } from './stores/zustand';
+import { useSettingsStore } from './stores/zustand/settingsStore';
 import { useFileTreeStore } from './stores/zustand/fileTreeStore';
 import { useDragDropListener } from './hooks/useDragDrop';
 import type { HoverWindow } from './types';
+import type { ThemeSetting } from './stores/zustand/settingsStore';
 import './App.css';
+
+// Apply initial theme from URL immediately to prevent flash
+const urlTheme = new URLSearchParams(window.location.search).get('theme');
+if (urlTheme) {
+  document.documentElement.setAttribute('data-theme', urlTheme);
+}
 
 // Determine file type from path
 function getFileType(path: string): HoverWindow['type'] {
@@ -100,6 +108,11 @@ function HoverWindowApp() {
             // Set vault path and load file tree for link resolution
             useFileTreeStore.getState().setVaultPath(decodedVault);
 
+            // Load settings (theme, font, language) from vault storage
+            settingsActions.loadSettings(decodedVault).catch(err => {
+              console.warn('[HoverWindowApp] Failed to load settings:', err);
+            });
+
             // Load file tree (this will also trigger file lookup index rebuild)
             useFileTreeStore.getState().refreshFileTree().then(() => {
               console.log('[HoverWindowApp] File tree loaded, links should work now');
@@ -121,18 +134,18 @@ function HoverWindowApp() {
     initWindow();
   }, []);
 
-  // Show window after content is rendered (ref callback on content container)
+  // Show window after WebView2 has fully painted the themed background.
+  // Delay ensures WebView2 paints over the Win32 dark surface before window becomes visible.
   const contentRef = useCallback((node: HTMLDivElement | null) => {
     if (node && !hasShownRef.current && !loading) {
       hasShownRef.current = true;
-      // Double RAF ensures DOM paint is complete
-      requestAnimationFrame(() => {
+      setTimeout(() => {
         requestAnimationFrame(() => {
           windowRef.current.show().catch(err => {
             console.warn('[HoverWindowApp] Failed to show window:', err);
           });
         });
-      });
+      }, 120);
     }
   }, [loading]);
 
@@ -170,6 +183,18 @@ function HoverWindowApp() {
     const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }, [theme]);
+
+  // Listen for live theme changes from main window
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    listen<{ theme: ThemeSetting }>('theme-changed', (event) => {
+      const newTheme = event.payload.theme;
+      useSettingsStore.setState({ theme: newTheme });
+      const isDark = newTheme === 'dark' || (newTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    }).then(fn => { unlisten = fn; });
+    return () => { if (unlisten) unlisten(); };
+  }, []);
 
   // Handle close with Ctrl/Cmd+W (animated)
   useEffect(() => {

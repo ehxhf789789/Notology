@@ -4,7 +4,7 @@ import { noteCommands, utilCommands } from '../services/tauriCommands';
 import { useDropTarget } from '../hooks/useDragDrop';
 import { hoverActions } from '../stores/zustand/hoverStore';
 import { useSettingsStore } from '../stores/zustand/settingsStore';
-import { t } from '../utils/i18n';
+import { t, tf } from '../utils/i18n';
 import type { CanvasData, CanvasNode, CanvasEdge, CanvasSelection } from '../types';
 
 interface CanvasEditorProps {
@@ -1333,12 +1333,12 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
         return (
           <div className="canvas-properties-panel">
             <div className="canvas-properties-header">
-              다중 선택 ({selectedNodes.length}개 노드, {selectedEdges.length}개 화살표)
+              {tf('canvasMultiSelect', language, { nodeCount: selectedNodes.length, edgeCount: selectedEdges.length })}
             </div>
 
             {selectedNodes.length > 0 && (
               <div className="canvas-properties-section">
-                <div className="canvas-properties-label">노드 색상</div>
+                <div className="canvas-properties-label">{t('canvasNodeColor', language)}</div>
                 <div className="canvas-properties-colors">
                   {nodeColors.map(color => (
                     <button
@@ -1355,7 +1355,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
 
             {selectedEdges.length > 0 && (
               <div className="canvas-properties-section">
-                <div className="canvas-properties-label">화살표 색상</div>
+                <div className="canvas-properties-label">{t('canvasArrowColor', language)}</div>
                 <div className="canvas-properties-colors">
                   {edgeColors.map(color => (
                     <button
@@ -1385,7 +1385,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                   setSelectedEdges([]);
                 }}
               >
-                선택 항목 삭제
+                {t('canvasDeleteSelection', language)}
               </button>
             </div>
           </div>
@@ -1416,10 +1416,10 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
 
         return (
           <div className="canvas-properties-panel">
-            <div className="canvas-properties-header">Node Properties</div>
+            <div className="canvas-properties-header">{t('canvasNodeProperties', language)}</div>
 
             <div className="canvas-properties-section">
-              <div className="canvas-properties-label">Color</div>
+              <div className="canvas-properties-label">{t('canvasColor', language)}</div>
               <div className="canvas-properties-colors">
                 {colors.map(color => (
                   <button
@@ -1435,7 +1435,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
 
             {node.type !== 'file' && (
               <div className="canvas-properties-section">
-                <div className="canvas-properties-label">Shape</div>
+                <div className="canvas-properties-label">{t('canvasShape', language)}</div>
                 <div className="canvas-properties-shapes">
                   {shapes.map(shape => (
                     <button
@@ -1468,10 +1468,10 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
 
         return (
           <div className="canvas-properties-panel">
-            <div className="canvas-properties-header">Arrow Properties</div>
+            <div className="canvas-properties-header">{t('canvasArrowProperties', language)}</div>
 
             <div className="canvas-properties-section">
-              <div className="canvas-properties-label">Color</div>
+              <div className="canvas-properties-label">{t('canvasColor', language)}</div>
               <div className="canvas-properties-colors">
                 {edgeColors.map(color => (
                   <button
@@ -1490,7 +1490,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                 className="canvas-properties-delete-btn"
                 onClick={() => deleteEdge(selectedEdge)}
               >
-                Delete Arrow
+                {t('canvasDeleteArrow', language)}
               </button>
             </div>
           </div>

@@ -291,6 +291,7 @@ export function applyNoteTemplateVariables(
     ...vars,
     title: vars.title,
     date: typeof fm.date === 'string' ? fm.date : '',
+    time: typeof fm.time === 'string' ? fm.time : (vars.time || ''),
     participants: Array.isArray(fm.participants) ? fm.participants.join(', ') : '',
     authors: Array.isArray(fm.authors) ? fm.authors.join(', ') : '',
     year: fm.year != null ? String(fm.year) : '',

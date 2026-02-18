@@ -14,6 +14,7 @@ interface RefreshState {
   calendarRefreshTrigger: number;
   ontologyRefreshTrigger: number;
   searchReady: boolean;
+  searchIndexing: boolean; // true while background search indexing is in progress
 
   // Optimistic patch for instant search list updates
   lastNotePatch: NotePatch | null;
@@ -23,6 +24,7 @@ interface RefreshState {
   refreshCalendar: () => void;
   incrementOntologyRefresh: () => void;
   setSearchReady: (ready: boolean) => void;
+  setSearchIndexing: (indexing: boolean) => void;
   batchRefresh: (options: { search?: boolean; calendar?: boolean; ontology?: boolean }) => void;
   patchNote: (meta: NoteMetadata) => void;
 }
@@ -34,6 +36,7 @@ export const useRefreshStore = create<RefreshState>()(
     calendarRefreshTrigger: 0,
     ontologyRefreshTrigger: 0,
     searchReady: false,
+    searchIndexing: false,
     lastNotePatch: null,
 
     // Increment search refresh trigger
@@ -54,6 +57,11 @@ export const useRefreshStore = create<RefreshState>()(
     // Set search ready state
     setSearchReady: (ready: boolean) => {
       set({ searchReady: ready });
+    },
+
+    // Set search indexing state (background indexing in progress)
+    setSearchIndexing: (indexing: boolean) => {
+      set({ searchIndexing: indexing });
     },
 
     // Batch refresh: increment multiple triggers in a single set() to reduce re-renders
@@ -85,6 +93,9 @@ export const useOntologyRefreshTrigger = () =>
 export const useSearchReady = () =>
   useRefreshStore((state) => state.searchReady);
 
+export const useSearchIndexing = () =>
+  useRefreshStore((state) => state.searchIndexing);
+
 // Actions (stable references - can be called outside React)
 export const refreshActions = {
   incrementSearchRefresh: () =>
@@ -95,6 +106,8 @@ export const refreshActions = {
     useRefreshStore.getState().incrementOntologyRefresh(),
   setSearchReady: (ready: boolean) =>
     useRefreshStore.getState().setSearchReady(ready),
+  setSearchIndexing: (indexing: boolean) =>
+    useRefreshStore.getState().setSearchIndexing(indexing),
   batchRefresh: (options: { search?: boolean; calendar?: boolean; ontology?: boolean }) =>
     useRefreshStore.getState().batchRefresh(options),
   patchNote: (meta: NoteMetadata) =>

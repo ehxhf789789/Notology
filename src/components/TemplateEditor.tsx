@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type { FolderNoteTemplate } from '../types';
+import { useSettingsStore } from '../stores/zustand/settingsStore';
+import { t } from '../utils/i18n';
 
 interface TemplateEditorProps {
   template?: FolderNoteTemplate;
@@ -8,6 +10,7 @@ interface TemplateEditorProps {
 }
 
 function TemplateEditor({ template, onSave, onCancel }: TemplateEditorProps) {
+  const language = useSettingsStore(s => s.language);
   const [name, setName] = useState(template?.name || '');
   const [level, setLevel] = useState(template?.level ?? 0);
   const [body, setBody] = useState(template?.body || '# {{title}}\n\n');
@@ -36,17 +39,17 @@ function TemplateEditor({ template, onSave, onCancel }: TemplateEditorProps) {
   return (
     <div className="template-editor">
       <div className="template-editor-field">
-        <label className="template-editor-label">이름</label>
+        <label className="template-editor-label">{t('name', language)}</label>
         <input
           className="template-editor-input"
           value={name}
           onChange={e => setName(e.target.value)}
-          placeholder="템플릿 이름"
+          placeholder={t('templateNameField', language)}
         />
       </div>
 
       <div className="template-editor-field">
-        <label className="template-editor-label">레벨</label>
+        <label className="template-editor-label">{t('level', language)}</label>
         <input
           className="template-editor-input template-editor-input-small"
           type="number"
@@ -58,27 +61,27 @@ function TemplateEditor({ template, onSave, onCancel }: TemplateEditorProps) {
       </div>
 
       <div className="template-editor-field">
-        <label className="template-editor-label">CSS Classes</label>
+        <label className="template-editor-label">{t('templateCssClasses', language)}</label>
         <input
           className="template-editor-input"
           value={cssclasses}
           onChange={e => setCssclasses(e.target.value)}
-          placeholder="folder-custom (쉼표로 구분)"
+          placeholder={`folder-custom (${t('commaSeparated', language)})`}
         />
       </div>
 
       <div className="template-editor-field">
-        <label className="template-editor-label">태그</label>
+        <label className="template-editor-label">{t('tags', language)}</label>
         <input
           className="template-editor-input"
           value={tags}
           onChange={e => setTags(e.target.value)}
-          placeholder="태그 (쉼표로 구분)"
+          placeholder={`${t('tags', language)} (${t('commaSeparated', language)})`}
         />
       </div>
 
       <div className="template-editor-field">
-        <label className="template-editor-label">본문 (Markdown)</label>
+        <label className="template-editor-label">{t('bodyMarkdown', language)}</label>
         <textarea
           className="template-editor-textarea"
           value={body}
@@ -89,8 +92,8 @@ function TemplateEditor({ template, onSave, onCancel }: TemplateEditorProps) {
       </div>
 
       <div className="template-editor-actions">
-        <button className="settings-action-btn" onClick={onCancel}>취소</button>
-        <button className="template-editor-save-btn" onClick={handleSave}>저장</button>
+        <button className="settings-action-btn" onClick={onCancel}>{t('cancel', language)}</button>
+        <button className="template-editor-save-btn" onClick={handleSave}>{t('save', language)}</button>
       </div>
     </div>
   );

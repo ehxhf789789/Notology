@@ -1,5 +1,7 @@
 import { FolderOpen, FolderPlus, Trash2, X } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getVersion } from '@tauri-apps/api/app';
+import { useState, useEffect } from 'react';
 import { useVaultPath } from '../stores/zustand/fileTreeStore';
 import { useRecentVaults } from '../stores/zustand/vaultConfigStore';
 import { useSettingsStore } from '../stores/zustand/settingsStore';
@@ -27,6 +29,12 @@ function VaultSelector({ onClose, showCloseButton = false }: VaultSelectorProps)
     return theme;
   };
   const effectiveTheme = getEffectiveTheme();
+
+  // Get app version from tauri.conf.json
+  const [appVersion, setAppVersion] = useState('');
+  useEffect(() => {
+    getVersion().then(v => setAppVersion(v)).catch(() => {});
+  }, []);
   const logo = effectiveTheme === 'light' ? logoBlack : logoWhite;
 
   return (
@@ -41,7 +49,7 @@ function VaultSelector({ onClose, showCloseButton = false }: VaultSelectorProps)
           <img src={logo} alt="Notology" className="vault-selector-logo" />
           <div className="vault-selector-title-row">
             <h1 className="vault-selector-title">Notology</h1>
-            <span className="vault-selector-version">v1.0.6</span>
+            <span className="vault-selector-version">{appVersion ? `v${appVersion}` : ''}</span>
           </div>
           <p className="vault-selector-subtitle">{t('selectVaultToStart', language)}</p>
         </div>

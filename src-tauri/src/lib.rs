@@ -52,15 +52,37 @@ use rayon::prelude::*;
 use regex::Regex;
 use frontmatter::FrontmatterParser;
 use serde::{Serialize, Deserialize};
+use std::collections::HashMap;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use once_cell::sync::Lazy;
 use opener;
-use tauri::Manager;
+use tauri::{Manager, Emitter};
 
 use search::{SearchIndex, NoteFilter, NoteMetadata, RelationshipData, GraphData, SearchResult as IndexSearchResult};
 use search::watcher::VaultWatcher;
+
+/// State for cancellable bulk tag operations
+pub struct BulkOperationState {
+    pub cancel_requested: AtomicBool,
+}
+
+/// Per-file mutex to prevent concurrent read-modify-write races.
+/// Without this, write_file, update_note_frontmatter, and touch_note_modified
+/// can interleave reads and writes, causing data loss (TOCTOU race).
+static FILE_LOCKS: Lazy<Mutex<HashMap<String, Arc<Mutex<()>>>>> = Lazy::new(|| {
+    Mutex::new(HashMap::new())
+});
+
+fn get_file_lock(path: &str) -> Arc<Mutex<()>> {
+    let mut locks = FILE_LOCKS.lock().unwrap();
+    locks.entry(path.to_string())
+        .or_insert_with(|| Arc::new(Mutex::new(())))
+        .clone()
+}
 
 /// Atomic file write: write to a temp file in the same directory, then rename.
 /// This prevents Synology Drive (or any file watcher) from syncing a partially-written file.
@@ -85,12 +107,83 @@ fn atomic_write_file(path: &Path, content: &[u8]) -> Result<(), String> {
 
     Ok(())
 }
+/// Modify a tag in a frontmatter YAML string.
+/// If `new_name` is Some, renames old_name → new_name.
+/// If `new_name` is None, removes old_name.
+/// Returns the modified YAML string if the tag was found, or None if not found.
+fn modify_tag_in_frontmatter_yaml(
+    yaml_str: &str,
+    namespace: &str,
+    old_name: &str,
+    new_name: Option<&str>,
+) -> Result<Option<String>, String> {
+    let mut value: serde_yaml::Value =
+        serde_yaml::from_str(yaml_str).map_err(|e| format!("YAML parse error: {}", e))?;
+
+    let tags = match value.get_mut("tags") {
+        Some(t) => t,
+        None => return Ok(None), // No tags section
+    };
+
+    let ns_value = match tags.get_mut(namespace) {
+        Some(v) => v,
+        None => return Ok(None), // Namespace not found
+    };
+
+    let seq = match ns_value.as_sequence_mut() {
+        Some(s) => s,
+        None => return Ok(None), // Not a sequence
+    };
+
+    // Find the tag in the sequence
+    let mut found = false;
+
+    if let Some(new) = new_name {
+        // Rename: replace old_name with new_name
+        for item in seq.iter_mut() {
+            if let Some(s) = item.as_str() {
+                if s == old_name {
+                    *item = serde_yaml::Value::String(new.to_string());
+                    found = true;
+                }
+            }
+        }
+    } else {
+        // Delete: remove old_name
+        seq.retain(|item| {
+            if let Some(s) = item.as_str() {
+                if s == old_name {
+                    found = true;
+                    return false; // Remove
+                }
+            }
+            true
+        });
+    }
+
+    if !found {
+        return Ok(None);
+    }
+
+    // If namespace array is now empty after deletion, remove the key
+    if new_name.is_none() && seq.is_empty() {
+        if let Some(tags_map) = tags.as_mapping_mut() {
+            tags_map.remove(&serde_yaml::Value::String(namespace.to_string()));
+        }
+    }
+
+    let result = serde_yaml::to_string(&value).map_err(|e| format!("YAML serialize error: {}", e))?;
+    // serde_yaml adds a trailing newline; trim it for consistency
+    Ok(Some(result.trim_end_matches('\n').to_string()))
+}
+
 use memo::{MemoIndex, MemoQueryFilter, IndexedMemo};
 
 struct SearchState {
     index: Option<Arc<SearchIndex>>,
     _watcher: Option<VaultWatcher>,
     memo_index: Option<Arc<MemoIndex>>,
+    init_in_progress: bool,
 }
 
 #[derive(Serialize)]
@@ -346,6 +439,11 @@ async fn write_file(
         None => body,
     };
 
+    // Per-file lock: prevent concurrent read-modify-write races with
+    // update_note_frontmatter and touch_note_modified
+    let lock = get_file_lock(&path);
+    let _guard = lock.lock().map_err(|e| format!("File lock poisoned: {}", e))?;
+
     // Backup before overwriting (best effort — don't fail if backup fails)
     if let Some(vault_root) = find_vault_root(Path::new(&path)) {
         if let Err(e) = backup_before_save(Path::new(&path), &vault_root) {
@@ -355,9 +453,6 @@ async fn write_file(
 
     // Atomic write: write to temp file then rename to prevent partial file sync
     atomic_write_file(Path::new(&path), content.as_bytes())?;
-
-    // Let file watcher handle indexing (200ms debounce)
-    // This prevents duplicate entries in search
 
     Ok(())
 }
@@ -948,24 +1043,115 @@ async fn init_search_index(
     state: tauri::State<'_, Mutex<SearchState>>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
-    let index = SearchIndex::new(&vault_path)?;
-    let index = Arc::new(index);
+    // Atomically check state and claim init
+    {
+        let mut search_state = state.lock().map_err(|e| e.to_string())?;
 
-    // Full reindex on init
-    index.full_reindex()?;
+        // Already initialized — re-emit event (frontend listener may have missed it) and return
+        if search_state.index.is_some() {
+            log::info!("[init_search_index] Already initialized, re-emitting event");
+            drop(search_state);
+            let _ = app.emit("search-index-ready", ());
+            return Ok(());
+        }
 
-    // Start file watcher with app handle for frontend event emission
-    let watcher = VaultWatcher::start(&vault_path, Arc::clone(&index), app)?;
+        // Another handler is already initializing — return immediately.
+        // Frontend uses Tauri events (not polling) to detect completion,
+        // so duplicate calls don't need to wait.
+        if search_state.init_in_progress {
+            log::info!("[init_search_index] Init already in progress, returning Ok");
+            return Ok(());
+        }
 
-    // Initialize memo index
-    let memo_index = Arc::new(MemoIndex::new(&vault_path));
-    memo_index.full_reindex()?;
+        search_state.init_in_progress = true;
+    }
 
+    log::info!("[init_search_index] Starting initialization for: {}", vault_path);
+    let init_start = std::time::Instant::now();
+
+    // Phase 1: Create index and reindex on a blocking thread.
+    // spawn_blocking prevents saturating the tokio async runtime.
+    let vault_path_clone = vault_path.clone();
+    let index_result = tokio::task::spawn_blocking(move || -> Result<Arc<SearchIndex>, String> {
+        let idx = SearchIndex::new(&vault_path_clone)?;
+        let arc_idx = Arc::new(idx);
+        arc_idx.full_reindex()?;
+        Ok(arc_idx)
+    })
+    .await
+    .map_err(|e| {
+        let mut s = state.lock().unwrap();
+        s.init_in_progress = false;
+        format!("spawn_blocking join error: {}", e)
+    })?;
+
+    let index = match index_result {
+        Ok(idx) => idx,
+        Err(e) => {
+            let mut s = state.lock().map_err(|e| e.to_string())?;
+            s.init_in_progress = false;
+            log::error!("[init_search_index] Phase 1 failed: {}", e);
+            return Err(e);
+        }
+    };
+
+    log::info!("[init_search_index] Index + reindex done in {:.1}s, storing immediately",
+        init_start.elapsed().as_secs_f64());
+
+    // Store index immediately so queryNotes works right away
+    {
+        let mut search_state = state.lock().map_err(|e| e.to_string())?;
+        search_state.index = Some(Arc::clone(&index));
+    }
+
+    // Notify frontend via event (bypasses IPC invoke channel which may be unreliable)
+    let _ = app.emit("search-index-ready", ());
+    log::info!("[init_search_index] Emitted search-index-ready event");
+
+    // Phase 2: VaultWatcher + MemoIndex — non-fatal, index already works
+    let watcher = match VaultWatcher::start(&vault_path, Arc::clone(&index), app) {
+        Ok(w) => Some(w),
+        Err(e) => {
+            log::warn!("[init_search_index] VaultWatcher failed (non-fatal): {}", e);
+            None
+        }
+    };
+
+    let vault_path_clone = vault_path.clone();
+    let memo_index = tokio::task::spawn_blocking(move || {
+        let memo = Arc::new(MemoIndex::new(&vault_path_clone));
+        if let Err(e) = memo.full_reindex() {
+            log::warn!("[init_search_index] MemoIndex reindex failed (non-fatal): {}", e);
+        }
+        memo
+    })
+    .await
+    .map_err(|e| format!("MemoIndex spawn_blocking join error: {}", e))?;
+
+    // Store remaining components and clear in_progress flag
+    {
+        let mut search_state = state.lock().map_err(|e| e.to_string())?;
+        search_state._watcher = watcher;
+        search_state.memo_index = Some(memo_index);
+        search_state.init_in_progress = false;
+    }
+
+    log::info!("[init_search_index] Full initialization completed in {:.1}s",
+        init_start.elapsed().as_secs_f64());
+    Ok(())
+}
+
+/// Reset search state — used when frontend reloads or vault changes
+#[tauri::command]
+async fn reset_search_state(
+    state: tauri::State<'_, Mutex<SearchState>>,
+) -> Result<(), String> {
     let mut search_state = state.lock().map_err(|e| e.to_string())?;
-    search_state.index = Some(index);
-    search_state._watcher = Some(watcher);
-    search_state.memo_index = Some(memo_index);
-
+    log::info!("[reset_search_state] Clearing search state");
+    search_state.index = None;
+    search_state._watcher = None;
+    search_state.memo_index = None;
+    search_state.init_in_progress = false;
     Ok(())
 }
 
@@ -1172,6 +1358,16 @@ async fn get_all_used_tags(
     let search_state = state.lock().map_err(|e| e.to_string())?;
     let index = search_state.index.as_ref().ok_or("Search index not initialized")?;
     index.get_all_tags()
+}
+
+#[tauri::command]
+async fn get_suggestion_terms(
+    limit: Option<usize>,
+    state: tauri::State<'_, Mutex<SearchState>>,
+) -> Result<Vec<(String, u32)>, String> {
+    let search_state = state.lock().map_err(|e| e.to_string())?;
+    let index = search_state.index.as_ref().ok_or("Search index not initialized")?;
+    index.get_suggestion_terms(limit.unwrap_or(200))
 }
 
 /// Get reindex progress (for progress UI)
@@ -1855,6 +2051,36 @@ fn rename_file_with_links(
         );
     }
 
+    // Update frontmatter title: field if it exists in the renamed .md file
+    // This keeps the frontmatter in sync with the file name
+    if final_path.extension().map(|e| e == "md").unwrap_or(false) && final_path.exists() {
+        if let Ok(content) = fs::read_to_string(&final_path) {
+            if content.starts_with("---\n") || content.starts_with("---\r\n") {
+                if let Some(end_idx) = content[4..].find("\n---").map(|i| i + 4) {
+                    let fm_section = &content[4..end_idx];
+                    // Check if title: field exists in frontmatter
+                    if let Some(title_start) = fm_section.find("\ntitle:").or_else(|| {
+                        if fm_section.starts_with("title:") { Some(0) } else { None }
+                    }) {
+                        let new_display_title = new_stem.replace('_', " ");
+                        // Find the exact position of the title line
+                        let abs_start = if title_start == 0 { 4 } else { 4 + title_start + 1 };
+                        let line_end = content[abs_start..].find('\n')
+                            .map(|i| abs_start + i)
+                            .unwrap_or(end_idx);
+                        let new_content = format!(
+                            "{}title: \"{}\"{}",
+                            &content[..abs_start],
+                            new_display_title,
+                            &content[line_end..]
+                        );
+                        let _ = fs::write(&final_path, new_content);
+                    }
+                }
+            }
+        }
+    }
+
     Ok(final_path.to_string_lossy().to_string())
 }
 
@@ -2075,6 +2301,17 @@ fn update_note_frontmatter(
         return Err("Note does not exist".to_string());
     }
 
+    // Per-file lock: prevent concurrent read-modify-write races
+    let lock = get_file_lock(&note_path);
+    let _guard = lock.lock().map_err(|e| format!("File lock poisoned: {}", e))?;
+
+    // Backup before overwriting (best effort)
+    if let Some(vault_root) = find_vault_root(path) {
+        if let Err(e) = backup_before_save(path, &vault_root) {
+            log::warn!("Backup before frontmatter update failed (non-fatal): {}", e);
+        }
+    }
+
     let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
 
     // Split into frontmatter and body
@@ -2092,7 +2329,8 @@ fn update_note_frontmatter(
         format!("---\n{}\n---\n\n{}", new_frontmatter_yaml, content)
     };
 
-    fs::write(path, new_content).map_err(|e| e.to_string())?;
+    // Atomic write: prevents data loss on force-kill (was fs::write — non-atomic!)
+    atomic_write_file(path, new_content.as_bytes())?;
     Ok(())
 }
 
@@ -2104,6 +2342,17 @@ fn touch_note_modified(note_path: String) -> Result<(), String> {
     let path = Path::new(&note_path);
     if !path.exists() {
         return Err("Note does not exist".to_string());
+    }
+
+    // Per-file lock: prevent concurrent read-modify-write races
+    let lock = get_file_lock(&note_path);
+    let _guard = lock.lock().map_err(|e| format!("File lock poisoned: {}", e))?;
+
+    // Backup before overwriting (best effort)
+    if let Some(vault_root) = find_vault_root(path) {
+        if let Err(e) = backup_before_save(path, &vault_root) {
+            log::warn!("Backup before touch_note_modified failed (non-fatal): {}", e);
+        }
     }
 
     let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
@@ -2142,6 +2391,376 @@ fn touch_note_modified(note_path: String) -> Result<(), String> {
     let new_content = format!("---\n{}\n---{}", updated_fm, body);
     atomic_write_file(path, new_content.as_bytes())?;
     Ok(())
+}
+
+#[derive(Serialize, Clone)]
+struct BulkTagProgress {
+    total: usize,
+    completed: usize,
+    current_path: String,
+}
+
+#[derive(Serialize)]
+struct BulkTagResult {
+    affected_count: usize,
+    failed_paths: Vec<String>,
+    cancelled: bool,
+}
+
+/// Bulk delete a tag from all notes in the vault.
+/// tag format: "namespace/tagname" (e.g., "domain/AI")
+#[tauri::command]
+async fn bulk_delete_tag(
+    tag: String,
+    state: tauri::State<'_, Mutex<SearchState>>,
+    bulk_state: tauri::State<'_, BulkOperationState>,
+    app: tauri::AppHandle,
+) -> Result<BulkTagResult, String> {
+    bulk_state.cancel_requested.store(false, Ordering::SeqCst);
+
+    // Parse "namespace/tagname"
+    let (namespace, tag_name) = parse_namespaced_tag(&tag)?;
+
+    // Get all notes with this tag
+    let note_paths = {
+        let search_state = state.lock().map_err(|e| e.to_string())?;
+        let index = search_state.index.as_ref().ok_or("Search index not initialized")?;
+        let filter = NoteFilter {
+            tags: Some(vec![tag.clone()]),
+            note_type: None,
+            created_after: None,
+            created_before: None,
+            modified_after: None,
+            modified_before: None,
+            sort_by: None,
+            sort_order: None,
+        };
+        let notes = index.query_notes(&filter)?;
+        notes.into_iter().map(|n| n.path).collect::<Vec<_>>()
+    };
+
+    let total = note_paths.len();
+    let mut affected_count = 0;
+    let mut failed_paths = Vec::new();
+
+    for (i, note_path) in note_paths.iter().enumerate() {
+        // Check cancellation
+        if bulk_state.cancel_requested.load(Ordering::Relaxed) {
+            return Ok(BulkTagResult { affected_count, failed_paths, cancelled: true });
+        }
+
+        // Emit progress
+        let _ = app.emit("tag-operation-progress", BulkTagProgress {
+            total,
+            completed: i,
+            current_path: note_path.clone(),
+        });
+
+        match modify_note_tag(note_path, &namespace, &tag_name, None) {
+            Ok(true) => {
+                affected_count += 1;
+                // Re-index
+                let search_state = state.lock().map_err(|e| e.to_string())?;
+                if let Some(index) = search_state.index.as_ref() {
+                    let _ = index.index_file(Path::new(note_path));
+                }
+            }
+            Ok(false) => {} // Tag not found in this note's frontmatter
+            Err(e) => {
+                log::warn!("Failed to modify tag in {}: {}", note_path, e);
+                failed_paths.push(note_path.clone());
+            }
+        }
+    }
+
+    // Final progress
+    let _ = app.emit("tag-operation-progress", BulkTagProgress {
+        total,
+        completed: total,
+        current_path: String::new(),
+    });
+
+    Ok(BulkTagResult { affected_count, failed_paths, cancelled: false })
+}
+
+/// Bulk rename a tag across all notes in the vault.
+/// old_tag/new_tag format: "namespace/tagname" (e.g., "domain/AI" → "domain/인공지능")
+#[tauri::command]
+async fn bulk_rename_tag(
+    old_tag: String,
+    new_tag: String,
+    state: tauri::State<'_, Mutex<SearchState>>,
+    bulk_state: tauri::State<'_, BulkOperationState>,
+    app: tauri::AppHandle,
+) -> Result<BulkTagResult, String> {
+    bulk_state.cancel_requested.store(false, Ordering::SeqCst);
+
+    let (old_ns, old_name) = parse_namespaced_tag(&old_tag)?;
+    let (new_ns, new_name) = parse_namespaced_tag(&new_tag)?;
+
+    if old_ns != new_ns {
+        return Err("Cannot rename tag across different namespaces".to_string());
+    }
+
+    // Get all notes with the old tag
+    let note_paths = {
+        let search_state = state.lock().map_err(|e| e.to_string())?;
+        let index = search_state.index.as_ref().ok_or("Search index not initialized")?;
+        let filter = NoteFilter {
+            tags: Some(vec![old_tag.clone()]),
+            note_type: None,
+            created_after: None,
+            created_before: None,
+            modified_after: None,
+            modified_before: None,
+            sort_by: None,
+            sort_order: None,
+        };
+        let notes = index.query_notes(&filter)?;
+        notes.into_iter().map(|n| n.path).collect::<Vec<_>>()
+    };
+
+    let total = note_paths.len();
+    let mut affected_count = 0;
+    let mut failed_paths = Vec::new();
+
+    for (i, note_path) in note_paths.iter().enumerate() {
+        if bulk_state.cancel_requested.load(Ordering::Relaxed) {
+            return Ok(BulkTagResult { affected_count, failed_paths, cancelled: true });
+        }
+
+        let _ = app.emit("tag-operation-progress", BulkTagProgress {
+            total,
+            completed: i,
+            current_path: note_path.clone(),
+        });
+
+        match modify_note_tag(note_path, &old_ns, &old_name, Some(&new_name)) {
+            Ok(true) => {
+                affected_count += 1;
+                let search_state = state.lock().map_err(|e| e.to_string())?;
+                if let Some(index) = search_state.index.as_ref() {
+                    let _ = index.index_file(Path::new(note_path));
+                }
+            }
+            Ok(false) => {}
+            Err(e) => {
+                log::warn!("Failed to rename tag in {}: {}", note_path, e);
+                failed_paths.push(note_path.clone());
+            }
+        }
+    }
+
+    let _ = app.emit("tag-operation-progress", BulkTagProgress {
+        total,
+        completed: total,
+        current_path: String::new(),
+    });
+
+    Ok(BulkTagResult { affected_count, failed_paths, cancelled: false })
+}
+
+/// Cancel an ongoing bulk tag operation
+#[tauri::command]
+async fn cancel_bulk_operation(
+    bulk_state: tauri::State<'_, BulkOperationState>,
+) -> Result<(), String> {
+    bulk_state.cancel_requested.store(true, Ordering::SeqCst);
+    Ok(())
+}
+
+/// Parse "namespace/tagname" into (namespace, tagname)
+fn parse_namespaced_tag(tag: &str) -> Result<(String, String), String> {
+    let parts: Vec<&str> = tag.splitn(2, '/').collect();
+    if parts.len() != 2 || parts[0].is_empty() || parts[1].is_empty() {
+        return Err(format!("Invalid tag format '{}'. Expected 'namespace/tagname'", tag));
+    }
+    Ok((parts[0].to_string(), parts[1].to_string()))
+}
+
+/// Modify a single note's tag in frontmatter.
+/// Returns Ok(true) if modified, Ok(false) if tag not found.
+fn modify_note_tag(
+    note_path: &str,
+    namespace: &str,
+    old_name: &str,
+    new_name: Option<&str>,
+) -> Result<bool, String> {
+    let path = Path::new(note_path);
+    if !path.exists() {
+        return Err(format!("File does not exist: {}", note_path));
+    }
+
+    let lock = get_file_lock(note_path);
+    let _guard = lock.lock().map_err(|e| format!("File lock poisoned: {}", e))?;
+
+    // Backup
+    if let Some(vault_root) = find_vault_root(path) {
+        let _ = backup_before_save(path, &vault_root);
+    }
+
+    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    if !content.starts_with("---") {
+        return Ok(false); // No frontmatter
+    }
+
+    let end_idx = match content[3..].find("\n---") {
+        Some(idx) => idx,
+        None => return Ok(false),
+    };
+
+    let fm_yaml = &content[4..3 + end_idx]; // YAML between --- markers
+    let body = &content[3 + end_idx + 4..];
+
+    match modify_tag_in_frontmatter_yaml(fm_yaml, namespace, old_name, new_name)? {
+        Some(new_yaml) => {
+            let new_content = format!("---\n{}\n---{}", new_yaml, body);
+            atomic_write_file(path, new_content.as_bytes())?;
+            Ok(true)
+        }
+        None => Ok(false), // Tag not found
+    }
+}
+
+/// Add a tag to a single note's frontmatter.
+/// Creates the tags section and namespace array if they don't exist.
+/// Returns Ok(true) if added, Ok(false) if tag already exists.
+fn add_tag_to_note(
+    note_path: &str,
+    namespace: &str,
+    tag_name: &str,
+) -> Result<bool, String> {
+    let path = Path::new(note_path);
+    if !path.exists() {
+        return Err(format!("File does not exist: {}", note_path));
+    }
+
+    let lock = get_file_lock(note_path);
+    let _guard = lock.lock().map_err(|e| format!("File lock poisoned: {}", e))?;
+
+    // Backup
+    if let Some(vault_root) = find_vault_root(path) {
+        let _ = backup_before_save(path, &vault_root);
+    }
+
+    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    if !content.starts_with("---") {
+        return Ok(false); // No frontmatter
+    }
+
+    let end_idx = match content[3..].find("\n---") {
+        Some(idx) => idx,
+        None => return Ok(false),
+    };
+
+    let fm_yaml = &content[4..3 + end_idx];
+    let body = &content[3 + end_idx + 4..];
+
+    // Parse YAML
+    let mut value: serde_yaml::Value =
+        serde_yaml::from_str(fm_yaml).map_err(|e| format!("YAML parse error: {}", e))?;
+
+    // Ensure "tags" exists as a mapping
+    if value.get("tags").is_none() {
+        if let Some(map) = value.as_mapping_mut() {
+            map.insert(
+                serde_yaml::Value::String("tags".to_string()),
+                serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
+            );
+        } else {
+            return Ok(false);
+        }
+    }
+
+    let tags = value.get_mut("tags").unwrap();
+    if !tags.is_mapping() {
+        return Ok(false);
+    }
+
+    // Ensure namespace array exists
+    let ns_key = serde_yaml::Value::String(namespace.to_string());
+    if tags.get(&ns_key).is_none() {
+        if let Some(map) = tags.as_mapping_mut() {
+            map.insert(ns_key.clone(), serde_yaml::Value::Sequence(Vec::new()));
+        }
+    }
+
+    let seq = match tags.get_mut(&ns_key).and_then(|v| v.as_sequence_mut()) {
+        Some(s) => s,
+        None => return Ok(false),
+    };
+
+    // Check if tag already exists (case-insensitive)
+    let tag_lower = tag_name.to_lowercase();
+    let already_exists = seq.iter().any(|item| {
+        item.as_str().map(|s| s.to_lowercase() == tag_lower).unwrap_or(false)
+    });
+    if already_exists {
+        return Ok(false);
+    }
+
+    // Add tag
+    seq.push(serde_yaml::Value::String(tag_name.to_string()));
+
+    let new_yaml = serde_yaml::to_string(&value)
+        .map_err(|e| format!("YAML serialize error: {}", e))?;
+    let new_yaml = new_yaml.trim_end_matches('\n');
+    let new_content = format!("---\n{}\n---{}", new_yaml, body);
+    atomic_write_file(path, new_content.as_bytes())?;
+    Ok(true)
+}
+
+/// Bulk add a tag to multiple notes.
+#[tauri::command]
+async fn bulk_add_tags(
+    paths: Vec<String>,
+    tag: String,
+    state: tauri::State<'_, Mutex<SearchState>>,
+    bulk_state: tauri::State<'_, BulkOperationState>,
+    app: tauri::AppHandle,
+) -> Result<BulkTagResult, String> {
+    bulk_state.cancel_requested.store(false, Ordering::SeqCst);
+
+    let (namespace, tag_name) = parse_namespaced_tag(&tag)?;
+    let total = paths.len();
+    let mut affected_count = 0;
+    let mut failed_paths = Vec::new();
+
+    for (i, note_path) in paths.iter().enumerate() {
+        if bulk_state.cancel_requested.load(Ordering::Relaxed) {
+            return Ok(BulkTagResult { affected_count, failed_paths, cancelled: true });
+        }
+
+        let _ = app.emit("tag-operation-progress", BulkTagProgress {
+            total,
+            completed: i,
+            current_path: note_path.clone(),
+        });
+
+        match add_tag_to_note(note_path, &namespace, &tag_name) {
+            Ok(true) => {
+                affected_count += 1;
+                // Re-index
+                let search_state = state.lock().map_err(|e| e.to_string())?;
+                if let Some(index) = search_state.index.as_ref() {
+                    let _ = index.index_file(Path::new(note_path));
+                }
+            }
+            Ok(false) => {} // Already has tag or no frontmatter
+            Err(e) => {
+                log::warn!("Failed to add tag to {}: {}", note_path, e);
+                failed_paths.push(note_path.clone());
+            }
+        }
+    }
+
+    let _ = app.emit("tag-operation-progress", BulkTagProgress {
+        total,
+        completed: total,
+        current_path: String::new(),
+    });
+
+    Ok(BulkTagResult { affected_count, failed_paths, cancelled: false })
 }
 
 #[cfg(feature = "devtools")]
@@ -2229,6 +2848,14 @@ async fn create_hover_window(
     use tauri::webview::{WebviewWindowBuilder, Color};
     use tauri::WebviewUrl;
 
+    // Parse theme directly from URL query param (avoids JS↔Rust serialization issues)
+    let is_light = url.contains("theme=light");
+    let bg = if is_light {
+        Color(245, 245, 245, 255) // #f5f5f5
+    } else {
+        Color(30, 30, 30, 255)    // #1e1e1e
+    };
+
     WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
         .title(&title)
         .inner_size(width as f64, height as f64)
@@ -2236,9 +2863,9 @@ async fn create_hover_window(
         .decorations(false)
         .resizable(true)
         .focused(true)
-        .visible(false)  // Hidden until content ready
+        .visible(false)  // Hidden until frontend show()
         .min_inner_size(400.0, 300.0)
-        .background_color(Color(30, 30, 30, 255))
+        .background_color(bg)
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -3101,7 +3728,11 @@ pub fn run() {
             index: None,
             _watcher: None,
             memo_index: None,
+            init_in_progress: false,
         }))
+        .manage(BulkOperationState {
+            cancel_requested: AtomicBool::new(false),
+        })
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -3110,6 +3741,7 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -3143,6 +3775,7 @@ pub fn run() {
             set_window_icon,
             create_hover_window,
             init_search_index,
+            reset_search_state,
             clear_search_index,
             full_text_search,
             query_notes,
@@ -3150,6 +3783,7 @@ pub fn run() {
             get_graph_data,
             reindex_vault,
             get_all_used_tags,
+            get_suggestion_terms,
             search_attachments,
             delete_multiple_files,
             delete_attachments_with_links,
@@ -3184,6 +3818,11 @@ pub fn run() {
             // GPU compatibility detection
             get_gpu_config,
             set_gpu_config,
+            // Bulk tag operations
+            bulk_delete_tag,
+            bulk_rename_tag,
+            bulk_add_tags,
+            cancel_bulk_operation,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

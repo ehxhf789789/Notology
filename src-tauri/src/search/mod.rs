@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
+use once_cell::sync::Lazy;
 use rayon::prelude::*;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use tantivy::collector::TopDocs;
@@ -18,9 +20,136 @@ use walkdir::WalkDir;
 
 use parser::*;
 
+/// Strip markdown formatting markers from text, preserving content.
+/// Removes: bold/italic (**,*,__), highlight (==), strikethrough (~~),
+/// headings (#), horizontal rules (---), bullet/list markers, blockquotes (>),
+/// inline code backticks, code fences, links, images, wiki links.
+/// Preserves: content-internal dashes (e.g., phone numbers 010-5424-3432).
+fn strip_markdown_formatting(text: &str) -> String {
+    // Line-level patterns
+    static RE_HORIZONTAL_RULE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^\s*(?:-{3,}|\*{3,}|_{3,})\s*$").unwrap());
+    static RE_HEADING: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^#{1,6}\s+").unwrap());
+    static RE_CODE_FENCE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^```").unwrap());
+    static RE_BLOCKQUOTE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^(?:>\s?)+").unwrap());
+    static RE_BULLET: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^(\s*)[-*+]\s+").unwrap());
+    static RE_NUMBERED_LIST: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^(\s*)\d+\.\s+").unwrap());
+
+    // Inline patterns
+    static RE_IMAGE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"!\[([^\]]*)\]\([^)]*\)").unwrap());
+    static RE_LINK: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"\[([^\]]*)\]\([^)]*\)").unwrap());
+    static RE_WIKI_EMBED: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"!\[\[([^\]]+)\]\]").unwrap());
+    static RE_WIKI_LINK: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"\[\[([^\]|]+)(?:\|([^\]]+))?\]\]").unwrap());
+    static RE_HIGHLIGHT: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"==([^=]+)==").unwrap());
+    static RE_BOLD_ITALIC: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"\*{3}(.+?)\*{3}").unwrap());
+    static RE_BOLD: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"\*{2}(.+?)\*{2}").unwrap());
+    static RE_ITALIC: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"\*([^*]+)\*").unwrap());
+    static RE_BOLD_UNDER: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"__(.+?)__").unwrap());
+    static RE_STRIKETHROUGH: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"~~(.+?)~~").unwrap());
+    static RE_INLINE_CODE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"`([^`]+)`").unwrap());
+
+    let mut lines: Vec<String> = Vec::new();
+    let mut in_code_block = false;
+
+    for line in text.lines() {
+        // Toggle code block state
+        if RE_CODE_FENCE.is_match(line) {
+            in_code_block = !in_code_block;
+            continue; // Skip the fence line itself
+        }
+
+        // Inside code block: keep content as-is
+        if in_code_block {
+            lines.push(line.to_string());
+            continue;
+        }
+
+        // Skip horizontal rules (---, ***, ___)
+        if RE_HORIZONTAL_RULE.is_match(line) {
+            continue;
+        }
+
+        let mut processed = line.to_string();
+
+        // Remove heading markers (# Text → Text)
+        processed = RE_HEADING.replace(&processed, "").to_string();
+
+        // Remove blockquote markers (> Text → Text)
+        processed = RE_BLOCKQUOTE.replace_all(&processed, "").to_string();
+
+        // Remove bullet markers at line start (- Text → Text)
+        // Preserves indentation structure via capture group $1
+        processed = RE_BULLET.replace(&processed, "$1").to_string();
+
+        // Remove numbered list markers (1. Text → Text)
+        processed = RE_NUMBERED_LIST.replace(&processed, "$1").to_string();
+
+        // Images: ![alt](url) → alt
+        processed = RE_IMAGE.replace_all(&processed, "$1").to_string();
+
+        // Links: [text](url) → text
+        processed = RE_LINK.replace_all(&processed, "$1").to_string();
+
+        // Wiki embeds: ![[file]] → file
+        processed = RE_WIKI_EMBED.replace_all(&processed, "$1").to_string();
+
+        // Wiki links: [[target|alias]] → alias, [[target]] → target
+        processed = RE_WIKI_LINK
+            .replace_all(&processed, |caps: &regex::Captures| {
+                caps.get(2)
+                    .map_or_else(|| caps[1].to_string(), |m| m.as_str().to_string())
+            })
+            .to_string();
+
+        // Highlight: ==text== → text
+        processed = RE_HIGHLIGHT.replace_all(&processed, "$1").to_string();
+
+        // Bold+Italic: ***text*** → text (before bold/italic)
+        processed = RE_BOLD_ITALIC.replace_all(&processed, "$1").to_string();
+
+        // Bold: **text** → text
+        processed = RE_BOLD.replace_all(&processed, "$1").to_string();
+
+        // Italic: *text* → text (word-boundary aware)
+        processed = RE_ITALIC.replace_all(&processed, "$1").to_string();
+
+        // Bold underscores: __text__ → text
+        processed = RE_BOLD_UNDER.replace_all(&processed, "$1").to_string();
+
+        // Strikethrough: ~~text~~ → text
+        processed = RE_STRIKETHROUGH.replace_all(&processed, "$1").to_string();
+
+        // Inline code: `code` → code
+        processed = RE_INLINE_CODE.replace_all(&processed, "$1").to_string();
+
+        if !processed.trim().is_empty() {
+            lines.push(processed);
+        }
+    }
+
+    lines.join("\n")
+}
+
 /// Current schema version - increment this when index structure changes
 /// v3: Tags now include namespace prefix (e.g., "domain/특허출원")
-const SCHEMA_VERSION: u32 = 3;
+/// v4: Body text stripped of markdown formatting before indexing
+const SCHEMA_VERSION: u32 = 4;
 
 /// Metadata for version tracking and auto-regeneration
 #[derive(Serialize, Deserialize, Clone)]
@@ -106,6 +235,9 @@ pub struct GraphNode {
     pub path: String,
     pub is_folder_note: bool,
     pub tag_namespace: String,
+    pub memo_count: usize,
+    pub task_count: usize,
+    pub has_unresolved_tasks: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -208,6 +340,74 @@ fn is_cjk_char(c: char) -> bool {
     || (0x3400..=0x4DBF).contains(&cp)
     // CJK Extension B
     || (0x20000..=0x2A6DF).contains(&cp)
+}
+
+/// Strip common Korean particles (조사) from the end of a word to extract the stem.
+/// Returns the stem if stripping was successful and the result is 2+ chars, otherwise the original.
+fn strip_korean_particles(word: &str) -> &str {
+    // Ordered longest-first so we match the longest particle
+    const PARTICLES: &[&str] = &[
+        "에서는", "으로는", "에서도", "으로도", "까지는", "부터는", "에게는",
+        "에서", "으로", "까지", "부터", "에게", "한테", "처럼", "만큼",
+        "이나", "라는", "에는", "와는", "과는",
+        "은", "는", "이", "가", "을", "를", "에", "의", "로", "와", "과",
+        "도", "만", "야", "요", "며", "고", "서", "라",
+    ];
+    let chars: Vec<char> = word.chars().collect();
+    for p in PARTICLES {
+        if word.ends_with(p) {
+            let p_len = p.chars().count();
+            if chars.len() > p_len {
+                let stem_len = chars.len() - p_len;
+                if stem_len >= 2 {
+                    let byte_end: usize = chars[..stem_len].iter().map(|c| c.len_utf8()).sum();
+                    return &word[..byte_end];
+                }
+            }
+        }
+    }
+    word
+}
+
+/// Check if a word extracted from document body is a valid suggestion term.
+fn is_valid_suggestion_word(word: &str) -> bool {
+    let chars: Vec<char> = word.chars().collect();
+    if chars.is_empty() {
+        return false;
+    }
+
+    let has_cjk = chars.iter().any(|c| is_cjk_char(*c));
+
+    if has_cjk {
+        // Korean/CJK: require 2+ characters, only CJK chars
+        chars.len() >= 2 && chars.iter().all(|c| is_cjk_char(*c))
+    } else {
+        // Latin: require 3+ characters, alphabetic
+        if chars.len() < 3 {
+            return false;
+        }
+        // Filter pure numbers
+        if chars.iter().all(|c| c.is_ascii_digit()) {
+            return false;
+        }
+        // Must be mostly alphabetic
+        if !chars.iter().all(|c| c.is_alphanumeric()) {
+            return false;
+        }
+        let lower = word.to_lowercase();
+        const STOPWORDS: &[&str] = &[
+            "the", "and", "for", "are", "but", "not", "you", "all", "can", "had",
+            "her", "was", "one", "our", "out", "has", "have", "from", "this", "that",
+            "with", "they", "been", "said", "each", "which", "their", "will", "other",
+            "about", "many", "then", "them", "these", "some", "would", "make", "like",
+            "into", "could", "time", "very", "when", "come", "than", "look", "only",
+            "also", "back", "after", "use", "two", "how", "first", "well", "way",
+            "even", "new", "want", "because", "any", "give", "most", "find",
+            "here", "thing", "just", "where", "what", "know", "take", "who",
+            "http", "https", "www", "com", "org", "net", "html", "css",
+        ];
+        !STOPWORDS.contains(&lower.as_str())
+    }
 }
 
 /// Extract a snippet from text around the query terms
@@ -496,6 +696,28 @@ impl SearchIndex {
             return false;
         }
 
+        // Check if meta.json exists but segment files are missing (corrupted index).
+        // Tantivy panics (poisoning global LazyLock) if meta.json references non-existent segments.
+        let tantivy_meta = index_dir.join("meta.json");
+        if tantivy_meta.exists() {
+            let has_segment_files = fs::read_dir(index_dir)
+                .map(|entries| {
+                    entries.flatten().any(|e| {
+                        let name = e.file_name();
+                        let name = name.to_string_lossy();
+                        // Tantivy segment files have UUIDs and extensions like .store, .fast, .idx, etc.
+                        name.contains('.') && !name.starts_with('.') && name != "meta.json"
+                            && !name.starts_with("notology_") && !name.ends_with(".lock")
+                    })
+                })
+                .unwrap_or(false);
+
+            if !has_segment_files {
+                log::warn!("[SearchIndex] meta.json exists but no segment files found (corrupted). Regenerating...");
+                return true;
+            }
+        }
+
         // Check metadata
         match Self::read_metadata(index_dir) {
             Some(metadata) => {
@@ -578,6 +800,16 @@ impl SearchIndex {
         // Check if index needs regeneration due to version mismatch or corruption
         if Self::needs_regeneration(&index_dir, vault_path) {
             Self::force_delete_index(&index_dir);
+            // If deletion failed (directory still exists), force-remove remaining files
+            // to prevent opening a corrupted/incompatible index
+            if index_dir.exists() {
+                log::warn!("[SearchIndex] Index directory still exists after force_delete, cleaning up remaining files...");
+                if let Ok(entries) = fs::read_dir(&index_dir) {
+                    for entry in entries.flatten() {
+                        let _ = fs::remove_file(entry.path());
+                    }
+                }
+            }
         }
 
         if !index_dir.exists() {
@@ -866,11 +1098,12 @@ impl SearchIndex {
         let path_str = path.to_string_lossy().to_string();
 
         // Extract searchable text from body (handles SKETCH canvas nodes)
-        let searchable_body = if note_type.to_uppercase() == "SKETCH" {
+        let raw_body = if note_type.to_uppercase() == "SKETCH" {
             Self::extract_canvas_text(&body)
         } else {
             body.clone()
         };
+        let searchable_body = strip_markdown_formatting(&raw_body);
 
         // Remove existing document for this path (try both original and lowercase variants on Windows)
         let mut writer = self.writer.lock().map_err(|e| e.to_string())?;
@@ -1181,11 +1414,12 @@ impl SearchIndex {
         let path_str = path.to_string_lossy().to_string();
 
         // Extract searchable text from body
-        let searchable_body = if note_type.to_uppercase() == "SKETCH" {
+        let raw_body = if note_type.to_uppercase() == "SKETCH" {
             Self::extract_canvas_text(&body)
         } else {
             body
         };
+        let searchable_body = strip_markdown_formatting(&raw_body);
 
         Ok(ParsedDocument {
             path: path_str,
@@ -1310,9 +1544,10 @@ impl SearchIndex {
         let query_parser =
             QueryParser::for_index(&self.index, vec![self.f_title, self.f_body]);
 
-        let query = query_parser
-            .parse_query(query_str)
-            .map_err(|e| e.to_string())?;
+        let query = match query_parser.parse_query(query_str) {
+            Ok(q) => q,
+            Err(_) => return Ok(vec![]), // Invalid query (e.g. "**") → return empty results
+        };
 
         let top_docs = searcher
             .search(&query, &TopDocs::with_limit(limit))
@@ -1726,6 +1961,45 @@ impl SearchIndex {
 
     /// Get graph data for visualization (all nodes + edges in a single Tantivy scan)
     /// If container_path is provided, only include notes under that folder.
+    /// Count unresolved memos and tasks in a note's comments.json
+    fn count_memos_and_tasks(note_path: &str) -> (usize, usize) {
+        let base = if note_path.ends_with(".md") {
+            &note_path[..note_path.len() - 3]
+        } else {
+            note_path
+        };
+        let comments_file = Path::new(&format!("{}_att", base)).join("comments.json");
+
+        let content = match fs::read_to_string(&comments_file) {
+            Ok(c) => c,
+            Err(_) => return (0, 0),
+        };
+
+        let comments: serde_json::Value = match serde_json::from_str(&content) {
+            Ok(v) => v,
+            Err(_) => return (0, 0),
+        };
+
+        let arr = match comments.as_array() {
+            Some(a) => a,
+            None => return (0, 0),
+        };
+
+        let mut memos = 0usize;
+        let mut tasks = 0usize;
+        for c in arr {
+            let resolved = c.get("resolved").and_then(|v| v.as_bool()).unwrap_or(false);
+            if resolved { continue; }
+            // Comments with dueDate or task-related fields are tasks
+            if c.get("dueDate").is_some() || c.get("due_date").is_some() {
+                tasks += 1;
+            } else {
+                memos += 1;
+            }
+        }
+        (memos, tasks)
+    }
+
     pub fn get_graph_data(&self, container_path: Option<&str>, include_attachments: bool) -> Result<GraphData, String> {
         self.reload_if_needed()?;
         let searcher = self.reader.searcher();
@@ -1784,11 +2058,14 @@ impl SearchIndex {
                 })
                 .unwrap_or(false);
 
-            let label = if title.is_empty() {
-                p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default()
-            } else {
-                title.clone()
-            };
+            // Always derive label from file stem (consistent with frontend display)
+            // This ensures renames are immediately reflected without frontmatter title sync
+            let label = p.file_stem()
+                .map(|s| s.to_string_lossy().replace('_', " "))
+                .unwrap_or_else(|| title.clone());
+
+            // Count memos and tasks from comments.json
+            let (memo_count, task_count) = Self::count_memos_and_tasks(&path);
 
             nodes.push(GraphNode {
                 id: path.clone(),
@@ -1798,6 +2075,9 @@ impl SearchIndex {
                 path: path.clone(),
                 is_folder_note,
                 tag_namespace: String::new(),
+                memo_count,
+                task_count,
+                has_unresolved_tasks: task_count > 0,
             });
             note_paths.push(path.clone());
 
@@ -1830,6 +2110,9 @@ impl SearchIndex {
                 path: String::new(),
                 is_folder_note: false,
                 tag_namespace: namespace,
+                memo_count: 0,
+                task_count: 0,
+                has_unresolved_tasks: false,
             });
         }
 
@@ -1926,6 +2209,9 @@ impl SearchIndex {
                                     path: att_path_str.clone(),
                                     is_folder_note: false,
                                     tag_namespace: String::new(),
+                                    memo_count: 0,
+                                    task_count: 0,
+                                    has_unresolved_tasks: false,
                                 });
                                 edges.push(GraphEdge {
                                     source: note_path.clone(),
@@ -2023,5 +2309,63 @@ impl SearchIndex {
 
         log::info!("[get_all_tags] Found {} unique tags in vault", tags.len());
         Ok(tags)
+    }
+
+    /// Extract high-frequency meaningful words from document bodies.
+    /// Reads stored body text, splits by whitespace, strips Korean particles,
+    /// and returns the most frequent valid words.
+    pub fn get_suggestion_terms(&self, limit: usize) -> Result<Vec<(String, u32)>, String> {
+        use std::collections::HashMap;
+
+        self.reload_if_needed()?;
+        let searcher = self.reader.searcher();
+
+        let query = tantivy::query::AllQuery;
+        let top_docs = searcher
+            .search(&query, &TopDocs::with_limit(100_000))
+            .map_err(|e| e.to_string())?;
+
+        let mut word_freqs: HashMap<String, u32> = HashMap::new();
+
+        for (_score, doc_address) in top_docs {
+            if let Ok(doc) = searcher.doc::<TantivyDocument>(doc_address) {
+                let body = doc.get_first(self.f_body).and_then(|v| v.as_str()).unwrap_or("");
+                // Track unique words per document (count docs containing the word, not total occurrences)
+                let mut doc_words: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+                for raw_word in body.split(|c: char| c.is_whitespace() || c == ',' || c == '.' || c == '!' || c == '?' || c == ';' || c == ':' || c == '(' || c == ')' || c == '[' || c == ']' || c == '"' || c == '\'' || c == '/' || c == '\\' || c == '|' || c == '<' || c == '>' || c == '{' || c == '}' || c == '#' || c == '*' || c == '=' || c == '+' || c == '~' || c == '`') {
+                    let trimmed = raw_word.trim();
+                    if trimmed.is_empty() { continue; }
+
+                    // For CJK text: strip Korean particles to get stem
+                    let has_cjk = trimmed.chars().any(|c| is_cjk_char(c));
+                    let word = if has_cjk {
+                        strip_korean_particles(trimmed)
+                    } else {
+                        trimmed
+                    };
+
+                    if is_valid_suggestion_word(word) {
+                        let normalized = if has_cjk { word.to_string() } else { word.to_lowercase() };
+                        doc_words.insert(normalized);
+                    }
+                }
+
+                for w in doc_words {
+                    *word_freqs.entry(w).or_insert(0) += 1;
+                }
+            }
+        }
+
+        // Filter: require appearing in at least 2 documents
+        let mut sorted: Vec<(String, u32)> = word_freqs
+            .into_iter()
+            .filter(|(_, freq)| *freq >= 2)
+            .collect();
+        sorted.sort_by(|a, b| b.1.cmp(&a.1));
+        sorted.truncate(limit);
+
+        log::info!("[get_suggestion_terms] Extracted {} words (limit: {})", sorted.len(), limit);
+        Ok(sorted)
     }
 }

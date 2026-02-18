@@ -10,6 +10,8 @@ function RenameDialog() {
   const language = useSettingsStore(s => s.language);
   const [newName, setNewName] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  // Track where mousedown started to prevent drag-select from closing the dialog
+  const overlayMouseDownRef = useRef(false);
 
   useEffect(() => {
     if (renameDialogState?.visible) {
@@ -17,15 +19,16 @@ function RenameDialog() {
       // - Folders: show as-is (no extension)
       // - Notes (.md files): strip .md extension for display
       // - Attachments: show with extension
+      // Display underscores as spaces for readability (converted back on save)
       const name = renameDialogState.currentName;
       if (renameDialogState.isFolder) {
-        setNewName(name);
+        setNewName(name.replace(/_/g, ' '));
       } else if (renameDialogState.isAttachment) {
         // Strip extension for display - extension is preserved on rename
-        setNewName(name.replace(/\.[^.]+$/, ''));
+        setNewName(name.replace(/\.[^.]+$/, '').replace(/_/g, ' '));
       } else {
         // Note: strip .md extension for display
-        setNewName(name.replace(/\.md$/, ''));
+        setNewName(name.replace(/\.md$/, '').replace(/_/g, ' '));
       }
       setTimeout(() => inputRef.current?.select(), 50);
     }
@@ -36,27 +39,28 @@ function RenameDialog() {
   const handleRename = async () => {
     if (!newName.trim()) return;
     try {
+      // Convert display spaces back to underscores for the file system
+      const fsName = newName.trim().replace(/ /g, '_');
       let finalName: string;
       if (renameDialogState.isFolder) {
         // For folders, use the name as-is (no extension)
-        finalName = newName.trim();
+        finalName = fsName;
       } else if (renameDialogState.isAttachment) {
         // For attachments, preserve the original extension
         const originalName = renameDialogState.currentName;
         const originalExt = originalName.includes('.') ? originalName.substring(originalName.lastIndexOf('.')) : '';
-        const inputName = newName.trim();
 
         // Check if user provided the extension
-        if (originalExt && !inputName.endsWith(originalExt)) {
+        if (originalExt && !fsName.endsWith(originalExt)) {
           // User didn't include extension or changed it - force the original extension
-          const inputBaseName = inputName.includes('.') ? inputName.substring(0, inputName.lastIndexOf('.')) : inputName;
+          const inputBaseName = fsName.includes('.') ? fsName.substring(0, fsName.lastIndexOf('.')) : fsName;
           finalName = `${inputBaseName}${originalExt}`;
         } else {
-          finalName = inputName;
+          finalName = fsName;
         }
       } else {
         // For notes, add .md extension
-        finalName = `${newName.trim()}.md`;
+        finalName = `${fsName}.md`;
       }
       await renameFile(renameDialogState.path, finalName);
       hideRenameDialog();
@@ -75,8 +79,19 @@ function RenameDialog() {
   };
 
   return (
-    <div className="rename-dialog-overlay" onClick={hideRenameDialog}>
-      <div className="rename-dialog" onClick={e => e.stopPropagation()}>
+    <div
+      className="rename-dialog-overlay"
+      onMouseDown={(e) => { overlayMouseDownRef.current = e.target === e.currentTarget; }}
+      onMouseUp={(e) => {
+        // Only close if BOTH mousedown and mouseup happened on the overlay itself
+        // This prevents closing when dragging text selection outside the dialog
+        if (overlayMouseDownRef.current && e.target === e.currentTarget) {
+          hideRenameDialog();
+        }
+        overlayMouseDownRef.current = false;
+      }}
+    >
+      <div className="rename-dialog" onMouseDown={e => e.stopPropagation()}>
         <div className="rename-dialog-title">{t('renameTitle', language)}</div>
         <input
           ref={inputRef}

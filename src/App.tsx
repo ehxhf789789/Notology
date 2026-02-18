@@ -28,6 +28,7 @@ import {
   uiActions,
   useContainerConfigs,
 } from './stores/zustand';
+import { useSearchIndexing } from './stores/zustand/refreshStore';
 import { createNoteWithTemplate } from './stores/appActions';
 import TitleBar from './components/TitleBar';
 import Sidebar from './components/Sidebar';
@@ -58,6 +59,7 @@ import { initializeSnippets, loadSnippets, clearSnippets } from './utils/snippet
 import { getNoteTypeFromFileName, getTemplateCustomColor } from './utils/noteTypeHelpers';
 import { detectGpuPerformance } from './utils/gpuDetect';
 import { closeAllHoverWindows } from './utils/multiWindow';
+import { flushAllEditorSaves } from './utils/editorSaveRegistry';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import './App.css';
 
@@ -501,6 +503,7 @@ function AppLayout() {
   const selectedContainer = useSelectedContainer();
   const searchRefreshTrigger = useSearchRefreshTrigger();
   const searchReady = useSearchReady();
+  const searchIndexing = useSearchIndexing();
 
   // UI state (individual Zustand subscriptions - only re-renders when specific value changes)
   const showSearch = useShowSearch();
@@ -518,14 +521,24 @@ function AppLayout() {
   const containerConfigs = useContainerConfigs();
   const language = useLanguage();
 
-  // ========== CLOSE ALL HOVER WINDOWS WHEN MAIN WINDOW CLOSES ==========
+  // ========== SAVE & CLOSE HOVER WINDOWS ON MAIN WINDOW CLOSE / REFRESH ==========
   useEffect(() => {
+    // Tauri close handler: save all dirty editors, then close hover windows
     const mainWindow = getCurrentWindow();
     const unlistenPromise = mainWindow.onCloseRequested(async () => {
+      flushAllEditorSaves();
       await closeAllHoverWindows();
     });
+
+    // Page refresh/navigation handler: flush all pending saves before unload
+    const handleBeforeUnload = () => {
+      flushAllEditorSaves();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
       unlistenPromise.then(unlisten => unlisten());
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
 
@@ -533,10 +546,10 @@ function AppLayout() {
   // Triggered by searchRefreshTrigger (incremented on actual file operations)
   // NOT by fileTree (which changes reference on every refreshFileTree call)
   useEffect(() => {
-    if (searchReady) {
+    if (searchReady && !searchIndexing) {
       noteTypeCacheActions.refreshCache();
     }
-  }, [searchRefreshTrigger, searchReady]);
+  }, [searchRefreshTrigger, searchReady, searchIndexing]);
 
   // ========== STABLE ACTION REFERENCES (never cause re-renders) ==========
   const openHoverFile = hoverActions.open;

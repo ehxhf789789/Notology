@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { emit } from '@tauri-apps/api/event';
 import { hoverActions } from './hoverStore';
 import { getVaultStore, getGlobalStore } from '../persistenceUtils';
 import type { GraphSettings } from '../../types';
@@ -70,6 +71,8 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setTheme: (newTheme, vaultPath) => {
     set({ theme: newTheme });
     document.documentElement.dataset.theme = newTheme;
+    // Broadcast theme change to all hover windows
+    emit('theme-changed', { theme: newTheme }).catch(() => {});
     if (!vaultPath) return;
     getVaultStore(vaultPath).then(store => store.set('theme', newTheme));
   },

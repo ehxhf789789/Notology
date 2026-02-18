@@ -6,7 +6,7 @@ const GraphView = lazy(() => import('./GraphView'));
 import { useHoverStore, hoverActions } from '../stores/zustand/hoverStore';
 import { useVaultPath } from '../stores/zustand/fileTreeStore';
 import { fileTreeActions } from '../stores/zustand/fileTreeStore';
-import { useSearchReady, useRefreshStore } from '../stores/zustand/refreshStore';
+import { useSearchReady, useSearchIndexing, useRefreshStore } from '../stores/zustand/refreshStore';
 import { refreshActions } from '../stores/zustand/refreshStore';
 import { modalActions } from '../stores/zustand/modalStore';
 import { useSettingsStore } from '../stores/zustand/settingsStore';
@@ -20,6 +20,9 @@ import { getTemplateCustomColor as getTemplateColor } from '../utils/noteTypeHel
 import { NOTE_TYPES } from './search/searchHelpers';
 import { SearchFilters } from './search/SearchFilters';
 import { FrontmatterResultRow, ContentResultCard, AttachmentResultRow, DetailsResultCard } from './search/SearchResultItem';
+import BulkTagModal from './BulkTagModal';
+import FloatingWords from './search/FloatingWords';
+import { closeHoverWindow } from '../utils/multiWindow';
 
 // Conditional logging - only in development
 const DEV = import.meta.env.DEV;
@@ -34,6 +37,7 @@ interface SearchProps {
 
 function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   const searchReady = useSearchReady();
+  const searchIndexing = useSearchIndexing();
   const vaultPath = useVaultPath();
   const noteTemplates = useTemplateStore(s => s.noteTemplates);
   const language = useSettingsStore(s => s.language);
@@ -82,9 +86,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   const [attachmentsShowDummyOnly, setAttachmentsShowDummyOnly] = useState(false);
   const [attachmentsNotePathFilter, setAttachmentsNotePathFilter] = useState('');
   const [selectedAttachments, setSelectedAttachments] = useState<Set<string>>(new Set());
-  // Selected folder note path (for single-click highlight, double-click to navigate)
-  const [selectedFolderNotePath, setSelectedFolderNotePath] = useState<string | null>(null);
-  // Multi-select notes (Ctrl+click, Shift+click)
+  // Multi-select notes (Ctrl+click, Shift+click; Container single-click also uses this)
   const [selectedNotePaths, setSelectedNotePaths] = useState<Set<string>>(new Set());
   const lastSelectedNoteRef = useRef<string | null>(null);
   // Refs for stable callbacks (avoid dependency churn)
@@ -118,6 +120,8 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   // Frontmatter mode search — refreshTrigger excluded from deps (triggered by useEffect below)
   const searchReadyRef = useRef(searchReady);
   searchReadyRef.current = searchReady;
+  const searchIndexingRef = useRef(searchIndexing);
+  searchIndexingRef.current = searchIndexing;
   const sortByRef = useRef(sortBy);
   sortByRef.current = sortBy;
   const sortOrderRef = useRef(sortOrder);
@@ -126,7 +130,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   dateFiltersRef.current = { createdAfter, createdBefore, modifiedAfter, modifiedBefore };
 
   const fetchNotes = useCallback(async () => {
-    if (!searchReadyRef.current) return;
+    if (!searchReadyRef.current || searchIndexingRef.current) return;
 
     const df = dateFiltersRef.current;
     // Tags sorting is done client-side; fallback to modified for backend
@@ -159,7 +163,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
 
   const searchContents = useCallback(async () => {
     const query = contentsQueryRef.current.trim();
-    if (!searchReadyRef.current || !query) {
+    if (!searchReadyRef.current || searchIndexingRef.current || !query) {
       setContentResults([]);
       return;
     }
@@ -171,11 +175,12 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       }
     } catch (err) {
       console.error('Failed to search contents:', err);
+      setContentResults([]);
     }
   }, []);
 
   const searchAttachments = useCallback(async () => {
-    if (!searchReadyRef.current || !vaultPathRef.current) {
+    if (!searchReadyRef.current || searchIndexingRef.current || !vaultPathRef.current) {
       setAttachmentResults([]);
       return;
     }
@@ -197,7 +202,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       fetchNotes();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, searchReady, sortBy, sortOrder, createdAfter, createdBefore, modifiedAfter, modifiedBefore, refreshTrigger]);
+  }, [mode, searchReady, searchIndexing, sortBy, sortOrder, createdAfter, createdBefore, modifiedAfter, modifiedBefore, refreshTrigger]);
 
   useEffect(() => {
     if (mode === 'contents') {
@@ -209,7 +214,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       return () => clearTimeout(timeout);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, contentsQuery, searchReady, refreshTrigger]);
+  }, [mode, contentsQuery, searchReady, searchIndexing, refreshTrigger]);
 
   useEffect(() => {
     if (mode === 'attachments') {
@@ -217,7 +222,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       return () => clearTimeout(timeout);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, attachmentsQuery, searchReady, refreshTrigger]);
+  }, [mode, attachmentsQuery, searchReady, searchIndexing, refreshTrigger]);
 
   // Compute unique tags from all notes for dropdown
   const uniqueTags = useMemo(() => {
@@ -494,29 +499,62 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     return result;
   }, [attachmentResults, containerPath, attachmentsContainerFilter, attachmentsExtensionFilter, attachmentsShowDummyOnly, attachmentsNotePathFilter]);
 
+  // Double-click pre-creation: start window creation on first mousedown,
+  // confirm on second mousedown, cancel (close hidden window) on single-click timeout.
+  const pendingNoteOpenRef = useRef<{ path: string; time: number; timer: ReturnType<typeof setTimeout> } | null>(null);
+
   const handleNoteClick = useCallback((path: string, noteType?: string) => {
     if (noteType?.toUpperCase() === 'CONTAINER') {
       const parts = path.split(/[/\\]/);
       parts.pop();
       const folderPath = parts.join('\\');
       selectContainer(folderPath);
-    } else {
-      const existingWindow = useHoverStore.getState().hoverFiles.find(h => h.filePath === path && !h.cached);
-      if (existingWindow) {
-        if (existingWindow.minimized) {
-          hoverActions.restore(existingWindow.id);
-        } else {
-          hoverActions.focus(existingWindow.id);
-        }
-      } else {
-        hoverActions.open(path);
-      }
+      return;
     }
+
+    const pending = pendingNoteOpenRef.current;
+    const now = Date.now();
+
+    // Second click on same note within 350ms → confirmed double-click
+    if (pending && pending.path === path && (now - pending.time) < 350) {
+      clearTimeout(pending.timer);
+      pendingNoteOpenRef.current = null;
+      // Window is already creating from first click — let it show
+      return;
+    }
+
+    // Cancel any previous pending open (different note or expired)
+    if (pending) {
+      clearTimeout(pending.timer);
+      closeHoverWindow(pending.path).catch(() => {});
+      pendingNoteOpenRef.current = null;
+    }
+
+    // Check for existing window first
+    const existingWindow = useHoverStore.getState().hoverFiles.find(h => h.filePath === path && !h.cached);
+    if (existingWindow) {
+      if (existingWindow.minimized) {
+        hoverActions.restore(existingWindow.id);
+      } else {
+        hoverActions.focus(existingWindow.id);
+      }
+      return;
+    }
+
+    // First click: create hover window (starts hidden)
+    hoverActions.open(path);
+
+    // Set cancel timer: if no second click comes, close the hidden window
+    const timer = setTimeout(() => {
+      closeHoverWindow(path).catch(() => {});
+      pendingNoteOpenRef.current = null;
+    }, 350);
+
+    pendingNoteOpenRef.current = { path, time: now, timer };
   }, []);
 
-  // Preload content when hovering over search results - for instant loading when clicked
+  // Preload content when hovering over search results — warms cache for instant loading on click
   const handleNoteHover = useCallback((path: string) => {
-    // Only preload .md files
     if (path.endsWith('.md')) {
       contentCacheActions.preloadContent(path);
     }
@@ -806,6 +844,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   // Context menu for notes (single or multi-selected)
   const [noteContextMenu, setNoteContextMenu] = useState<{ x: number; y: number } | null>(null);
   const noteContextMenuRef = useRef<HTMLDivElement>(null);
+  const [showBulkTagModal, setShowBulkTagModal] = useState(false);
 
   const handleNoteContextMenu = useCallback((e: React.MouseEvent, note: NoteMetadata) => {
     e.preventDefault();
@@ -827,6 +866,20 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   const handleDetailsMultiClick = useCallback((e: React.MouseEvent, note: NoteMetadata) => {
     return handleNoteMultiClick(e, note, filteredDetailsNotesRef.current);
   }, [handleNoteMultiClick]);
+
+  // Container single-click: toggle in selectedNotePaths (same state as Ctrl+click)
+  const handleContainerSelect = useCallback((path: string) => {
+    setSelectedNotePaths(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(path)) {
+        newSet.delete(path);
+      } else {
+        newSet.add(path);
+      }
+      return newSet;
+    });
+    lastSelectedNoteRef.current = path;
+  }, []);
 
   // Close note context menu on outside click
   useEffect(() => {
@@ -853,12 +906,13 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest('.context-menu') || target.closest('.note-context-menu')) return;
-      if (target.closest('.search-table')) return;
+      if (target.closest('.search-table') || target.closest('.search-virtual-wrapper') || target.closest('.search-details-results')) return;
+      if (target.closest('.modal-overlay') || target.closest('.bulk-tag-modal')) return;
       if (e.ctrlKey || e.metaKey || e.shiftKey) return;
       setSelectedNotePaths(new Set());
     };
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedNotePaths(new Set());
+      if (e.key === 'Escape' && !showBulkTagModal) setSelectedNotePaths(new Set());
     };
     document.addEventListener('mousedown', handleOutsideClick);
     document.addEventListener('keydown', handleEsc);
@@ -866,7 +920,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       document.removeEventListener('mousedown', handleOutsideClick);
       document.removeEventListener('keydown', handleEsc);
     };
-  }, [selectedNotePaths.size]);
+  }, [selectedNotePaths.size, showBulkTagModal]);
 
   // Bulk move selected notes
   const handleBulkMoveNotes = useCallback(() => {
@@ -896,6 +950,24 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     }, count);
     setNoteContextMenu(null);
   }, [selectedNotePaths, language]);
+
+  // Check if selected notes contain any CONTAINER type (containers cannot have tags)
+  const nonContainerSelectedPaths = useMemo(() => {
+    if (selectedNotePaths.size === 0) return [];
+    const allNotes = [...filteredNotesRef.current, ...filteredDetailsNotesRef.current];
+    const noteMap = new Map(allNotes.map(n => [n.path, n]));
+    return Array.from(selectedNotePaths).filter(path => {
+      const note = noteMap.get(path);
+      return !note || note.note_type.toUpperCase() !== 'CONTAINER';
+    });
+  }, [selectedNotePaths]);
+
+  // Bulk add tags to selected notes
+  const handleBulkAddTags = useCallback(() => {
+    if (nonContainerSelectedPaths.length === 0) return;
+    setShowBulkTagModal(true);
+    setNoteContextMenu(null);
+  }, [nonContainerSelectedPaths]);
 
   // Count conflict attachments for warning
   const conflictCount = useMemo(() =>
@@ -1253,7 +1325,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
             {filteredNotes.length === 0 ? (
               <div className="search-grid-row search-empty-row">
                 <div className="search-td search-empty">
-                  {searchReady ? t('noResults', language) : t('indexInitializing', language)}
+                  {searchIndexing ? t('indexInitializing', language) : t('noResults', language)}
                 </div>
               </div>
             ) : (() => {
@@ -1273,8 +1345,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
                     onNoteClick={handleNoteClick}
                     onNoteHover={handleNoteHover}
                     onContextMenu={handleNoteContextMenu}
-                    selectedPath={selectedFolderNotePath}
-                    onSelect={setSelectedFolderNotePath}
+                    onSelect={handleContainerSelect}
                     isMultiSelected={selectedNotePaths.has(note.path)}
                     onMultiClick={handleFrontmatterMultiClick}
                     tagSortCategory={tagSortCategory}
@@ -1293,7 +1364,12 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
         <div className="search-content-results">
           {filteredContentResults.length === 0 ? (
             <div className="search-content-empty">
-              {!contentsQuery.trim() ? t('enterSearchTerm', language) : searchReady ? t('noResults', language) : t('indexInitializing', language)}
+              {!contentsQuery.trim() ? (
+                <FloatingWords
+                  onWordClick={(word) => setContentsQuery(word)}
+                  searchReady={searchReady}
+                />
+              ) : searchIndexing ? t('indexInitializing', language) : t('noResults', language)}
             </div>
           ) : (
             filteredContentResults.map(result => (
@@ -1339,7 +1415,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
                 {filteredAttachments.length === 0 && (
                   <tr>
                     <td className="search-td search-empty" colSpan={4}>
-                      {searchReady ? t('noAttachments', language) : t('indexInitializing', language)}
+                      {searchIndexing ? t('indexInitializing', language) : t('noAttachments', language)}
                     </td>
                   </tr>
                 )}
@@ -1351,7 +1427,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
         <div className="search-details-results">
           {filteredDetailsNotes.length === 0 ? (
             <div className="search-content-empty">
-              {searchReady ? t('noResults', language) : t('indexInitializing', language)}
+              {searchIndexing ? t('indexInitializing', language) : t('noResults', language)}
             </div>
           ) : (
             filteredDetailsNotes.map(note => (
@@ -1364,8 +1440,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
                 onContextMenu={handleNoteContextMenu}
                 onTagClick={setDetailsTagFilter}
                 language={language}
-                selectedPath={selectedFolderNotePath}
-                onSelect={setSelectedFolderNotePath}
+                onSelect={handleContainerSelect}
                 isMultiSelected={selectedNotePaths.has(note.path)}
                 onMultiClick={handleDetailsMultiClick}
                 tagSortCategory={tagSortCategory}
@@ -1435,6 +1510,15 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
           >
             {tf('moveSelectedNotes', language, { count: selectedNotePaths.size })}
           </button>
+          {nonContainerSelectedPaths.length > 0 && (
+            <button
+              className="context-menu-item"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={handleBulkAddTags}
+            >
+              {tf('addTagsToSelectedNotes', language, { count: nonContainerSelectedPaths.length })}
+            </button>
+          )}
           <button
             className="context-menu-item delete"
             onMouseDown={(e) => e.stopPropagation()}
@@ -1443,6 +1527,19 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
             {tf('deleteSelectedNotes', language, { count: selectedNotePaths.size })}
           </button>
         </div>
+      )}
+
+      {/* Bulk Tag Modal */}
+      {showBulkTagModal && nonContainerSelectedPaths.length > 0 && (
+        <BulkTagModal
+          paths={nonContainerSelectedPaths}
+          language={language}
+          onClose={() => setShowBulkTagModal(false)}
+          onComplete={() => {
+            setShowBulkTagModal(false);
+            setSelectedNotePaths(new Set());
+          }}
+        />
       )}
 
     </div>

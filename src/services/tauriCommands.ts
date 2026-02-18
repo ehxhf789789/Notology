@@ -117,6 +117,9 @@ export const searchCommands = {
   initIndex: (vaultPath: string) =>
     invoke<void>('init_search_index', { vaultPath }),
 
+  resetSearchState: () =>
+    invoke<void>('reset_search_state'),
+
   fullTextSearch: (query: string, limit?: number) =>
     invoke<SearchResult[]>('full_text_search', { query, limit }),
 
@@ -141,6 +144,9 @@ export const searchCommands = {
   getAllUsedTags: () =>
     invoke<string[]>('get_all_used_tags'),
 
+  getSuggestionTerms: (limit?: number) =>
+    invoke<[string, number][]>('get_suggestion_terms', { limit }),
+
   deleteMultipleFiles: (paths: string[]) =>
     invoke<number>('delete_multiple_files', { paths }),
 
@@ -149,6 +155,18 @@ export const searchCommands = {
 
   getGraphData: (containerPath?: string | null, includeAttachments?: boolean) =>
     invoke<GraphData>('get_graph_data', { containerPath: containerPath ?? null, includeAttachments: includeAttachments ?? false }),
+
+  bulkDeleteTag: (tag: string) =>
+    invoke<{ affected_count: number; failed_paths: string[]; cancelled: boolean }>('bulk_delete_tag', { tag }),
+
+  bulkRenameTag: (oldTag: string, newTag: string) =>
+    invoke<{ affected_count: number; failed_paths: string[]; cancelled: boolean }>('bulk_rename_tag', { oldTag, newTag }),
+
+  bulkAddTags: (paths: string[], tag: string) =>
+    invoke<{ affected_count: number; failed_paths: string[]; cancelled: boolean }>('bulk_add_tags', { paths, tag }),
+
+  cancelBulkOperation: () =>
+    invoke<void>('cancel_bulk_operation'),
 };
 
 // ============================================================================

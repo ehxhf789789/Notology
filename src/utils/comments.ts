@@ -1,5 +1,7 @@
-import { memoCommands, noteCommands } from '../services/tauriCommands';
+import { memoCommands, noteCommands, searchCommands } from '../services/tauriCommands';
 import type { NoteComment } from '../types';
+import { markAsSelfSaved } from './selfSaveTracker';
+import { notifySearchIndexUpdated } from './windowSync';
 
 export interface LoadCommentsResult {
   comments: NoteComment[];
@@ -50,9 +52,17 @@ export async function saveComments(
       console.warn('Failed to index memos:', indexError);
     }
 
-    // Update the parent note's modified timestamp
-    noteCommands.touchNoteModified(notePath).catch(err => {
-      console.warn('Failed to touch note modified:', err);
+    // Mark as self-saved BEFORE touchNoteModified writes to .md,
+    // so the file watcher won't treat it as an external change
+    markAsSelfSaved(notePath);
+
+    // Update the parent note's modified timestamp, then re-index for search
+    noteCommands.touchNoteModified(notePath).then(() => {
+      return searchCommands.indexNote(notePath);
+    }).then(() => {
+      notifySearchIndexUpdated(notePath).catch(() => {});
+    }).catch(err => {
+      console.warn('Failed to touch/index note:', err);
     });
 
     return { comments: commentsToSave, mtime: newMtime };

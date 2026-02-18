@@ -31,6 +31,7 @@ export {
   useCalendarRefreshTrigger,
   useOntologyRefreshTrigger,
   useSearchReady,
+  useSearchIndexing,
   refreshActions,
 } from './refreshStore';
 

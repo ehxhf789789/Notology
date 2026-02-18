@@ -97,6 +97,8 @@ export async function loadTagOntology(vaultPath: string, skipSync = false): Prom
     // Then cleanup unused tags (Obsidian-style: tags not in any note are removed)
     if (!skipSync && !syncedThisSession) {
       syncedThisSession = true;
+      // Cleanup orphan recent tags from localStorage
+      cleanupOrphanRecentTags(ontology);
       // Run sync in background (don't block loading)
       syncTagsFromIndex(vaultPath, ontology).then(async synced => {
         if (synced) {
@@ -697,6 +699,68 @@ export function removeFromRecentTags(tagId: string, namespace?: FacetNamespace) 
 }
 
 /**
+ * Remove recent tag entries that no longer exist in the ontology.
+ * Returns the number of orphan entries removed.
+ */
+export function cleanupOrphanRecentTags(ontology: TagOntology): number {
+  const namespaces: FacetNamespace[] = ['domain', 'who', 'org', 'ctx'];
+  let removed = 0;
+
+  for (const ns of namespaces) {
+    const key = `recent-tags-${ns}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+
+    try {
+      const recent: string[] = JSON.parse(raw);
+      const filtered = recent.filter(tagId => {
+        // Check both the raw tagId and the full namespace/tagId form
+        const fullId = tagId.includes('/') ? tagId : `${ns}/${tagId}`;
+        return ontology.definitions[fullId] || ontology.definitions[tagId];
+      });
+      if (filtered.length < recent.length) {
+        removed += recent.length - filtered.length;
+        localStorage.setItem(key, JSON.stringify(filtered));
+      }
+    } catch {
+      // Corrupted data, remove it
+      localStorage.removeItem(key);
+    }
+  }
+
+  // Also clean the global recent-tags key
+  const globalRaw = localStorage.getItem('recent-tags');
+  if (globalRaw) {
+    try {
+      const recent: string[] = JSON.parse(globalRaw);
+      const filtered = recent.filter(tagId => ontology.definitions[tagId]);
+      if (filtered.length < recent.length) {
+        removed += recent.length - filtered.length;
+        localStorage.setItem('recent-tags', JSON.stringify(filtered));
+      }
+    } catch {
+      localStorage.removeItem('recent-tags');
+    }
+  }
+
+  if (removed > 0) {
+    console.log(`[cleanupOrphanRecentTags] Removed ${removed} orphan recent tag entries`);
+  }
+  return removed;
+}
+
+/**
+ * Clear all recent tags from localStorage
+ */
+export function clearAllRecentTags(): void {
+  const namespaces = ['domain', 'who', 'org', 'ctx'];
+  for (const ns of namespaces) {
+    localStorage.removeItem(`recent-tags-${ns}`);
+  }
+  localStorage.removeItem('recent-tags');
+}
+
+/**
  * Delete a tag from the ontology
  */
 export async function deleteTagFromOntology(
@@ -761,6 +825,83 @@ export async function deleteTagFromOntology(
     console.log('[deleteTagFromOntology] Tag deleted successfully:', tagId);
   } catch (error) {
     console.error('[deleteTagFromOntology] Failed to delete tag:', error);
+    throw error;
+  }
+}
+
+/**
+ * Rename a tag in the ontology.
+ * Updates the definition key, broader/children references, and synonyms.
+ */
+export async function renameTagInOntology(
+  vaultPath: string,
+  oldTagId: string,
+  newTagId: string,
+  newLabel: string
+): Promise<void> {
+  try {
+    const ontology = await loadTagOntology(vaultPath);
+
+    const oldDef = ontology.definitions[oldTagId];
+    if (!oldDef) {
+      console.log('[renameTagInOntology] Old tag not found:', oldTagId);
+      return;
+    }
+
+    // Copy definition to new key with updated label
+    ontology.definitions[newTagId] = {
+      ...oldDef,
+      label: newLabel,
+    };
+
+    // Update parent's children reference
+    if (oldDef.broader) {
+      const parentDef = ontology.definitions[oldDef.broader];
+      if (parentDef && parentDef.children) {
+        parentDef.children = parentDef.children.map(id => id === oldTagId ? newTagId : id);
+      }
+    }
+
+    // Update children's broader reference
+    if (oldDef.children) {
+      for (const childId of oldDef.children) {
+        const childDef = ontology.definitions[childId];
+        if (childDef && childDef.broader === oldTagId) {
+          childDef.broader = newTagId;
+        }
+      }
+    }
+
+    // Update synonyms
+    for (const [synonym, targetId] of Object.entries(ontology.synonyms)) {
+      if (targetId === oldTagId) {
+        ontology.synonyms[synonym] = newTagId;
+      }
+    }
+
+    // Remove old definition
+    delete ontology.definitions[oldTagId];
+
+    // Save
+    const ontologyPath = await join(vaultPath, '.notology', 'tag-ontology.yaml');
+    const yamlContent = yaml.dump(ontology, { lineWidth: -1, noRefs: true });
+    await fileCommands.writeFile(ontologyPath, null, yamlContent);
+
+    // Update recent tags in localStorage
+    const namespace = oldTagId.split('/')[0] as FacetNamespace;
+    const recentKey = `recent-tags-${namespace}`;
+    const recentRaw = localStorage.getItem(recentKey);
+    if (recentRaw) {
+      try {
+        const recent: string[] = JSON.parse(recentRaw);
+        const updated = recent.map(id => id === oldTagId ? newTagId : id);
+        localStorage.setItem(recentKey, JSON.stringify(updated));
+      } catch {}
+    }
+
+    clearOntologyCache();
+  } catch (error) {
+    console.error('[renameTagInOntology] Failed:', error);
     throw error;
   }
 }

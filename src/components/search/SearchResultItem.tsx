@@ -52,19 +52,25 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
   const isContainer = note.note_type?.toUpperCase() === 'CONTAINER';
   const isSelected = selectedPath === note.path;
 
+  // mousedown fires ~50-100ms before click — faster trigger for double-click pre-creation
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0 || e.ctrlKey || e.shiftKey || e.metaKey) return;
+    if (isContainer) return;
+    onNoteClick(note.path, note.note_type);
+  };
+
   const handleClick = (e: React.MouseEvent) => {
     if (onMultiClick && onMultiClick(e, note)) return;
     if (isContainer && onSelect) {
       onSelect(note.path);
-    } else {
-      onNoteClick(note.path, note.note_type);
     }
   };
 
-  const handleDoubleClick = () => {
-    if (isContainer) {
-      onNoteClick(note.path, note.note_type);
-    }
+  // Container: double-click navigates into the folder
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (!isContainer) return;
+    e.preventDefault();
+    onNoteClick(note.path, note.note_type);
   };
 
   const rowStyle = customColor
@@ -73,7 +79,8 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
 
   return (
     <div
-      className={`search-row search-grid-row${noteType ? ' ' + noteType : ''}${customColor ? ' has-custom-color' : ''}${isSelected ? ' selected' : ''}${isMultiSelected ? ' multi-selected' : ''}`}
+      className={`search-row search-grid-row${noteType ? ' ' + noteType : ''}${customColor ? ' has-custom-color' : ''}${isMultiSelected ? ' multi-selected' : ''}`}
+      onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onMouseEnter={() => onNoteHover(note.path)}
@@ -152,7 +159,10 @@ export const ContentResultCard = React.memo(function ContentResultCard({
     <div
       key={result.path}
       className={`search-content-item${noteType ? ' ' + noteType : ''}${isFolderNote ? ' container-type' : ''}${customColor ? ' has-custom-color' : ''}`}
-      onClick={() => onNoteClick(result.path, isFolderNote ? 'CONTAINER' : undefined)}
+      onMouseDown={(e: React.MouseEvent) => {
+        if (e.button !== 0 || e.ctrlKey || e.shiftKey || e.metaKey) return;
+        onNoteClick(result.path, isFolderNote ? 'CONTAINER' : undefined);
+      }}
       onMouseEnter={() => onNoteHover(result.path)}
       style={customColor ? { '--template-color': customColor } as React.CSSProperties : undefined}
     >
@@ -244,27 +254,32 @@ export const DetailsResultCard = React.memo(function DetailsResultCard({
   const containerPath = note.path.split(/[/\\]/).slice(0, -1).pop() || '';
   const customColor = getTemplateCustomColor(note.note_type);
   const isContainer = note.note_type?.toUpperCase() === 'CONTAINER';
-  const isSelected = selectedPath === note.path;
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0 || e.ctrlKey || e.shiftKey || e.metaKey) return;
+    if (isContainer) return;
+    onNoteClick(note.path, note.note_type);
+  };
 
   const handleClick = (e: React.MouseEvent) => {
     if (onMultiClick && onMultiClick(e, note)) return;
     if (isContainer && onSelect) {
       onSelect(note.path);
-    } else {
-      onNoteClick(note.path, note.note_type);
     }
   };
 
-  const handleDoubleClick = () => {
-    if (isContainer) {
-      onNoteClick(note.path, note.note_type);
-    }
+  // Container: double-click navigates into the folder
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (!isContainer) return;
+    e.preventDefault();
+    onNoteClick(note.path, note.note_type);
   };
 
   return (
     <div
       key={note.path}
-      className={`search-details-item${noteType ? ' ' + noteType : ''}${customColor ? ' has-custom-color' : ''}${isSelected ? ' selected' : ''}${isMultiSelected ? ' multi-selected' : ''}`}
+      className={`search-details-item${noteType ? ' ' + noteType : ''}${customColor ? ' has-custom-color' : ''}${isMultiSelected ? ' multi-selected' : ''}`}
+      onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onMouseEnter={() => onNoteHover(note.path)}

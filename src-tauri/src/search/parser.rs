@@ -11,7 +11,6 @@ pub fn extract_wiki_links(content: &str) -> Vec<String> {
         .map(|cap| {
             let full = cap[1].to_string();
             // Strip alias part: "fileName|displayText" → "fileName"
-            // This ensures @-mention links like [[CONTACT-Name|@Name]] resolve correctly
             if let Some(pipe_idx) = full.find('|') {
                 full[..pipe_idx].to_string()
             } else {

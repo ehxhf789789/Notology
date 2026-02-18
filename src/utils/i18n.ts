@@ -163,7 +163,12 @@ const ko: Record<string, string> = {
   attachmentsCountLabel: '{count}개 첨부파일',
   deleteSelectedAttachments: '선택 항목 삭제 ({count}개)',
   moveSelectedNotes: '선택 노트 이동 ({count}개)',
+  addTagsToSelectedNotes: '선택 노트에 태그 추가 ({count}개)',
   deleteSelectedNotes: '선택 노트 삭제 ({count}개)',
+  bulkTagTitle: '다중 노트 태그 추가',
+  bulkTagSelectPrompt: '추가할 태그를 선택하세요',
+  bulkTagApply: '적용',
+  bulkTagSuccess: '{count}개 노트에 태그가 추가되었습니다',
   selectedNotesCount: '선택된 노트 {count}개',
   syncConflictMsg: '동기화 충돌 파일 {count}개 감지됨 — 원본과 비교 후 수동으로 처리해 주세요. 일괄 삭제 대상에서 자동 제외됩니다.',
   enterSearchTerm: '검색어를 입력하세요',
@@ -322,6 +327,8 @@ const ko: Record<string, string> = {
 
   // ── Loading ──
   loadingVault: '보관소 로딩 중',
+  loadingSlow: '검색 인덱스 초기화에 시간이 걸리고 있습니다.',
+  loadingSkip: '건너뛰고 시작',
 
   // ── Move note ──
   currentBadge: '(현재)',
@@ -374,7 +381,7 @@ const ko: Record<string, string> = {
   meetingTitleField: '미팅 제목 *',
   meetingTitlePlaceholder: '예: 주간 팀 미팅',
   meetingParticipants: '참석자',
-  meetingParticipantsPlaceholder: '예: @홍길동, @김철수 또는 이름 직접 입력',
+  meetingParticipantsPlaceholder: '이름을 입력하면 연락처에서 자동 검색',
   meetingDate: '날짜',
   meetingTime: '시간',
 
@@ -412,7 +419,7 @@ const ko: Record<string, string> = {
   eventOrganizer: '주최',
   eventOrganizerPlaceholder: '주최 기관/단체',
   eventParticipants: '참가자',
-  eventParticipantsPlaceholder: '예: 홍길동, 김철수, 이영희',
+  eventParticipantsPlaceholder: '이름을 입력하면 연락처에서 자동 검색',
 
   // ── Calendar ──
   calendarTask: '할일',
@@ -515,6 +522,15 @@ const ko: Record<string, string> = {
   canvasNodeColor: '노드 색상',
   canvasArrowColor: '화살표 색상',
   canvasDeleteSelection: '선택 항목 삭제',
+  canvasNodeProperties: '노드 속성',
+  canvasArrowProperties: '화살표 속성',
+  canvasDeleteArrow: '화살표 삭제',
+  canvasColor: '색상',
+  canvasShape: '모양',
+  noImageAttachments: '이미지 첨부파일 없음',
+  insertImage: '이미지 삽입',
+  templateCssClasses: 'CSS Classes',
+  commaSeparated: '쉼표로 구분',
   shapeProcess: '처리 (Process)',
   shapeTerminal: '터미널 (Terminal)',
   shapeDecision: '판단 (Decision)',
@@ -699,6 +715,21 @@ const ko: Record<string, string> = {
   tagCreateFailed: '태그 생성 실패: {error}',
   deleteTagFull: '태그 삭제 (온톨로지에서 완전 삭제)',
   tagDelete: '태그 삭제',
+  tagRename: '태그 이름 변경',
+  tagRenameTitle: '태그 이름 변경',
+  tagRenameFrom: '현재 이름',
+  tagRenameTo: '새 이름',
+  tagRenameConfirm: '{count}개 노트에서 변경',
+  tagDeleteConfirm: '{count}개 노트에서 삭제',
+  tagBulkProgress: '{completed}/{total} 처리 중...',
+  tagBulkComplete: '완료: {count}개 노트 수정',
+  tagBulkCancelled: '취소됨: {count}개 노트 수정됨',
+  tagBulkFailed: '{count}개 노트 실패',
+  cancel: '취소',
+  confirm: '확인',
+  close: '닫기',
+  clearRecentTags: '기록 삭제',
+  didYouMean: '혹시 이것을 찾으시나요?',
   rootTag: '루트',
   noSubTags: '하위 태그가 없습니다.',
   recentTags: '최근 사용한 태그',
@@ -714,7 +745,7 @@ const ko: Record<string, string> = {
   newNoteCreateTitle: '새 노트 생성: {container} ({template})',
 
   // ── ParticipantInput ──
-  participantPlaceholder: '@이름 또는 직접 입력',
+  participantPlaceholder: '이름 입력',
 
   // ── WikiLink ──
   deleteImageEmbed: '이미지 임베드 삭제',
@@ -1046,7 +1077,12 @@ const en: Record<string, string> = {
   attachmentsCountLabel: '{count} attachments',
   deleteSelectedAttachments: 'Delete selected ({count})',
   moveSelectedNotes: 'Move selected notes ({count})',
+  addTagsToSelectedNotes: 'Add tags to selected notes ({count})',
   deleteSelectedNotes: 'Delete selected notes ({count})',
+  bulkTagTitle: 'Add Tags to Multiple Notes',
+  bulkTagSelectPrompt: 'Select tags to add',
+  bulkTagApply: 'Apply',
+  bulkTagSuccess: 'Tags added to {count} notes',
   selectedNotesCount: '{count} notes selected',
   syncConflictMsg: '{count} sync conflict files detected — compare with originals and resolve manually. Automatically excluded from batch deletion.',
   enterSearchTerm: 'Enter search term',
@@ -1205,6 +1241,8 @@ const en: Record<string, string> = {
 
   // ── Loading ──
   loadingVault: 'Loading vault',
+  loadingSlow: 'Search index initialization is taking longer than expected.',
+  loadingSkip: 'Skip and start',
 
   // ── Move note ──
   currentBadge: '(current)',
@@ -1257,7 +1295,7 @@ const en: Record<string, string> = {
   meetingTitleField: 'Meeting Title *',
   meetingTitlePlaceholder: 'e.g., Weekly Team Meeting',
   meetingParticipants: 'Participants',
-  meetingParticipantsPlaceholder: 'e.g., @John, @Jane or type names directly',
+  meetingParticipantsPlaceholder: 'Type name to auto-search contacts',
   meetingDate: 'Date',
   meetingTime: 'Time',
 
@@ -1295,7 +1333,7 @@ const en: Record<string, string> = {
   eventOrganizer: 'Organizer',
   eventOrganizerPlaceholder: 'Organization / Group',
   eventParticipants: 'Participants',
-  eventParticipantsPlaceholder: 'e.g., John, Jane, Bob',
+  eventParticipantsPlaceholder: 'Type name to auto-search contacts',
 
   // ── Calendar ──
   calendarTask: 'Tasks',
@@ -1398,6 +1436,15 @@ const en: Record<string, string> = {
   canvasNodeColor: 'Node Color',
   canvasArrowColor: 'Arrow Color',
   canvasDeleteSelection: 'Delete Selection',
+  canvasNodeProperties: 'Node Properties',
+  canvasArrowProperties: 'Arrow Properties',
+  canvasDeleteArrow: 'Delete Arrow',
+  canvasColor: 'Color',
+  canvasShape: 'Shape',
+  noImageAttachments: 'No image attachments',
+  insertImage: 'Insert Image',
+  templateCssClasses: 'CSS Classes',
+  commaSeparated: 'comma-separated',
   shapeProcess: 'Process',
   shapeTerminal: 'Terminal',
   shapeDecision: 'Decision',
@@ -1582,6 +1629,21 @@ const en: Record<string, string> = {
   tagCreateFailed: 'Tag creation failed: {error}',
   deleteTagFull: 'Delete tag (remove from ontology)',
   tagDelete: 'Delete Tag',
+  tagRename: 'Rename Tag',
+  tagRenameTitle: 'Rename Tag',
+  tagRenameFrom: 'Current name',
+  tagRenameTo: 'New name',
+  tagRenameConfirm: 'Rename in {count} notes',
+  tagDeleteConfirm: 'Delete from {count} notes',
+  tagBulkProgress: 'Processing {completed}/{total}...',
+  tagBulkComplete: 'Done: {count} notes modified',
+  tagBulkCancelled: 'Cancelled: {count} notes modified',
+  tagBulkFailed: '{count} notes failed',
+  cancel: 'Cancel',
+  confirm: 'Confirm',
+  close: 'Close',
+  clearRecentTags: 'Clear history',
+  didYouMean: 'Did you mean?',
   rootTag: 'Root',
   noSubTags: 'No sub-tags.',
   recentTags: 'Recent Tags',
@@ -1597,7 +1659,7 @@ const en: Record<string, string> = {
   newNoteCreateTitle: 'Create note: {container} ({template})',
 
   // ── ParticipantInput ──
-  participantPlaceholder: '@name or type directly',
+  participantPlaceholder: 'Type name',
 
   // ── WikiLink ──
   deleteImageEmbed: 'Delete image embed',

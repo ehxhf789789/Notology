@@ -120,6 +120,8 @@ export const WikiLink = Node.create<WikiLinkOptions>({
   renderHTML({ node, HTMLAttributes }) {
     const fileName = node.attrs.fileName;
     const displayText = node.attrs.displayText || fileName;
+    // Show underscores as spaces in display (only when no custom alias)
+    const shownText = node.attrs.displayText ? displayText : fileName.replace(/_/g, ' ');
     const hasExtension = /\.[a-zA-Z0-9]+$/.test(fileName);
     const isMarkdown = fileName.endsWith('.md');
     const storedIsAttachment = node.attrs.isAttachmentAttr;
@@ -142,7 +144,7 @@ export const WikiLink = Node.create<WikiLinkOptions>({
       isMention ? 'contact' :
       (this.options.getNoteType ? (this.options.getNoteType(fileName) || '').toLowerCase() : inferNoteType(fileName));
 
-    // Render displayText (or fileName if no display text specified)
+    // Render shownText (underscores replaced with spaces for non-alias links)
     return [
       'span',
       mergeAttributes(HTMLAttributes, {
@@ -150,7 +152,7 @@ export const WikiLink = Node.create<WikiLinkOptions>({
         'data-display-text': displayText !== fileName ? displayText : null,
         class: `wiki-link-inline wiki-link-node ${isAttachment ? `attachment att-${getAttachmentCategory(fileName)}` : ''} ${noteType ? `note-type-${noteType}` : ''} ${isResolved ? '' : 'unresolved'}`,
       }),
-      displayText,
+      shownText,
     ];
   },
 

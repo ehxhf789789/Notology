@@ -188,6 +188,9 @@ export interface GraphNode {
   path: string;
   isFolderNote: boolean;
   tagNamespace: string;
+  memoCount: number;
+  taskCount: number;
+  hasUnresolvedTasks: boolean;
 }
 
 export interface GraphEdge {

@@ -17,8 +17,6 @@ import CommentMarks from '../extensions/CommentMarks';
 import LinkCard from '../extensions/LinkCard';
 import WikiLinkSuggestion from '../extensions/WikiLinkSuggestion';
 import { createWikiLinkSuggestion } from './wikiLinkSuggestion';
-import ImageEmbedSuggestion from '../extensions/ImageEmbedSuggestion';
-import { createImageEmbedSuggestion } from './imageEmbedSuggestion';
 import type { FileNode } from '../types';
 
 export interface EditorConfigOptions {
@@ -77,9 +75,6 @@ export function getEditorExtensions(options: EditorConfigOptions) {
         suggestion: createWikiLinkSuggestion(options.getFileTree),
       }),
     ] : []),
-    ImageEmbedSuggestion.configure({
-      suggestion: createImageEmbedSuggestion(() => options.notePath || ''),
-    }),
     LinkCard, // Put LinkCard BEFORE Markdown for higher paste priority
     Markdown.configure({
       html: true, // Preserve HTML elements (including indent attributes)

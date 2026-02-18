@@ -103,8 +103,12 @@ export async function openHoverWindow(filePath: string, vaultPath?: string, note
     const encodedPath = encodeURIComponent(filePath);
     const encodedVault = vaultPath ? encodeURIComponent(vaultPath) : '';
 
-    // Build URL with all necessary parameters
-    let url = `/?hover=true&path=${encodedPath}`;
+    // Build URL with resolved theme (resolve 'system' to actual light/dark for Rust native bg)
+    const rawTheme = document.documentElement.dataset.theme || 'dark';
+    const resolvedTheme = rawTheme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : rawTheme;
+    let url = `/?hover=true&path=${encodedPath}&theme=${resolvedTheme}`;
     if (encodedVault) {
       url += `&vault=${encodedVault}`;
     }
@@ -132,7 +136,7 @@ export async function openHoverWindow(filePath: string, vaultPath?: string, note
     const finalX = Math.max(50, Math.min(x, screenWidth - windowWidth - 50));
     const finalY = Math.max(50, Math.min(y, screenHeight - windowHeight - 50));
 
-    // Create window via Rust command (has background_color support to prevent white flash)
+    // Create window via Rust command (Rust parses theme from URL for native background_color)
     await invoke('create_hover_window', {
       label,
       url,

@@ -58,6 +58,20 @@ async function persistNoteTemplates(templates: NoteTemplate[], vaultPath: string
   await updateCustomTemplates(vaultPath, customOnly);
 }
 
+// Inject template custom colors as CSS variables on :root
+// This allows wiki link colors and other UI to automatically match template colors
+function injectTemplateColorVars(noteTemplates: NoteTemplate[]) {
+  const root = typeof document !== 'undefined' ? document.documentElement : null;
+  if (!root) return;
+
+  for (const tmpl of noteTemplates) {
+    if (tmpl.customColor) {
+      const noteType = (tmpl.frontmatter.type || tmpl.prefix).toLowerCase();
+      root.style.setProperty(`--${noteType}-color`, tmpl.customColor);
+    }
+  }
+}
+
 export const useTemplateStore = create<TemplateState>()((set, get) => ({
   // Initial state
   templates: DEFAULT_TEMPLATES,
@@ -102,6 +116,7 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
     const updated = get().noteTemplates.map(t => t.id === template.id ? template : t);
     set({ noteTemplates: updated });
     persistNoteTemplates(updated, vaultPath);
+    injectTemplateColorVars(updated);
   },
 
   removeNoteTemplate: (id, vaultPath) => {
@@ -167,6 +182,11 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
     }
 
     set(updates);
+
+    // Inject custom colors as CSS variables
+    if (updates.noteTemplates) {
+      injectTemplateColorVars(updates.noteTemplates);
+    }
   },
 
   resetToDefaults: () => {

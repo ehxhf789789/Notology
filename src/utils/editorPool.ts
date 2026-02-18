@@ -21,10 +21,8 @@ import CommentMarks from '../extensions/CommentMarks';
 import HorizontalRuleNoGap from '../extensions/HorizontalRuleNoGap';
 import LinkCard from '../extensions/LinkCard';
 import WikiLinkSuggestion from '../extensions/WikiLinkSuggestion';
-import ImageEmbedSuggestion from '../extensions/ImageEmbedSuggestion';
 import AttachmentSuggestion from '../extensions/AttachmentSuggestion';
 import { createWikiLinkSuggestion } from './wikiLinkSuggestion';
-import { createImageEmbedSuggestion } from './imageEmbedSuggestion';
 import { createAttachmentSuggestion } from './attachmentSuggestion';
 import type { FileNode } from '../types';
 
@@ -192,9 +190,6 @@ class EditorPool {
       WikiLinkSuggestion.configure({
         suggestion: createWikiLinkSuggestion(() => callbacks.getFileTree()),
       }),
-      ImageEmbedSuggestion.configure({
-        suggestion: createImageEmbedSuggestion(() => callbacks.notePath),
-      }),
       AttachmentSuggestion.configure({
         suggestion: createAttachmentSuggestion(() => callbacks.notePath),
       }),
@@ -299,6 +294,24 @@ class EditorPool {
   // Check if pool is ready (has at least one editor)
   isReady(): boolean {
     return this.initialized && this.pool.length > 0;
+  }
+
+  // Force all in-use editors to recalculate decorations
+  // Called when external data (e.g., noteTypeCache) changes that affects decoration rendering
+  refreshDecorations(): void {
+    for (const pooledEditor of this.pool) {
+      if (pooledEditor.inUse && !pooledEditor.editor.isDestroyed) {
+        try {
+          const { tr } = pooledEditor.editor.state;
+          // setMeta ensures ProseMirror treats this as a meaningful state change
+          // and recalculates props.decorations (wiki link note-type classes)
+          tr.setMeta('externalDecorationRefresh', true);
+          pooledEditor.editor.view.dispatch(tr);
+        } catch {
+          // Editor may be in a transitional state, ignore
+        }
+      }
+    }
   }
 
   // Destroy all editors (for cleanup)

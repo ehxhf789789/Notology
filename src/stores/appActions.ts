@@ -21,6 +21,7 @@ import type { FacetedTagSelection } from '../components/TagInputSection';
 import { computeLevel } from '../utils/frontmatter';
 import { findTemplateForLevel, applyTemplateVariables, applyNoteTemplateVariables } from '../utils/templates';
 import { loadVaultConfig, clearVaultConfigCache } from '../utils/vaultConfigUtils';
+import { noteTypeCacheActions } from './zustand/noteTypeCacheStore';
 import { getGlobalStore } from './persistenceUtils';
 
 // ============================================================================
@@ -36,23 +37,61 @@ async function loadVaultSettings(targetVaultPath: string) {
   vaultConfigActions.setContainerOrder(vaultConfig.containerOrder || []);
 }
 
-async function initSearchIndex(vaultPath: string) {
-  try {
-    await searchCommands.initIndex(vaultPath);
-  } catch (e) {
-    const errStr = String(e).toLowerCase();
-    if (errStr.includes('permission') || errStr.includes('access') || errStr.includes('denied') || errStr.includes('lock')) {
-      console.warn('Search index locked, clearing and reinitializing...');
-      try {
-        await searchCommands.clearIndex(vaultPath);
-        await searchCommands.initIndex(vaultPath);
-      } catch (retryErr) {
-        console.error('Failed to reinitialize after clear:', retryErr);
-      }
-    } else {
-      console.error('Failed to initialize search index:', e);
+/**
+ * Initialize search index.
+ *
+ * Call initIndex with await IMMEDIATELY after readDirectory succeeds,
+ * while Tauri IPC is known to be working. Later IPC calls may fail with
+ * ERR_CONNECTION_REFUSED in dev mode.
+ *
+ * Rust's setup() hook also auto-starts indexing by reading vault_path from
+ * the store. If it completes before this call, initIndex returns instantly.
+ */
+async function initSearchIndex(vaultPath: string): Promise<void> {
+  const start = Date.now();
+
+  // Direct await with timeout — most reliable because IPC works at this point
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(`[initSearchIndex] Attempt ${attempt}...`);
+      await Promise.race([
+        searchCommands.initIndex(vaultPath),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('IPC_TIMEOUT')), 30_000)
+        ),
+      ]);
+      const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+      console.log(`[initSearchIndex] Ready in ${elapsed}s (attempt ${attempt})`);
+      return;
+    } catch (e: any) {
+      console.warn(`[initSearchIndex] Attempt ${attempt} failed:`, e?.message || e);
+      if (attempt < 3) await new Promise(r => setTimeout(r, 2_000));
     }
   }
+
+  // Last resort: event listener (Rust setup() auto-init may still be running)
+  console.log('[initSearchIndex] Falling back to event listener...');
+  const { listen } = await import('@tauri-apps/api/event');
+
+  return new Promise<void>((resolve, reject) => {
+    let done = false;
+    const finish = () => { done = true; clearInterval(iid); clearTimeout(tid); ul?.(); };
+    let ul: (() => void) | null = null;
+
+    listen<void>('search-index-ready', () => {
+      if (done) return;
+      console.log(`[initSearchIndex] Event received after ${((Date.now() - start) / 1000).toFixed(1)}s`);
+      finish(); resolve();
+    }).then(fn => { ul = fn; });
+
+    const iid = setInterval(() => {
+      if (!done) searchCommands.initIndex(vaultPath).catch(() => {});
+    }, 5_000);
+
+    const tid = setTimeout(() => {
+      if (!done) { finish(); reject(new Error('Search index initialization timed out')); }
+    }, 120_000);
+  });
 }
 
 export async function openVault(newVaultPath?: string) {
@@ -103,8 +142,19 @@ export async function openVault(newVaultPath?: string) {
     const tree = await fileCommands.readDirectory(selected);
     fileTreeActions.setFileTree(tree);
     await loadVaultSettings(selected);
-    await initSearchIndex(selected);
+
+    // Show the app immediately — search indexes in the background
     refreshActions.setSearchReady(true);
+    refreshActions.setSearchIndexing(true);
+
+    initSearchIndex(selected).then(() => {
+      console.log('[openVault] Search index ready');
+      refreshActions.setSearchIndexing(false);
+      refreshActions.incrementSearchRefresh();
+    }).catch(searchErr => {
+      console.error('[openVault] Background search init failed:', searchErr);
+      refreshActions.setSearchIndexing(false);
+    });
   } catch (e) {
     console.error('Failed to read directory:', e);
     fileTreeActions.setVaultPath(null);
@@ -176,6 +226,9 @@ export async function createFolder(name: string, parentPath?: string): Promise<s
     console.error('[createFolder] Index failed:', e);
   }
   refreshActions.incrementSearchRefresh();
+  if (template.frontmatter.type) {
+    noteTypeCacheActions.patchNoteType(name, template.frontmatter.type as string);
+  }
   return result;
 }
 
@@ -279,6 +332,9 @@ export async function createNoteWithTemplate(title: string, templateId: string, 
       console.error('[createNote] Failed to index note:', err);
     });
     refreshActions.incrementSearchRefresh();
+    if (template.frontmatter.type) {
+      noteTypeCacheActions.patchNoteType(fileName, template.frontmatter.type as string);
+    }
     return result;
   };
 
@@ -427,8 +483,19 @@ export async function forceOpenLockedVault() {
       const tree = await fileCommands.readDirectory(lockedVaultPath);
       fileTreeActions.setFileTree(tree);
       await loadVaultSettings(lockedVaultPath);
-      await initSearchIndex(lockedVaultPath);
+
+      // Show the app immediately — search indexes in the background
       refreshActions.setSearchReady(true);
+      refreshActions.setSearchIndexing(true);
+
+      initSearchIndex(lockedVaultPath).then(() => {
+        console.log('[forceOpenLockedVault] Search index ready');
+        refreshActions.setSearchIndexing(false);
+        refreshActions.incrementSearchRefresh();
+      }).catch(searchErr => {
+        console.error('[forceOpenLockedVault] Background search init failed:', searchErr);
+        refreshActions.setSearchIndexing(false);
+      });
     } catch (e) {
       console.error('Failed to read directory:', e);
     }
@@ -484,30 +551,18 @@ export async function initializeApp() {
       fileTreeActions.setFileTree(tree);
       await loadVaultSettings(savedPath);
 
-      try {
-        console.log('Initializing search index...');
-        await searchCommands.initIndex(savedPath);
-        console.log('Search index initialized, starting full reindex...');
-        await searchCommands.reindexVault();
-        console.log('Full reindex completed');
-      } catch (e) {
-        const errStr = String(e).toLowerCase();
-        if (errStr.includes('permission') || errStr.includes('access') || errStr.includes('denied') || errStr.includes('lock')) {
-          console.warn('Search index locked, attempting to clear and reinitialize...');
-          try {
-            await searchCommands.clearIndex(savedPath);
-            console.log('Index cleared, retrying initialization...');
-            await searchCommands.initIndex(savedPath);
-            await searchCommands.reindexVault();
-            console.log('Search index reinitialized successfully after clear');
-          } catch (retryErr) {
-            console.error('Failed to reinitialize search index after clear:', retryErr);
-          }
-        } else {
-          console.error('Failed to initialize search index:', e);
-        }
-      }
+      // Show the app immediately — search indexes in the background
       refreshActions.setSearchReady(true);
+      refreshActions.setSearchIndexing(true);
+
+      // Background indexing: don't block the UI
+      initSearchIndex(savedPath).then(() => {
+        refreshActions.setSearchIndexing(false);
+        refreshActions.incrementSearchRefresh();
+      }).catch(e => {
+        console.error('[initializeApp] Background search init failed:', e);
+        refreshActions.setSearchIndexing(false);
+      });
     } catch (e) {
       console.error('Failed to read saved vault:', e);
       await globalStore.delete('vault_path');

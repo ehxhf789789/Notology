@@ -1,4 +1,5 @@
 import { frontmatterCommands } from '../services/tauriCommands';
+import { getCurrentTimestamp } from './frontmatter';
 import type {
   Frontmatter,
   ValidationError,
@@ -60,7 +61,7 @@ export function generateNoteId(): string {
  * Create default frontmatter for a note type
  */
 export function createDefaultFrontmatter(noteType: NoteType, title: string): Frontmatter {
-  const now = new Date().toISOString();
+  const now = getCurrentTimestamp();
   const id = generateNoteId();
 
   // Map note type to CSS class
@@ -115,7 +116,7 @@ export function createDefaultFrontmatter(noteType: NoteType, title: string): Fro
 export function updateModifiedTimestamp(frontmatter: Frontmatter): Frontmatter {
   return {
     ...frontmatter,
-    modified: new Date().toISOString(),
+    modified: getCurrentTimestamp(),
   };
 }
 

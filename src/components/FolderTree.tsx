@@ -509,7 +509,7 @@ function FolderTree({ containers, rootContainer, onRootContainerChange, onNewSub
                   }
                 </span>
                 <span className="container-tree-name">{node.name}</span>
-                {isStorage && <span className="container-type-badge" title="Storage 컨테이너">{getTemplatePrefix(node.path)}</span>}
+                {isStorage && <span className="container-type-badge" title={t('storageContainer', language)}>{getTemplatePrefix(node.path)}</span>}
                 {folderStatuses[node.path] && folderStatuses[node.path].status !== 'none' && (
                   <span
                     className={`folder-status-indicator status-${folderStatuses[node.path].status}`}

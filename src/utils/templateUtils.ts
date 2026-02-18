@@ -83,13 +83,9 @@ export function createFromTemplate(
   // Apply type-specific defaults (only metadata, NO hardcoded tags)
   switch (noteType) {
     case 'MTG':
-      // date와 time을 쉼표로 구분하여 저장 (예: "2026-02-11, 09:55")
-      if (customVariables?.date && customVariables?.time) {
-        frontmatter.date = `${customVariables.date}, ${customVariables.time}`;
-      } else if (customVariables?.date) {
-        frontmatter.date = customVariables.date;
-      } else {
-        frontmatter.date = now;
+      frontmatter.date = customVariables?.date || now;
+      if (customVariables?.time) {
+        frontmatter.time = customVariables.time;
       }
       if (customVariables?.participants) {
         frontmatter.participants = customVariables.participants.split(',').map(p => p.trim()).filter(Boolean);
@@ -148,10 +144,10 @@ export function createFromTemplate(
       frontmatter.organization = customVariables?.organization || customVariables?.company || '';
       frontmatter.role = customVariables?.role || customVariables?.position || '';
       frontmatter.location = customVariables?.location || '';
-      // Add @mention alias for contact lookup
+      // Add alias for contact lookup
       if (customVariables?.name || title) {
         const contactName = customVariables?.name || title;
-        frontmatter.aliases = [`@${contactName}`];
+        frontmatter.aliases = [contactName];
       }
       break;
 

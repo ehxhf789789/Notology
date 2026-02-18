@@ -75,7 +75,7 @@ export const WikiLinkSuggestionList = forwardRef<
           className={`wiki-link-suggestion-item${index === selectedIndex ? ' selected' : ''}`}
           onClick={() => selectItem(index)}
         >
-          <div className="wiki-link-suggestion-item-name">{item.fileName}</div>
+          <div className="wiki-link-suggestion-item-name">{item.fileName.replace(/_/g, ' ')}</div>
           <div className="wiki-link-suggestion-item-path">{item.path}</div>
         </button>
       ))}

@@ -1,6 +1,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import type { ImageAttachment } from '../utils/imageEmbedSuggestion';
+import { useSettingsStore } from '../stores/zustand/settingsStore';
+import { t } from '../utils/i18n';
 
 interface ImageEmbedSuggestionListProps {
   items: ImageAttachment[];
@@ -15,6 +17,7 @@ export const ImageEmbedSuggestionList = forwardRef<
   ImageEmbedSuggestionListRef,
   ImageEmbedSuggestionListProps
 >((props, ref) => {
+  const language = useSettingsStore(s => s.language);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const selectItem = (index: number) => {
@@ -89,7 +92,7 @@ export const ImageEmbedSuggestionList = forwardRef<
     return (
       <div className="image-embed-suggestion-list" style={listStyle}>
         <div className="image-embed-suggestion-empty" style={{ color: isLightMode ? '#666' : '#888' }}>
-          이미지 첨부파일 없음
+          {t('noImageAttachments', language)}
         </div>
       </div>
     );
@@ -97,7 +100,7 @@ export const ImageEmbedSuggestionList = forwardRef<
 
   return (
     <div className="image-embed-suggestion-list" style={listStyle}>
-      <div className="image-embed-suggestion-header" style={headerStyle}>이미지 삽입</div>
+      <div className="image-embed-suggestion-header" style={headerStyle}>{t('insertImage', language)}</div>
       {props.items.map((item, index) => {
         const selected = index === selectedIndex;
         return (

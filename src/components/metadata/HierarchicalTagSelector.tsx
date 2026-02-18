@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { TagOntology, TagNode, FacetNamespace } from '../../types/tagOntology';
 import {
   getTagsForFacet,
@@ -9,10 +9,14 @@ import {
   removeFromRecentTags,
   deleteTagFromOntology,
   clearOntologyCache,
+  clearAllRecentTags,
 } from '../../utils/tagOntologyUtils';
+import { searchCommands } from '../../services/tauriCommands';
 import { refreshActions } from '../../stores/zustand/refreshStore';
 import { useSettingsStore } from '../../stores/zustand/settingsStore';
 import { t, tf } from '../../utils/i18n';
+import { TagDeleteConfirmDialog, TagRenameDialog } from './TagBulkDialog';
+import { findSimilarTags } from '../../utils/levenshtein';
 
 interface HierarchicalTagSelectorProps {
   namespace: FacetNamespace;
@@ -36,6 +40,7 @@ function HierarchicalTagSelector({
   const [recentTags, setRecentTags] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1); // Keyboard navigation index
   const [isKeyboardNavActive, setIsKeyboardNavActive] = useState(false); // Track if using keyboard nav
+  const [bulkDialog, setBulkDialog] = useState<{ type: 'delete' | 'rename'; tagId: string; tagLabel: string; noteCount: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -63,6 +68,15 @@ function HierarchicalTagSelector({
   const searchResults = searchQuery.trim()
     ? searchTags(ontology, searchQuery, namespace)
     : [];
+
+  // Typo suggestions when search has few results
+  const typoSuggestions = useMemo(() => {
+    if (!searchQuery.trim() || searchResults.length >= 3) return [];
+    const allLabels = Object.entries(ontology.definitions)
+      .filter(([id]) => id.startsWith(`${namespace}/`))
+      .map(([, def]) => def.label);
+    return findSimilarTags(searchQuery.trim(), allLabels, 2);
+  }, [searchQuery, searchResults.length, ontology, namespace]);
 
   // Reset selectedIndex when search query changes
   useEffect(() => {
@@ -152,13 +166,31 @@ function HierarchicalTagSelector({
 
   const handleDeleteTag = async (e: React.MouseEvent, tagId: string) => {
     e.stopPropagation();
+    const tagLabel = ontology.definitions[tagId]?.label || tagId.split('/').pop() || tagId;
     try {
-      await deleteTagFromOntology(vaultPath, tagId);
-      setSearchQuery(''); // Clear search to refresh results
-      incrementOntologyRefresh(); // Trigger refresh for all components
-      onClose();
+      const notes = await searchCommands.queryNotes({ tags: [tagId] });
+      setBulkDialog({ type: 'delete', tagId, tagLabel, noteCount: notes.length });
     } catch (error) {
-      console.error('Failed to delete tag:', error);
+      console.error('Failed to get note count for tag:', error);
+      // Fallback: delete from ontology only
+      try {
+        await deleteTagFromOntology(vaultPath, tagId);
+        incrementOntologyRefresh();
+        onClose();
+      } catch (e2) {
+        console.error('Failed to delete tag:', e2);
+      }
+    }
+  };
+
+  const handleRenameTag = async (e: React.MouseEvent, tagId: string) => {
+    e.stopPropagation();
+    const tagLabel = ontology.definitions[tagId]?.label || tagId.split('/').pop() || tagId;
+    try {
+      const notes = await searchCommands.queryNotes({ tags: [tagId] });
+      setBulkDialog({ type: 'rename', tagId, tagLabel, noteCount: notes.length });
+    } catch (error) {
+      console.error('Failed to get note count for tag:', error);
     }
   };
 
@@ -184,6 +216,22 @@ function HierarchicalTagSelector({
           {searchResults.length === 0 ? (
             <div className="tag-empty">
               <div>{t('noSearchResultsMeta', language)}</div>
+              {typoSuggestions.length > 0 && (
+                <div className="tag-typo-suggestions">
+                  <span className="tag-typo-label">{t('didYouMean', language)}</span>
+                  <div className="tag-typo-list">
+                    {typoSuggestions.map(s => (
+                      <button
+                        key={s.tag}
+                        className="tag-typo-btn"
+                        onClick={() => setSearchQuery(s.tag)}
+                      >
+                        {s.tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <button
                 className="tag-create-btn"
                 onClick={handleCreateNewTag}
@@ -215,6 +263,13 @@ function HierarchicalTagSelector({
                     <div className="tag-item-breadcrumb">
                       {result.breadcrumb.join(' > ')}
                     </div>
+                  </button>
+                  <button
+                    className="tag-item-rename"
+                    onClick={(e) => handleRenameTag(e, result.id)}
+                    title={t('tagRename', language)}
+                  >
+                    ✎
                   </button>
                   <button
                     className="tag-item-delete"
@@ -284,6 +339,13 @@ function HierarchicalTagSelector({
                     )}
                   </button>
                   <button
+                    className="tag-item-rename"
+                    onClick={(e) => handleRenameTag(e, tag.id)}
+                    title={t('tagRename', language)}
+                  >
+                    ✎
+                  </button>
+                  <button
                     className="tag-item-delete"
                     onClick={(e) => handleDeleteTag(e, tag.id)}
                     title={t('tagDelete', language)}
@@ -298,7 +360,19 @@ function HierarchicalTagSelector({
           {/* Recent Tags */}
           {currentPath.length === 0 && recentTags.length > 0 && (
             <div className="tag-recent">
-              <div className="tag-recent-title">{t('recentTags', language)}</div>
+              <div className="tag-recent-header">
+                <span className="tag-recent-title">{t('recentTags', language)}</span>
+                <button
+                  className="tag-recent-clear"
+                  onClick={() => {
+                    clearAllRecentTags();
+                    setRecentTags([]);
+                  }}
+                  title={t('clearRecentTags', language)}
+                >
+                  {t('clearRecentTags', language)}
+                </button>
+              </div>
               <div className="tag-recent-list">
                 {recentTags.map((tagId) => {
                   const definition = ontology.definitions[tagId];
@@ -330,6 +404,36 @@ function HierarchicalTagSelector({
             </div>
           )}
         </>
+      )}
+
+      {/* Bulk operation dialogs */}
+      {bulkDialog?.type === 'delete' && (
+        <TagDeleteConfirmDialog
+          tagId={bulkDialog.tagId}
+          tagLabel={bulkDialog.tagLabel}
+          namespace={namespace}
+          noteCount={bulkDialog.noteCount}
+          vaultPath={vaultPath}
+          onClose={() => {
+            setBulkDialog(null);
+            setSearchQuery('');
+            onClose();
+          }}
+        />
+      )}
+      {bulkDialog?.type === 'rename' && (
+        <TagRenameDialog
+          tagId={bulkDialog.tagId}
+          tagLabel={bulkDialog.tagLabel}
+          namespace={namespace}
+          noteCount={bulkDialog.noteCount}
+          vaultPath={vaultPath}
+          onClose={() => {
+            setBulkDialog(null);
+            setSearchQuery('');
+            onClose();
+          }}
+        />
       )}
     </div>
   );

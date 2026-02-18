@@ -61,6 +61,9 @@ interface GraphNodeInternal {
   path: string;
   isFolderNote: boolean;
   tagNamespace: string;
+  memoCount?: number;
+  taskCount?: number;
+  hasUnresolvedTasks?: boolean;
   // d3-force added
   x?: number;
   y?: number;
@@ -101,6 +104,8 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
   const [selectedFolderNoteId, setSelectedFolderNoteId] = useState<string | null>(null);
   // Selected attachment for highlight (single click selects, double click opens)
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
+  // Selected note for highlight (single click selects, double click opens HoverEditor)
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
   // Stable ref for hoveredNodeId to avoid re-binding callbacks
   const hoveredNodeIdRef = useRef<string | null>(null);
@@ -121,6 +126,10 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
   // Stable ref for selectedAttachmentId
   const selectedAttachmentIdRef = useRef<string | null>(null);
   selectedAttachmentIdRef.current = selectedAttachmentId;
+
+  // Stable ref for selectedNoteId
+  const selectedNoteIdRef = useRef<string | null>(null);
+  selectedNoteIdRef.current = selectedNoteId;
 
   // Stable ref for latest filtered data (used in callbacks without re-binding graph)
   const filteredDataRef = useRef<{ nodes: GraphNodeInternal[]; links: GraphLinkInternal[] }>({ nodes: [], links: [] });
@@ -263,6 +272,13 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
       // Double-click detected
       lastClickRef.current = null;
 
+      if (node.nodeType === 'note' && !node.isFolderNote && node.path) {
+        // Regular note: double-click opens HoverEditor
+        hoverActions.open(node.path);
+        setSelectedNoteId(null);
+        return;
+      }
+
       if (node.isFolderNote && node.path) {
         // Folder note: navigate to container
         const folderPath = node.path.replace(/[/\\][^/\\]+$/, ''); // parent directory
@@ -276,10 +292,8 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
         const isPdf = PDF_EXTENSION.test(node.path);
 
         if (isImage || isPdf) {
-          // Images and PDFs: open in Notology viewer
           hoverActions.open(node.path);
         } else {
-          // Other files: open with external application
           utilCommands.openInDefaultApp(node.path);
         }
         setSelectedAttachmentId(null);
@@ -294,6 +308,7 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
     // Tag node: toggle selection for persistent highlight
     if (node.nodeType === 'tag') {
       setSelectedTagId(prev => prev === node.id ? null : node.id);
+      setSelectedNoteId(null);
       setSelectedFolderNoteId(null);
       setSelectedAttachmentId(null);
       return;
@@ -303,19 +318,21 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
 
     if (!node.path) return;
 
-    if (node.isFolderNote) {
-      // Folder notes: single click only selects/highlights (toggle)
+    if (node.nodeType === 'note' && !node.isFolderNote) {
+      // Regular notes: single click highlights connected nodes (toggle)
+      setSelectedNoteId(prev => prev === node.id ? null : node.id);
+      setSelectedFolderNoteId(null);
+      setSelectedAttachmentId(null);
+    } else if (node.isFolderNote) {
+      // Folder notes: single click selects/highlights (toggle)
+      setSelectedNoteId(null);
       setSelectedFolderNoteId(prev => prev === node.id ? null : node.id);
       setSelectedAttachmentId(null);
     } else if (node.nodeType === 'attachment') {
       // Attachments: single click selects/highlights (toggle), double click opens
+      setSelectedNoteId(null);
       setSelectedFolderNoteId(null);
       setSelectedAttachmentId(prev => prev === node.id ? null : node.id);
-    } else if (node.nodeType === 'note') {
-      // Regular notes: single click opens
-      setSelectedFolderNoteId(null);
-      setSelectedAttachmentId(null);
-      hoverActions.open(node.path);
     }
   }, []);
 
@@ -370,9 +387,10 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
         }
         const size = baseSize + Math.min(degree * 0.4, 5);
 
-        // Hover dim effect OR selected tag/folder note/attachment highlight
+        // Hover dim effect OR selected node highlight
         const currentHovered = hoveredNodeIdRef.current;
         const currentSelectedTag = selectedTagIdRef.current;
+        const currentSelectedNote = selectedNoteIdRef.current;
         const currentSelectedFolderNote = selectedFolderNoteIdRef.current;
         const currentSelectedAttachment = selectedAttachmentIdRef.current;
         const isHovered = currentHovered === n.id;
@@ -380,12 +398,15 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
         const isSelectedFolderNote = currentSelectedFolderNote === n.id;
         const isSelectedAttachment = currentSelectedAttachment === n.id;
         let alpha = 1;
-        // Priority: hover > selected tag > selected folder note > selected attachment
+        // Priority: hover > selected tag > selected note > selected folder note > selected attachment
         if (currentHovered) {
           const neighbors = getNeighborSet(currentHovered);
           alpha = neighbors.has(n.id) ? 1 : 0.08;
         } else if (currentSelectedTag) {
           const neighbors = getNeighborSet(currentSelectedTag);
+          alpha = neighbors.has(n.id) ? 1 : 0.08;
+        } else if (currentSelectedNote) {
+          const neighbors = getNeighborSet(currentSelectedNote);
           alpha = neighbors.has(n.id) ? 1 : 0.08;
         } else if (currentSelectedFolderNote) {
           const neighbors = getNeighborSet(currentSelectedFolderNote);
@@ -424,7 +445,7 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
           ctx.closePath();
           ctx.fillStyle = color;
           ctx.fill();
-          ctx.strokeStyle = isDarkRef.current ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)';
+          ctx.strokeStyle = isDarkRef.current ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
           ctx.lineWidth = 0.5;
           ctx.stroke();
         } else if (n.nodeType === 'attachment') {
@@ -448,7 +469,7 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
           ctx.arc(x, y, size, 0, 2 * Math.PI);
           ctx.fillStyle = color;
           ctx.fill();
-          ctx.strokeStyle = isDarkRef.current ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.25)';
+          ctx.strokeStyle = isDarkRef.current ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)';
           ctx.lineWidth = 1.5;
           ctx.stroke();
           ctx.beginPath();
@@ -463,6 +484,41 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
           ctx.arc(x, y, size, 0, 2 * Math.PI);
           ctx.fillStyle = color;
           ctx.fill();
+        }
+
+        // Draw memo/task indicator badge
+        if (n.nodeType === 'note' && alpha > 0.5) {
+          const tasks = n.taskCount || 0;
+          const memos = n.memoCount || 0;
+          if (tasks > 0) {
+            // Red ring for unresolved tasks
+            ctx.beginPath();
+            ctx.arc(x, y, size + 2, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#f87171';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            // Badge at top-right
+            const badgeX = x + size * 0.7;
+            const badgeY = y - size * 0.7;
+            const badgeR = Math.max(3, 4 / globalScale);
+            ctx.beginPath();
+            ctx.arc(badgeX, badgeY, badgeR, 0, 2 * Math.PI);
+            ctx.fillStyle = '#f87171';
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.font = `${badgeR * 1.2}px Sans-Serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(tasks), badgeX, badgeY);
+          } else if (memos > 0) {
+            // Amber dot for memos
+            const dotX = x + size * 0.7;
+            const dotY = y - size * 0.7;
+            ctx.beginPath();
+            ctx.arc(dotX, dotY, 2.5, 0, 2 * Math.PI);
+            ctx.fillStyle = '#fbbf24';
+            ctx.fill();
+          }
         }
 
         // Draw label
@@ -518,10 +574,11 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
         const dark = isDarkRef.current;
         const currentHovered = hoveredNodeIdRef.current;
         const currentSelectedTag = selectedTagIdRef.current;
+        const currentSelectedNote = selectedNoteIdRef.current;
         const currentSelectedFolderNote = selectedFolderNoteIdRef.current;
         const currentSelectedAttachment = selectedAttachmentIdRef.current;
-        // Priority: hover > selected tag > selected folder note > selected attachment
-        const highlightId = currentHovered || currentSelectedTag || currentSelectedFolderNote || currentSelectedAttachment;
+        // Priority: hover > selected tag > selected note > selected folder note > selected attachment
+        const highlightId = currentHovered || currentSelectedTag || currentSelectedNote || currentSelectedFolderNote || currentSelectedAttachment;
         if (highlightId) {
           const sourceId = typeof l.source === 'string' ? l.source : l.source.id;
           const targetId = typeof l.target === 'string' ? l.target : l.target.id;
@@ -529,16 +586,16 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
           if (neighbors.has(sourceId) && neighbors.has(targetId)) {
             // Use brighter color for selected tag highlight
             if (!currentHovered && currentSelectedTag) {
-              return dark ? 'rgba(250,204,21,0.7)' : 'rgba(200,160,0,0.6)';
+              return dark ? 'rgba(250,204,21,0.7)' : 'rgba(180,140,0,0.75)';
             }
-            return dark ? 'rgba(150,150,150,0.6)' : 'rgba(100,100,100,0.5)';
+            return dark ? 'rgba(150,150,150,0.6)' : 'rgba(80,80,80,0.6)';
           }
-          return dark ? 'rgba(150,150,150,0.03)' : 'rgba(100,100,100,0.03)';
+          return dark ? 'rgba(150,150,150,0.03)' : 'rgba(100,100,100,0.05)';
         }
-        if (l.edgeType === 'contains') return dark ? 'rgba(100,100,255,0.35)' : 'rgba(80,80,200,0.3)';
-        if (l.edgeType === 'tag') return dark ? 'rgba(180,160,100,0.25)' : 'rgba(150,130,80,0.25)';
-        if (l.edgeType === 'attachment') return dark ? 'rgba(16,185,129,0.25)' : 'rgba(12,150,100,0.25)';
-        return dark ? 'rgba(150,150,150,0.3)' : 'rgba(100,100,100,0.25)';
+        if (l.edgeType === 'contains') return dark ? 'rgba(100,100,255,0.35)' : 'rgba(60,60,180,0.45)';
+        if (l.edgeType === 'tag') return dark ? 'rgba(180,160,100,0.25)' : 'rgba(140,110,40,0.4)';
+        if (l.edgeType === 'attachment') return dark ? 'rgba(16,185,129,0.25)' : 'rgba(10,130,80,0.4)';
+        return dark ? 'rgba(150,150,150,0.3)' : 'rgba(80,80,80,0.4)';
       })
       .linkWidth((link: any) => {
         const l = link as GraphLinkInternal;
@@ -570,6 +627,7 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
       .onBackgroundClick(() => {
         // Clear selections when clicking on empty space
         setSelectedTagId(null);
+        setSelectedNoteId(null);
         setSelectedFolderNoteId(null);
         setSelectedAttachmentId(null);
       })
@@ -688,7 +746,7 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
       // Trigger a visual refresh without resetting physics
       graphRef.current.nodeColor(() => ''); // no-op, but forces redraw
     }
-  }, [hoveredNodeId, searchHighlightId, selectedTagId, selectedFolderNoteId, selectedAttachmentId]);
+  }, [hoveredNodeId, searchHighlightId, selectedTagId, selectedNoteId, selectedFolderNoteId, selectedAttachmentId]);
 
   // --- SEARCH within graph ---
   const handleSearchNode = useCallback((query: string) => {

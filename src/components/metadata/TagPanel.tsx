@@ -9,11 +9,12 @@ import type { FacetedTags } from '../../types/frontmatter';
 interface TagPanelProps {
   filePath: string | null;
   vaultPath: string;
+  onSaved?: (tags: FacetedTags) => void;
 }
 
 type TagPanelMode = 'tags' | 'yaml';
 
-function TagPanel({ filePath, vaultPath }: TagPanelProps) {
+function TagPanel({ filePath, vaultPath, onSaved }: TagPanelProps) {
   const autoSaveDelay = useSettingsStore((s) => s.autoSaveDelay);
   const language = useSettingsStore((s) => s.language);
   const devMode = useDevMode();
@@ -31,12 +32,13 @@ function TagPanel({ filePath, vaultPath }: TagPanelProps) {
     try {
       setIsSaving(true);
       await saveFrontmatter();
+      onSaved?.(frontmatter.tags || {});
     } catch (error) {
       console.error('Save failed:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [errors, frontmatter, saveFrontmatter]);
+  }, [errors, frontmatter, saveFrontmatter, onSaved]);
 
   // Auto-save when frontmatter changes (with debounce) — for YAML mode
   useEffect(() => {
