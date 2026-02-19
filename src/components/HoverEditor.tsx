@@ -1869,7 +1869,9 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       // Find the END of the attachment section and check if the LAST element is a bulletList
       // We want to add attachments at the VERY END of the section
       let sectionEndPos: number = attachmentHeadingEndPos;
-      let lastNodeInSection: { type: string; pos: number; endPos: number } | null = null;
+      let lastNodeType: string | null = null;
+      let lastNodePos: number | null = null;
+      let lastNodeEndPos: number | null = null;
 
       doc.nodesBetween(attachmentHeadingEndPos, doc.content.size, (node, pos) => {
         // Stop at next heading of same or higher level (end of attachment section)
@@ -1879,25 +1881,25 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         // Track each top-level node in the section
         const nodeEndPos = pos + node.nodeSize;
         sectionEndPos = nodeEndPos;
-        lastNodeInSection = {
-          type: node.type.name,
-          pos,
-          endPos: nodeEndPos,
-        };
+        lastNodeType = node.type.name;
+        lastNodePos = pos;
+        lastNodeEndPos = nodeEndPos;
         return false; // Don't descend
       });
 
-      if (lastNodeInSection && lastNodeInSection.type === 'bulletList') {
+      if (lastNodeType === 'bulletList' && lastNodeEndPos !== null) {
         // The LAST element in the section is a bulletList - append to it
         editor.chain()
           .focus()
-          .insertContentAt(lastNodeInSection.endPos - 1, listItems)
+          .insertContentAt(lastNodeEndPos - 1, listItems)
           .run();
-      } else if (lastNodeInSection && lastNodeInSection.type === 'paragraph') {
+      } else if (lastNodeType === 'paragraph' && lastNodePos !== null && lastNodeEndPos !== null) {
         // Last element is a paragraph - check if it's empty
-        const lastNode = doc.nodeAt(lastNodeInSection.pos);
+        const lastNode = doc.nodeAt(lastNodePos);
         if (lastNode && lastNode.textContent.trim() === '') {
           // Empty paragraph - replace it with bulletList
+          const replaceStart = lastNodePos;
+          const replaceEnd = lastNodeEndPos;
           editor.chain()
             .focus()
             .command(({ tr, state }) => {
@@ -1905,12 +1907,13 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
                 type: 'bulletList',
                 content: listItems,
               });
-              tr.replaceWith(lastNodeInSection.pos, lastNodeInSection.endPos, bulletListNode);
+              tr.replaceWith(replaceStart, replaceEnd, bulletListNode);
               return true;
             })
             .run();
         } else {
           // Non-empty paragraph - insert bulletList right after it (no gap)
+          const insertAt = lastNodeEndPos;
           editor.chain()
             .focus()
             .command(({ tr, state }) => {
@@ -1918,14 +1921,14 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
                 type: 'bulletList',
                 content: listItems,
               });
-              // Insert right at the end position of the paragraph
-              tr.insert(lastNodeInSection.endPos, bulletListNode);
+              tr.insert(insertAt, bulletListNode);
               return true;
             })
             .run();
         }
       } else {
         // No content or other node type - create new list at the end
+        const insertAt = sectionEndPos;
         editor.chain()
           .focus()
           .command(({ tr, state }) => {
@@ -1933,7 +1936,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
               type: 'bulletList',
               content: listItems,
             });
-            tr.insert(sectionEndPos, bulletListNode);
+            tr.insert(insertAt, bulletListNode);
             return true;
           })
           .run();
