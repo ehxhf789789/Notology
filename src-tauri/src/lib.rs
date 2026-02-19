@@ -1,3 +1,6 @@
+// Allow unused code for future features
+#![allow(dead_code)]
+
 pub mod search;
 pub mod vault_lock;
 mod frontmatter;

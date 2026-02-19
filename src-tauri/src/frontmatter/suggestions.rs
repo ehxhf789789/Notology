@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use super::types::{Frontmatter, RelationType, WorkflowState, ConfidenceState};
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
