@@ -22,7 +22,6 @@ import { SearchFilters } from './search/SearchFilters';
 import { FrontmatterResultRow, ContentResultCard, AttachmentResultRow, DetailsResultCard } from './search/SearchResultItem';
 import BulkTagModal from './BulkTagModal';
 import FloatingWords from './search/FloatingWords';
-import { closeHoverWindow } from '../utils/multiWindow';
 
 // Conditional logging - only in development
 const DEV = import.meta.env.DEV;
@@ -499,9 +498,9 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     return result;
   }, [attachmentResults, containerPath, attachmentsContainerFilter, attachmentsExtensionFilter, attachmentsShowDummyOnly, attachmentsNotePathFilter]);
 
-  // Double-click pre-creation: start window creation on first mousedown,
-  // confirm on second mousedown, cancel (close hidden window) on single-click timeout.
-  const pendingNoteOpenRef = useRef<{ path: string; time: number; timer: ReturnType<typeof setTimeout> } | null>(null);
+  // Double-click detection: track first click time, open window only on confirmed double-click
+  // This prevents flash when single-clicking (window was being created then closed after 350ms)
+  const pendingNoteOpenRef = useRef<{ path: string; time: number } | null>(null);
 
   const handleNoteClick = useCallback((path: string, noteType?: string) => {
     if (noteType?.toUpperCase() === 'CONTAINER') {
@@ -515,42 +514,28 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     const pending = pendingNoteOpenRef.current;
     const now = Date.now();
 
-    // Second click on same note within 350ms → confirmed double-click
+    // Second click on same note within 350ms → confirmed double-click, open window
     if (pending && pending.path === path && (now - pending.time) < 350) {
-      clearTimeout(pending.timer);
       pendingNoteOpenRef.current = null;
-      // Window is already creating from first click — let it show
-      return;
-    }
 
-    // Cancel any previous pending open (different note or expired)
-    if (pending) {
-      clearTimeout(pending.timer);
-      closeHoverWindow(pending.path).catch(() => {});
-      pendingNoteOpenRef.current = null;
-    }
-
-    // Check for existing window first
-    const existingWindow = useHoverStore.getState().hoverFiles.find(h => h.filePath === path && !h.cached);
-    if (existingWindow) {
-      if (existingWindow.minimized) {
-        hoverActions.restore(existingWindow.id);
-      } else {
-        hoverActions.focus(existingWindow.id);
+      // Check for existing window first
+      const existingWindow = useHoverStore.getState().hoverFiles.find(h => h.filePath === path && !h.cached);
+      if (existingWindow) {
+        if (existingWindow.minimized) {
+          hoverActions.restore(existingWindow.id);
+        } else {
+          hoverActions.focus(existingWindow.id);
+        }
+        return;
       }
+
+      // Open window on confirmed double-click
+      hoverActions.open(path);
       return;
     }
 
-    // First click: create hover window (starts hidden)
-    hoverActions.open(path);
-
-    // Set cancel timer: if no second click comes, close the hidden window
-    const timer = setTimeout(() => {
-      closeHoverWindow(path).catch(() => {});
-      pendingNoteOpenRef.current = null;
-    }, 350);
-
-    pendingNoteOpenRef.current = { path, time: now, timer };
+    // First click: just record the time and path, don't open window yet
+    pendingNoteOpenRef.current = { path, time: now };
   }, []);
 
   // Preload content when hovering over search results — warms cache for instant loading on click

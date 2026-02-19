@@ -4,6 +4,7 @@ import type { Editor } from '@tiptap/react';
 import type { CalloutType } from '../extensions/Callout';
 import { useSettingsStore } from '../stores/zustand/settingsStore';
 import { t } from '../utils/i18n';
+import { modalActions } from '../stores/zustand/modalStore';
 
 interface EditorContextMenuProps {
   editor: Editor;
@@ -55,7 +56,8 @@ function SubmenuPortal({ show, triggerRef, children, onMouseEnter, onMouseLeave 
     const openLeft = rect.right + submenuWidth > window.innerWidth - padding;
 
     setPos({
-      x: openLeft ? rect.left - submenuWidth + 4 : rect.right - 4,
+      // When opening left, add more overlap to prevent gap when mouse moves between menus
+      x: openLeft ? rect.left - submenuWidth + 12 : rect.right - 4,
       y: rect.top - 4,
       openLeft,
     });
@@ -80,10 +82,12 @@ function EditorContextMenu({ editor, position, onClose, onAddMemo, onAddTask }: 
   const language = useSettingsStore(s => s.language);
   const menuRef = useRef<HTMLDivElement>(null);
   const headingTriggerRef = useRef<HTMLDivElement>(null);
+  const alignTriggerRef = useRef<HTMLDivElement>(null);
   const calloutTriggerRef = useRef<HTMLDivElement>(null);
   const cellColorTriggerRef = useRef<HTMLDivElement>(null);
   const [adjustedPos, setAdjustedPos] = useState(position);
   const [showHeadingSubmenu, setShowHeadingSubmenu] = useState(false);
+  const [showAlignSubmenu, setShowAlignSubmenu] = useState(false);
   const [showCalloutSubmenu, setShowCalloutSubmenu] = useState(false);
   const [showCellColorSubmenu, setShowCellColorSubmenu] = useState(false);
 
@@ -164,6 +168,91 @@ function EditorContextMenu({ editor, position, onClose, onAddMemo, onAddTask }: 
       className="editor-context-menu"
       style={{ left: adjustedPos.x, top: adjustedPos.y }}
     >
+      {/* Table operations - show at TOP when inside a table */}
+      {editor.isActive('table') && (
+        <>
+          <button
+            className="editor-context-menu-item"
+            onClick={() => runCommand(() => editor.chain().focus().addRowBefore().run())}
+          >
+            <span className="ecm-label">{t('addRowBefore', language)}</span>
+          </button>
+          <button
+            className="editor-context-menu-item"
+            onClick={() => runCommand(() => editor.chain().focus().addRowAfter().run())}
+          >
+            <span className="ecm-label">{t('addRowAfter', language)}</span>
+          </button>
+          <button
+            className="editor-context-menu-item"
+            onClick={() => runCommand(() => editor.chain().focus().addColumnBefore().run())}
+          >
+            <span className="ecm-label">{t('addColumnBefore', language)}</span>
+          </button>
+          <button
+            className="editor-context-menu-item"
+            onClick={() => runCommand(() => editor.chain().focus().addColumnAfter().run())}
+          >
+            <span className="ecm-label">{t('addColumnAfter', language)}</span>
+          </button>
+          <div className="editor-context-menu-separator" />
+          <div
+            ref={cellColorTriggerRef}
+            className="editor-context-menu-item has-submenu"
+            onMouseEnter={() => { setShowCellColorSubmenu(true); setShowHeadingSubmenu(false); setShowCalloutSubmenu(false); }}
+            onMouseLeave={() => setShowCellColorSubmenu(false)}
+          >
+            <span className="ecm-label">{t('cellBgColor', language)}</span>
+            <span className="ecm-arrow">▸</span>
+          </div>
+          <SubmenuPortal
+            show={showCellColorSubmenu}
+            triggerRef={cellColorTriggerRef}
+            onMouseEnter={() => setShowCellColorSubmenu(true)}
+            onMouseLeave={() => setShowCellColorSubmenu(false)}
+          >
+            {cellColors.map(c => (
+              <button
+                key={c.color}
+                className="editor-context-menu-item"
+                onClick={() => runCommand(() => {
+                  // Try to update tableHeader first (for header cells), then tableCell
+                  const chain = editor.chain().focus();
+                  if (editor.isActive('tableHeader')) {
+                    chain.updateAttributes('tableHeader', { backgroundColor: c.color }).run();
+                  } else {
+                    chain.updateAttributes('tableCell', { backgroundColor: c.color }).run();
+                  }
+                })}
+              >
+                <div className="cell-color-preview" style={{ backgroundColor: c.color }} />
+                <span className="ecm-label">{c.label}</span>
+              </button>
+            ))}
+          </SubmenuPortal>
+          <div className="editor-context-menu-separator" />
+          <button
+            className="editor-context-menu-item"
+            onClick={() => runCommand(() => editor.chain().focus().deleteRow().run())}
+          >
+            <span className="ecm-label">{t('deleteRow', language)}</span>
+          </button>
+          <button
+            className="editor-context-menu-item"
+            onClick={() => runCommand(() => editor.chain().focus().deleteColumn().run())}
+          >
+            <span className="ecm-label">{t('deleteColumn', language)}</span>
+          </button>
+          <button
+            className="editor-context-menu-item delete"
+            onClick={() => runCommand(() => editor.chain().focus().deleteTable().run())}
+          >
+            <span className="ecm-label">{t('deleteTable', language)}</span>
+          </button>
+          <div className="editor-context-menu-separator" />
+        </>
+      )}
+
       {/* Memo / Task (only when text is selected) */}
       {!editor.state.selection.empty && onAddMemo && (
         <>
@@ -228,7 +317,7 @@ function EditorContextMenu({ editor, position, onClose, onAddMemo, onAddTask }: 
       <div
         ref={headingTriggerRef}
         className="editor-context-menu-item has-submenu"
-        onMouseEnter={() => { setShowHeadingSubmenu(true); setShowCalloutSubmenu(false); setShowCellColorSubmenu(false); }}
+        onMouseEnter={() => { setShowHeadingSubmenu(true); setShowAlignSubmenu(false); setShowCalloutSubmenu(false); setShowCellColorSubmenu(false); }}
         onMouseLeave={() => setShowHeadingSubmenu(false)}
       >
         <span className="ecm-label">{t('heading', language)}</span>
@@ -260,26 +349,83 @@ function EditorContextMenu({ editor, position, onClose, onAddMemo, onAddTask }: 
         </button>
       </SubmenuPortal>
 
+      {/* Alignment submenu */}
+      <div
+        ref={alignTriggerRef}
+        className="editor-context-menu-item has-submenu"
+        onMouseEnter={() => { setShowAlignSubmenu(true); setShowHeadingSubmenu(false); setShowCalloutSubmenu(false); setShowCellColorSubmenu(false); }}
+        onMouseLeave={() => setShowAlignSubmenu(false)}
+      >
+        <span className="ecm-label">{t('textAlign', language)}</span>
+        <span className="ecm-arrow">▸</span>
+      </div>
+      <SubmenuPortal
+        show={showAlignSubmenu}
+        triggerRef={alignTriggerRef}
+        onMouseEnter={() => setShowAlignSubmenu(true)}
+        onMouseLeave={() => setShowAlignSubmenu(false)}
+      >
+        <button
+          className={`editor-context-menu-item ${editor.isActive({ textAlign: 'left' }) ? 'active' : ''}`}
+          onClick={() => runCommand(() => editor.chain().focus().setTextAlign('left').run())}
+        >
+          <span className="ecm-label">{t('alignLeft', language)}</span>
+        </button>
+        <button
+          className={`editor-context-menu-item ${editor.isActive({ textAlign: 'center' }) ? 'active' : ''}`}
+          onClick={() => runCommand(() => editor.chain().focus().setTextAlign('center').run())}
+        >
+          <span className="ecm-label">{t('alignCenter', language)}</span>
+        </button>
+        <button
+          className={`editor-context-menu-item ${editor.isActive({ textAlign: 'right' }) ? 'active' : ''}`}
+          onClick={() => runCommand(() => editor.chain().focus().setTextAlign('right').run())}
+        >
+          <span className="ecm-label">{t('alignRight', language)}</span>
+        </button>
+      </SubmenuPortal>
+
       <div className="editor-context-menu-separator" />
 
       {/* Lists */}
       <button
         className={`editor-context-menu-item ${editor.isActive('bulletList') ? 'active' : ''}`}
-        onClick={() => runCommand(() => editor.chain().focus().toggleBulletList().run())}
+        onClick={() => {
+          if (editor.isActive('codeBlock')) {
+            modalActions.showAlertModal(t('codeBlockWarningTitle', language), t('codeBlockWarningMessage', language));
+            onClose();
+            return;
+          }
+          runCommand(() => editor.chain().focus().toggleBulletList().run());
+        }}
       >
         <span className="ecm-label">{t('bulletList', language)}</span>
         <span className="ecm-shortcut"></span>
       </button>
       <button
         className={`editor-context-menu-item ${editor.isActive('orderedList') ? 'active' : ''}`}
-        onClick={() => runCommand(() => editor.chain().focus().toggleOrderedList().run())}
+        onClick={() => {
+          if (editor.isActive('codeBlock')) {
+            modalActions.showAlertModal(t('codeBlockWarningTitle', language), t('codeBlockWarningMessage', language));
+            onClose();
+            return;
+          }
+          runCommand(() => editor.chain().focus().toggleOrderedList().run());
+        }}
       >
         <span className="ecm-label">{t('orderedList', language)}</span>
         <span className="ecm-shortcut"></span>
       </button>
       <button
         className={`editor-context-menu-item ${editor.isActive('taskList') ? 'active' : ''}`}
-        onClick={() => runCommand(() => editor.chain().focus().toggleTaskList().run())}
+        onClick={() => {
+          if (editor.isActive('codeBlock')) {
+            modalActions.showAlertModal(t('codeBlockWarningTitle', language), t('codeBlockWarningMessage', language));
+            onClose();
+            return;
+          }
+          runCommand(() => editor.chain().focus().toggleTaskList().run());
+        }}
       >
         <span className="ecm-label">{t('checklist', language)}</span>
         <span className="ecm-shortcut"></span>
@@ -300,7 +446,7 @@ function EditorContextMenu({ editor, position, onClose, onAddMemo, onAddTask }: 
       <div
         ref={calloutTriggerRef}
         className="editor-context-menu-item has-submenu"
-        onMouseEnter={() => { setShowCalloutSubmenu(true); setShowHeadingSubmenu(false); setShowCellColorSubmenu(false); }}
+        onMouseEnter={() => { setShowCalloutSubmenu(true); setShowHeadingSubmenu(false); setShowAlignSubmenu(false); setShowCellColorSubmenu(false); }}
         onMouseLeave={() => setShowCalloutSubmenu(false)}
       >
         <span className="ecm-label">{t('callout', language)}</span>
@@ -373,85 +519,6 @@ function EditorContextMenu({ editor, position, onClose, onAddMemo, onAddTask }: 
         <span className="ecm-label">{t('outdentShort', language)}</span>
         <span className="ecm-shortcut">Shift+Tab</span>
       </button>
-
-      {/* Table operations */}
-      {editor.isActive('table') && (
-        <>
-          <div className="editor-context-menu-separator" />
-          <button
-            className="editor-context-menu-item"
-            onClick={() => runCommand(() => editor.chain().focus().addRowBefore().run())}
-          >
-            <span className="ecm-label">{t('addRowBefore', language)}</span>
-          </button>
-          <button
-            className="editor-context-menu-item"
-            onClick={() => runCommand(() => editor.chain().focus().addRowAfter().run())}
-          >
-            <span className="ecm-label">{t('addRowAfter', language)}</span>
-          </button>
-          <button
-            className="editor-context-menu-item"
-            onClick={() => runCommand(() => editor.chain().focus().addColumnBefore().run())}
-          >
-            <span className="ecm-label">{t('addColumnBefore', language)}</span>
-          </button>
-          <button
-            className="editor-context-menu-item"
-            onClick={() => runCommand(() => editor.chain().focus().addColumnAfter().run())}
-          >
-            <span className="ecm-label">{t('addColumnAfter', language)}</span>
-          </button>
-          <div className="editor-context-menu-separator" />
-          <div
-            ref={cellColorTriggerRef}
-            className="editor-context-menu-item has-submenu"
-            onMouseEnter={() => { setShowCellColorSubmenu(true); setShowHeadingSubmenu(false); setShowCalloutSubmenu(false); }}
-            onMouseLeave={() => setShowCellColorSubmenu(false)}
-          >
-            <span className="ecm-label">{t('cellBgColor', language)}</span>
-            <span className="ecm-arrow">▸</span>
-          </div>
-          <SubmenuPortal
-            show={showCellColorSubmenu}
-            triggerRef={cellColorTriggerRef}
-            onMouseEnter={() => setShowCellColorSubmenu(true)}
-            onMouseLeave={() => setShowCellColorSubmenu(false)}
-          >
-            {cellColors.map(c => (
-              <button
-                key={c.color}
-                className="editor-context-menu-item"
-                onClick={() => runCommand(() => {
-                  editor.chain().focus().updateAttributes('tableCell', { backgroundColor: c.color }).run();
-                })}
-              >
-                <div className="cell-color-preview" style={{ backgroundColor: c.color }} />
-                <span className="ecm-label">{c.label}</span>
-              </button>
-            ))}
-          </SubmenuPortal>
-          <div className="editor-context-menu-separator" />
-          <button
-            className="editor-context-menu-item"
-            onClick={() => runCommand(() => editor.chain().focus().deleteRow().run())}
-          >
-            <span className="ecm-label">{t('deleteRow', language)}</span>
-          </button>
-          <button
-            className="editor-context-menu-item"
-            onClick={() => runCommand(() => editor.chain().focus().deleteColumn().run())}
-          >
-            <span className="ecm-label">{t('deleteColumn', language)}</span>
-          </button>
-          <button
-            className="editor-context-menu-item delete"
-            onClick={() => runCommand(() => editor.chain().focus().deleteTable().run())}
-          >
-            <span className="ecm-label">{t('deleteTable', language)}</span>
-          </button>
-        </>
-      )}
     </div>,
     document.body
   );

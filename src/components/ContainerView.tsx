@@ -503,11 +503,43 @@ function ContainerView() {
 
   // Drag-drop via Tauri native events
   // NOTE: All importedPaths are in _att folder (attachments), so keep full filename with extension
-  const handleFileDrop = useCallback((importedPaths: string[]) => {
+  const handleFileDrop = useCallback((importedPaths: string[], position?: { x: number; y: number }) => {
     if (!editor) return;
-    for (const importedPath of importedPaths) {
+
+    // Try to find the editor position from drop coordinates
+    let insertPos: number | null = null;
+    if (position) {
+      const dpr = window.devicePixelRatio || 1;
+      const cssX = position.x / dpr;
+      const cssY = position.y / dpr;
+      const posAtCoords = editor.view.posAtCoords({ left: cssX, top: cssY });
+      if (posAtCoords) {
+        insertPos = posAtCoords.pos;
+      }
+    }
+
+    // Build content string for all attachments
+    const links = importedPaths.map(importedPath => {
       const fileName = importedPath.split(/[/\\]/).pop() || '';
-      editor.commands.insertContent(`[[${fileName}]]`);
+      return `[[${fileName}]]`;
+    }).join('\n');
+
+    if (insertPos !== null) {
+      // Insert at drop position
+      editor.chain()
+        .focus()
+        .insertContentAt(insertPos, links + '\n')
+        .run();
+    } else {
+      // Fallback: insert at end of document
+      editor.chain()
+        .focus()
+        .command(({ tr, state }) => {
+          const endPos = state.doc.content.size;
+          tr.insertText('\n' + links + '\n', endPos);
+          return true;
+        })
+        .run();
     }
     refreshFileTree();
   }, [editor, refreshFileTree]);

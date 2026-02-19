@@ -1,7 +1,7 @@
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import Heading from '@tiptap/extension-heading';
 import Placeholder from '@tiptap/extension-placeholder';
+import HeadingWithAlign from '../extensions/HeadingWithAlign';
 import { useSettingsStore } from '../stores/zustand/settingsStore';
 import { t } from './i18n';
 import { Markdown } from 'tiptap-markdown';
@@ -10,8 +10,31 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import { Table, TableRow, TableHeader } from '@tiptap/extension-table';
+import TextAlign from '@tiptap/extension-text-align';
+import { Table, TableRow } from '@tiptap/extension-table';
 import TableCellWithColor from '../extensions/TableCellWithColor';
+import TableHeaderWithColor from '../extensions/TableHeaderWithColor';
+import CodeBlockWithHighlight from '../extensions/CodeBlockWithHighlight';
+import { createLowlight } from 'lowlight';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import python from 'highlight.js/lib/languages/python';
+import css from 'highlight.js/lib/languages/css';
+import json from 'highlight.js/lib/languages/json';
+import xml from 'highlight.js/lib/languages/xml';
+import bash from 'highlight.js/lib/languages/bash';
+import sql from 'highlight.js/lib/languages/sql';
+import java from 'highlight.js/lib/languages/java';
+import cpp from 'highlight.js/lib/languages/cpp';
+import csharp from 'highlight.js/lib/languages/csharp';
+import go from 'highlight.js/lib/languages/go';
+import rust from 'highlight.js/lib/languages/rust';
+import ruby from 'highlight.js/lib/languages/ruby';
+import php from 'highlight.js/lib/languages/php';
+import swift from 'highlight.js/lib/languages/swift';
+import kotlin from 'highlight.js/lib/languages/kotlin';
+import yaml from 'highlight.js/lib/languages/yaml';
+import markdownLang from 'highlight.js/lib/languages/markdown';
 // Underline is included in StarterKit, no need to import separately
 import ItalicCJK from '../extensions/ItalicCJK';
 import WikiLink from '../extensions/WikiLink';
@@ -28,6 +51,41 @@ import type { FileNode } from '../types';
 
 const DEV = import.meta.env.DEV;
 const log = DEV ? console.log.bind(console) : () => {};
+
+// Create lowlight instance and register languages
+const lowlight = createLowlight();
+lowlight.register('javascript', javascript);
+lowlight.register('js', javascript);
+lowlight.register('typescript', typescript);
+lowlight.register('ts', typescript);
+lowlight.register('python', python);
+lowlight.register('py', python);
+lowlight.register('css', css);
+lowlight.register('json', json);
+lowlight.register('html', xml);
+lowlight.register('xml', xml);
+lowlight.register('bash', bash);
+lowlight.register('sh', bash);
+lowlight.register('shell', bash);
+lowlight.register('sql', sql);
+lowlight.register('java', java);
+lowlight.register('cpp', cpp);
+lowlight.register('c++', cpp);
+lowlight.register('csharp', csharp);
+lowlight.register('cs', csharp);
+lowlight.register('go', go);
+lowlight.register('rust', rust);
+lowlight.register('rs', rust);
+lowlight.register('ruby', ruby);
+lowlight.register('rb', ruby);
+lowlight.register('php', php);
+lowlight.register('swift', swift);
+lowlight.register('kotlin', kotlin);
+lowlight.register('kt', kotlin);
+lowlight.register('yaml', yaml);
+lowlight.register('yml', yaml);
+lowlight.register('markdown', markdownLang);
+lowlight.register('md', markdownLang);
 
 // Callback refs that can be updated without recreating extensions
 interface EditorCallbacks {
@@ -141,22 +199,13 @@ class EditorPool {
         paragraph: false,
         heading: false,  // 커스텀 Heading 사용
         horizontalRule: false,  // 커스텀 HorizontalRuleNoGap 사용
+        codeBlock: false,  // 커스텀 CodeBlockWithHighlight 사용
       }),
+      CodeBlockWithHighlight.configure({ lowlight }),
       HorizontalRuleNoGap,
-      // 커스텀 Heading with Ctrl+1~6 단축키
-      Heading.configure({
+      // 커스텀 Heading with alignment support and Ctrl+1~6 단축키
+      HeadingWithAlign.configure({
         levels: [1, 2, 3, 4, 5, 6],
-      }).extend({
-        addKeyboardShortcuts() {
-          return {
-            'Mod-1': () => this.editor.commands.toggleHeading({ level: 1 }),
-            'Mod-2': () => this.editor.commands.toggleHeading({ level: 2 }),
-            'Mod-3': () => this.editor.commands.toggleHeading({ level: 3 }),
-            'Mod-4': () => this.editor.commands.toggleHeading({ level: 4 }),
-            'Mod-5': () => this.editor.commands.toggleHeading({ level: 5 }),
-            'Mod-6': () => this.editor.commands.toggleHeading({ level: 6 }),
-          };
-        },
       }),
       ParagraphWithIndent,
       ItalicCJK,
@@ -168,7 +217,10 @@ class EditorPool {
       Table.configure({ resizable: false }),
       TableRow,
       TableCellWithColor,
-      TableHeader,
+      TableHeaderWithColor,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
       // Underline is included in StarterKit
       Callout,
       // Dynamic extensions using callback refs

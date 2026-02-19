@@ -1799,7 +1799,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
 
   // Drag-drop via Tauri native events
-  const handleFileDrop = useCallback(async (importedPaths: string[]) => {
+  const handleFileDrop = useCallback(async (importedPaths: string[], position?: { x: number; y: number }) => {
     // Skip for canvas notes - they have their own drop handler in CanvasEditor
     if (frontmatter?.canvas) return;
     if (!editor) return;
@@ -1807,40 +1807,6 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     // IMPORTANT: Refresh file tree FIRST so new attachments are found by resolveLink
     // This must complete BEFORE inserting wikiLink nodes
     await appStoreActionsRef.current.refreshFileTree();
-
-    const { doc } = editor.state;
-
-    // Find "첨부파일" section and last item position
-    let attachmentHeadingPos: number | null = null;
-    let lastListItemEndPos: number | null = null;
-    let inAttachmentSection = false;
-
-    doc.descendants((node, pos) => {
-      // Check for heading level 1
-      if (node.type.name === 'heading' && node.attrs.level === 1) {
-        const headingText = node.textContent.trim();
-
-        // Found attachment section
-        if (/^(첨부파일|Attachments?)$/i.test(headingText)) {
-          attachmentHeadingPos = pos;
-          inAttachmentSection = true;
-          return true; // Continue to find last item
-        }
-
-        // Found next heading - exit attachment section
-        if (inAttachmentSection) {
-          inAttachmentSection = false;
-          return false; // Stop
-        }
-      }
-
-      // Track last list item in attachment section
-      if (inAttachmentSection && node.type.name === 'listItem') {
-        lastListItemEndPos = pos + node.nodeSize;
-      }
-
-      return true; // Continue
-    });
 
     // Build proper HTML structure for list items with wikilinks
     // NOTE: All importedPaths are in _att folder (attachments), so keep full filename with extension
@@ -1862,66 +1828,132 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       };
     });
 
-    if (attachmentHeadingPos !== null) {
-      // Attachment section exists
-      if (lastListItemEndPos !== null) {
-        // Insert after last list item - add to existing bullet list
-        // Find the bulletList node that contains the last list item
-        const lastItemEndPos = lastListItemEndPos; // Capture for closure
-        let bulletListPos: number | null = null;
-        doc.descendants((node, pos) => {
-          if (node.type.name === 'bulletList') {
-            const endOfList = pos + node.nodeSize;
-            if (lastItemEndPos <= endOfList && lastItemEndPos > pos) {
-              bulletListPos = pos;
-              return false;
-            }
-          }
-          return true;
-        });
+    // Find "첨부파일" or "Attachments" heading in the document
+    const { doc, tr } = editor.state;
+    let attachmentHeadingPos: number | null = null;
+    let attachmentHeadingEndPos: number | null = null;
+    let headingLevel: number = 1;
+    let wasCollapsed = false;
 
-        if (bulletListPos !== null) {
-          // Insert new list items at end of the bullet list
-          const bulletListNode = doc.nodeAt(bulletListPos);
-          if (bulletListNode) {
-            const insertPos = bulletListPos + bulletListNode.nodeSize - 1; // Before closing tag
-            editor.chain()
-              .focus()
-              .insertContentAt(insertPos, listItems)
-              .run();
-          }
-        } else {
-          // Fallback: insert as new bullet list after last item
+    doc.descendants((node, pos) => {
+      if (node.type.name === 'heading') {
+        const text = node.textContent.trim().toLowerCase();
+        if (text === '첨부파일' || text === 'attachments' || text === '# 첨부파일') {
+          attachmentHeadingPos = pos;
+          attachmentHeadingEndPos = pos + node.nodeSize;
+          headingLevel = node.attrs.level || 1;
+          wasCollapsed = node.attrs.collapsed || false;
+          return false; // Stop searching
+        }
+      }
+      return true;
+    });
+
+    let insertPos: number;
+
+    if (attachmentHeadingPos !== null && attachmentHeadingEndPos !== null) {
+      // Expand if collapsed
+      if (wasCollapsed) {
+        editor.chain()
+          .focus()
+          .command(({ tr }) => {
+            tr.setNodeMarkup(attachmentHeadingPos!, undefined, {
+              ...doc.nodeAt(attachmentHeadingPos!)?.attrs,
+              collapsed: false,
+            });
+            return true;
+          })
+          .run();
+      }
+
+      // Find the END of the attachment section and check if the LAST element is a bulletList
+      // We want to add attachments at the VERY END of the section
+      let sectionEndPos: number = attachmentHeadingEndPos;
+      let lastNodeInSection: { type: string; pos: number; endPos: number } | null = null;
+
+      doc.nodesBetween(attachmentHeadingEndPos, doc.content.size, (node, pos) => {
+        // Stop at next heading of same or higher level (end of attachment section)
+        if (node.type.name === 'heading' && node.attrs.level <= headingLevel) {
+          return false;
+        }
+        // Track each top-level node in the section
+        const nodeEndPos = pos + node.nodeSize;
+        sectionEndPos = nodeEndPos;
+        lastNodeInSection = {
+          type: node.type.name,
+          pos,
+          endPos: nodeEndPos,
+        };
+        return false; // Don't descend
+      });
+
+      if (lastNodeInSection && lastNodeInSection.type === 'bulletList') {
+        // The LAST element in the section is a bulletList - append to it
+        editor.chain()
+          .focus()
+          .insertContentAt(lastNodeInSection.endPos - 1, listItems)
+          .run();
+      } else if (lastNodeInSection && lastNodeInSection.type === 'paragraph') {
+        // Last element is a paragraph - check if it's empty
+        const lastNode = doc.nodeAt(lastNodeInSection.pos);
+        if (lastNode && lastNode.textContent.trim() === '') {
+          // Empty paragraph - replace it with bulletList
           editor.chain()
             .focus()
-            .insertContentAt(lastListItemEndPos, {
-              type: 'bulletList',
-              content: listItems,
+            .command(({ tr, state }) => {
+              const bulletListNode = state.schema.nodeFromJSON({
+                type: 'bulletList',
+                content: listItems,
+              });
+              tr.replaceWith(lastNodeInSection.pos, lastNodeInSection.endPos, bulletListNode);
+              return true;
+            })
+            .run();
+        } else {
+          // Non-empty paragraph - insert bulletList right after it (no gap)
+          editor.chain()
+            .focus()
+            .command(({ tr, state }) => {
+              const bulletListNode = state.schema.nodeFromJSON({
+                type: 'bulletList',
+                content: listItems,
+              });
+              // Insert right at the end position of the paragraph
+              tr.insert(lastNodeInSection.endPos, bulletListNode);
+              return true;
             })
             .run();
         }
       } else {
-        // No list items yet - insert after heading
-        const headingNode = doc.nodeAt(attachmentHeadingPos);
-        if (headingNode) {
-          const insertPos = attachmentHeadingPos + headingNode.nodeSize;
-          editor.chain()
-            .focus()
-            .insertContentAt(insertPos, {
+        // No content or other node type - create new list at the end
+        editor.chain()
+          .focus()
+          .command(({ tr, state }) => {
+            const bulletListNode = state.schema.nodeFromJSON({
               type: 'bulletList',
               content: listItems,
-            })
-            .run();
-        }
+            });
+            tr.insert(sectionEndPos, bulletListNode);
+            return true;
+          })
+          .run();
       }
     } else {
-      // No attachment section - create new one at end
+      // No attachment section found - create one at the end
       const endPos = doc.content.size;
       editor.chain()
         .focus()
         .insertContentAt(endPos, [
-          { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: t('attachmentHeading', language) }] },
-          { type: 'bulletList', content: listItems },
+          { type: 'paragraph' }, // Empty line before heading
+          {
+            type: 'heading',
+            attrs: { level: 1 },
+            content: [{ type: 'text', text: '첨부파일' }],
+          },
+          {
+            type: 'bulletList',
+            content: listItems,
+          },
         ])
         .run();
     }

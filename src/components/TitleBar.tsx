@@ -111,6 +111,7 @@ function TitleBar() {
           onMouseDown={(e) => e.stopPropagation()}
           onClick={handleMinimize}
           aria-label="Minimize"
+          tabIndex={-1}
         >
           <svg width="10" height="1" viewBox="0 0 10 1">
             <rect width="10" height="1" fill="currentColor" />
@@ -121,6 +122,7 @@ function TitleBar() {
           onMouseDown={(e) => e.stopPropagation()}
           onClick={handleMaximize}
           aria-label="Maximize"
+          tabIndex={-1}
         >
           <svg width="10" height="10" viewBox="0 0 10 10">
             <rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1" />
@@ -131,6 +133,7 @@ function TitleBar() {
           onMouseDown={(e) => e.stopPropagation()}
           onClick={handleClose}
           aria-label="Close"
+          tabIndex={-1}
         >
           <svg width="10" height="10" viewBox="0 0 10 10">
             <line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" strokeWidth="1.2" />

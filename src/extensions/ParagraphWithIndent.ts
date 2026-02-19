@@ -162,6 +162,21 @@ export const ParagraphWithIndent = Node.create({
           return {};
         },
       },
+      textAlign: {
+        default: 'left',
+        parseHTML: element => {
+          return element.getAttribute('data-text-align') || element.style.textAlign || 'left';
+        },
+        renderHTML: attributes => {
+          if (!attributes.textAlign || attributes.textAlign === 'left') {
+            return {};
+          }
+          return {
+            'data-text-align': attributes.textAlign,
+            style: `text-align: ${attributes.textAlign}`,
+          };
+        },
+      },
     };
   },
 
@@ -181,11 +196,12 @@ export const ParagraphWithIndent = Node.create({
         serialize(state: any, node: any) {
           const indent = node.attrs?.indent || 0;
           const textIndentType = node.attrs?.textIndentType || 'none';
+          const textAlign = node.attrs?.textAlign || 'left';
 
-          // If has indent attributes, render as full HTML to preserve them
+          // If has indent/alignment attributes, render as full HTML to preserve them
           // AND render inline content as HTML (not markdown) because
           // markdown inside HTML blocks is not parsed by markdown-it
-          if (indent > 0 || textIndentType !== 'none') {
+          if (indent > 0 || textIndentType !== 'none' || (textAlign && textAlign !== 'left')) {
             const attrs: string[] = [];
 
             // Build style attribute
@@ -210,6 +226,13 @@ export const ParagraphWithIndent = Node.create({
               // Only base indent, no text indent type
               styles.push(`padding-left: ${indent * 2}em`);
             }
+
+            // Add text alignment
+            if (textAlign && textAlign !== 'left') {
+              styles.push(`text-align: ${textAlign}`);
+              attrs.push(`data-text-align="${textAlign}"`);
+            }
+
             if (styles.length > 0) {
               attrs.push(`style="${styles.join('; ')}"`);
             }
