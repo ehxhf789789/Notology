@@ -229,7 +229,7 @@ function TagInputSection({ value, onChange, language = 'ko', collapsed: initialC
                       key={tag}
                       className={`tag-input-chip tag-${facet.namespace}`}
                     >
-                      #{getDisplayTagName(tag)}
+                      {getDisplayTagName(tag)}
                       <button
                         type="button"
                         className="tag-input-chip-remove"

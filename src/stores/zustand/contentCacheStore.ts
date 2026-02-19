@@ -179,14 +179,18 @@ export const useContentCacheStore = create<ContentCacheState>()((set, get) => ({
         // Check if we have metadata cached (from persistent cache)
         const cachedMetadata = get().metadataCache.get(filePath);
 
-        const rawContent = await fileCommands.readFile(filePath);
-
-        // Get file mtime in parallel with reading (or use cached if available)
+        // Run readFile and mtime fetch in parallel to minimize IPC round-trips
+        let rawContent: FileContent;
         let mtime: number;
         if (cachedMetadata?.mtime) {
+          rawContent = await fileCommands.readFile(filePath);
           mtime = cachedMetadata.mtime;
         } else {
-          const mtimes = await cacheCommands.getFilesMtime([filePath]);
+          const [content, mtimes] = await Promise.all([
+            fileCommands.readFile(filePath),
+            cacheCommands.getFilesMtime([filePath]),
+          ]);
+          rawContent = content;
           mtime = mtimes.length > 0 ? mtimes[0].mtime : Date.now();
         }
 

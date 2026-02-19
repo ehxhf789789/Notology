@@ -159,7 +159,7 @@ class EditorPool {
     if (this.creatingInBackground) return;
     this.creatingInBackground = true;
 
-    const createNext = async () => {
+    const createBatch = async () => {
       if (this.pool.length >= this.targetPoolSize) {
         this.creatingInBackground = false;
         log(`[EditorPool] Pool fully initialized (${this.pool.length} editors)`);
@@ -175,15 +175,19 @@ class EditorPool {
         }
       });
 
-      const editor = this.createPooledEditor();
-      this.pool.push(editor);
-      log(`[EditorPool] Background: Editor ${this.pool.length}/${this.targetPoolSize} created`);
+      // Create up to 2 editors per idle frame to halve total initialization time
+      const count = Math.min(2, this.targetPoolSize - this.pool.length);
+      for (let i = 0; i < count; i++) {
+        const editor = this.createPooledEditor();
+        this.pool.push(editor);
+      }
+      log(`[EditorPool] Background: ${this.pool.length}/${this.targetPoolSize} editors created`);
 
       // Continue creating more
-      createNext();
+      createBatch();
     };
 
-    createNext();
+    createBatch();
   }
 
   private createPooledEditor(): PooledEditor {

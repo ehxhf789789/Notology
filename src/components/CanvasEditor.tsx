@@ -1115,7 +1115,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                   onDoubleClick={(e) => {
                     e.stopPropagation();
                     const ext = node.file!.split('.').pop()?.toLowerCase() || '';
-                    const isPreviewable = /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala)$/i.test(node.file!);
+                    const isPreviewable = /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(node.file!);
 
                     if (isPreviewable) {
                       openHoverFile(node.file!);

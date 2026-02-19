@@ -1,20 +1,21 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Minus, X, ExternalLink } from 'lucide-react';
+import { Minus, X, ExternalLink, RefreshCw, FileWarning } from 'lucide-react';
 import { utilCommands } from '../../services/tauriCommands';
 import { useHoverStore, hoverActions, useIsClosing, useIsMinimizing, HOVER_ANIMATION } from '../../stores/zustand/hoverStore';
 import { useLanguage } from '../../stores/zustand';
 import { t } from '../../utils/i18n';
 import { isHoverWindow } from '../../utils/multiWindow';
-import { runAnimation, HOVER_WINDOW_OPEN_DURATION, ANIMATION_BUFFER, hoverWindowPropsAreEqual, type HoverEditorWindowProps } from './hoverAnimationUtils';
+import { previewCommands } from '../../services/tauriCommands';
+import { runAnimation, HOVER_WINDOW_OPEN_DURATION, hoverWindowPropsAreEqual, type HoverEditorWindowProps } from './hoverAnimationUtils';
 
-// Conditional logging - only in development
 const DEV = import.meta.env.DEV;
 const log = DEV ? console.log.bind(console) : () => {};
 
-// Image Viewer Window
-const HoverImageViewer = memo(function HoverImageViewer({ window: win }: HoverEditorWindowProps) {
+type ConversionState = 'idle' | 'converting' | 'ready' | 'error';
+
+const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: HoverEditorWindowProps) {
   const closeHoverFile = useHoverStore((s) => s.closeHoverFile);
   const focusHoverFile = useHoverStore((s) => s.focusHoverFile);
   const minimizeHoverFile = useHoverStore((s) => s.minimizeHoverFile);
@@ -34,16 +35,61 @@ const HoverImageViewer = memo(function HoverImageViewer({ window: win }: HoverEd
   const prevCachedRef = useRef(win.cached);
   const prevMinimizedRef = useRef(win.minimized);
 
-  // Detect cache OR minimized restoration and re-trigger opening animation
+  // Document conversion state
+  const [conversionState, setConversionState] = useState<ConversionState>('idle');
+  const [pdfPath, setPdfPath] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const conversionAbortRef = useRef(false);
+
+  // Trigger conversion when window opens or is restored
+  const startConversion = useCallback(async () => {
+    if (!win.filePath) return;
+    conversionAbortRef.current = false;
+    setConversionState('converting');
+    setErrorMessage('');
+
+    try {
+      log(`[DocViewer ${win.id.slice(-6)}] Starting conversion: ${win.filePath}`);
+      const result = await previewCommands.convertToPreviewPdf(win.filePath);
+      if (conversionAbortRef.current) return;
+      log(`[DocViewer ${win.id.slice(-6)}] Conversion complete: ${result}`);
+      setPdfPath(result);
+      setConversionState('ready');
+    } catch (err) {
+      if (conversionAbortRef.current) return;
+      const msg = err instanceof Error ? err.message : String(err);
+      log(`[DocViewer ${win.id.slice(-6)}] Conversion failed: ${msg}`);
+      setErrorMessage(msg);
+      setConversionState('error');
+    }
+  }, [win.filePath, win.id]);
+
+  // Start conversion on mount
+  useEffect(() => {
+    if (conversionState === 'idle') {
+      startConversion();
+    }
+    return () => { conversionAbortRef.current = true; };
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-convert on content reload trigger
+  useEffect(() => {
+    if (win.contentReloadTrigger && win.contentReloadTrigger > 0) {
+      startConversion();
+    }
+  }, [win.contentReloadTrigger, startConversion]);
+
+  // Detect cache/minimized restoration and re-trigger opening animation
   useEffect(() => {
     const restoredFromCache = prevCachedRef.current === true && win.cached === false;
     const restoredFromMinimized = prevMinimizedRef.current === true && win.minimized === false;
 
     if (restoredFromCache) {
-      log(`[HoverWindow ${win.id.slice(-6)}] RESTORE from cache - triggering opening animation`);
+      log(`[DocViewer ${win.id.slice(-6)}] RESTORE from cache`);
       setIsOpening(true);
+      // Re-convert in case file changed while cached
+      startConversion();
     } else if (restoredFromMinimized) {
-      log(`[HoverWindow ${win.id.slice(-6)}] RESTORE from minimized - clearing animation styles`);
       if (hoverEditorRef.current) {
         hoverEditorRef.current.getAnimations().forEach(a => a.cancel());
       }
@@ -52,50 +98,42 @@ const HoverImageViewer = memo(function HoverImageViewer({ window: win }: HoverEd
 
     prevCachedRef.current = win.cached;
     prevMinimizedRef.current = win.minimized;
-  }, [win.cached, win.minimized, win.id]);
+  }, [win.cached, win.minimized, win.id, startConversion]);
 
-  // Run opening animation using Web Animations API
+  // Run opening animation
   useEffect(() => {
     if (isOpening && hoverEditorRef.current) {
       const el = hoverEditorRef.current;
-      const startTime = performance.now();
-      log(`[HoverImageViewer ${win.id.slice(-6)}] OPEN - Web Animation started`);
-      // Run animation using Web Animations API
       runAnimation(el, 'open', HOVER_WINDOW_OPEN_DURATION).then(() => {
-        log(`[HoverImageViewer ${win.id.slice(-6)}] OPEN - completed (${(performance.now() - startTime).toFixed(1)}ms)`);
         setIsOpening(false);
       });
     }
   }, [isOpening, win.id]);
 
+  // Sync refs when win props change
   useEffect(() => {
-    if (!isDragging) currentPosRef.current = { x: win.position.x, y: win.position.y };
-    if (!isResizing) currentSizeRef.current = { width: win.size.width, height: win.size.height };
+    if (!isDragging) {
+      currentPosRef.current = { x: win.position.x, y: win.position.y };
+    }
+    if (!isResizing) {
+      currentSizeRef.current = { width: win.size.width, height: win.size.height };
+    }
   }, [win.position.x, win.position.y, win.size.width, win.size.height, isDragging, isResizing]);
 
   const handleMouseDown = () => { focusHoverFile(win.id); };
 
   const handleClose = useCallback(async () => {
-    // Get window reference and check multi-window mode
     const currentWin = getCurrentWindow();
     const windowLabel = currentWin.label;
     const urlParams = new URLSearchParams(window.location.search);
     const isHoverFromUrl = urlParams.get('hover') === 'true';
     const isMultiWindow = windowLabel.startsWith('hover-') || isHoverFromUrl;
 
-    console.log(`%c[ImageViewer] handleClose() - label: ${windowLabel}, isMultiWindow: ${isMultiWindow}`, 'color: #e91e63; font-weight: bold');
-
-    // Multi-window mode: close the OS window directly using destroy()
     if (isMultiWindow) {
-      try {
-        await currentWin.destroy();
-      } catch (err) {
-        console.error('[ImageViewer] Window destroy failed:', err);
-      }
+      try { await currentWin.destroy(); } catch (err) { console.error('[DocViewer] Window destroy failed:', err); }
       return;
     }
 
-    // DOM overlay mode: use animations
     const el = hoverEditorRef.current;
     if (el) {
       hoverActions.startClosing(win.id);
@@ -109,24 +147,17 @@ const HoverImageViewer = memo(function HoverImageViewer({ window: win }: HoverEd
   }, [win.id]);
 
   const handleMinimize = useCallback(async () => {
-    // Get window reference and check multi-window mode
     const currentWin = getCurrentWindow();
     const windowLabel = currentWin.label;
     const urlParams = new URLSearchParams(window.location.search);
     const isHoverFromUrl = urlParams.get('hover') === 'true';
     const isMultiWindow = windowLabel.startsWith('hover-') || isHoverFromUrl;
 
-    // Multi-window mode: minimize the OS window directly
     if (isMultiWindow) {
-      try {
-        await currentWin.minimize();
-      } catch (err) {
-        console.error('[ImageViewer] Window minimize failed:', err);
-      }
+      try { await currentWin.minimize(); } catch (err) { console.error('[DocViewer] Window minimize failed:', err); }
       return;
     }
 
-    // DOM overlay mode: use animations
     const el = hoverEditorRef.current;
     if (el) {
       hoverActions.startMinimizing(win.id);
@@ -140,13 +171,10 @@ const HoverImageViewer = memo(function HoverImageViewer({ window: win }: HoverEd
   }, [win.id]);
 
   const handleDoubleClick = useCallback(() => {
-    // Multi-window mode: use Tauri's native maximize toggle
     if (isHoverWindow()) {
       getCurrentWindow().toggleMaximize();
       return;
     }
-
-    // DOM overlay mode: manual maximize/restore
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
     const isMaximized = win.position.x === 0 && win.position.y === 0 &&
@@ -165,14 +193,7 @@ const HoverImageViewer = memo(function HoverImageViewer({ window: win }: HoverEd
   const handleDragStart = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('.hover-editor-close, .hover-editor-minimize')) return;
     e.preventDefault();
-
-    // Multi-window mode: use Tauri's native window dragging
-    if (isHoverWindow()) {
-      getCurrentWindow().startDragging();
-      return;
-    }
-
-    // DOM overlay mode: track mouse positions manually
+    if (isHoverWindow()) { getCurrentWindow().startDragging(); return; }
     setIsDragging(true);
     dragStartRef.current = { x: e.clientX, y: e.clientY, posX: win.position.x, posY: win.position.y };
   };
@@ -193,20 +214,17 @@ const HoverImageViewer = memo(function HoverImageViewer({ window: win }: HoverEd
     const processMouseMove = () => {
       if (!lastMouseEvent || !hoverEditorRef.current) return;
       const e = lastMouseEvent;
-
       if (isDragging) {
         const dx = e.clientX - dragStartRef.current.x;
         const dy = e.clientY - dragStartRef.current.y;
         let finalX = dragStartRef.current.posX + dx;
         let finalY = dragStartRef.current.posY + dy;
-
         const windowWidth = currentSizeRef.current.width;
         const screenWidth = window.innerWidth;
         const screenHeight = window.innerHeight;
         const MIN_VISIBLE = 100;
         finalX = Math.max(MIN_VISIBLE - windowWidth, Math.min(screenWidth - MIN_VISIBLE, finalX));
         finalY = Math.max(0, Math.min(screenHeight - MIN_VISIBLE, finalY));
-
         currentPosRef.current = { x: finalX, y: finalY };
         hoverEditorRef.current.style.transform = `translate3d(${finalX}px, ${finalY}px, 0)`;
       }
@@ -224,7 +242,7 @@ const HoverImageViewer = memo(function HoverImageViewer({ window: win }: HoverEd
 
     const handleMouseMove = (e: MouseEvent) => {
       lastMouseEvent = e;
-      if (rafId === null) rafId = requestAnimationFrame(processMouseMove);
+      if (rafId === null) { rafId = requestAnimationFrame(processMouseMove); }
     };
 
     const handleMouseUp = () => {
@@ -257,18 +275,49 @@ const HoverImageViewer = memo(function HoverImageViewer({ window: win }: HoverEd
 
   const fileName = win.filePath.split(/[/\\]/).pop() || '';
   const displayFileName = fileName.replace(/_/g, ' ');
-  const imgSrc = convertFileSrc(win.filePath);
+  const pdfSrc = pdfPath ? convertFileSrc(pdfPath) : '';
 
-  // Detect multi-window mode (separate OS window vs DOM overlay)
   const inMultiWindowMode = isHoverWindow();
+
+  const renderBody = () => {
+    switch (conversionState) {
+      case 'idle':
+      case 'converting':
+        return (
+          <div className="hover-editor-body doc-viewer-status">
+            <div className="doc-viewer-converting">
+              <RefreshCw size={32} className="doc-viewer-spinner" />
+              <p>{t('docPreviewConverting', language)}</p>
+            </div>
+          </div>
+        );
+      case 'error':
+        return (
+          <div className="hover-editor-body doc-viewer-status">
+            <div className="doc-viewer-error">
+              <FileWarning size={32} />
+              <p>{t('docPreviewFailed', language)}</p>
+              <p className="doc-viewer-error-detail">{errorMessage}</p>
+              <button className="doc-viewer-retry-btn" onClick={startConversion}>
+                {t('docPreviewRetry', language)}
+              </button>
+            </div>
+          </div>
+        );
+      case 'ready':
+        return (
+          <div className="hover-editor-body pdf-viewer-body">
+            <iframe src={pdfSrc} width="100%" height="100%" style={{ border: 'none' }} />
+          </div>
+        );
+    }
+  };
 
   return (
     <div
       ref={hoverEditorRef}
       className={`hover-editor${isDragging ? ' is-dragging' : ''}${isResizing ? ' is-resizing' : ''}`}
       style={{
-        // Multi-window mode: fill the entire viewport
-        // DOM overlay mode: use fixed positioning with transform
         ...(inMultiWindowMode ? {
           position: 'relative' as const,
           width: '100%',
@@ -314,12 +363,10 @@ const HoverImageViewer = memo(function HoverImageViewer({ window: win }: HoverEd
           </button>
         </div>
       </div>
-      <div className="hover-editor-body image-viewer-body">
-        <img src={imgSrc} alt={fileName} />
-      </div>
+      {renderBody()}
       {!inMultiWindowMode && <div className="hover-editor-resize" onMouseDown={handleResizeStart} />}
     </div>
   );
 }, hoverWindowPropsAreEqual);
 
-export default HoverImageViewer;
+export default HoverDocumentViewer;

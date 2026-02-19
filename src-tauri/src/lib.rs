@@ -1902,6 +1902,30 @@ fn create_note_with_template(
     Ok(final_path.to_string_lossy().to_string())
 }
 
+/// Retry fs::rename up to 5 times with 200ms delay between attempts.
+/// Handles transient locks from Synology Drive, antivirus, etc.
+fn rename_with_retry(from: &Path, to: &Path) -> std::io::Result<()> {
+    let max_retries = 5;
+    for attempt in 1..=max_retries {
+        match fs::rename(from, to) {
+            Ok(()) => return Ok(()),
+            Err(e) if attempt < max_retries => {
+                // os error 5 = Access Denied (Windows), EACCES/EBUSY on Unix
+                let code = e.raw_os_error().unwrap_or(0);
+                if code == 5 || code == 32 || code == 33 {
+                    // 5=ACCESS_DENIED, 32=SHARING_VIOLATION, 33=LOCK_VIOLATION
+                    println!("[rename_with_retry] Attempt {}/{} failed (os error {}), retrying in 200ms...", attempt, max_retries, code);
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                    continue;
+                }
+                return Err(e);
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    unreachable!()
+}
+
 // UNUSED: Not invoked from frontend
 #[tauri::command]
 fn rename_file_with_links(
@@ -1941,6 +1965,8 @@ fn rename_file_with_links(
 
     if is_folder_note {
         // For folder notes, rename both the parent folder and the file
+        // Steps: 1) rename file, 2) rename _att, 3) rename parent folder
+        // Rollback on failure to prevent inconsistent state
         let grandparent = parent.parent().ok_or("Cannot determine grandparent directory")?;
         let new_folder_path = grandparent.join(&new_stem);
 
@@ -1948,19 +1974,36 @@ fn rename_file_with_links(
             return Err("A folder with that name already exists".to_string());
         }
 
-        // First rename the file inside the folder
+        // Step 1: rename file inside folder
         let temp_file_path = parent.join(&new_name);
-        fs::rename(old_path, &temp_file_path).map_err(|e| format!("Failed to rename file: {}", e))?;
+        rename_with_retry(old_path, &temp_file_path)
+            .map_err(|e| format!("Failed to rename file: {}", e))?;
 
-        // Rename _att folder if exists
+        // Step 2: rename _att folder if exists
         let old_att = parent.join(format!("{}_att", old_stem));
-        if old_att.exists() && old_att.is_dir() {
+        let att_was_renamed = if old_att.exists() && old_att.is_dir() {
             let new_att = parent.join(format!("{}_att", new_stem));
-            fs::rename(&old_att, &new_att).map_err(|e| format!("Failed to rename attachment folder: {}", e))?;
-        }
+            if let Err(e) = rename_with_retry(&old_att, &new_att) {
+                // Rollback step 1
+                let _ = fs::rename(&temp_file_path, old_path);
+                return Err(format!("Failed to rename attachment folder: {}", e));
+            }
+            true
+        } else {
+            false
+        };
 
-        // Then rename the parent folder
-        fs::rename(parent, &new_folder_path).map_err(|e| format!("Failed to rename folder: {}", e))?;
+        // Step 3: rename parent folder
+        if let Err(e) = rename_with_retry(parent, &new_folder_path) {
+            // Rollback step 2
+            if att_was_renamed {
+                let new_att = parent.join(format!("{}_att", new_stem));
+                let _ = fs::rename(&new_att, &old_att);
+            }
+            // Rollback step 1
+            let _ = fs::rename(&temp_file_path, old_path);
+            return Err(format!("Failed to rename folder: {}", e));
+        }
 
         final_path = new_folder_path.join(&new_name);
 
@@ -1984,6 +2027,8 @@ fn rename_file_with_links(
         }
     } else if old_path.is_dir() {
         // Folder rename (container)
+        // Steps: 1) rename folder, 2) rename folder note, 3) rename _att
+        // Rollback on failure
         let new_path = parent.join(&new_name);
         if new_path.exists() && new_path != old_path {
             return Err("A folder with that name already exists".to_string());
@@ -1993,22 +2038,32 @@ fn rename_file_with_links(
         let folder_note_path = old_path.join(format!("{}.md", old_stem));
         let has_folder_note = folder_note_path.exists();
 
-        // First rename the folder
-        fs::rename(old_path, &new_path).map_err(|e| format!("Failed to rename folder: {}", e))?;
+        // Step 1: rename folder
+        rename_with_retry(old_path, &new_path)
+            .map_err(|e| format!("Failed to rename folder: {}", e))?;
 
         // If folder had a folder note, rename it and its attachments
         if has_folder_note {
+            // Step 2: rename folder note
             let old_note_in_new_folder = new_path.join(format!("{}.md", old_stem));
             let new_note_path = new_path.join(format!("{}.md", new_stem));
-            fs::rename(&old_note_in_new_folder, &new_note_path)
-                .map_err(|e| format!("Failed to rename folder note: {}", e))?;
+            if let Err(e) = rename_with_retry(&old_note_in_new_folder, &new_note_path) {
+                // Rollback step 1
+                let _ = fs::rename(&new_path, old_path);
+                return Err(format!("Failed to rename folder note: {}", e));
+            }
 
-            // Rename _att folder if exists
+            // Step 3: rename _att folder if exists
             let old_att = new_path.join(format!("{}_att", old_stem));
             if old_att.exists() && old_att.is_dir() {
                 let new_att = new_path.join(format!("{}_att", new_stem));
-                fs::rename(&old_att, &new_att)
-                    .map_err(|e| format!("Failed to rename attachment folder: {}", e))?;
+                if let Err(e) = rename_with_retry(&old_att, &new_att) {
+                    // Rollback step 2
+                    let _ = fs::rename(&new_note_path, &old_note_in_new_folder);
+                    // Rollback step 1
+                    let _ = fs::rename(&new_path, old_path);
+                    return Err(format!("Failed to rename attachment folder: {}", e));
+                }
             }
 
             // Update wiki-links for the folder note
@@ -2024,21 +2079,27 @@ fn rename_file_with_links(
         final_path = new_path;
     } else {
         // Regular file rename
+        // Steps: 1) rename file, 2) rename _att
+        // Rollback on failure
         let new_path = parent.join(&new_name);
         if new_path.exists() && new_path != old_path {
             return Err("A file with that name already exists".to_string());
         }
 
-        // Rename the file
-        fs::rename(old_path, &new_path).map_err(|e| e.to_string())?;
+        // Step 1: rename file
+        rename_with_retry(old_path, &new_path).map_err(|e| e.to_string())?;
 
-        // Rename _att folder if this is a .md file
+        // Step 2: rename _att folder if this is a .md file
         let is_md = new_name.ends_with(".md") || old_name_full.ends_with(".md");
         if is_md {
             let old_att = parent.join(format!("{}_att", old_stem));
             if old_att.exists() && old_att.is_dir() {
                 let new_att = parent.join(format!("{}_att", new_stem));
-                fs::rename(&old_att, &new_att).map_err(|e| e.to_string())?;
+                if let Err(e) = rename_with_retry(&old_att, &new_att) {
+                    // Rollback step 1
+                    let _ = fs::rename(&new_path, old_path);
+                    return Err(format!("Failed to rename attachment folder: {}", e));
+                }
             }
         }
 
@@ -3709,6 +3770,232 @@ fn set_gpu_config(app: tauri::AppHandle, config: serde_json::Value) -> Result<()
     Ok(())
 }
 
+// ============================================================================
+// Document Preview (LibreOffice headless → PDF conversion)
+// ============================================================================
+
+/// Detect LibreOffice installation on Windows.
+/// Returns the path to soffice.exe if found.
+fn detect_libreoffice_path() -> Option<PathBuf> {
+    let candidates = [
+        r"C:\Program Files\LibreOffice\program\soffice.exe",
+        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+        r"C:\Program Files\LibreOffice 24.8\program\soffice.exe",
+        r"C:\Program Files\LibreOffice 24.2\program\soffice.exe",
+        r"C:\Program Files\LibreOffice 7.6\program\soffice.exe",
+        r"C:\Program Files\LibreOffice 7.5\program\soffice.exe",
+    ];
+
+    for candidate in &candidates {
+        let p = PathBuf::from(candidate);
+        if p.exists() {
+            return Some(p);
+        }
+    }
+
+    // Try PATH environment variable
+    if let Ok(output) = std::process::Command::new("where")
+        .arg("soffice.exe")
+        .output()
+    {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if let Some(line) = stdout.lines().next() {
+                let p = PathBuf::from(line.trim());
+                if p.exists() {
+                    return Some(p);
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Get the preview cache directory under the app's local data directory.
+fn get_preview_cache_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let local_data = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
+    let cache_dir = local_data.join("preview-cache");
+    fs::create_dir_all(&cache_dir).map_err(|e| format!("Failed to create preview cache dir: {}", e))?;
+    Ok(cache_dir)
+}
+
+/// Generate a stable cache key for a file based on its path and mtime.
+fn preview_cache_key(file_path: &str, mtime: u64) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    file_path.hash(&mut hasher);
+    let path_hash = hasher.finish();
+    format!("{}_{}", path_hash, mtime)
+}
+
+/// Check if a preview engine (LibreOffice) is available.
+#[tauri::command]
+fn check_preview_engine() -> Result<serde_json::Value, String> {
+    let lo_path = detect_libreoffice_path();
+    Ok(serde_json::json!({
+        "available": lo_path.is_some(),
+        "engine": "libreoffice",
+        "path": lo_path.map(|p| p.to_string_lossy().to_string()),
+    }))
+}
+
+/// Document extensions that can be previewed.
+const DOCUMENT_EXTENSIONS: &[&str] = &[
+    "doc", "docx", "ppt", "pptx", "xls", "xlsx", "hwp", "hwpx",
+];
+
+/// Check if a file extension is a previewable document.
+fn is_document_extension(ext: &str) -> bool {
+    DOCUMENT_EXTENSIONS.contains(&ext.to_lowercase().as_str())
+}
+
+/// Convert a document file to PDF using LibreOffice headless.
+/// Returns the path to the cached PDF file.
+#[tauri::command]
+async fn convert_to_preview_pdf(app: tauri::AppHandle, file_path: String) -> Result<String, String> {
+    // Validate file exists
+    let source = PathBuf::from(&file_path);
+    if !source.exists() {
+        return Err(format!("File not found: {}", file_path));
+    }
+
+    // Check extension
+    let ext = source.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+    if !is_document_extension(ext) {
+        return Err(format!("Unsupported document type: .{}", ext));
+    }
+
+    // Get mtime for cache invalidation
+    let mtime = source.metadata()
+        .and_then(|m| m.modified())
+        .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs())
+        .unwrap_or(0);
+
+    // Check cache
+    let cache_dir = get_preview_cache_dir(&app)?;
+    let cache_key = preview_cache_key(&file_path, mtime);
+    let cached_pdf = cache_dir.join(format!("{}.pdf", cache_key));
+
+    if cached_pdf.exists() {
+        return Ok(cached_pdf.to_string_lossy().to_string());
+    }
+
+    // Detect LibreOffice
+    let lo_path = detect_libreoffice_path()
+        .ok_or_else(|| "LibreOffice not found. Install LibreOffice to preview documents.".to_string())?;
+
+    // Clean old cache entries for this file (different mtime)
+    let path_prefix = {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        file_path.hash(&mut hasher);
+        format!("{}_", hasher.finish())
+    };
+    if let Ok(entries) = fs::read_dir(&cache_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy();
+            if name_str.starts_with(&path_prefix) && name_str.ends_with(".pdf") {
+                let _ = fs::remove_file(entry.path());
+            }
+        }
+    }
+
+    // Use a temporary directory for LibreOffice output, then move to cache
+    let temp_dir = cache_dir.join("_converting");
+    fs::create_dir_all(&temp_dir).map_err(|e| format!("Failed to create temp dir: {}", e))?;
+
+    // Run LibreOffice headless conversion in a blocking thread
+    let lo_path_clone = lo_path.clone();
+    let source_clone = source.clone();
+    let temp_dir_clone = temp_dir.clone();
+
+    let result = tokio::task::spawn_blocking(move || {
+        let output = std::process::Command::new(&lo_path_clone)
+            .arg("--headless")
+            .arg("--norestore")
+            .arg("--convert-to")
+            .arg("pdf")
+            .arg("--outdir")
+            .arg(&temp_dir_clone)
+            .arg(&source_clone)
+            .output()
+            .map_err(|e| format!("Failed to run LibreOffice: {}", e))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("LibreOffice conversion failed: {}", stderr));
+        }
+
+        Ok(())
+    }).await.map_err(|e| format!("Conversion task panicked: {}", e))?;
+
+    result?;
+
+    // Find the converted PDF in temp dir
+    let source_stem = source.file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("output");
+    let converted_pdf = temp_dir.join(format!("{}.pdf", source_stem));
+
+    if !converted_pdf.exists() {
+        // LibreOffice may produce a slightly different filename; search for any .pdf
+        let found = fs::read_dir(&temp_dir)
+            .map_err(|e| format!("Failed to read temp dir: {}", e))?
+            .flatten()
+            .find(|e| e.path().extension().and_then(|x| x.to_str()) == Some("pdf"));
+
+        if let Some(found_entry) = found {
+            fs::rename(found_entry.path(), &cached_pdf)
+                .map_err(|e| format!("Failed to move converted PDF to cache: {}", e))?;
+        } else {
+            return Err("Conversion completed but no PDF file was produced.".to_string());
+        }
+    } else {
+        fs::rename(&converted_pdf, &cached_pdf)
+            .map_err(|e| format!("Failed to move converted PDF to cache: {}", e))?;
+    }
+
+    // Cleanup temp dir (best effort)
+    let _ = fs::remove_dir_all(&temp_dir);
+
+    Ok(cached_pdf.to_string_lossy().to_string())
+}
+
+/// Clean up old preview cache files. Returns the number of files removed.
+#[tauri::command]
+async fn cleanup_preview_cache(app: tauri::AppHandle, max_age_days: Option<u64>) -> Result<u32, String> {
+    let cache_dir = get_preview_cache_dir(&app)?;
+    let max_age_secs = max_age_days.unwrap_or(30) * 86400;
+    let now = std::time::SystemTime::now();
+    let mut removed = 0u32;
+
+    if let Ok(entries) = fs::read_dir(&cache_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("pdf") {
+                if let Ok(meta) = path.metadata() {
+                    if let Ok(modified) = meta.modified() {
+                        if let Ok(age) = now.duration_since(modified) {
+                            if age.as_secs() > max_age_secs {
+                                let _ = fs::remove_file(&path);
+                                removed += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(removed)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "windows")]
@@ -3826,6 +4113,10 @@ pub fn run() {
             bulk_rename_tag,
             bulk_add_tags,
             cancel_bulk_operation,
+            // Document preview commands
+            check_preview_engine,
+            convert_to_preview_pdf,
+            cleanup_preview_cache,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

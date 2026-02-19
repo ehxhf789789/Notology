@@ -252,6 +252,13 @@ const ko: Record<string, string> = {
   noOpenWindows: '열린 창이 없습니다',
   restore: '복원',
   minimize: '최소화',
+  openInApp: '응용프로그램으로 열기',
+
+  // ── Document Preview ──
+  docPreviewConverting: '문서를 변환하고 있습니다...',
+  docPreviewFailed: '문서 미리보기 실패',
+  docPreviewNoEngine: 'LibreOffice가 설치되어 있지 않습니다. 문서 미리보기를 사용하려면 LibreOffice를 설치하세요.',
+  docPreviewRetry: '다시 시도',
 
   // ── Template descriptions ──
   templateDescNote: '일반 노트 - 자유롭게 작성하는 기본 노트입니다',
@@ -1169,6 +1176,13 @@ const en: Record<string, string> = {
   noOpenWindows: 'No open windows',
   restore: 'Restore',
   minimize: 'Minimize',
+  openInApp: 'Open in application',
+
+  // ── Document Preview ──
+  docPreviewConverting: 'Converting document...',
+  docPreviewFailed: 'Document preview failed',
+  docPreviewNoEngine: 'LibreOffice is not installed. Install LibreOffice to preview documents.',
+  docPreviewRetry: 'Retry',
 
   // ── Template descriptions ──
   templateDescNote: 'Note - A general-purpose note for free-form writing',

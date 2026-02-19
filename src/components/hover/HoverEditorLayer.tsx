@@ -6,6 +6,7 @@ import HoverPdfViewer from './HoverPdfViewer';
 import HoverImageViewer from './HoverImageViewer';
 import HoverCodeViewer from './HoverCodeViewer';
 import HoverWebViewer from './HoverWebViewer';
+import HoverDocumentViewer from './HoverDocumentViewer';
 
 // Conditional logging - only in development
 const DEV = import.meta.env.DEV;
@@ -117,6 +118,7 @@ const HoverEditorLayer = memo(function HoverEditorLayer() {
 
         if (win.type === 'pdf') return <div key={win.id} style={wrapperStyle}><HoverPdfViewer window={win} /></div>;
         if (win.type === 'image') return <div key={win.id} style={wrapperStyle}><HoverImageViewer window={win} /></div>;
+        if (win.type === 'document') return <div key={win.id} style={wrapperStyle}><HoverDocumentViewer window={win} /></div>;
         if (win.type === 'code') return <div key={win.id} style={wrapperStyle}><HoverCodeViewer window={win} /></div>;
         if (win.type === 'web') return <div key={win.id} style={wrapperStyle}><HoverWebViewer window={win} /></div>;
         return <div key={win.id} style={wrapperStyle}><HoverEditorWindow window={win} /></div>;

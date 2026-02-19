@@ -295,9 +295,21 @@ export async function deleteNote(notePath: string) {
 export async function renameFile(filePath: string, newName: string): Promise<string> {
   const vaultPath = useFileTreeStore.getState().vaultPath;
   if (!vaultPath) throw new Error('No vault open');
+  const currentContainer = useFileTreeStore.getState().selectedContainer;
   await searchCommands.removeFromIndex(filePath).catch(() => {});
   const newPath = await noteCommands.renameFileWithLinks(filePath, newName, vaultPath);
   hoverActions.updateFilePathAndRefreshAll(filePath, newPath);
+  // Update selectedContainer if it references the renamed path
+  if (currentContainer) {
+    const sep = '\\';
+    const normalizedOld = filePath.replace(/\//g, sep);
+    const normalizedContainer = currentContainer.replace(/\//g, sep);
+    if (normalizedContainer === normalizedOld) {
+      fileTreeActions.setSelectedContainer(newPath);
+    } else if (normalizedContainer.startsWith(normalizedOld + sep)) {
+      fileTreeActions.setSelectedContainer(newPath + currentContainer.slice(filePath.length));
+    }
+  }
   await fileTreeActions.refreshFileTree();
   await searchCommands.indexNote(newPath).catch(() => {});
   refreshActions.incrementSearchRefresh();
@@ -366,7 +378,7 @@ export async function createNoteWithTemplate(title: string, templateId: string, 
           date: formData.date || '',
           time: formData.time || '',
         };
-        createNoteHelper(vars).then(resolve).catch(reject);
+        createNoteHelper(vars, formData.tags).then(resolve).catch(reject);
       });
     });
   }
@@ -416,7 +428,7 @@ export async function createNoteWithTemplate(title: string, templateId: string, 
           organizer: formData.organizer,
           participants: formData.participants,
         };
-        createNoteHelper(vars).then(resolve).catch(reject);
+        createNoteHelper(vars, formData.tags).then(resolve).catch(reject);
       });
     });
   }

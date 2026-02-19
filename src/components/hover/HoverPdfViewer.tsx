@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Minus, X } from 'lucide-react';
+import { Minus, X, ExternalLink } from 'lucide-react';
+import { utilCommands } from '../../services/tauriCommands';
 import { useHoverStore, hoverActions, useIsClosing, useIsMinimizing, HOVER_ANIMATION } from '../../stores/zustand/hoverStore';
 import { useLanguage } from '../../stores/zustand';
 import { t } from '../../utils/i18n';
@@ -298,6 +299,14 @@ const HoverPdfViewer = memo(function HoverPdfViewer({ window: win }: HoverEditor
         <span className="hover-editor-title">{displayFileName}</span>
         <div className="hover-editor-header-actions">
           <button
+            className="hover-editor-open-external"
+            onClick={() => utilCommands.openInDefaultApp(win.filePath)}
+            onMouseDown={(e) => e.stopPropagation()}
+            title={t('openInApp', language)}
+          >
+            <ExternalLink size={14} />
+          </button>
+          <button
             className="hover-editor-minimize"
             onClick={handleMinimize}
             onMouseDown={(e) => e.stopPropagation()}
@@ -315,7 +324,7 @@ const HoverPdfViewer = memo(function HoverPdfViewer({ window: win }: HoverEditor
         </div>
       </div>
       <div className="hover-editor-body pdf-viewer-body">
-        <embed src={pdfSrc} type="application/pdf" width="100%" height="100%" />
+        <iframe src={pdfSrc} width="100%" height="100%" style={{ border: 'none' }} />
       </div>
       {!inMultiWindowMode && <div className="hover-editor-resize" onMouseDown={handleResizeStart} />}
     </div>

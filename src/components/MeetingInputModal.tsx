@@ -3,13 +3,22 @@ import { useModalStore, modalActions } from '../stores/zustand/modalStore';
 import { useSettingsStore } from '../stores/zustand/settingsStore';
 import { t } from '../utils/i18n';
 import ParticipantInput from './ParticipantInput';
+import TagInputSection, { type FacetedTagSelection } from './TagInputSection';
 
 export interface MeetingFormData {
   title: string;
   participants: string;
   date: string;
   time: string;
+  tags?: FacetedTagSelection;
 }
+
+const DEFAULT_TAGS: FacetedTagSelection = {
+  domain: [],
+  who: [],
+  org: [],
+  ctx: [],
+};
 
 function MeetingInputModal() {
   const meetingInputModalState = useModalStore(s => s.meetingInputModalState);
@@ -21,6 +30,7 @@ function MeetingInputModal() {
     date: '',
     time: '',
   });
+  const [selectedTags, setSelectedTags] = useState<FacetedTagSelection>(DEFAULT_TAGS);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -54,14 +64,16 @@ function MeetingInputModal() {
       modalActions.showAlertModal(t('warning', language), t('meetingTitleRequired', language));
       return;
     }
-    callback(formData);
+    callback({ ...formData, tags: selectedTags });
     hideMeetingInputModal();
     setFormData({ title: '', participants: '', date: '', time: '' });
+    setSelectedTags(DEFAULT_TAGS);
   };
 
   const handleCancel = () => {
     hideMeetingInputModal();
     setFormData({ title: '', participants: '', date: '', time: '' });
+    setSelectedTags(DEFAULT_TAGS);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -119,6 +131,13 @@ function MeetingInputModal() {
               />
             </div>
           </div>
+
+          <TagInputSection
+            value={selectedTags}
+            onChange={setSelectedTags}
+            language={language}
+            collapsed={true}
+          />
         </div>
 
         <div className="meeting-input-actions">

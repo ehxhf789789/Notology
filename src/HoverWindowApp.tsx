@@ -13,6 +13,7 @@ import HoverPdfViewer from './components/hover/HoverPdfViewer';
 import HoverImageViewer from './components/hover/HoverImageViewer';
 import HoverCodeViewer from './components/hover/HoverCodeViewer';
 import HoverWebViewer from './components/hover/HoverWebViewer';
+import HoverDocumentViewer from './components/hover/HoverDocumentViewer';
 import ContextMenu from './components/ContextMenu';
 import RenameDialog from './components/RenameDialog';
 import ConfirmDeleteModal from './components/ConfirmDeleteModal';
@@ -33,11 +34,12 @@ if (urlTheme) {
 
 // Determine file type from path
 function getFileType(path: string): HoverWindow['type'] {
-  const isUrl = /^https?:\/\//i.test(path);
-  const isPdf = /\.pdf$/i.test(path);
-  const isImage = /\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/i.test(path);
-  const isCode = /\.(json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|zsh|sql|lua|r|swift|kt|scala|zig|vue|svelte|astro|ini|conf|cfg|env|gitignore|dockerfile|makefile)$/i.test(path);
-  return isUrl ? 'web' : isPdf ? 'pdf' : isImage ? 'image' : isCode ? 'code' : 'editor';
+  if (/^https?:\/\//i.test(path)) return 'web';
+  if (/\.pdf$/i.test(path)) return 'pdf';
+  if (/\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/i.test(path)) return 'image';
+  if (/\.(doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(path)) return 'document';
+  if (/\.(json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|zsh|sql|lua|r|swift|kt|scala|zig|vue|svelte|astro|ini|conf|cfg|env|gitignore|dockerfile|makefile)$/i.test(path)) return 'code';
+  return 'editor';
 }
 
 // Get file name from path (removes extension, replaces underscores with spaces)
@@ -257,6 +259,8 @@ function HoverWindowApp() {
         return <HoverCodeViewer window={hoverWindow} />;
       case 'web':
         return <HoverWebViewer window={hoverWindow} />;
+      case 'document':
+        return <HoverDocumentViewer window={hoverWindow} />;
       case 'editor':
       default:
         return <HoverEditorWindow window={hoverWindow} />;

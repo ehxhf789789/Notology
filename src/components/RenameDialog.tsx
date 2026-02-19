@@ -39,8 +39,7 @@ function RenameDialog() {
   const handleRename = async () => {
     if (!newName.trim()) return;
     try {
-      // Convert display spaces back to underscores for the file system
-      const fsName = newName.trim().replace(/ /g, '_');
+      const fsName = newName.trim();
       let finalName: string;
       if (renameDialogState.isFolder) {
         // For folders, use the name as-is (no extension)

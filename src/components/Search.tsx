@@ -514,8 +514,8 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     const pending = pendingNoteOpenRef.current;
     const now = Date.now();
 
-    // Second click on same note within 350ms → confirmed double-click, open window
-    if (pending && pending.path === path && (now - pending.time) < 350) {
+    // Second click on same note within 500ms → confirmed double-click, open window
+    if (pending && pending.path === path && (now - pending.time) < 500) {
       pendingNoteOpenRef.current = null;
 
       // Check for existing window first
@@ -534,8 +534,11 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       return;
     }
 
-    // First click: just record the time and path, don't open window yet
+    // First click: record and preload content for instant opening on double-click
     pendingNoteOpenRef.current = { path, time: now };
+    if (path.endsWith('.md')) {
+      contentCacheActions.preloadContent(path);
+    }
   }, []);
 
   // Preload content when hovering over search results — warms cache for instant loading on click
@@ -562,7 +565,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     }
 
     setSelectedAttachments(new Set());
-    const isPreviewable = /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala)$/i.test(att.path);
+    const isPreviewable = /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(att.path);
     if (isPreviewable) {
       hoverActions.open(att.path);
     } else {

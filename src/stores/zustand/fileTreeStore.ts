@@ -75,12 +75,16 @@ export const useFileTreeStore = create<FileTreeState>()(
 
     // Refresh file tree from disk
     refreshFileTree: async () => {
-      const { vaultPath } = get();
+      const { vaultPath, selectedContainer } = get();
       if (!vaultPath) return;
       try {
         const tree = await fileCommands.readDirectory(vaultPath);
         // Use setFileTree to also rebuild the file lookup index synchronously
         get().setFileTree(tree);
+        // Validate selectedContainer still exists (handles external rename/delete via Synology sync)
+        if (selectedContainer && !findNode(tree, selectedContainer)) {
+          set({ selectedContainer: null });
+        }
       } catch (e) {
         console.error('Failed to refresh file tree:', e);
       }

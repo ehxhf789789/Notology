@@ -295,7 +295,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     const path = resolveFilePathImpl(fileName);
 
     if (path) {
-      const isPreviewable = /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala)$/i.test(path);
+      const isPreviewable = /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(path);
       if (isPreviewable) {
         openHoverFile(path);
       } else {
@@ -787,14 +787,19 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   }, [saveFile, win.filePath]);
 
   // Process loaded content (used by both sync and async paths)
-  const processLoadedContent = useCallback((cached: { frontmatter: any; body: string }) => {
+  const processLoadedContent = useCallback((cached: { frontmatter: any; body: string; mtime?: number }) => {
     const fm = cached.frontmatter;
     setFrontmatter(fm);
     setBody(cached.body);
     setIsDirty(false);
     // Record mtime for optimistic locking (detect Synology sync overwrites)
+    // Use cached mtime when available to avoid redundant IPC call
     if (win.filePath) {
-      fileCommands.getFileMtime(win.filePath).then(m => { mtimeOnLoadRef.current = m; });
+      if (cached.mtime) {
+        mtimeOnLoadRef.current = cached.mtime;
+      } else {
+        fileCommands.getFileMtime(win.filePath).then(m => { mtimeOnLoadRef.current = m; });
+      }
     }
     logTiming('State updated (frontmatter, body)');
 

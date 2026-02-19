@@ -130,7 +130,7 @@ export interface LinkInfo {
 export interface HoverWindow {
   id: string;
   filePath: string;
-  type: 'editor' | 'pdf' | 'image' | 'code' | 'web';
+  type: 'editor' | 'pdf' | 'image' | 'code' | 'web' | 'document';
   noteType?: string; // Template type for editor windows (note, sketch, mtg, etc.)
   position: { x: number; y: number };
   size: { width: number; height: number };

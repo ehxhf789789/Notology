@@ -26,6 +26,16 @@ let nextHoverZ = 1001;
 const CACHE_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes - cached windows older than this are destroyed
 const CACHE_MAX_COUNT = 10; // Maximum number of cached windows to keep
 
+/** Detect file type for hover windows */
+function detectFileType(path: string): HoverWindow['type'] {
+  if (/^https?:\/\//i.test(path)) return 'web';
+  if (/\.pdf$/i.test(path)) return 'pdf';
+  if (/\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/i.test(path)) return 'image';
+  if (/\.(doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(path)) return 'document';
+  if (/\.(json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|zsh|sql|lua|r|swift|kt|scala|zig|vue|svelte|astro|ini|conf|cfg|env|gitignore|dockerfile|makefile)$/i.test(path)) return 'code';
+  return 'editor';
+}
+
 function generateHoverId(): string {
   return `hover_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 }
@@ -114,10 +124,25 @@ export const useHoverStore = create<HoverState>()(
         const existing = state.hoverFiles.find(h => h.filePath === path && !h.cached);
         if (existing) {
           nextHoverZ++;
-          log(`[HoverStore] Reusing existing window: ${(performance.now() - openStart).toFixed(1)}ms`);
-          // Log if restoring from minimized state
+          // Re-detect type to handle upgrades (e.g., previously 'editor' now 'document')
+          const correctType = detectFileType(path);
+          log(`[HoverStore] Reusing existing window (type: ${existing.type}→${correctType}): ${(performance.now() - openStart).toFixed(1)}ms`);
           if (existing.minimized) {
             log(`%c[STATE] Window ${existing.id.slice(-6)} RESTORED via openHoverFile (was minimized: true -> false)`, 'color: #ff9800; font-weight: bold');
+          }
+          // If type changed, destroy old window and create new one instead of reusing
+          if (existing.type !== correctType) {
+            log(`[HoverStore] Type mismatch! Replacing window ${existing.id.slice(-6)} (${existing.type}→${correctType})`);
+            const filtered = state.hoverFiles.filter(h => h.id !== existing.id);
+            const newWindow: HoverWindow = {
+              id: generateHoverId(),
+              filePath: path,
+              type: correctType,
+              position: { ...existing.position },
+              size: { ...existing.size },
+              zIndex: nextHoverZ,
+            };
+            return { hoverFiles: [...filtered, newWindow] };
           }
           return {
             hoverFiles: state.hoverFiles.map(h =>
@@ -130,11 +155,13 @@ export const useHoverStore = create<HoverState>()(
         const cached = state.hoverFiles.find(h => h.filePath === path && h.cached);
         if (cached) {
           nextHoverZ++;
-          log(`[HoverStore] CACHE HIT! Restoring from cache: ${(performance.now() - openStart).toFixed(1)}ms`);
+          // Re-detect type in case code was updated (e.g., new document extensions added)
+          const correctType = detectFileType(path);
+          log(`[HoverStore] CACHE HIT! Restoring from cache (type: ${cached.type}→${correctType}): ${(performance.now() - openStart).toFixed(1)}ms`);
           return {
             hoverFiles: state.hoverFiles.map(h =>
               h.id === cached.id
-                ? { ...h, cached: false, cachedAt: undefined, zIndex: nextHoverZ, minimized: false }
+                ? { ...h, type: correctType, cached: false, cachedAt: undefined, zIndex: nextHoverZ, minimized: false }
                 : h
             ),
           };
@@ -160,11 +187,7 @@ export const useHoverStore = create<HoverState>()(
         if (baseY > maxY) baseY = 120;
 
         // Determine file type
-        const isUrl = /^https?:\/\//i.test(path);
-        const isPdf = /\.pdf$/i.test(path);
-        const isImage = /\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/i.test(path);
-        const isCode = /\.(json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|zsh|sql|lua|r|swift|kt|scala|zig|vue|svelte|astro|ini|conf|cfg|env|gitignore|dockerfile|makefile)$/i.test(path);
-        const fileType: HoverWindow['type'] = isUrl ? 'web' : isPdf ? 'pdf' : isImage ? 'image' : isCode ? 'code' : 'editor';
+        const fileType = detectFileType(path);
 
         const newWindow: HoverWindow = {
           id: generateHoverId(),

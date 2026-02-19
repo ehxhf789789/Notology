@@ -82,12 +82,13 @@ const TEMPLATE_DESC_KEYS: Record<string, string> = {
 };
 
 // File type icon component for collapsed sidebar
-function CollapsedFileTypeIcon({ type }: { type: 'editor' | 'pdf' | 'image' | 'code' | 'web' }) {
+function CollapsedFileTypeIcon({ type }: { type: HoverWindow['type'] }) {
   switch (type) {
     case 'pdf': return <BookOpen size={14} />;
     case 'image': return <Image size={14} />;
     case 'code': return <FileCode size={14} />;
     case 'web': return <Globe size={14} />;
+    case 'document': return <FileText size={14} />;
     default: return <FileText size={14} />;
   }
 }

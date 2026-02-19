@@ -117,7 +117,7 @@ function ContextMenu() {
   const isNote = isAttachmentFlag ? false : (filePath ? (/\.md$/i.test(filePath) && !isInAttFolder) : false);
   // Check if notePath is a valid note file path (must end with .md)
   const hasValidNotePath = notePath && /\.md$/i.test(notePath);
-  const isPreviewable = filePath ? /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala)$/i.test(filePath) : false;
+  const isPreviewable = filePath ? /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(filePath) : false;
 
   // Check if this folder is a root container (direct child of vault)
   const isRootContainer = isFolder && filePath && vaultPath && (() => {

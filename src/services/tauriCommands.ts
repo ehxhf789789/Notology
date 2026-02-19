@@ -292,3 +292,24 @@ export const utilCommands = {
   toggleDevtools: () =>
     invoke<void>('toggle_devtools'),
 };
+
+// ============================================================================
+// Document Preview Commands
+// ============================================================================
+
+export interface PreviewEngineInfo {
+  available: boolean;
+  engine: string;
+  path: string | null;
+}
+
+export const previewCommands = {
+  checkPreviewEngine: () =>
+    invoke<PreviewEngineInfo>('check_preview_engine'),
+
+  convertToPreviewPdf: (filePath: string) =>
+    invoke<string>('convert_to_preview_pdf', { filePath }),
+
+  cleanupPreviewCache: (maxAgeDays?: number) =>
+    invoke<number>('cleanup_preview_cache', { maxAgeDays }),
+};

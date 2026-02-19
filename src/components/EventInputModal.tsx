@@ -3,6 +3,7 @@ import { useModalStore, modalActions } from '../stores/zustand/modalStore';
 import { useSettingsStore } from '../stores/zustand/settingsStore';
 import { t } from '../utils/i18n';
 import ParticipantInput from './ParticipantInput';
+import TagInputSection, { type FacetedTagSelection } from './TagInputSection';
 
 export interface EventFormData {
   title: string;
@@ -10,7 +11,15 @@ export interface EventFormData {
   location: string;
   organizer: string;
   participants: string;
+  tags?: FacetedTagSelection;
 }
+
+const DEFAULT_TAGS: FacetedTagSelection = {
+  domain: [],
+  who: [],
+  org: [],
+  ctx: [],
+};
 
 function EventInputModal() {
   const eventInputModalState = useModalStore(s => s.eventInputModalState);
@@ -23,6 +32,7 @@ function EventInputModal() {
     organizer: '',
     participants: '',
   });
+  const [selectedTags, setSelectedTags] = useState<FacetedTagSelection>(DEFAULT_TAGS);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -55,14 +65,16 @@ function EventInputModal() {
       modalActions.showAlertModal(t('warning', language), t('eventTitleRequired', language));
       return;
     }
-    callback(formData);
+    callback({ ...formData, tags: selectedTags });
     hideEventInputModal();
     setFormData({ title: '', date: '', location: '', organizer: '', participants: '' });
+    setSelectedTags(DEFAULT_TAGS);
   };
 
   const handleCancel = () => {
     hideEventInputModal();
     setFormData({ title: '', date: '', location: '', organizer: '', participants: '' });
+    setSelectedTags(DEFAULT_TAGS);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -129,6 +141,13 @@ function EventInputModal() {
               placeholder={t('eventParticipantsPlaceholder', language)}
             />
           </div>
+
+          <TagInputSection
+            value={selectedTags}
+            onChange={setSelectedTags}
+            language={language}
+            collapsed={true}
+          />
         </div>
 
         <div className="event-input-actions">
