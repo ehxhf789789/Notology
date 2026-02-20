@@ -159,7 +159,65 @@ editor.chain()
 ## i18n
 Translations are in `src/utils/i18n.ts`. Support for Korean (ko) and English (en).
 
+## Document Preview System (v1.3.0+)
+
+### Architecture
+Office documents (doc/docx/ppt/pptx/xls/xlsx/hwp/hwpx) are previewed via a two-stage pipeline:
+1. **Rust backend** (`lib.rs`): LibreOffice headless converts documents to PDF with mtime-based caching
+2. **React frontend**: `HoverDocumentViewer.tsx` renders the cached PDF via `<iframe>`
+
+### Rust Backend (`src-tauri/src/lib.rs`)
+- `detect_libreoffice_path()` — scans Program Files paths + `where soffice.exe`
+- `convert_to_preview_pdf` — Tauri command, cache key = `{path_hash}_{mtime}.pdf` in `%LOCALAPPDATA%\Notology\preview_cache\`
+- `check_preview_engine` — returns `{ available, engine, path }` for UI feedback
+- `cleanup_preview_cache` — removes old cached PDFs by max age
+
+### Frontend Components
+- `HoverDocumentViewer.tsx` — conversion state machine: idle → converting (spinner) → ready (iframe) / error (retry button)
+- `previewCommands` in `tauriCommands.ts` — IPC wrappers for preview Tauri commands
+
+### File Type Detection — TWO CODE PATHS (Critical!)
+When opening files from wikilinks/attachments, there are **two separate code paths**:
+1. **DOM overlay mode** (single-window): `hoverStore.ts` → `detectFileType()` → `openHoverFile()`
+2. **Multi-window mode** (separate OS window): `HoverWindowApp.tsx` → `getFileType()` → renders viewer
+
+**Both** must include document extension detection. Missing it in either path causes documents to open as TipTap editors instead of the document viewer.
+
+### isPreviewable Regex (5 files)
+The regex that determines if a file opens in internal viewer vs default app exists in:
+- `ContextMenu.tsx`, `HoverEditor.tsx`, `Search.tsx`, `CanvasEditor.tsx`, `ContainerView.tsx`
+
+All must include `|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx` alongside pdf/image extensions.
+
+### Current Strategy & Limitations
+- **LibreOffice dependency**: Required externally (not bundled). Shows error UI with "Open in app" fallback button when not installed.
+- **Legacy formats** (doc/ppt/xls/hwp): These are complex binary formats. A future strategy may open them directly in the default app instead of attempting preview.
+- **Modern formats** (docx/xlsx/pptx/hwpx): Could potentially be rendered with JS libraries (mammoth.js for docx, xlsx for spreadsheets) without LibreOffice dependency. This is under consideration.
+- **PDF/Image**: Rendered natively via `<iframe>` / `<img>` with `convertFileSrc()` (Tauri asset protocol)
+
+### WebView2 PDF Rendering
+`<embed type="application/pdf">` does NOT work in WebView2 (Tauri's Windows renderer). Use `<iframe>` instead.
+
+## Editor Performance (v1.3.0+)
+
+### Editor Pool (`utils/editorPool.ts`)
+- Pre-warms TipTap editor instances for instant note switching
+- Pool reuses editors to avoid costly initialization on each note open
+
+### Content Cache (`stores/zustand/contentCacheStore.ts`)
+- Caches recently viewed note content in memory
+- Reduces filesystem reads when re-opening notes
+
+## Synology NAS Compatibility
+
+### Rename Retry Logic (`RenameDialog.tsx`, `lib.rs`)
+- Synology Drive can hold file locks briefly during sync
+- `rename_with_retry` in Rust: retries rename up to 3 times with delays
+- Frontend rollback: if rename fails after retries, reverts to original name
+
 ## Version History
+- v1.3.1: Wikilink fix, modal redesign, time selector, legacy format handling
+- v1.3.0: Document preview system, editor performance, Synology sync, tag UI improvements
 - v1.2.1: Heading/CodeBlock fold/unfold, HR delete button, table cell colors, attachment fixes
 - v1.2.0: Dark/light mode polish, i18n, graph contrast
 - v1.1.x: Synology NAS sync, conflict prevention
