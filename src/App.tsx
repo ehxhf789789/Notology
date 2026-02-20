@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useLayoutEffect, useMemo, memo, startTransition, lazy, Suspense } from 'react';
 import { PanelLeftOpen, CalendarDays, Image, FileText, BookOpen, Globe, FileCode } from 'lucide-react';
+import type { HoverWindow } from './types';
 import { AppInitializer } from './stores/appStore';
 import {
   useHoverStore,
