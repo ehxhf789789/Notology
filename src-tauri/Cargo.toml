@@ -47,6 +47,9 @@ walkdir = "2.4"
 rayon = "1.10"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
+# HWP rendering
+hwpers = "0.3"
+
 [features]
 default = ["devtools"]
 devtools = ["tauri/devtools"]

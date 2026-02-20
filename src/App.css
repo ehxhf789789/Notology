@@ -7506,6 +7506,454 @@ html[data-theme="light"] .window-size-option.active .window-size-preview {
 }
 
 /* ============================================================ */
+/* Office Document Viewers (DOCX, XLSX, HWP, PPTX) */
+/* ============================================================ */
+
+.office-viewer-body {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.office-viewer-container {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: white;
+  color: #1a1a1a;
+}
+
+/* DOCX Viewer */
+.docx-viewer {
+  padding: 20px;
+}
+
+.docx-viewer .docx-wrapper {
+  background: white;
+  min-height: 100%;
+}
+
+/* XLSX Viewer */
+.xlsx-viewer {
+  display: flex;
+  flex-direction: column;
+}
+
+.xlsx-sheet-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 8px 12px;
+  background: var(--bg-secondary, #f5f5f5);
+  border-bottom: 1px solid var(--border-color, #ddd);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.xlsx-sheet-tab {
+  padding: 6px 12px;
+  background: var(--bg-tertiary, #eee);
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  font-size: 0.85em;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.xlsx-sheet-tab:hover {
+  background: var(--bg-primary, #fff);
+}
+
+.xlsx-sheet-tab.active {
+  background: white;
+  border-bottom-color: white;
+  font-weight: 500;
+}
+
+.xlsx-content {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+}
+
+.xlsx-content table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9em;
+}
+
+.xlsx-content td,
+.xlsx-content th {
+  border: 1px solid #ddd;
+  padding: 6px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.xlsx-content th {
+  background: #f5f5f5;
+  font-weight: 500;
+}
+
+.xlsx-content tr:hover td {
+  background: #fafafa;
+}
+
+/* Zoom Indicator */
+.xlsx-zoom-indicator,
+.docx-zoom-indicator,
+.pptx-zoom-indicator,
+.hwpx-zoom-indicator {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.xlsx-viewer,
+.docx-viewer,
+.pptx-viewer,
+.hwpx-viewer {
+  position: relative;
+}
+
+/* DOCX Content Wrapper */
+.docx-content-wrapper {
+  padding: 20px;
+}
+
+/* PPTX Viewer */
+.pptx-viewer {
+  display: flex;
+  flex-direction: column;
+  background: #2a2a2a;
+}
+
+.pptx-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--bg-secondary, #333);
+  border-bottom: 1px solid var(--border-color, #444);
+  flex-shrink: 0;
+}
+
+.pptx-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--bg-tertiary, #444);
+  border: none;
+  border-radius: 4px;
+  color: var(--text-primary, #fff);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pptx-nav-btn:hover:not(:disabled) {
+  background: var(--accent-primary, #4a9eff);
+}
+
+.pptx-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pptx-slide-indicator {
+  color: var(--text-secondary, #aaa);
+  font-size: 0.9em;
+  min-width: 60px;
+  text-align: center;
+}
+
+.pptx-slide-container {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px 20px 60px 20px;
+}
+
+.pptx-slide {
+  background: white;
+  color: #1a1a1a;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: visible;
+  flex-shrink: 0;
+}
+
+.pptx-shape {
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+.pptx-shape p {
+  margin: 0;
+  padding: 2px 0;
+}
+
+.pptx-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary, #888);
+}
+
+/* PPTX Table */
+.pptx-table {
+  border-collapse: collapse;
+}
+
+.pptx-table td,
+.pptx-table th {
+  vertical-align: middle;
+  word-wrap: break-word;
+}
+
+.pptx-table p {
+  margin: 2px 0;
+}
+
+/* HWPX Viewer */
+.hwpx-viewer {
+  display: flex;
+  flex-direction: column;
+  background: #f0f0f0;
+}
+
+.hwpx-content {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+
+.hwpx-page {
+  background: white;
+  color: #1a1a1a;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  max-width: 800px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.hwpx-section {
+  margin-bottom: 16px;
+}
+
+.hwpx-section p {
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.hwpx-table {
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 0.95em;
+}
+
+.hwpx-table td,
+.hwpx-table th {
+  vertical-align: top;
+  word-wrap: break-word;
+}
+
+.hwpx-table p {
+  margin: 2px 0;
+}
+
+.hwpx-images {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.hwpx-image {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+}
+
+.hwpx-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary, #888);
+}
+
+/* HWP Viewer (SVG from Rust hwpers) */
+.hwp-viewer {
+  display: flex;
+  flex-direction: column;
+  background: #f0f0f0;
+}
+
+.hwp-content {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  background: white;
+}
+
+.hwp-content svg {
+  max-width: 100%;
+  height: auto;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+}
+
+.hwp-zoom-indicator {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.hwp-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary, #888);
+}
+
+.hwp-error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  padding: 40px;
+  text-align: center;
+  background: var(--bg-primary, #fff);
+}
+
+.hwp-error-icon {
+  color: var(--text-tertiary, #999);
+  opacity: 0.6;
+}
+
+.hwp-error-title {
+  margin: 0;
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+}
+
+.hwp-error-detail {
+  margin: 0;
+  font-size: 0.9em;
+  color: var(--text-secondary, #666);
+  max-width: 300px;
+}
+
+.hwp-open-external-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 20px;
+  background: var(--accent-primary, #4a9eff);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.hwp-open-external-btn:hover {
+  background: var(--accent-hover, #3a8eef);
+}
+
+/* Legacy/Unsupported Format Notice */
+.office-viewer-unsupported {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  padding: 40px;
+  text-align: center;
+  background: var(--bg-secondary, #f8f8f8);
+}
+
+.office-viewer-unsupported-icon {
+  color: var(--text-tertiary, #888);
+  opacity: 0.6;
+}
+
+.office-viewer-unsupported-text {
+  color: var(--text-primary, #333);
+  font-size: 1.1em;
+  margin: 0;
+}
+
+.office-viewer-unsupported-hint {
+  color: var(--text-tertiary, #888);
+  font-size: 0.9em;
+  margin: 0;
+}
+
+.office-viewer-external-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--accent-primary, #4a9eff);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.office-viewer-external-btn:hover {
+  background: var(--accent-hover, #3a8eef);
+  transform: translateY(-1px);
+}
+
+.office-viewer-external-btn:active {
+  transform: translateY(0);
+}
+
+.office-viewer-error {
+  color: var(--text-error, #e53935);
+  text-align: center;
+  padding: 20px;
+}
+
+/* ============================================================ */
 /* Web Viewer */
 /* ============================================================ */
 

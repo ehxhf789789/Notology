@@ -3996,6 +3996,55 @@ async fn cleanup_preview_cache(app: tauri::AppHandle, max_age_days: Option<u64>)
     Ok(removed)
 }
 
+/// Read a file as binary bytes (for JavaScript document viewers).
+#[tauri::command]
+async fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
+    tokio::fs::read(&path).await
+        .map_err(|e| format!("Failed to read file: {}", e))
+}
+
+/// Render HWP file to SVG using hwpers crate.
+/// Returns SVG strings for all pages concatenated, or error message.
+#[tauri::command]
+async fn render_hwp_to_svg(path: String) -> Result<String, String> {
+    use hwpers::HwpReader;
+    use hwpers::render::{HwpRenderer, RenderOptions};
+
+    // Read HWP file in blocking task (hwpers is sync)
+    tokio::task::spawn_blocking(move || -> Result<String, String> {
+        // Read HWP file - returns HwpDocument directly
+        let document = HwpReader::from_file(&path)
+            .map_err(|e| format!("Failed to read HWP file: {}", e))?;
+
+        // Create renderer with document and options
+        let options = RenderOptions::default();
+        let renderer = HwpRenderer::new(&document, options);
+
+        // Render document to get RenderResult
+        let result = renderer.render();
+
+        // Convert all pages to SVG and combine
+        let mut combined_svg = String::new();
+        combined_svg.push_str(r#"<div class="hwp-pages">"#);
+
+        for page_idx in 0..result.pages.len() {
+            if let Some(svg) = result.to_svg(page_idx) {
+                combined_svg.push_str(&format!(r#"<div class="hwp-page" data-page="{}">{}</div>"#, page_idx + 1, svg));
+            }
+        }
+
+        combined_svg.push_str("</div>");
+
+        if result.pages.is_empty() {
+            return Err("No pages found in HWP document".to_string());
+        }
+
+        Ok(combined_svg)
+    })
+    .await
+    .map_err(|e| format!("Task failed: {}", e))?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "windows")]
@@ -4117,6 +4166,8 @@ pub fn run() {
             check_preview_engine,
             convert_to_preview_pdf,
             cleanup_preview_cache,
+            read_binary_file,
+            render_hwp_to_svg,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

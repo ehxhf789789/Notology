@@ -2,18 +2,44 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Minus, X, ExternalLink, RefreshCw, FileWarning } from 'lucide-react';
-import { utilCommands } from '../../services/tauriCommands';
+import { utilCommands, previewCommands } from '../../services/tauriCommands';
 import { useHoverStore, hoverActions, useIsClosing, useIsMinimizing, HOVER_ANIMATION } from '../../stores/zustand/hoverStore';
 import { useLanguage } from '../../stores/zustand';
 import { t } from '../../utils/i18n';
 import { isHoverWindow } from '../../utils/multiWindow';
-import { previewCommands } from '../../services/tauriCommands';
 import { runAnimation, HOVER_WINDOW_OPEN_DURATION, hoverWindowPropsAreEqual, type HoverEditorWindowProps } from './hoverAnimationUtils';
+import { DocxViewer } from './DocxViewer';
+import { XlsxViewer } from './XlsxViewer';
+import { PptxViewer } from './PptxViewer';
+import { HwpxViewer } from './HwpxViewer';
+import { HwpViewer } from './HwpViewer';
 
 const DEV = import.meta.env.DEV;
 const log = DEV ? console.log.bind(console) : () => {};
 
-type ConversionState = 'idle' | 'converting' | 'ready' | 'error';
+type ViewerState = 'idle' | 'loading' | 'docx' | 'xlsx' | 'pptx' | 'hwpx' | 'hwp' | 'pdf' | 'error';
+
+// Legacy formats that should open with external app immediately (no internal viewer)
+const LEGACY_EXTENSIONS = ['ppt', 'doc', 'xls', 'hwp'];
+
+// Check if file is a legacy format
+function isLegacyFormat(filePath: string): boolean {
+  const ext = filePath.toLowerCase().split('.').pop() || '';
+  return LEGACY_EXTENSIONS.includes(ext);
+}
+
+// Determine viewer type from file extension
+function getViewerType(filePath: string): ViewerState {
+  const ext = filePath.toLowerCase().split('.').pop() || '';
+  switch (ext) {
+    case 'docx': return 'docx';
+    case 'xlsx': return 'xlsx';
+    case 'pptx': return 'pptx';
+    case 'hwpx': return 'hwp'; // HWPX also uses Rust hwpers backend (supports both formats)
+    case 'hwp': return 'hwp';
+    default: return 'pdf'; // fallback to PDF conversion for unknown types
+  }
+}
 
 const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: HoverEditorWindowProps) {
   const closeHoverFile = useHoverStore((s) => s.closeHoverFile);
@@ -35,49 +61,80 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
   const prevCachedRef = useRef(win.cached);
   const prevMinimizedRef = useRef(win.minimized);
 
-  // Document conversion state
-  const [conversionState, setConversionState] = useState<ConversionState>('idle');
+  // Document viewer state
+  const [viewerState, setViewerState] = useState<ViewerState>('idle');
+  const [documentData, setDocumentData] = useState<ArrayBuffer | null>(null);
   const [pdfPath, setPdfPath] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const conversionAbortRef = useRef(false);
+  const loadAbortRef = useRef(false);
 
-  // Trigger conversion when window opens or is restored
-  const startConversion = useCallback(async () => {
+  // Load document when window opens or is restored
+  const loadDocument = useCallback(async () => {
     if (!win.filePath) return;
-    conversionAbortRef.current = false;
-    setConversionState('converting');
+    loadAbortRef.current = false;
+
+    // For legacy formats (PPT, DOC, XLS), open with external app immediately and close
+    if (isLegacyFormat(win.filePath)) {
+      log(`[DocViewer ${win.id.slice(-6)}] Legacy format detected, opening externally: ${win.filePath}`);
+      utilCommands.openInDefaultApp(win.filePath);
+      // Close this hover window
+      closeHoverFile(win.id);
+      return;
+    }
+
+    const targetType = getViewerType(win.filePath);
+    log(`[DocViewer ${win.id.slice(-6)}] Loading: ${win.filePath}, type: ${targetType}`);
+
+    setViewerState('loading');
     setErrorMessage('');
 
     try {
-      log(`[DocViewer ${win.id.slice(-6)}] Starting conversion: ${win.filePath}`);
-      const result = await previewCommands.convertToPreviewPdf(win.filePath);
-      if (conversionAbortRef.current) return;
-      log(`[DocViewer ${win.id.slice(-6)}] Conversion complete: ${result}`);
-      setPdfPath(result);
-      setConversionState('ready');
+      // HWP/HWPX: Use Rust backend directly (HwpViewer handles file reading)
+      if (targetType === 'hwp') {
+        setViewerState('hwp');
+        log(`[DocViewer ${win.id.slice(-6)}] Using Rust hwpers backend for: ${win.filePath}`);
+      }
+      // For JavaScript-rendered formats (docx, xlsx, pptx)
+      else if (targetType === 'docx' || targetType === 'xlsx' || targetType === 'pptx') {
+        const bytes = await previewCommands.readBinaryFile(win.filePath);
+        if (loadAbortRef.current) return;
+
+        // Convert number[] to ArrayBuffer
+        const arrayBuffer = new Uint8Array(bytes).buffer;
+        setDocumentData(arrayBuffer);
+        setViewerState(targetType);
+        log(`[DocViewer ${win.id.slice(-6)}] Loaded ${bytes.length} bytes for ${targetType}`);
+      } else {
+        // Fallback to PDF conversion for unknown types
+        const result = await previewCommands.convertToPreviewPdf(win.filePath);
+        if (loadAbortRef.current) return;
+        setPdfPath(result);
+        setViewerState('pdf');
+        log(`[DocViewer ${win.id.slice(-6)}] PDF conversion complete: ${result}`);
+      }
     } catch (err) {
-      if (conversionAbortRef.current) return;
+      if (loadAbortRef.current) return;
       const msg = err instanceof Error ? err.message : String(err);
-      log(`[DocViewer ${win.id.slice(-6)}] Conversion failed: ${msg}`);
+      log(`[DocViewer ${win.id.slice(-6)}] Load failed: ${msg}`);
       setErrorMessage(msg);
-      setConversionState('error');
+      setViewerState('error');
     }
   }, [win.filePath, win.id]);
 
-  // Start conversion on mount
+  // Start loading on mount
   useEffect(() => {
-    if (conversionState === 'idle') {
-      startConversion();
+    if (viewerState === 'idle') {
+      loadDocument();
     }
-    return () => { conversionAbortRef.current = true; };
+    return () => { loadAbortRef.current = true; };
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-convert on content reload trigger
+  // Re-load on content reload trigger
   useEffect(() => {
     if (win.contentReloadTrigger && win.contentReloadTrigger > 0) {
-      startConversion();
+      loadDocument();
     }
-  }, [win.contentReloadTrigger, startConversion]);
+  }, [win.contentReloadTrigger, loadDocument]);
 
   // Detect cache/minimized restoration and re-trigger opening animation
   useEffect(() => {
@@ -87,8 +144,8 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
     if (restoredFromCache) {
       log(`[DocViewer ${win.id.slice(-6)}] RESTORE from cache`);
       setIsOpening(true);
-      // Re-convert in case file changed while cached
-      startConversion();
+      // Re-load in case file changed while cached
+      loadDocument();
     } else if (restoredFromMinimized) {
       if (hoverEditorRef.current) {
         hoverEditorRef.current.getAnimations().forEach(a => a.cancel());
@@ -98,7 +155,7 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
 
     prevCachedRef.current = win.cached;
     prevMinimizedRef.current = win.minimized;
-  }, [win.cached, win.minimized, win.id, startConversion]);
+  }, [win.cached, win.minimized, win.id, loadDocument]);
 
   // Run opening animation
   useEffect(() => {
@@ -280,17 +337,18 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
   const inMultiWindowMode = isHoverWindow();
 
   const renderBody = () => {
-    switch (conversionState) {
+    switch (viewerState) {
       case 'idle':
-      case 'converting':
+      case 'loading':
         return (
           <div className="hover-editor-body doc-viewer-status">
             <div className="doc-viewer-converting">
               <RefreshCw size={32} className="doc-viewer-spinner" />
-              <p>{t('docPreviewConverting', language)}</p>
+              <p>{t('docPreviewLoading', language)}</p>
             </div>
           </div>
         );
+
       case 'error':
         return (
           <div className="hover-editor-body doc-viewer-status">
@@ -298,13 +356,43 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
               <FileWarning size={32} />
               <p>{t('docPreviewFailed', language)}</p>
               <p className="doc-viewer-error-detail">{errorMessage}</p>
-              <button className="doc-viewer-retry-btn" onClick={startConversion}>
+              <button className="doc-viewer-retry-btn" onClick={loadDocument}>
                 {t('docPreviewRetry', language)}
               </button>
             </div>
           </div>
         );
-      case 'ready':
+
+      case 'docx':
+        return (
+          <div className="hover-editor-body office-viewer-body">
+            {documentData && <DocxViewer data={documentData} />}
+          </div>
+        );
+
+      case 'xlsx':
+        return (
+          <div className="hover-editor-body office-viewer-body">
+            {documentData && <XlsxViewer data={documentData} />}
+          </div>
+        );
+
+      case 'pptx':
+        return (
+          <div className="hover-editor-body office-viewer-body">
+            {documentData && <PptxViewer data={documentData} />}
+          </div>
+        );
+
+      case 'hwp':
+        // Used for both .hwp and .hwpx files (hwpers Rust backend supports both)
+        return (
+          <div className="hover-editor-body office-viewer-body">
+            <HwpViewer filePath={win.filePath} />
+          </div>
+        );
+
+      case 'pdf':
         return (
           <div className="hover-editor-body pdf-viewer-body">
             <iframe src={pdfSrc} width="100%" height="100%" style={{ border: 'none' }} />

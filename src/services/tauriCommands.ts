@@ -312,4 +312,11 @@ export const previewCommands = {
 
   cleanupPreviewCache: (maxAgeDays?: number) =>
     invoke<number>('cleanup_preview_cache', { maxAgeDays }),
+
+  readBinaryFile: (path: string) =>
+    invoke<number[]>('read_binary_file', { path }),
+
+  // HWP rendering via Rust hwpers crate
+  renderHwpToSvg: (path: string) =>
+    invoke<string>('render_hwp_to_svg', { path }),
 };

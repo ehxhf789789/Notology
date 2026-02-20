@@ -3,6 +3,10 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 import type { HoverWindow, SnapPreview } from '../../types';
 import { contentCacheActions } from './contentCacheStore';
+import { utilCommands } from '../../services/tauriCommands';
+
+// Legacy binary formats that should open directly with external app (no internal viewer)
+const LEGACY_DIRECT_OPEN_EXTENSIONS = ['doc', 'ppt', 'xls', 'hwp'];
 
 // Conditional logging - only in development
 const DEV = import.meta.env.DEV;
@@ -102,6 +106,14 @@ export const useHoverStore = create<HoverState>()(
     openHoverFile: (path: string) => {
       const openStart = performance.now();
       log(`[HoverStore] openHoverFile START: ${path}`);
+
+      // Legacy formats (doc, ppt, xls, hwp) - open directly with external app, no viewer window
+      const ext = path.toLowerCase().split('.').pop() || '';
+      if (LEGACY_DIRECT_OPEN_EXTENSIONS.includes(ext)) {
+        log(`[HoverStore] Legacy format detected (${ext}), opening with external app: ${path}`);
+        utilCommands.openInDefaultApp(path);
+        return; // Don't create hover window
+      }
 
       // Check if we have a cached window - if so, skip preload (content is already loaded)
       const state = get();

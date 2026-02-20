@@ -256,9 +256,14 @@ const ko: Record<string, string> = {
 
   // ── Document Preview ──
   docPreviewConverting: '문서를 변환하고 있습니다...',
+  docPreviewLoading: '문서를 불러오는 중...',
   docPreviewFailed: '문서 미리보기 실패',
   docPreviewNoEngine: 'LibreOffice가 설치되어 있지 않습니다. 문서 미리보기를 사용하려면 LibreOffice를 설치하세요.',
   docPreviewRetry: '다시 시도',
+  legacyFormatNotice: '이 파일 형식은 내부 미리보기를 지원하지 않습니다.',
+  legacyFormatHint: 'DOC, XLS, PPT 형식은 외부 앱에서만 열 수 있습니다.',
+  pptxPreviewUnsupported: 'PPTX 미리보기는 현재 지원되지 않습니다.',
+  openInExternalApp: '외부 앱으로 열기',
 
   // ── Template descriptions ──
   templateDescNote: '일반 노트 - 자유롭게 작성하는 기본 노트입니다',
@@ -1180,9 +1185,14 @@ const en: Record<string, string> = {
 
   // ── Document Preview ──
   docPreviewConverting: 'Converting document...',
+  docPreviewLoading: 'Loading document...',
   docPreviewFailed: 'Document preview failed',
   docPreviewNoEngine: 'LibreOffice is not installed. Install LibreOffice to preview documents.',
   docPreviewRetry: 'Retry',
+  legacyFormatNotice: 'This file format does not support internal preview.',
+  legacyFormatHint: 'DOC, XLS, PPT formats can only be opened in external apps.',
+  pptxPreviewUnsupported: 'PPTX preview is not currently supported.',
+  openInExternalApp: 'Open in external app',
 
   // ── Template descriptions ──
   templateDescNote: 'Note - A general-purpose note for free-form writing',
