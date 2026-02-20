@@ -601,7 +601,16 @@ import { useContentCacheStore } from './contentCacheStore';
 export const hoverActions = {
   // Default: open in separate OS window (multi-window mode)
   // Automatically detects note type from content cache for taskbar icon
+  // Legacy formats (doc, ppt, xls, hwp) open directly with external app
   open: (path: string, noteType?: string) => {
+    // Legacy formats - open directly with external app, no viewer window
+    const ext = path.toLowerCase().split('.').pop() || '';
+    if (LEGACY_DIRECT_OPEN_EXTENSIONS.includes(ext)) {
+      log(`[hoverActions] Legacy format (${ext}) -> opening with external app: ${path}`);
+      utilCommands.openInDefaultApp(path);
+      return null; // Don't create hover window
+    }
+
     const vaultPath = useFileTreeStore.getState().vaultPath;
     // Try to get note type from content cache if not provided
     let type = noteType;
