@@ -111,10 +111,22 @@ function ContactInputModal() {
       alert(t('contactNameRequired', language));
       return;
     }
-    callback({ ...formData, tags: selectedTags });
-    hideContactInputModal();
+    // Capture deep copy of tags BEFORE any state changes to avoid race conditions
+    const capturedTags: FacetedTagSelection = {
+      domain: [...selectedTags.domain],
+      who: [...selectedTags.who],
+      org: [...selectedTags.org],
+      ctx: [...selectedTags.ctx],
+    };
+    const capturedData = { ...formData, tags: capturedTags };
+
+    // Reset state first, then call callback to ensure tags are captured
     setFormData({ name: '', email: '', company: '', position: '', phone: '', location: '' });
     setSelectedTags(DEFAULT_TAGS);
+    hideContactInputModal();
+
+    // Call callback AFTER modal state is reset (tags are already captured)
+    callback(capturedData);
   };
 
   const handleCancel = () => {

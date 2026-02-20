@@ -164,15 +164,17 @@ function TagInputSection({ value, onChange, language = 'ko', collapsed: initialC
         e.preventDefault();
         setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
         return;
-      } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         e.stopPropagation();
-        handleSelectSuggestion(namespace, suggestions[selectedSuggestionIndex].id);
+        // If no suggestion is selected (index -1), auto-select the first one (index 0)
+        const indexToUse = selectedSuggestionIndex >= 0 ? selectedSuggestionIndex : 0;
+        handleSelectSuggestion(namespace, suggestions[indexToUse].id);
         return;
       }
     }
 
-    if (e.key === 'Enter' && inputValue.trim()) {
+    if (e.key === 'Enter' && inputValue.trim() && suggestions.length === 0) {
       e.preventDefault();
       e.stopPropagation(); // Prevent bubbling to parent modal
       handleAddTag(namespace, inputValue);

@@ -37,6 +37,7 @@ import Search from './Search';
 import CanvasEditor from './CanvasEditor';
 import TagPanel from './metadata/TagPanel';
 import { runAnimation, HOVER_WINDOW_OPEN_DURATION, hoverWindowPropsAreEqual, type HoverEditorWindowProps } from './hover/hoverAnimationUtils';
+import { preprocessWikiLinks } from '../utils/wikiLinkPreprocess';
 
 // Conditional logging - only in development
 const DEV = import.meta.env.DEV;
@@ -434,7 +435,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         if (pendingBodyRef.current !== null && !contentSetRef.current) {
           const setContentStart = performance.now();
           isLoadingRef.current = true; // Guard: prevent onUpdate from firing during setContent
-          pooledEditor.commands.setContent(pendingBodyRef.current);
+          pooledEditor.commands.setContent(preprocessWikiLinks(pendingBodyRef.current));
           isLoadingRef.current = false;
           contentSetRef.current = true;
           pendingBodyRef.current = null;
@@ -830,7 +831,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       // Regular markdown note - set content immediately if editor is available
       if (editorRef.current && !contentSetRef.current) {
         const setContentStart = performance.now();
-        editorRef.current.commands.setContent(cached.body || '');
+        editorRef.current.commands.setContent(preprocessWikiLinks(cached.body || ''));
         contentSetRef.current = true;
         logTiming(`Editor setContent (immediate) (${(performance.now() - setContentStart).toFixed(1)}ms)`);
       } else if (!editorRef.current) {
@@ -913,7 +914,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
     const setContentStart = performance.now();
     isLoadingRef.current = true;
-    editor.commands.setContent(body);
+    editor.commands.setContent(preprocessWikiLinks(body));
     isLoadingRef.current = false;
     contentSetRef.current = true;
     logTiming(`Editor setContent (fallback) (${(performance.now() - setContentStart).toFixed(1)}ms)`);
@@ -1010,7 +1011,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         } else {
           // Regular markdown note - update editor content
           if (editor) {
-            editor.commands.setContent(cached.body || '');
+            editor.commands.setContent(preprocessWikiLinks(cached.body || ''));
           }
         }
 

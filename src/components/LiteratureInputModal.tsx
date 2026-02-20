@@ -65,10 +65,22 @@ function LiteratureInputModal() {
       alert(t('literatureTitleRequired', language));
       return;
     }
-    callback({ ...formData, tags: selectedTags });
-    hideLiteratureInputModal();
+    // Capture deep copy of tags BEFORE any state changes to avoid race conditions
+    const capturedTags: FacetedTagSelection = {
+      domain: [...selectedTags.domain],
+      who: [...selectedTags.who],
+      org: [...selectedTags.org],
+      ctx: [...selectedTags.ctx],
+    };
+    const capturedData = { ...formData, tags: capturedTags };
+
+    // Reset state first, then call callback to ensure tags are captured
     setFormData({ title: '', authors: '', year: '', publisher: '', source: '', url: '' });
     setSelectedTags(DEFAULT_TAGS);
+    hideLiteratureInputModal();
+
+    // Call callback AFTER modal state is reset (tags are already captured)
+    callback(capturedData);
   };
 
   const handleCancel = () => {

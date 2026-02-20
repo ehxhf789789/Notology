@@ -42,10 +42,22 @@ function TitleInputModal() {
       alert(t('enterTitle', language));
       return;
     }
-    callback({ title: inputValue.trim(), tags: selectedTags });
-    hideTitleInputModal();
+    // Capture deep copy of tags BEFORE any state changes to avoid race conditions
+    const capturedTags: FacetedTagSelection = {
+      domain: [...selectedTags.domain],
+      who: [...selectedTags.who],
+      org: [...selectedTags.org],
+      ctx: [...selectedTags.ctx],
+    };
+    const capturedData = { title: inputValue.trim(), tags: capturedTags };
+
+    // Reset state first, then call callback to ensure tags are captured
     setInputValue('');
     setSelectedTags(DEFAULT_TAGS);
+    hideTitleInputModal();
+
+    // Call callback AFTER modal state is reset (tags are already captured)
+    callback(capturedData);
   };
 
   const handleCancel = () => {

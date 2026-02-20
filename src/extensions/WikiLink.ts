@@ -31,8 +31,9 @@ declare module '@tiptap/core' {
 }
 
 // Non-greedy matching to support ] in filenames (e.g., [[디자인여백플러스] 파일.pdf]])
-const WIKI_LINK_REGEX = /\[\[(.+?)\]\]/g;
-const IMAGE_EMBED_REGEX = /!\[\[(.+?)\]\]/g;
+// Use Unicode flag for proper handling of Korean characters
+const WIKI_LINK_REGEX = /\[\[(.+?)\]\]/gu;
+const IMAGE_EMBED_REGEX = /!\[\[(.+?)\]\]/gu;
 
 // Helper to parse wiki link content: "fileName" or "fileName|displayText"
 function parseWikiLinkContent(content: string): { fileName: string; displayText: string } {
@@ -232,7 +233,8 @@ export const WikiLink = Node.create<WikiLinkOptions>({
 
             const text = node.text;
             // Match [[...]] but not ![[...]]
-            const regex = /(?<!!)\[\[(.+?)\]\]/g;
+            // Use Unicode flag for proper handling of Korean characters
+            const regex = /(?<!!)\[\[(.+?)\]\]/gu;
             let match;
 
             while ((match = regex.exec(text)) !== null) {

@@ -21,6 +21,12 @@ import type { FileNode } from '../../types';
 const DEV = import.meta.env.DEV;
 const log = DEV ? console.log.bind(console) : () => {};
 
+// Normalize Unicode string for consistent comparison (NFC for Windows/Linux, NFD for macOS)
+// This ensures filenames with Korean characters match regardless of how they were encoded
+function normalizeFileName(name: string): string {
+  return name.normalize('NFC').toLowerCase();
+}
+
 interface FileLookupIndex {
   // Primary lookups (case-insensitive keys)
   byName: Map<string, string>;           // fileName.toLowerCase() → fullPath
@@ -129,9 +135,10 @@ export const useFileLookupStore = create<FileLookupState>()(
               if (!child.is_dir) {
                 const childPath = child.path.replace(/\\/g, '/');
                 // Store both exact name and name without .md extension
-                attContents.set(child.name.toLowerCase(), childPath);
+                // Use Unicode normalization for consistent matching with Korean filenames
+                attContents.set(normalizeFileName(child.name), childPath);
                 if (child.name.toLowerCase().endsWith('.md')) {
-                  attContents.set(child.name.slice(0, -3).toLowerCase(), childPath);
+                  attContents.set(normalizeFileName(child.name.slice(0, -3)), childPath);
                 }
               }
             }
@@ -342,7 +349,8 @@ export const useFileLookupStore = create<FileLookupState>()(
       const attFolderPath = (noteStemPath + '_att').replace(/\\/g, '/').toLowerCase();
       const attContents = index.attFolderContents.get(attFolderPath);
       if (!attContents) return false;
-      return attContents.has(fileName.toLowerCase());
+      // Use Unicode normalization for consistent matching with Korean filenames
+      return attContents.has(normalizeFileName(fileName));
     },
 
     // O(1) resolve file path in a note's _att folder
@@ -351,7 +359,8 @@ export const useFileLookupStore = create<FileLookupState>()(
       const attFolderPath = (noteStemPath + '_att').replace(/\\/g, '/').toLowerCase();
       const attContents = index.attFolderContents.get(attFolderPath);
       if (!attContents) return null;
-      return attContents.get(fileName.toLowerCase()) || null;
+      // Use Unicode normalization for consistent matching with Korean filenames
+      return attContents.get(normalizeFileName(fileName)) || null;
     },
   }))
 );

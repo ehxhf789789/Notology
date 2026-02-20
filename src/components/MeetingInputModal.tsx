@@ -38,7 +38,11 @@ function MeetingInputModal() {
       // Set default date to today
       const today = new Date();
       const dateStr = today.toISOString().split('T')[0];
-      const timeStr = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
+      // Round time to nearest 30 minutes
+      const hours = today.getHours();
+      const minutes = today.getMinutes();
+      const roundedMinutes = minutes < 30 ? 0 : 30;
+      const timeStr = `${String(hours).padStart(2, '0')}:${String(roundedMinutes).padStart(2, '0')}`;
       setFormData(prev => ({ ...prev, date: dateStr, time: timeStr }));
 
       if (titleInputRef.current) {
@@ -64,10 +68,22 @@ function MeetingInputModal() {
       modalActions.showAlertModal(t('warning', language), t('meetingTitleRequired', language));
       return;
     }
-    callback({ ...formData, tags: selectedTags });
-    hideMeetingInputModal();
+    // Capture deep copy of tags BEFORE any state changes to avoid race conditions
+    const capturedTags: FacetedTagSelection = {
+      domain: [...selectedTags.domain],
+      who: [...selectedTags.who],
+      org: [...selectedTags.org],
+      ctx: [...selectedTags.ctx],
+    };
+    const capturedData = { ...formData, tags: capturedTags };
+
+    // Reset state first, then call callback to ensure tags are captured
     setFormData({ title: '', participants: '', date: '', time: '' });
     setSelectedTags(DEFAULT_TAGS);
+    hideMeetingInputModal();
+
+    // Call callback AFTER modal state is reset (tags are already captured)
+    callback(capturedData);
   };
 
   const handleCancel = () => {
@@ -122,13 +138,56 @@ function MeetingInputModal() {
 
             <div className="meeting-input-field">
               <label className="meeting-input-label">{t('meetingTime', language)}</label>
-              <input
-                className="meeting-input-input"
-                type="time"
-                lang={language === 'en' ? 'en-US' : 'ko-KR'}
-                value={formData.time}
-                onChange={e => setFormData({ ...formData, time: e.target.value })}
-              />
+              <div className="meeting-time-selects">
+                <select
+                  className="meeting-input-select meeting-time-period"
+                  value={parseInt(formData.time.split(':')[0] || '9') < 12 ? 'AM' : 'PM'}
+                  onChange={e => {
+                    const currentHour = parseInt(formData.time.split(':')[0] || '9');
+                    const minute = formData.time.split(':')[1] || '00';
+                    const hour12 = currentHour % 12 || 12;
+                    const newHour = e.target.value === 'AM'
+                      ? (hour12 === 12 ? 0 : hour12)
+                      : (hour12 === 12 ? 12 : hour12 + 12);
+                    setFormData({ ...formData, time: `${String(newHour).padStart(2, '0')}:${minute}` });
+                  }}
+                >
+                  <option value="AM">{language === 'ko' ? '오전' : 'AM'}</option>
+                  <option value="PM">{language === 'ko' ? '오후' : 'PM'}</option>
+                </select>
+                <select
+                  className="meeting-input-select meeting-time-hour"
+                  value={(() => {
+                    const h = parseInt(formData.time.split(':')[0] || '9');
+                    return h % 12 || 12;
+                  })()}
+                  onChange={e => {
+                    const currentHour = parseInt(formData.time.split(':')[0] || '9');
+                    const minute = formData.time.split(':')[1] || '00';
+                    const isPM = currentHour >= 12;
+                    const newHour12 = parseInt(e.target.value);
+                    const newHour = isPM
+                      ? (newHour12 === 12 ? 12 : newHour12 + 12)
+                      : (newHour12 === 12 ? 0 : newHour12);
+                    setFormData({ ...formData, time: `${String(newHour).padStart(2, '0')}:${minute}` });
+                  }}
+                >
+                  {[12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(h => (
+                    <option key={h} value={h}>{h}{language === 'ko' ? '시' : ''}</option>
+                  ))}
+                </select>
+                <select
+                  className="meeting-input-select meeting-time-minute"
+                  value={formData.time.split(':')[1] || '00'}
+                  onChange={e => {
+                    const hour = formData.time.split(':')[0] || '09';
+                    setFormData({ ...formData, time: `${hour}:${e.target.value}` });
+                  }}
+                >
+                  <option value="00">00{language === 'ko' ? '분' : ''}</option>
+                  <option value="30">30{language === 'ko' ? '분' : ''}</option>
+                </select>
+              </div>
             </div>
           </div>
 

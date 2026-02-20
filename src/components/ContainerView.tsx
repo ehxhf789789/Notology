@@ -28,6 +28,7 @@ import Search from './Search';
 import type { FileContent, NoteFrontmatter, NoteMetadata, FileNode } from '../types';
 import { parseFrontmatter, serializeFrontmatter, getCurrentTimestamp } from '../utils/frontmatter';
 import { markAsSelfSaved } from '../utils/selfSaveTracker';
+import { preprocessWikiLinks } from '../utils/wikiLinkPreprocess';
 
 // Check if a folder has a folder note (FolderName/FolderName.md)
 function hasFolderNote(node: FileNode): boolean {
@@ -422,7 +423,7 @@ function ContainerView() {
         setBody(content.body);
         setIsDirty(false);
         if (editor) {
-          editor.commands.setContent(content.body || '');
+          editor.commands.setContent(preprocessWikiLinks(content.body || ''));
         }
         setTimeout(() => { isLoadingRef.current = false; }, 50);
       })
