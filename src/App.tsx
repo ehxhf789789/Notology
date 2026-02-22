@@ -62,7 +62,6 @@ import { detectGpuPerformance } from './utils/gpuDetect';
 import { closeAllHoverWindows } from './utils/multiWindow';
 import { flushAllEditorSaves } from './utils/editorSaveRegistry';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import type { HoverWindow } from './types';
 import './App.css';
 
 const HOVER_PANEL_WIDTH = 280;

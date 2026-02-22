@@ -66,6 +66,7 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
   const [documentData, setDocumentData] = useState<ArrayBuffer | null>(null);
   const [pdfPath, setPdfPath] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [hwpxFallback, setHwpxFallback] = useState(false);
   const loadAbortRef = useRef(false);
 
   // Load document when window opens or is restored
@@ -385,10 +386,36 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
         );
 
       case 'hwp':
+        // HWPX fallback: if Rust failed, use JavaScript parser
+        if (hwpxFallback && documentData) {
+          return (
+            <div className="hover-editor-body office-viewer-body">
+              <HwpxViewer data={documentData} />
+            </div>
+          );
+        }
         // Used for both .hwp and .hwpx files (hwpers Rust backend supports both)
         return (
           <div className="hover-editor-body office-viewer-body">
-            <HwpViewer filePath={win.filePath} />
+            <HwpViewer
+              filePath={win.filePath}
+              onRustFailed={win.filePath.toLowerCase().endsWith('.hwpx') ? async (err) => {
+                log(`[DocViewer ${win.id.slice(-6)}] Rust hwpers failed for HWPX, falling back to JS viewer: ${err}`);
+                // Show loading spinner immediately while reading binary
+                setViewerState('loading');
+                try {
+                  const bytes = await previewCommands.readBinaryFile(win.filePath);
+                  if (loadAbortRef.current) return;
+                  const arrayBuffer = new Uint8Array(bytes).buffer;
+                  setDocumentData(arrayBuffer);
+                  setHwpxFallback(true);
+                  setViewerState('hwp');
+                } catch (readErr) {
+                  setErrorMessage(String(readErr));
+                  setViewerState('error');
+                }
+              } : undefined}
+            />
           </div>
         );
 

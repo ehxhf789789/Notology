@@ -7643,49 +7643,27 @@ html[data-theme="light"] .window-size-option.active .window-size-preview {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 8px 16px;
+  padding: 6px 16px;
   background: var(--bg-secondary, #333);
   border-bottom: 1px solid var(--border-color, #444);
   flex-shrink: 0;
 }
 
-.pptx-nav-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: var(--bg-tertiary, #444);
-  border: none;
-  border-radius: 4px;
-  color: var(--text-primary, #fff);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.pptx-nav-btn:hover:not(:disabled) {
-  background: var(--accent-primary, #4a9eff);
-}
-
-.pptx-nav-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 .pptx-slide-indicator {
   color: var(--text-secondary, #aaa);
-  font-size: 0.9em;
+  font-size: 0.85em;
   min-width: 60px;
   text-align: center;
 }
 
-.pptx-slide-container {
+.pptx-slides-scroll-container {
   flex: 1;
   overflow: auto;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
   padding: 20px 20px 60px 20px;
+  gap: 16px;
 }
 
 .pptx-slide {
@@ -7693,18 +7671,21 @@ html[data-theme="light"] .window-size-option.active .window-size-preview {
   color: #1a1a1a;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   flex-shrink: 0;
 }
 
 .pptx-shape {
-  word-wrap: break-word;
-  line-height: 1.4;
+  font-kerning: none;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  letter-spacing: -0.02em;
 }
 
 .pptx-shape p {
   margin: 0;
-  padding: 2px 0;
 }
 
 .pptx-loading {
@@ -7724,49 +7705,63 @@ html[data-theme="light"] .window-size-option.active .window-size-preview {
 .pptx-table th {
   vertical-align: middle;
   word-wrap: break-word;
+  overflow: hidden;
 }
 
 .pptx-table p {
-  margin: 2px 0;
+  margin: 0;
+  line-height: 1.2;
 }
 
 /* HWPX Viewer */
 .hwpx-viewer {
   display: flex;
   flex-direction: column;
-  background: #f0f0f0;
+  background: #e8e8e8;
 }
 
 .hwpx-content {
   flex: 1;
   overflow: auto;
   display: flex;
-  justify-content: center;
-  padding: 20px;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 20px;
+  gap: 12px;
 }
 
 .hwpx-page {
   background: white;
   color: #1a1a1a;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-  max-width: 800px;
-  width: 100%;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15), 0 0 1px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
+  flex-shrink: 0;
+  position: relative;
 }
 
 .hwpx-section {
-  margin-bottom: 16px;
+  position: relative;
 }
 
 .hwpx-section p {
   word-wrap: break-word;
   white-space: pre-wrap;
+  margin: 0;
+}
+
+.hwpx-section figure {
+  margin: 4px 0;
+}
+
+.hwpx-section figcaption {
+  font-size: 0.85em;
+  color: #555;
 }
 
 .hwpx-table {
   border-collapse: collapse;
-  margin: 16px 0;
-  font-size: 0.95em;
+  margin: 2px 0;
+  font-size: 0.9em;
 }
 
 .hwpx-table td,
@@ -7776,7 +7771,7 @@ html[data-theme="light"] .window-size-option.active .window-size-preview {
 }
 
 .hwpx-table p {
-  margin: 2px 0;
+  margin: 1px 0;
 }
 
 .hwpx-images {
@@ -7792,12 +7787,127 @@ html[data-theme="light"] .window-size-option.active .window-size-preview {
   border: 1px solid #ddd;
 }
 
+.hwpx-inline-image {
+  max-width: 100%;
+  height: auto;
+}
+
+.hwpx-figure {
+  margin: 8px 0;
+  text-align: center;
+}
+
+.hwpx-figure figcaption {
+  font-size: 0.85em;
+  color: #555;
+  margin-top: 4px;
+}
+
+.hwpx-page-num {
+  font-size: 9pt;
+  color: #666;
+}
+
 .hwpx-loading {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
   color: var(--text-secondary, #888);
+}
+
+.hwpx-zoom-indicator {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 10;
+  font-size: 12px;
+  color: var(--text-secondary, #888);
+  background: rgba(255,255,255,0.8);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* HWPX Toolbar (page navigation) */
+.hwpx-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-secondary, #f0f0f0);
+  border-bottom: 1px solid var(--border-color, #ddd);
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+.hwpx-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--bg-tertiary, #e0e0e0);
+  border: none;
+  border-radius: 4px;
+  color: var(--text-primary, #333);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.hwpx-nav-btn:hover:not(:disabled) {
+  background: var(--accent-primary, #4a9eff);
+  color: white;
+}
+
+.hwpx-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.hwpx-page-input {
+  width: 44px;
+  text-align: center;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 3px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #333);
+  font-size: 13px;
+  padding: 2px 4px;
+  -moz-appearance: textfield;
+}
+
+.hwpx-page-input::-webkit-outer-spin-button,
+.hwpx-page-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.hwpx-page-total {
+  color: var(--text-secondary, #888);
+  font-size: 13px;
+}
+
+.hwpx-zoom-label {
+  color: var(--text-secondary, #888);
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+html[data-theme="dark"] .hwpx-toolbar {
+  background: var(--bg-secondary, #2a2a2a);
+  border-bottom-color: var(--border-color, #444);
+}
+
+html[data-theme="dark"] .hwpx-nav-btn {
+  background: var(--bg-tertiary, #3a3a3a);
+  color: var(--text-primary, #ddd);
+}
+
+html[data-theme="dark"] .hwpx-page-input {
+  background: var(--bg-primary, #1e1e1e);
+  color: var(--text-primary, #ddd);
+  border-color: var(--border-color, #555);
 }
 
 /* HWP Viewer (SVG from Rust hwpers) */
@@ -7951,6 +8061,79 @@ html[data-theme="light"] .window-size-option.active .window-size-preview {
   color: var(--text-error, #e53935);
   text-align: center;
   padding: 20px;
+}
+
+/* ============================================================ */
+/* Document Viewer - Dark Mode Overrides                        */
+/* Document content (slides/pages) stays white (paper-like).    */
+/* Only surrounding UI adapts to dark theme.                    */
+/* ============================================================ */
+
+html[data-theme="dark"] .office-viewer-container {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* DOCX: dark surround, white paper */
+html[data-theme="dark"] .docx-viewer {
+  background: var(--bg-secondary);
+}
+
+/* XLSX: tabs, headers, borders adapt to dark */
+html[data-theme="dark"] .xlsx-sheet-tab.active {
+  background: var(--bg-primary);
+  border-bottom-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .xlsx-content td,
+html[data-theme="dark"] .xlsx-content th {
+  border-color: var(--border-color);
+}
+
+html[data-theme="dark"] .xlsx-content th {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .xlsx-content tr:hover td {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+}
+
+/* PPTX: dark surround, white slides */
+html[data-theme="dark"] .pptx-viewer {
+  background: var(--bg-primary);
+}
+
+/* HWPX: dark surround, white pages */
+html[data-theme="dark"] .hwpx-viewer {
+  background: var(--bg-primary, #1e1e1e);
+}
+
+html[data-theme="dark"] .hwpx-page {
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme="dark"] .hwpx-figure figcaption {
+  color: #999;
+}
+
+html[data-theme="dark"] .hwpx-zoom-indicator {
+  background: rgba(0,0,0,0.6);
+  color: #ccc;
+}
+
+html[data-theme="dark"] .hwpx-image {
+  border-color: var(--border-color);
+}
+
+/* HWP (SVG from Rust): dark surround */
+html[data-theme="dark"] .hwp-viewer {
+  background: var(--bg-secondary);
+}
+
+html[data-theme="dark"] .hwp-content {
+  background: var(--bg-secondary);
 }
 
 /* ============================================================ */

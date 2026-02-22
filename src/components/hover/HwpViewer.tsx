@@ -4,9 +4,10 @@ import { previewCommands, utilCommands } from '../../services/tauriCommands';
 
 interface HwpViewerProps {
   filePath: string;
+  onRustFailed?: (error: string) => void;
 }
 
-export function HwpViewer({ filePath }: HwpViewerProps) {
+export function HwpViewer({ filePath, onRustFailed }: HwpViewerProps) {
   const [svgContent, setSvgContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,7 +26,12 @@ export function HwpViewer({ filePath }: HwpViewerProps) {
         setLoading(false);
       } catch (err) {
         console.error('[HwpViewer] Render failed:', err);
-        setError(err instanceof Error ? err.message : String(err));
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        if (onRustFailed) {
+          onRustFailed(errorMsg);
+        } else {
+          setError(errorMsg);
+        }
         setLoading(false);
       }
     };
