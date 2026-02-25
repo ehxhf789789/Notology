@@ -1,0 +1,116 @@
+========================================================
+  Notology - Canvas/Sketch Template Refactor
+  Date: 2026-02-25
+  Branch: main
+  Author: Claude Code (Opus 4.6) + Hanbin Lee
+========================================================
+
+[Overview]
+스케치(Canvas) 템플릿의 UX 결함 수정, 첨부파일 wikilink 활성화,
+코드 무결성 개선, GUI 시각 피드백 강화를 수행함.
+
+========================================================
+1. 드래그 후 더블클릭 → 편집모드 전환 수정
+========================================================
+파일: src/components/CanvasEditor.tsx
+
+[문제]
+- handleNodeMouseDown에서 모든 mousedown이 즉시 draggingNode 설정
+- e.preventDefault()가 브라우저의 더블클릭 이벤트 감지를 방해
+- 노드를 드래그 이동 후 더블클릭해도 편집모드 진입 실패
+
+[해결]
+- pendingDrag 상태 도입 (mousedown 시 좌표만 기록)
+- DRAG_THRESHOLD = 5px: mousemove에서 5px 이상 이동 시에만 실제 드래그 시작
+- threshold 미만이면 단순 클릭/더블클릭으로 정상 처리
+- e.preventDefault() 제거하여 브라우저 네이티브 더블클릭 감지 보장
+- 캔버스 빈 공간 더블클릭 시 새 노드 생성 + 즉시 편집모드 진입
+
+[변경 상세]
+- 새 state: pendingDrag (nodeId, x, y)
+- handleNodeMouseDown: setDraggingNode → setPendingDrag
+- handleMouseMove: pendingDrag threshold 체크 로직 추가
+- handleMouseUp: pendingDrag 클리어 로직 추가
+- useEffect (global listener): pendingDrag를 트리거 조건에 추가
+
+========================================================
+2. Canvas 텍스트 노드 내 Wikilink 클릭 활성화
+========================================================
+파일: src/components/CanvasEditor.tsx, src/App.css
+
+[문제]
+- [[wikilink]] 텍스트가 CSS 스타일링만 되고 클릭 이벤트 없음
+- 텍스트 노드에 드롭된 첨부파일 링크가 비활성 상태
+
+[해결]
+- renderNodeText()에서 wikilink 렌더링 시 data-wikilink 속성 추가
+  AS-IS: <span class="canvas-wikilink">text</span>
+  TO-BE: <span class="canvas-wikilink" data-wikilink="text">text</span>
+- canvas-node-text-display div에 onClick 핸들러 추가
+  → data-wikilink 속성 감지 시 openHoverFile() 호출
+- CSS: cursor: pointer, hover 배경색/색상 전환 효과
+- 다크모드 별도 스타일 추가 (#4fc3f7 계열)
+
+========================================================
+3. 코드 무결성 개선 (드롭 핸들러 중복 제거 + 정리)
+========================================================
+파일: src/components/CanvasEditor.tsx
+
+[문제]
+- handleDrop (HTML5)과 handleNativeFileDrop (Tauri native)이
+  거의 동일한 40줄 로직을 중복 구현
+- 노드 ID: Date.now() + Math.random() → 빠른 연속 생성 시 충돌 가능
+- console.log 디버그 문 3개 잔존
+
+[해결]
+A) 공통 함수 추출 (컴포넌트 외부):
+   - generateId(prefix): timestamp + 증분카운터 + 랜덤 조합
+   - IMAGE_EXTS: 이미지 확장자 상수
+   - findTextNodeAtPosition(): 좌표 기반 텍스트 노드 탐색
+   - applyFileDrop(): wikilink 삽입 또는 파일 노드 생성 통합 로직
+
+B) 두 핸들러 모두 공통 함수 호출로 교체:
+   - handleNativeFileDrop: ~40줄 → ~10줄
+   - handleDrop: ~50줄 → ~20줄
+
+C) 모든 ID 생성을 generateId()로 통일:
+   - node ID, edge ID, copy-paste ID 모두 교체
+
+D) 디버그 console.log 3건 제거:
+   - [Selection] 로그, [CanvasEditor] dropTargetRef 로그, setCanvasRef 로그
+
+========================================================
+4. GUI 시각 피드백 강화 (편집모드 구분)
+========================================================
+파일: src/components/CanvasEditor.tsx, src/App.css
+
+[문제]
+- 노드 선택(selected)과 편집(editing) 상태의 시각적 구분 없음
+- 사용자가 현재 노드가 편집 중인지 알기 어려움
+
+[해결]
+- CanvasEditor: 편집 중인 노드에 'editing' CSS 클래스 추가
+- CSS 새 규칙:
+  * .canvas-node.editing: 파란색 border (#007acc) + glow shadow
+    → 선택(초록 #00d4aa)과 명확히 구분
+  * html[data-theme="dark"] .canvas-node.editing: 다크모드 (#4fc3f7)
+  * 특수 도형(decision/io/database)의 editing 상태: box-shadow 제거
+- 기존 transition: border-color 0.2s, box-shadow 0.2s 활용하여
+  선택↔편집 전환 시 부드러운 애니메이션 자동 적용
+
+========================================================
+영향 파일 목록
+========================================================
+- src/components/CanvasEditor.tsx  (주요 변경 — 리팩토링+기능추가)
+- src/App.css                      (편집모드 CSS, wikilink 스타일)
+- (기존 unstaged: package-lock.json, Cargo.lock, Cargo.toml,
+   types.ts, i18n.ts — 이전 작업의 미커밋 변경)
+
+========================================================
+테스트 포인트
+========================================================
+1. 스케치 노트에서 노드 드래그 이동 → 더블클릭 → 편집모드 진입 확인
+2. 텍스트 노드에 [[파일명]] 작성 → 클릭 시 파일 열림 확인
+3. 파일 드래그&드롭 → 빈 공간: 파일 노드 생성 / 텍스트 노드 위: wikilink 삽입
+4. 편집모드 진입 시 파란색 테두리 + glow, 선택 시 초록색 테두리 구분
+5. 노드 복사/붙여넣기(Ctrl+C/V) 시 ID 충돌 없는지 확인

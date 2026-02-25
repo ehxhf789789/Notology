@@ -7,6 +7,68 @@ import { useSettingsStore } from '../stores/zustand/settingsStore';
 import { t, tf } from '../utils/i18n';
 import type { CanvasData, CanvasNode, CanvasEdge, CanvasSelection } from '../types';
 
+// Collision-resistant unique ID generator
+let idCounter = 0;
+function generateId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${(++idCounter).toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'];
+
+// Shared logic: find text node at canvas coordinates
+function findTextNodeAtPosition(nodes: CanvasNode[], x: number, y: number): CanvasNode | null {
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const node = nodes[i];
+    if (node.type !== 'text') continue;
+    if (x >= node.x && x <= node.x + node.width &&
+        y >= node.y && y <= node.y + node.height) {
+      return node;
+    }
+  }
+  return null;
+}
+
+// Shared logic: insert wikilinks into a text node or create file nodes
+function applyFileDrop(
+  currentData: CanvasData,
+  files: { name: string; path: string }[],
+  dropX: number,
+  dropY: number,
+  targetTextNode: CanvasNode | null,
+): CanvasData {
+  if (targetTextNode) {
+    const wikilinks = files.map(f => `[[${f.name}]]`).join('\n');
+    const newText = (targetTextNode.text || '') + (targetTextNode.text ? '\n' : '') + wikilinks;
+    const updatedNodes = currentData.nodes.map(n =>
+      n.id === targetTextNode.id ? { ...n, text: newText } : n
+    );
+    return { ...currentData, nodes: updatedNodes };
+  }
+
+  const newNodes: CanvasNode[] = [];
+  let offsetY = 0;
+
+  for (const file of files) {
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const isImage = IMAGE_EXTS.includes(ext);
+
+    newNodes.push({
+      id: generateId('node'),
+      type: 'file',
+      x: dropX,
+      y: dropY + offsetY,
+      width: isImage ? 250 : 240,
+      height: isImage ? 200 : 160,
+      file: file.path,
+      text: file.name,
+    });
+
+    offsetY += (isImage ? 220 : 180);
+  }
+
+  return { ...currentData, nodes: [...currentData.nodes, ...newNodes] };
+}
+
 interface CanvasEditorProps {
   data: CanvasData;
   onChange: (data: CanvasData) => void;
@@ -33,6 +95,8 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [draggingNode, setDraggingNode] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [pendingDrag, setPendingDrag] = useState<{ nodeId: string; x: number; y: number } | null>(null);
+  const DRAG_THRESHOLD = 5; // pixels before drag actually starts
   const [viewportOffset, setViewportOffset] = useState({ x: 0, y: 0 });
   const [viewportScale, setViewportScale] = useState(1);
   const [isPanning, setIsPanning] = useState(false);
@@ -49,6 +113,10 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
   const [resizingNode, setResizingNode] = useState<string | null>(null);
   const [resizeHandle, setResizeHandle] = useState<'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw' | null>(null);
   const [resizeStart, setResizeStart] = useState<{ x: number; y: number; width: number; height: number; nodeX: number; nodeY: number } | null>(null);
+  const [editingNode, setEditingNode] = useState<string | null>(null);
+
+  const copiedNodesRef = useRef<CanvasNode[]>([]);
+  const copiedEdgesRef = useRef<CanvasEdge[]>([]);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -63,27 +131,27 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
   const handleNodeMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
     if (readOnly) return;
 
-    // Allow text selection in textarea - don't preventDefault for textarea clicks
     const target = e.target as HTMLElement;
     const isTextarea = target.tagName === 'TEXTAREA';
 
     e.stopPropagation();
-    if (!isTextarea) {
-      e.preventDefault(); // Prevent text selection during drag, but allow it for textarea
+
+    // If clicking on a different node while editing, exit edit mode
+    if (editingNode && editingNode !== nodeId) {
+      setEditingNode(null);
     }
 
-    if (e.button === 0 && !isTextarea) { // Left click on node (not textarea)
-      // Normal mode: select and drag node
+    if (e.button === 0 && !isTextarea) {
+      // Don't preventDefault here — allow browser to detect double-click
       setSelectedNode(nodeId);
       setSelectedEdge(null);
-      setDraggingNode(nodeId);
-      setDragStart({ x: e.clientX, y: e.clientY });
+      // Start pending drag instead of immediate drag (threshold will be checked in mousemove)
+      setPendingDrag({ nodeId, x: e.clientX, y: e.clientY });
     } else if (e.button === 0 && isTextarea) {
-      // Click on textarea - just select the node, don't start dragging
       setSelectedNode(nodeId);
       setSelectedEdge(null);
     }
-  }, [readOnly]);
+  }, [readOnly, editingNode]);
 
   const handleConnectionStart = useCallback((e: React.MouseEvent, nodeId: string, side: 'top' | 'right' | 'bottom' | 'left') => {
     if (readOnly) return;
@@ -113,6 +181,11 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
 
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button === 0 && !draggingNode) {
+      // Exit edit mode when clicking on empty canvas
+      if (editingNode) {
+        setEditingNode(null);
+      }
+
       if (connectingFrom) {
         // Cancel connection
         setConnectingFrom(null);
@@ -139,7 +212,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
       setSelectedNode(null);
       setSelectedEdge(null);
     }
-  }, [draggingNode, connectingFrom, viewportOffset, viewportScale]);
+  }, [draggingNode, connectingFrom, viewportOffset, viewportScale, editingNode]);
 
   const handleCanvasDoubleClick = useCallback((e: React.MouseEvent) => {
     if (readOnly || !canvasRef.current) return;
@@ -152,7 +225,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
 
     // Create new text node at double-click position
     const newNode: CanvasNode = {
-      id: `node-${Date.now()}`,
+      id: generateId('node'),
       type: 'text',
       x: x - 100, // Center the node on cursor
       y: y - 50,
@@ -163,9 +236,23 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
 
     onChange({ ...data, nodes: [...data.nodes, newNode] });
     setSelectedNode(newNode.id);
+    setEditingNode(newNode.id);
   }, [readOnly, data, onChange, viewportOffset, viewportScale]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
+    // Check pending drag threshold before starting actual drag
+    if (pendingDrag && !draggingNode) {
+      const dx = Math.abs(e.clientX - pendingDrag.x);
+      const dy = Math.abs(e.clientY - pendingDrag.y);
+      if (dx >= DRAG_THRESHOLD || dy >= DRAG_THRESHOLD) {
+        // Threshold exceeded — promote to actual drag
+        setDraggingNode(pendingDrag.nodeId);
+        setDragStart({ x: e.clientX, y: e.clientY });
+        setPendingDrag(null);
+      }
+      return; // Don't process other moves while pending
+    }
+
     if (resizingNode && resizeStart && resizeHandle) {
       const dx = (e.clientX - resizeStart.x) / viewportScale;
       const dy = (e.clientY - resizeStart.y) / viewportScale;
@@ -251,9 +338,14 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
         }
       });
     }
-  }, [resizingNode, resizeStart, resizeHandle, draggingNode, dragStart, isPanning, panStart, isSelecting, selectionStart, data, onChange, viewportScale, connectingFrom, viewportOffset]);
+  }, [pendingDrag, resizingNode, resizeStart, resizeHandle, draggingNode, dragStart, isPanning, panStart, isSelecting, selectionStart, data, onChange, viewportScale, connectingFrom, viewportOffset]);
 
   const handleMouseUp = useCallback((e: MouseEvent) => {
+    // If pending drag never exceeded threshold, it was a click — clear pending state
+    if (pendingDrag) {
+      setPendingDrag(null);
+    }
+
     // If we were connecting, try to complete the connection
     if (connectingFrom && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
@@ -291,7 +383,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
       // Create edge if valid target found
       if (targetNode && targetSide) {
         const newEdge: CanvasEdge = {
-          id: `edge-${Date.now()}`,
+          id: generateId('edge'),
           fromNode: connectingFrom.nodeId,
           fromSide: connectingFrom.side,
           toNode: targetNode.id,
@@ -339,10 +431,6 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
             bounds.top > boxBottom ||
             bounds.bottom < selectionBox.y
           );
-
-          console.log('[Selection] Node:', node.id, 'Shape:', node.shape || 'process',
-            'Bounds:', bounds, 'SelectionBox:', { x: selectionBox.x, y: selectionBox.y, right: boxRight, bottom: boxBottom },
-            'Intersects:', intersects);
 
           return intersects;
         })
@@ -403,7 +491,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
     setResizingNode(null);
     setResizeHandle(null);
     setResizeStart(null);
-  }, [connectingFrom, isSelecting, selectionBox, data, onChange, viewportOffset, viewportScale]);
+  }, [pendingDrag, connectingFrom, isSelecting, selectionBox, data, onChange, viewportOffset, viewportScale]);
 
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
@@ -439,8 +527,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
   const handleNativeFileDrop = useCallback((importedPaths: string[], position?: { x: number; y: number }) => {
     if (readOnly || !canvasRef.current) return;
 
-    // Calculate drop position in canvas coordinates
-    let dropX = 100; // Default position
+    let dropX = 100;
     let dropY = 100;
 
     if (position && canvasRef.current) {
@@ -449,39 +536,15 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
       dropY = (position.y - rect.top - viewportOffsetRef.current.y) / viewportScaleRef.current;
     }
 
-    // Create nodes for each imported file
-    const newNodes: CanvasNode[] = [];
-    let offsetY = 0;
+    const currentData = dataRef.current;
+    const targetTextNode = findTextNodeAtPosition(currentData.nodes, dropX, dropY);
+    const files = importedPaths.map(p => {
+      const name = p.split(/[/\\]/).pop() || '';
+      return { name, path: p };
+    });
 
-    for (const attachmentPath of importedPaths) {
-      const fileName = attachmentPath.split(/[/\\]/).pop() || '';
-      const ext = fileName.split('.').pop()?.toLowerCase() || '';
-      const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'];
-      const isImage = imageExts.includes(ext);
-
-      const newNode: CanvasNode = {
-        id: `node-${Date.now()}-${Math.random()}`,
-        type: 'file',
-        x: dropX,
-        y: dropY + offsetY,
-        width: isImage ? 250 : 240,
-        height: isImage ? 200 : 160,
-        file: attachmentPath,
-        text: fileName,
-      };
-
-      newNodes.push(newNode);
-      offsetY += (isImage ? 220 : 180);
-    }
-
-    if (newNodes.length > 0) {
-      const currentData = dataRef.current;
-      onChangeRef.current({
-        ...currentData,
-        nodes: [...currentData.nodes, ...newNodes]
-      });
-    }
-  }, [readOnly]); // Only depend on readOnly - use refs for other values
+    onChangeRef.current(applyFileDrop(currentData, files, dropX, dropY, targetTextNode));
+  }, [readOnly]);
 
   // Register drop target for Tauri native events - handleNativeFileDrop is now stable
   const dropTargetRef = useDropTarget(
@@ -489,11 +552,8 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
     notePath ?? null,
     handleNativeFileDrop
   );
-  console.log('[CanvasEditor] dropTargetRef type:', typeof dropTargetRef, 'notePath:', notePath);
-
   // Combine canvasRef and dropTargetRef - both should now be stable
   const setCanvasRef = useCallback((el: HTMLDivElement | null) => {
-    console.log('[CanvasEditor] setCanvasRef called with element:', !!el);
     canvasRef.current = el;
     dropTargetRef(el);
   }, [dropTargetRef]);
@@ -507,71 +567,45 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
-    // Calculate drop position in canvas coordinates
     const rect = canvasRef.current.getBoundingClientRect();
     const dropX = (e.clientX - rect.left - viewportOffset.x) / viewportScale;
     const dropY = (e.clientY - rect.top - viewportOffset.y) / viewportScale;
 
-    // Process each dropped file
-    const newNodes: CanvasNode[] = [];
-    let offsetY = 0;
-
+    // Import all files first
+    const importedFiles: { name: string; path: string }[] = [];
     for (const file of files) {
       try {
-        // In Tauri, the File object has a path property
         const filePath = (file as any).path;
         if (!filePath) continue;
-
-        // Import the attachment
         const attachmentPath = await noteCommands.importAttachment(filePath, notePath);
-
-        // Determine node type based on file extension
-        const ext = file.name.split('.').pop()?.toLowerCase() || '';
-        const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'];
-        const isImage = imageExts.includes(ext);
-
-        // Create a node for the attachment
-        const newNode: CanvasNode = {
-          id: `node-${Date.now()}-${Math.random()}`,
-          type: 'file',
-          x: dropX,
-          y: dropY + offsetY,
-          width: isImage ? 250 : 240,
-          height: isImage ? 200 : 160,
-          file: attachmentPath,
-          text: file.name,
-        };
-
-        newNodes.push(newNode);
-        offsetY += (isImage ? 220 : 180); // Stack nodes vertically
+        importedFiles.push({ name: file.name, path: attachmentPath });
       } catch (err) {
         console.error('Failed to import attachment:', err);
       }
     }
 
-    if (newNodes.length > 0) {
-      // Use dataRef to get the latest canvas data
-      const currentData = dataRef.current;
-      onChange({
-        ...currentData,
-        nodes: [...currentData.nodes, ...newNodes]
-      });
-    }
+    if (importedFiles.length === 0) return;
+
+    const currentData = dataRef.current;
+    const targetTextNode = findTextNodeAtPosition(currentData.nodes, dropX, dropY);
+    onChange(applyFileDrop(currentData, importedFiles, dropX, dropY, targetTextNode));
   }, [readOnly, notePath, onChange, viewportOffset, viewportScale]);
 
   useEffect(() => {
-    if (draggingNode || isPanning || isSelecting || connectingFrom || resizingNode) {
+    if (pendingDrag || draggingNode || isPanning || isSelecting || connectingFrom || resizingNode) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
-      // Add body class to prevent text selection globally
-      document.body.classList.add('canvas-dragging');
+      // Add body class to prevent text selection globally (only when actually dragging)
+      if (draggingNode || isPanning || isSelecting || resizingNode) {
+        document.body.classList.add('canvas-dragging');
+      }
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
         document.body.classList.remove('canvas-dragging');
       };
     }
-  }, [draggingNode, isPanning, isSelecting, connectingFrom, resizingNode, handleMouseMove, handleMouseUp]);
+  }, [pendingDrag, draggingNode, isPanning, isSelecting, connectingFrom, resizingNode, handleMouseMove, handleMouseUp]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -581,29 +615,6 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
     }
   }, [handleWheel]);
 
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (readOnly) return;
-
-      // Delete key - remove selected nodes and edges
-      if (e.key === 'Delete' && (selectedNodes.length > 0 || selectedEdges.length > 0)) {
-        e.preventDefault();
-        const updatedNodes = data.nodes.filter(n => !selectedNodes.includes(n.id));
-        const updatedEdges = data.edges.filter(edge =>
-          !selectedEdges.includes(edge.id) &&
-          !selectedNodes.includes(edge.fromNode) &&
-          !selectedNodes.includes(edge.toNode)
-        );
-        onChange({ nodes: updatedNodes, edges: updatedEdges });
-        setSelectedNodes([]);
-        setSelectedEdges([]);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [readOnly, selectedNodes, selectedEdges, data, onChange]);
 
   // Fit all nodes in viewport when canvas loads
   useEffect(() => {
@@ -647,7 +658,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
   const addTextNode = useCallback(() => {
     if (readOnly) return;
     const newNode: CanvasNode = {
-      id: `node-${Date.now()}`,
+      id: generateId('node'),
       type: 'text',
       x: -viewportOffset.x / viewportScale + 100,
       y: -viewportOffset.y / viewportScale + 100,
@@ -696,16 +707,174 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
     onChange({ ...data, nodes: updatedNodes });
   }, [data, onChange, readOnly]);
 
-  // Handle Delete key for deleting selected nodes/edges
+  // Double-click on a text node → enter edit mode
+  const handleNodeDoubleClick = useCallback((e: React.MouseEvent, nodeId: string) => {
+    if (readOnly) return;
+    e.stopPropagation();
+    const node = data.nodes.find(n => n.id === nodeId);
+    if (node && node.type === 'text') {
+      setEditingNode(nodeId);
+    }
+  }, [readOnly, data.nodes]);
+
+  // Simple markdown → HTML renderer for view mode
+  const renderNodeText = useCallback((text: string): string => {
+    if (!text) return '';
+
+    const escapeHtml = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const applyInlineFormatting = (line: string): string => {
+      let result = escapeHtml(line);
+      // Bold: **text**
+      result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      // Italic: *text*
+      result = result.replace(/\*(.+?)\*/g, '<em>$1</em>');
+      // Wikilink: [[text]] — clickable with data attribute
+      result = result.replace(/\[\[(.+?)\]\]/g, '<span class="canvas-wikilink" data-wikilink="$1">$1</span>');
+      return result;
+    };
+
+    const lines = text.split('\n');
+    const htmlParts: string[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Heading: # ## ###
+      const headingMatch = line.match(/^(#{1,3})\s+(.+)$/);
+      if (headingMatch) {
+        const content = applyInlineFormatting(headingMatch[2]);
+        htmlParts.push(`<strong class="canvas-heading canvas-heading-${headingMatch[1].length}">${content}</strong>`);
+        i++;
+        continue;
+      }
+
+      // Blockquote: > text
+      if (line.startsWith('> ')) {
+        const content = applyInlineFormatting(line.slice(2));
+        htmlParts.push(`<blockquote>${content}</blockquote>`);
+        i++;
+        continue;
+      }
+
+      // Unordered list: - item
+      if (/^[-*]\s+/.test(line)) {
+        const items: string[] = [];
+        while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
+          items.push(`<li>${applyInlineFormatting(lines[i].replace(/^[-*]\s+/, ''))}</li>`);
+          i++;
+        }
+        htmlParts.push(`<ul>${items.join('')}</ul>`);
+        continue;
+      }
+
+      // Ordered list: 1. item
+      if (/^\d+\.\s+/.test(line)) {
+        const items: string[] = [];
+        while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
+          items.push(`<li>${applyInlineFormatting(lines[i].replace(/^\d+\.\s+/, ''))}</li>`);
+          i++;
+        }
+        htmlParts.push(`<ol>${items.join('')}</ol>`);
+        continue;
+      }
+
+      // Empty line
+      if (line.trim() === '') {
+        i++;
+        continue;
+      }
+
+      // Normal paragraph
+      htmlParts.push(`<p>${applyInlineFormatting(line)}</p>`);
+      i++;
+    }
+
+    return htmlParts.join('');
+  }, []);
+
+
+  // Handle keyboard shortcuts: Delete, Ctrl+C, Ctrl+V, Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (readOnly) return;
 
-      // Only handle Delete key when not typing in a text field
-      if (e.key === 'Delete' && document.activeElement?.tagName !== 'TEXTAREA') {
+      const isEditing = document.activeElement?.tagName === 'TEXTAREA';
+
+      // Escape: exit edit mode
+      if (e.key === 'Escape' && editingNode) {
+        setEditingNode(null);
+        return;
+      }
+
+      // Ctrl+C: copy nodes
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !isEditing) {
+        e.preventDefault();
+        const nodesToCopy: CanvasNode[] = [];
+
+        if (selectedNodes.length > 0) {
+          nodesToCopy.push(...data.nodes.filter(n => selectedNodes.includes(n.id)));
+        } else if (selectedNode) {
+          const node = data.nodes.find(n => n.id === selectedNode);
+          if (node) nodesToCopy.push(node);
+        }
+
+        if (nodesToCopy.length > 0) {
+          copiedNodesRef.current = nodesToCopy.map(n => ({ ...n }));
+          // Copy edges where both endpoints are in the copied set
+          const copiedIds = new Set(nodesToCopy.map(n => n.id));
+          copiedEdgesRef.current = data.edges
+            .filter(e => copiedIds.has(e.fromNode) && copiedIds.has(e.toNode))
+            .map(e => ({ ...e }));
+        }
+        return;
+      }
+
+      // Ctrl+V: paste nodes
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !isEditing) {
+        e.preventDefault();
+        if (copiedNodesRef.current.length === 0) return;
+
+        const offset = 20;
+        const idMap = new Map<string, string>();
+
+        const newNodes: CanvasNode[] = copiedNodesRef.current.map(n => {
+          const newId = generateId('node');
+          idMap.set(n.id, newId);
+          return { ...n, id: newId, x: n.x + offset, y: n.y + offset };
+        });
+
+        const newEdges: CanvasEdge[] = copiedEdgesRef.current.map(e => ({
+          ...e,
+          id: generateId('edge'),
+          fromNode: idMap.get(e.fromNode) || e.fromNode,
+          toNode: idMap.get(e.toNode) || e.toNode,
+        }));
+
+        onChange({
+          ...data,
+          nodes: [...data.nodes, ...newNodes],
+          edges: [...data.edges, ...newEdges],
+        });
+
+        // Update copied refs so next paste offsets further
+        copiedNodesRef.current = newNodes.map(n => ({ ...n }));
+        copiedEdgesRef.current = newEdges.map(e => ({ ...e }));
+
+        // Select the pasted nodes
+        setSelectedNodes(newNodes.map(n => n.id));
+        setSelectedNode(null);
+        setSelectedEdge(null);
+        setSelectedEdges([]);
+        return;
+      }
+
+      // Delete key: remove selected nodes/edges (only when not editing text)
+      if (e.key === 'Delete' && !isEditing) {
         e.preventDefault();
 
-        // Delete multi-selected nodes/edges
         if (selectedNodes.length > 0) {
           const remainingNodes = data.nodes.filter(n => !selectedNodes.includes(n.id));
           const remainingEdges = data.edges.filter(e =>
@@ -726,7 +895,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [readOnly, selectedNode, selectedEdge, selectedNodes, selectedEdges, data, onChange, deleteNode, deleteEdge]);
+  }, [readOnly, selectedNode, selectedEdge, selectedNodes, selectedEdges, data, onChange, deleteNode, deleteEdge, editingNode]);
 
   const updateNodeProperties = useCallback((nodeId: string, properties: Partial<CanvasNode>) => {
     if (readOnly) return;
@@ -891,7 +1060,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
           {data.nodes.map(node => (
             <div
               key={node.id}
-              className={`canvas-node${node.type === 'file' ? ' file-node' : ''}${selectedNode === node.id ? ' selected' : ''}${selectedNodes.includes(node.id) ? ' multi-selected' : ''}${connectingFrom?.nodeId === node.id ? ' connecting' : ''}${hoveredNode === node.id ? ' hovered' : ''}${node.shape ? ` shape-${node.shape}` : ' shape-process'}`}
+              className={`canvas-node${node.type === 'file' ? ' file-node' : ''}${selectedNode === node.id ? ' selected' : ''}${selectedNodes.includes(node.id) ? ' multi-selected' : ''}${editingNode === node.id ? ' editing' : ''}${connectingFrom?.nodeId === node.id ? ' connecting' : ''}${hoveredNode === node.id ? ' hovered' : ''}${node.shape ? ` shape-${node.shape}` : ' shape-process'}`}
               style={{
                 left: node.x,
                 top: node.y,
@@ -1063,19 +1232,16 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                   </>
                 );
               })()}
-              {node.type === 'text' && (
+              {node.type === 'text' && editingNode === node.id ? (
                 <textarea
-                  className="canvas-node-text"
+                  className={`canvas-node-text${node.textAlign === 'center' ? ' text-center' : ''}`}
                   value={node.text || ''}
                   onChange={e => updateNodeText(node.id, e.target.value)}
                   onMouseEnter={() => setHoveredNode(node.id)}
                   onMouseDown={e => {
-                    // Always stopPropagation to prevent node dragging when interacting with textarea
-                    // The parent handleNodeMouseDown now checks for textarea and allows text selection
                     e.stopPropagation();
                   }}
                   onMouseUp={e => {
-                    // Handle text selection for memo creation
                     const textarea = e.target as HTMLTextAreaElement;
                     const { selectionStart, selectionEnd } = textarea;
                     if (selectionStart !== selectionEnd && onSelectionChange) {
@@ -1091,7 +1257,6 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                     }
                   }}
                   onSelect={e => {
-                    // Handle text selection via keyboard (Shift+Arrow, Ctrl+Shift+Arrow, etc.)
                     const textarea = e.target as HTMLTextAreaElement;
                     const { selectionStart, selectionEnd } = textarea;
                     if (selectionStart !== selectionEnd && onSelectionChange) {
@@ -1105,8 +1270,30 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                     }
                   }}
                   onDoubleClick={e => e.stopPropagation()}
+                  onKeyDown={e => {
+                    // Escape to exit edit mode
+                    if (e.key === 'Escape') {
+                      setEditingNode(null);
+                    }
+                  }}
+                  autoFocus
                   disabled={readOnly}
                   placeholder={t('canvasEnterContent', language)}
+                />
+              ) : node.type === 'text' && (
+                <div
+                  className={`canvas-node-text-display${node.textAlign === 'center' ? ' text-center' : ''}`}
+                  onMouseEnter={() => setHoveredNode(node.id)}
+                  onDoubleClick={e => handleNodeDoubleClick(e, node.id)}
+                  onClick={e => {
+                    // Handle wikilink clicks
+                    const target = e.target as HTMLElement;
+                    if (target.classList.contains('canvas-wikilink') && target.dataset.wikilink) {
+                      e.stopPropagation();
+                      openHoverFile(target.dataset.wikilink);
+                    }
+                  }}
+                  dangerouslySetInnerHTML={{ __html: renderNodeText(node.text || '') || `<p class="canvas-placeholder">${t('canvasEnterContent', language)}</p>` }}
                 />
               )}
               {node.type === 'file' && node.file && (
@@ -1353,6 +1540,36 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
               </div>
             )}
 
+            {selectedNodes.length > 0 && selectedNodes.some(id => data.nodes.find(n => n.id === id)?.type === 'text') && (
+              <div className="canvas-properties-section">
+                <div className="canvas-properties-label">{t('canvasTextAlign', language)}</div>
+                <div className="canvas-properties-align-btns">
+                  <button
+                    className="canvas-properties-align-btn"
+                    onClick={() => updateMultipleNodes({ textAlign: 'top-left' })}
+                    title={t('canvasAlignTopLeft', language)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <rect x="1" y="2" width="10" height="2" />
+                      <rect x="1" y="6" width="7" height="2" />
+                      <rect x="1" y="10" width="9" height="2" />
+                    </svg>
+                  </button>
+                  <button
+                    className="canvas-properties-align-btn"
+                    onClick={() => updateMultipleNodes({ textAlign: 'center' })}
+                    title={t('canvasAlignCenter', language)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <rect x="3" y="2" width="10" height="2" />
+                      <rect x="5" y="6" width="6" height="2" />
+                      <rect x="4" y="10" width="8" height="2" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {selectedEdges.length > 0 && (
               <div className="canvas-properties-section">
                 <div className="canvas-properties-label">{t('canvasArrowColor', language)}</div>
@@ -1446,6 +1663,36 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                       {shape.name}
                     </button>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {node.type === 'text' && (
+              <div className="canvas-properties-section">
+                <div className="canvas-properties-label">{t('canvasTextAlign', language)}</div>
+                <div className="canvas-properties-align-btns">
+                  <button
+                    className={`canvas-properties-align-btn${(!node.textAlign || node.textAlign === 'top-left') ? ' active' : ''}`}
+                    onClick={() => updateNodeProperties(selectedNode, { textAlign: 'top-left' })}
+                    title={t('canvasAlignTopLeft', language)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <rect x="1" y="2" width="10" height="2" />
+                      <rect x="1" y="6" width="7" height="2" />
+                      <rect x="1" y="10" width="9" height="2" />
+                    </svg>
+                  </button>
+                  <button
+                    className={`canvas-properties-align-btn${node.textAlign === 'center' ? ' active' : ''}`}
+                    onClick={() => updateNodeProperties(selectedNode, { textAlign: 'center' })}
+                    title={t('canvasAlignCenter', language)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <rect x="3" y="2" width="10" height="2" />
+                      <rect x="5" y="6" width="6" height="2" />
+                      <rect x="4" y="10" width="8" height="2" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             )}
