@@ -292,18 +292,94 @@ function mapPuaChar(code: number): string {
   if (code >= 0xF020 && code <= 0xF0FF) {
     const wc = code - 0xF000;
     const MAP: Record<number, number> = {
-      0x6B: 0x263A, 0x6C: 0x2605, 0x6D: 0x2606, 0x6E: 0x2611, 0x6F: 0x2610,
-      0x71: 0x2612, 0x73: 0x25C6, 0x75: 0x25C6, 0x76: 0x25CF, 0x77: 0x25CB,
-      0x9E: 0x25CB, 0x9F: 0x25CF, // ○ ● (common HWP bullet)
-      0xA1: 0x270E, 0xA3: 0x2702, 0xA4: 0x2709, 0xA5: 0x270D,
-      0xA7: 0x25AA, 0xA8: 0x25A0, 0xA9: 0x25A1, 0xAA: 0x25A3,
-      0xB6: 0x25B6, 0xB7: 0x25C0, // ▶ ◀
-      0xD5: 0x232B, 0xFC: 0x2714, 0xFD: 0x2718, 0xFE: 0x2716,
+      // Wingdings symbols
+      0x22: 0x2702, // ✂ Scissors
+      0x23: 0x2701, // ✁ Scissors (alt)
+      0x28: 0x260E, // ☎ Telephone
+      0x29: 0x2706, // ✆ Telephone location sign
+      0x2A: 0x2709, // ✉ Envelope
+      0x2B: 0x2708, // ✈ Airplane
+      0x2C: 0x263C, // ☼ Sun
+      0x2D: 0x2600, // ☀ Sun with rays
+      0x2E: 0x2744, // ❄ Snowflake
+      0x2F: 0x271E, // ✞ Cross
+      // Arrows and pointers
+      0x46: 0x261C, // ☜ Left pointing
+      0x47: 0x261E, // ☞ Right pointing
+      0x48: 0x261D, // ☝ Up pointing
+      0x49: 0x261F, // ☟ Down pointing
+      0x4C: 0x2736, // ✶ Six pointed star
+      0x4D: 0x2735, // ✵ Eight pointed star
+      0x4E: 0x2734, // ✴ Eight pointed pinwheel star
+      // Geometric shapes and faces
+      0x6B: 0x263A, // ☺ Smiley face
+      0x6C: 0x2605, // ★ Black star
+      0x6D: 0x2606, // ☆ White star
+      0x6E: 0x2611, // ☑ Ballot box with check
+      0x6F: 0x2610, // ☐ Ballot box
+      0x71: 0x2612, // ☒ Ballot box with X
+      0x73: 0x25C6, // ◆ Black diamond
+      0x74: 0x25C7, // ◇ White diamond
+      0x75: 0x25C6, // ◆ Black diamond (alt)
+      0x76: 0x25CF, // ● Black circle
+      0x77: 0x25CB, // ○ White circle
+      0x78: 0x25A0, // ■ Black square
+      0x79: 0x25A1, // □ White square
+      0x7A: 0x25B2, // ▲ Black up triangle
+      0x7B: 0x25B3, // △ White up triangle
+      0x7C: 0x25BC, // ▼ Black down triangle
+      0x7D: 0x25BD, // ▽ White down triangle
+      // Circle symbols (HWP common)
+      0x9E: 0x25CB, // ○ White circle
+      0x9F: 0x25CF, // ● Black circle
+      // Office symbols
+      0xA1: 0x270E, // ✎ Pencil
+      0xA2: 0x270F, // ✏ Pencil (alt)
+      0xA3: 0x2702, // ✂ Scissors
+      0xA4: 0x2709, // ✉ Envelope
+      0xA5: 0x270D, // ✍ Writing hand
+      // Squares and rectangles
+      0xA7: 0x25AA, // ▪ Black small square
+      0xA8: 0x25A0, // ■ Black square
+      0xA9: 0x25A1, // □ White square
+      0xAA: 0x25A3, // ◣ White square containing black square
+      0xAB: 0x25A4, // ◤ Square with horizontal fill
+      0xAC: 0x2666, // ♦ Diamond suit
+      0xAD: 0x25C6, // ◆ Black diamond
+      // Arrows
+      0xB0: 0x2190, // ← Left arrow
+      0xB1: 0x2191, // ↑ Up arrow
+      0xB2: 0x2192, // → Right arrow
+      0xB3: 0x2193, // ↓ Down arrow
+      0xB4: 0x2194, // ↔ Left right arrow
+      0xB5: 0x2195, // ↕ Up down arrow
+      0xB6: 0x25B6, // ▶ Right pointing triangle
+      0xB7: 0x25C0, // ◀ Left pointing triangle
+      // Miscellaneous
+      0xD5: 0x232B, // ⌫ Delete
+      0xF0: 0x2756, // ❖ Black diamond minus white X
+      0xF1: 0x2756, // ❖
+      0xF2: 0x25C9, // ◉ Fisheye
+      0xFC: 0x2714, // ✔ Check mark
+      0xFD: 0x2718, // ✘ Cross mark
+      0xFE: 0x2716, // ✖ Heavy multiplication X
     };
     const mapped = MAP[wc];
     if (mapped) return String.fromCodePoint(mapped);
-    // Fallback for unmapped PUA: use common bullet
-    return '●';
+
+    // Circled numbers: PUA 0xF031-0xF039 → ① ② ③ ... ⑨
+    if (wc >= 0x31 && wc <= 0x39) {
+      return String.fromCodePoint(0x2460 + (wc - 0x31)); // ①②③④⑤⑥⑦⑧⑨
+    }
+    // Circled 10-20: 0xF030 area variations
+    if (wc === 0x30) return '⓪'; // 0x24EA
+    if (wc >= 0x3A && wc <= 0x43) {
+      return String.fromCodePoint(0x2469 + (wc - 0x3A)); // ⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲
+    }
+    if (wc === 0x44) return '⑳'; // 0x2473
+
+    // Fallback for unmapped PUA: use small bullet (not ● which is too large)
+    return '•';
   }
   return String.fromCodePoint(code);
 }

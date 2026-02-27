@@ -196,6 +196,45 @@ interface ThemeData {
   fonts: ThemeFonts;
 }
 
+// ─── RelId Prefixing (prevent collision between slide/layout/master) ───
+
+/** Deep-clone shapes and prefix all imageRelIds to avoid relId collisions */
+function prefixShapeRelIds(shapes: SlideShape[], prefix: string): SlideShape[] {
+  const prefixRelId = (relId: string | undefined): string | undefined => {
+    if (!relId) return relId;
+    return `${prefix}:${relId}`;
+  };
+
+  const cloneShape = (shape: SlideShape): SlideShape => {
+    if (shape.type === 'group') {
+      const group = shape as GroupShapeElement;
+      return {
+        ...group,
+        children: group.children.map(cloneShape),
+      };
+    } else if (shape.type === 'table') {
+      return { ...shape }; // tables don't have imageRelId
+    } else {
+      const se = shape as ShapeElement;
+      return {
+        ...se,
+        imageRelId: prefixRelId(se.imageRelId),
+      };
+    }
+  };
+
+  return shapes.map(cloneShape);
+}
+
+/** Prefix all keys in an imageMap */
+function prefixImageMap(imageMap: Map<string, string>, prefix: string): Map<string, string> {
+  const prefixed = new Map<string, string>();
+  for (const [id, src] of imageMap) {
+    prefixed.set(`${prefix}:${id}`, src);
+  }
+  return prefixed;
+}
+
 function parseThemeXml(xmlString: string): ThemeData {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlString, 'application/xml');
@@ -1459,10 +1498,36 @@ function parseShapeStyle(sp: Element, themeColors?: ThemeColors): { fillColor?: 
   const result: { fillColor?: string; lineColor?: string; fontColor?: string; fontRefIdx?: string } = {};
 
   const fillRef = style.getElementsByTagName('a:fillRef')[0];
-  if (fillRef) {
-    const idx = parseInt(fillRef.getAttribute('idx') || '0');
-    if (idx > 0) {
-      result.fillColor = parseColor(fillRef, themeColors);
+  const fillRefIdx = fillRef ? parseInt(fillRef.getAttribute('idx') || '0') : -1;
+
+  // Debug: always log fillRef info for shapes with p:style
+  const cNvPr = sp.getElementsByTagName('p:cNvPr')[0];
+  const spName = cNvPr?.getAttribute('name') || '';
+  if (spName.includes('육각형') || spName.includes('hexagon')) {
+    console.log('[PptxViewer] parseShapeStyle for hexagon:', {
+      spName,
+      hasStyle: true,
+      hasFillRef: !!fillRef,
+      fillRefIdx,
+      fillRefXml: fillRef?.outerHTML?.substring(0, 500)
+    });
+  }
+
+  if (fillRef && fillRefIdx > 0) {
+    result.fillColor = parseColor(fillRef, themeColors);
+    // Debug: log fillRef details if color couldn't be parsed
+    if (!result.fillColor) {
+      const schemeClr = fillRef.getElementsByTagName('a:schemeClr')[0];
+      const srgbClr = fillRef.getElementsByTagName('a:srgbClr')[0];
+      console.log('[PptxViewer] fillRef color not parsed:', {
+        idx: fillRefIdx,
+        hasSchemeClr: !!schemeClr,
+        schemeVal: schemeClr?.getAttribute('val'),
+        hasSrgbClr: !!srgbClr,
+        srgbVal: srgbClr?.getAttribute('val'),
+        themeColorKeys: themeColors ? Object.keys(themeColors) : [],
+        fillRefXml: fillRef.outerHTML?.substring(0, 300)
+      });
     }
   }
 
@@ -1483,7 +1548,7 @@ function parseShapeStyle(sp: Element, themeColors?: ThemeColors): { fillColor?: 
   return result;
 }
 
-function parseShapeTree(parent: Element, rels: Map<string, string>, depth: number, themeColors?: ThemeColors, skipPlaceholders = false, themeFonts?: ThemeFonts): SlideShape[] {
+function parseShapeTree(parent: Element, rels: Map<string, string>, depth: number, themeColors?: ThemeColors, skipPlaceholders = false, themeFonts?: ThemeFonts, groupFill?: string | { type: 'gradient'; stops: { offset: number; color: string }[]; angle: number }): SlideShape[] {
   const MAX_GROUP_DEPTH = 6;
 
   // CRITICAL: Process ALL drawable children in document order (= z-order).
@@ -1523,26 +1588,94 @@ function parseShapeTree(parent: Element, rels: Map<string, string>, depth: numbe
   if (tag === 'p:sp') {
     const sp = currentEl;
     const nvSpPr = sp.getElementsByTagName('p:nvSpPr')[0];
+
+    // Log each p:sp element being processed
+    const cNvPr = nvSpPr?.getElementsByTagName('p:cNvPr')[0];
+    const shapeName = cNvPr?.getAttribute('name') || '(unnamed)';
+    const shapeId = cNvPr?.getAttribute('id') || '?';
+    console.log(`[PptxViewer] Processing p:sp: id=${shapeId}, name="${shapeName}", skipPlaceholders=${skipPlaceholders}`);
+
     if (nvSpPr) {
       const nvPr = nvSpPr.getElementsByTagName('p:nvPr')[0];
       const phEl = nvPr?.getElementsByTagName('p:ph')[0];
       if (phEl) {
-        if (skipPlaceholders) continue;
-        // On slide: render placeholder text but skip if no text content
-        const txBody = sp.getElementsByTagName('p:txBody')[0];
-        if (!txBody) continue;
-        const hasText = txBody.textContent?.trim();
-        if (!hasText) continue;
+        if (skipPlaceholders) {
+          // For layout/master: Skip placeholders with INSTRUCTIONAL TEXT
+          // Keep placeholders that are DECORATIVE (have fill but no text)
+          const txBody = sp.getElementsByTagName('p:txBody')[0];
+          const placeholderText = txBody?.textContent?.trim();
+
+          // Check for visual fill (direct or via style reference)
+          const spPrCheck = sp.getElementsByTagName('p:spPr')[0];
+          const hasDirectFill = spPrCheck && (
+            spPrCheck.getElementsByTagName('a:solidFill')[0] ||
+            spPrCheck.getElementsByTagName('a:gradFill')[0] ||
+            spPrCheck.getElementsByTagName('a:blipFill')[0] ||
+            spPrCheck.getElementsByTagName('a:pattFill')[0]
+          );
+
+          // Check p:style for fill reference (many decorative elements use this)
+          const styleEl = sp.getElementsByTagName('p:style')[0];
+          const fillRefEl = styleEl?.getElementsByTagName('a:fillRef')[0];
+          const hasStyleFill = fillRefEl && parseInt(fillRefEl.getAttribute('idx') || '0') > 0;
+
+          const hasFill = hasDirectFill || hasStyleFill;
+          const phType = phEl.getAttribute('type') || '(none)';
+
+          console.log('[PptxViewer] Placeholder check:', {
+            type: phType,
+            hasText: !!placeholderText,
+            textPreview: placeholderText?.substring(0, 30),
+            hasDirectFill: !!hasDirectFill,
+            hasStyleFill: !!hasStyleFill,
+            decision: placeholderText ? 'SKIP(text)' : (!hasFill ? 'SKIP(noFill)' : 'KEEP')
+          });
+
+          // Decision logic:
+          // - Has text (instructional) → SKIP
+          // - No text, has fill → KEEP (decorative element)
+          // - No text, no fill → SKIP (empty placeholder box)
+          if (placeholderText) {
+            console.log(`[PptxViewer] SKIP p:sp id=${shapeId} name="${shapeName}" - placeholder with text`);
+            continue;
+          }
+          if (!hasFill) {
+            console.log(`[PptxViewer] SKIP p:sp id=${shapeId} name="${shapeName}" - placeholder with no fill`);
+            continue;
+          }
+          console.log(`[PptxViewer] KEEP p:sp id=${shapeId} name="${shapeName}" - decorative placeholder with fill`);
+          // Otherwise: decorative placeholder with fill, keep it
+        } else {
+          // On slide: render placeholder text but skip if no text content
+          const txBody = sp.getElementsByTagName('p:txBody')[0];
+          if (!txBody) continue;
+          const hasText = txBody.textContent?.trim();
+          if (!hasText) continue;
+        }
       }
     }
 
     const spPr = sp.getElementsByTagName('p:spPr')[0];
     const txBody = sp.getElementsByTagName('p:txBody')[0];
 
-    if (spPr) {
-      const transform = parseTransform(spPr);
-      if (transform) {
-        const shape: ShapeElement = {
+    if (!spPr) {
+      console.log(`[PptxViewer] SKIP p:sp id=${shapeId} name="${shapeName}" - no spPr`);
+      continue;
+    }
+
+    // Debug: log full p:sp XML for hexagons to see if there's a fill we're missing
+    if (shapeName.includes('육각형') || shapeName.includes('hexagon')) {
+      console.log(`[PptxViewer] Hexagon FULL p:sp XML:`, sp.outerHTML?.substring(0, 2000));
+    }
+
+    const transform = parseTransform(spPr);
+    if (!transform) {
+      console.log(`[PptxViewer] SKIP p:sp id=${shapeId} name="${shapeName}" - no transform (xfrm)`);
+      continue;
+    }
+
+    // If we got here, shape has spPr and transform
+    const shape: ShapeElement = {
           type: 'shape',
           ...transform,
         };
@@ -1557,20 +1690,50 @@ function parseShapeTree(parent: Element, rels: Map<string, string>, depth: numbe
         let noFill: Element | null = null;
         let gradFill: Element | null = null;
         let blipFill: Element | null = null;
+        let grpFill: Element | null = null;
         for (let fi = 0; fi < spPr.children.length; fi++) {
           const child = spPr.children[fi];
           if (child.tagName === 'a:solidFill') solidFill = child;
           else if (child.tagName === 'a:noFill') noFill = child;
           else if (child.tagName === 'a:gradFill') gradFill = child;
           else if (child.tagName === 'a:blipFill') blipFill = child;
+          else if (child.tagName === 'a:grpFill') grpFill = child;
         }
 
         if (solidFill) {
           shape.backgroundColor = parseColor(solidFill, themeColors);
+          // Debug: log if solid fill was found but color couldn't be parsed
+          if (!shape.backgroundColor) {
+            const schemeClr = solidFill.getElementsByTagName('a:schemeClr')[0];
+            const srgbClr = solidFill.getElementsByTagName('a:srgbClr')[0];
+            console.log(`[PptxViewer] solidFill found but no color parsed:`, {
+              shapeName, shapeId,
+              hasSchemeClr: !!schemeClr,
+              schemeVal: schemeClr?.getAttribute('val'),
+              hasSrgbClr: !!srgbClr,
+              srgbVal: srgbClr?.getAttribute('val'),
+              themeColorsAvailable: !!themeColors,
+              solidFillXml: solidFill.outerHTML?.substring(0, 200)
+            });
+          }
         }
 
         if (gradFill) {
           shape.gradientFill = parseGradientFill(gradFill, themeColors);
+        }
+
+        // a:grpFill - inherit fill from parent group
+        if (grpFill) {
+          if (groupFill) {
+            console.log(`[PptxViewer] Shape "${shapeName}" has a:grpFill, inheriting from parent group:`, groupFill);
+            if (typeof groupFill === 'string') {
+              shape.backgroundColor = groupFill;
+            } else {
+              shape.gradientFill = groupFill;
+            }
+          } else {
+            console.log(`[PptxViewer] Shape "${shapeName}" has a:grpFill but NO groupFill was passed - check parent group!`);
+          }
         }
 
         // Shape image fill (a:blipFill in p:spPr)
@@ -1672,9 +1835,14 @@ function parseShapeTree(parent: Element, rels: Map<string, string>, depth: numbe
           }
         }
 
-        // p:style fallback for fill
-        if (!solidFill && !gradFill && !noFill && !blipFill) {
+        // p:style fallback for fill (only if no explicit fill type is specified)
+        if (!solidFill && !gradFill && !noFill && !blipFill && !grpFill) {
           const styleColors = parseShapeStyle(sp, themeColors);
+          console.log(`[PptxViewer] No direct fill, trying p:style fallback:`, {
+            shapeName, shapeId,
+            styleFillColor: styleColors.fillColor,
+            hasStyle: !!sp.getElementsByTagName('p:style')[0]
+          });
           if (styleColors.fillColor && !shape.backgroundColor) {
             shape.backgroundColor = styleColors.fillColor;
           }
@@ -1781,13 +1949,22 @@ function parseShapeTree(parent: Element, rels: Map<string, string>, depth: numbe
         }
 
         // Include shapes with visible content OR background/border/geometry
+        // For layout/master shapes, be more permissive - include if they have a valid transform
         const hasText = shape.paragraphs && shape.paragraphs.some(p => p.runs.some(r => r.text.length > 0));
         const hasVisual = shape.backgroundColor || shape.gradientFill || shape.borderColor || shape.imageRelId || shape.customPath || shape.shapeType;
-        if (hasText || hasVisual) {
+        const hasValidTransform = shape.width > 0 && shape.height > 0;
+        if (skipPlaceholders) {
+          console.log('[PptxViewer] Layout/Master shape:', {
+            type: shape.type, shapeType: shape.shapeType,
+            x: Math.round(shape.x), y: Math.round(shape.y),
+            w: Math.round(shape.width), h: Math.round(shape.height),
+            bg: shape.backgroundColor, grad: !!shape.gradientFill,
+            border: shape.borderColor, hasText, hasVisual, hasValidTransform
+          });
+        }
+        if (hasText || hasVisual || (skipPlaceholders && hasValidTransform)) {
           shapes.push(shape);
         }
-      }
-    }
   }
 
   // ─── p:pic ───
@@ -1991,6 +2168,29 @@ function parseShapeTree(parent: Element, rels: Map<string, string>, depth: numbe
 
       if (!off || !ext || !chOff || !chExt) continue;
 
+      // Extract this group's fill to pass down to children with a:grpFill
+      let thisGroupFill: string | { type: 'gradient'; stops: { offset: number; color: string }[]; angle: number } | undefined;
+
+      // Check if this group has its own fill or inherits from parent
+      const grpSolidFill = grpSpPr.getElementsByTagName('a:solidFill')[0];
+      const grpGradFill = grpSpPr.getElementsByTagName('a:gradFill')[0];
+      const grpGrpFill = grpSpPr.getElementsByTagName('a:grpFill')[0];
+
+      if (grpSolidFill) {
+        thisGroupFill = parseColor(grpSolidFill, themeColors);
+        console.log('[PptxViewer] Group has solidFill:', thisGroupFill);
+      } else if (grpGradFill) {
+        thisGroupFill = parseGradientFill(grpGradFill, themeColors);
+        console.log('[PptxViewer] Group has gradFill:', thisGroupFill);
+      } else if (grpGrpFill && groupFill) {
+        // This group inherits from its parent group
+        thisGroupFill = groupFill;
+        console.log('[PptxViewer] Group inherits from parent via a:grpFill:', thisGroupFill);
+      } else {
+        // Debug: log when no group fill found
+        console.log('[PptxViewer] Group has no fill to pass down. grpSpPr XML:', grpSpPr.outerHTML?.substring(0, 500));
+      }
+
       const group: GroupShapeElement = {
         type: 'group',
         x: parseInt(off.getAttribute('x') || '0') / EMU_PER_PIXEL,
@@ -2001,7 +2201,7 @@ function parseShapeTree(parent: Element, rels: Map<string, string>, depth: numbe
         childOffsetY: parseInt(chOff.getAttribute('y') || '0') / EMU_PER_PIXEL,
         childExtX: parseInt(chExt.getAttribute('cx') || '0') / EMU_PER_PIXEL,
         childExtY: parseInt(chExt.getAttribute('cy') || '0') / EMU_PER_PIXEL,
-        children: parseShapeTree(grpSp, rels, depth + 1, themeColors, skipPlaceholders, themeFonts),
+        children: parseShapeTree(grpSp, rels, depth + 1, themeColors, skipPlaceholders, themeFonts, thisGroupFill),
       };
 
       const rot = xfrm.getAttribute('rot');
@@ -2144,6 +2344,8 @@ export function PptxViewer({ data }: PptxViewerProps) {
           const themeData = parseThemeXml(themeXml);
           themeColors = themeData.colors;
           themeFonts = themeData.fonts;
+          console.log('[PptxViewer] Theme colors - dk1:', themeColors.dk1, 'dk2:', themeColors.dk2, 'accent1:', themeColors.accent1);
+          console.log('[PptxViewer] All theme colors:', JSON.stringify(themeColors));
         }
 
         // Parse table styles
@@ -2215,8 +2417,21 @@ export function PptxViewer({ data }: PptxViewerProps) {
 
               const layoutDoc = new DOMParser().parseFromString(layoutXml, 'application/xml');
               const layoutBg = parseSlideBackground(layoutDoc, themeColors);
+              console.log('[PptxViewer] Layout background:', layoutPath, layoutBg);
               const layoutSpTree = layoutDoc.getElementsByTagName('p:spTree')[0];
+
+              // Log ALL direct child tag names of layout spTree
+              const layoutDirectChildren: string[] = [];
+              if (layoutSpTree) {
+                for (let ci = 0; ci < layoutSpTree.children.length; ci++) {
+                  layoutDirectChildren.push(layoutSpTree.children[ci].tagName);
+                }
+              }
+              console.log('[PptxViewer] Layout spTree direct children:', layoutPath, layoutDirectChildren);
+              console.log('[PptxViewer] Layout spTree raw XML snippet:', layoutSpTree?.outerHTML?.substring(0, 3000));
+
               const layoutShapes = layoutSpTree ? parseShapeTree(layoutSpTree, layoutRels, 0, themeColors, true, themeFonts) : [];
+              console.log('[PptxViewer] Parsed layout:', layoutPath, 'shapes:', layoutShapes.length);
 
               const layoutImageMap = new Map<string, string>();
               await loadImagesFromRels(zip, layoutRels, layoutPath, layoutImageMap);
@@ -2238,8 +2453,35 @@ export function PptxViewer({ data }: PptxViewerProps) {
 
                   const masterDoc = new DOMParser().parseFromString(masterXml, 'application/xml');
                   const masterBg = parseSlideBackground(masterDoc, themeColors);
+                  console.log('[PptxViewer] Master background:', masterPath, masterBg);
                   const masterSpTree = masterDoc.getElementsByTagName('p:spTree')[0];
+
+                  // Count all elements before parsing to see what exists
+                  const allSpElements = masterSpTree?.getElementsByTagName('p:sp').length || 0;
+                  const allPicElements = masterSpTree?.getElementsByTagName('p:pic').length || 0;
+                  const allCxnElements = masterSpTree?.getElementsByTagName('p:cxnSp').length || 0;
+                  const allGfElements = masterSpTree?.getElementsByTagName('p:graphicFrame').length || 0;
+                  const allGrpElements = masterSpTree?.getElementsByTagName('p:grpSp').length || 0;
+
+                  // Log ALL direct child tag names of spTree to find any unhandled types
+                  const allDirectChildren: string[] = [];
+                  if (masterSpTree) {
+                    for (let ci = 0; ci < masterSpTree.children.length; ci++) {
+                      allDirectChildren.push(masterSpTree.children[ci].tagName);
+                    }
+                  }
+                  console.log('[PptxViewer] Master spTree direct children:', masterPath, allDirectChildren);
+
+                  // Also log the raw XML to see the actual structure
+                  console.log('[PptxViewer] Master spTree raw XML snippet:', masterSpTree?.outerHTML?.substring(0, 3000));
+
+                  console.log('[PptxViewer] Master spTree:', masterPath, {
+                    'p:sp': allSpElements, 'p:pic': allPicElements, 'p:cxnSp': allCxnElements,
+                    'p:graphicFrame': allGfElements, 'p:grpSp': allGrpElements
+                  });
+
                   const masterShapes = masterSpTree ? parseShapeTree(masterSpTree, masterRels, 0, themeColors, true, themeFonts) : [];
+                  console.log('[PptxViewer] Parsed master:', masterPath, 'shapes after parse:', masterShapes.length);
 
                   const masterImageMap = new Map<string, string>();
                   await loadImagesFromRels(zip, masterRels, masterPath, masterImageMap);
@@ -2268,15 +2510,25 @@ export function PptxViewer({ data }: PptxViewerProps) {
             }
           }
 
+          // Generate unique prefix for this slide's layout/master to avoid relId collision
+          const layoutPrefix = layoutPath ? `L${layoutPath.match(/\d+/)?.[0] || '0'}` : 'L0';
+          const masterPrefix = masterPath ? `M${masterPath.match(/\d+/)?.[0] || '0'}` : 'M0';
+
+          // Track background imageRelId source for proper resolution
+          let bgSource: 'slide' | 'layout' | 'master' = 'slide';
+
           // Merge background from layout/master if slide has none
+          // Note: Don't prefix here - prefixing is done later after imageMap merge
           if (!content.background && layoutPath) {
             const layout = layoutCache.get(layoutPath);
             if (layout?.background) {
-              content.background = layout.background;
+              content.background = { ...layout.background };
+              bgSource = 'layout';
             } else if (masterPath) {
               const master = masterCache.get(masterPath);
               if (master?.background) {
-                content.background = master.background;
+                content.background = { ...master.background };
+                bgSource = 'master';
               }
             }
           }
@@ -2287,25 +2539,22 @@ export function PptxViewer({ data }: PptxViewerProps) {
             const layout = layoutCache.get(layoutPath);
             const master = masterPath ? masterCache.get(masterPath) : undefined;
 
-            // Filter out truly full-slide background images/shapes from layout/master
-            const filterInheritedShapes = (shapes: SlideShape[]): SlideShape[] => {
+            // Layout/Master shapes are intentionally placed decorative elements
+            // Don't filter them - they should be rendered as overlays
+            // Only filter truly full-slide SOLID COLOR shapes (not images, as they may have transparency)
+            const filterInheritedShapes = (shapes: SlideShape[], source: 'layout' | 'master'): SlideShape[] => {
               return shapes.filter(s => {
                 if (s.type !== 'table' && s.type !== 'group') {
                   const se = s as ShapeElement;
                   const wRatio = se.width / defaultSize.width;
                   const hRatio = se.height / defaultSize.height;
 
-                  // Large images covering most of slide → treat as slide background
-                  if (se.type === 'image' && se.imageRelId && wRatio > 0.85 && hRatio > 0.85) {
-                    if (!content.background) {
-                      content.background = { imageRelId: se.imageRelId };
-                    }
-                    return false;
-                  }
-
-                  // Only filter shapes that are truly full-slide backgrounds
-                  // (covering both dimensions >90%) — keep partial decorations like header bars
-                  if (wRatio > 0.9 && hRatio > 0.9 && (se.backgroundColor || se.gradientFill) && !se.paragraphs?.some(p => p.runs.some(r => r.text.length > 0))) {
+                  // Keep all images from layout/master - they're decorative (may have transparency)
+                  // Only filter solid color shapes that truly cover the entire slide
+                  if (se.type !== 'image' && wRatio > 0.95 && hRatio > 0.95 &&
+                      (se.backgroundColor || se.gradientFill) &&
+                      !se.paragraphs?.some(p => p.runs.some(r => r.text.length > 0))) {
+                    console.log('[PptxViewer] Filtering as BG shape:', source, { w: wRatio.toFixed(2), h: hRatio.toFixed(2), bg: se.backgroundColor });
                     return false;
                   }
                 }
@@ -2314,34 +2563,53 @@ export function PptxViewer({ data }: PptxViewerProps) {
             };
 
             // z-order: master (bottom) → layout → slide (top)
+            // Prefix relIds to avoid collision between slide/layout/master
             const inheritedShapes: SlideShape[] = [];
             if (master?.shapes && master.shapes.length > 0) {
-              inheritedShapes.push(...filterInheritedShapes(master.shapes));
+              console.log('[PptxViewer] Master shapes before filter:', master.shapes.length, masterPath);
+              const filtered = filterInheritedShapes(master.shapes, 'master');
+              console.log('[PptxViewer] Master shapes after filter:', filtered.length);
+              inheritedShapes.push(...prefixShapeRelIds(filtered, masterPrefix));
             }
             if (layout?.shapes && layout.shapes.length > 0) {
-              inheritedShapes.push(...filterInheritedShapes(layout.shapes));
+              console.log('[PptxViewer] Layout shapes before filter:', layout.shapes.length, layoutPath);
+              const filtered = filterInheritedShapes(layout.shapes, 'layout');
+              console.log('[PptxViewer] Layout shapes after filter:', filtered.length);
+              inheritedShapes.push(...prefixShapeRelIds(filtered, layoutPrefix));
             }
+            console.log('[PptxViewer] Total inherited shapes:', inheritedShapes.length, 'Slide shapes:', content.shapes.length);
             if (inheritedShapes.length > 0) {
               content.shapes = [...inheritedShapes, ...content.shapes];
             }
 
-            // Merge images from layout/master into slide imageMap
+            // Merge images from layout/master into slide imageMap WITH PREFIX
+            // This ensures each source's relIds don't collide
             if (layout) {
-              for (const [id, src] of layout.imageMap) {
-                if (!imageMap.has(id)) imageMap.set(id, src);
+              const prefixedLayoutImages = prefixImageMap(layout.imageMap, layoutPrefix);
+              for (const [id, src] of prefixedLayoutImages) {
+                imageMap.set(id, src);
               }
             }
             if (master) {
-              for (const [id, src] of master.imageMap) {
-                if (!imageMap.has(id)) imageMap.set(id, src);
+              const prefixedMasterImages = prefixImageMap(master.imageMap, masterPrefix);
+              for (const [id, src] of prefixedMasterImages) {
+                imageMap.set(id, src);
               }
+            }
+
+            // Background image resolve - apply prefix based on source
+            if (content.background?.imageRelId && bgSource !== 'slide') {
+              const prefix = bgSource === 'layout' ? layoutPrefix : masterPrefix;
+              const prefixedRelId = `${prefix}:${content.background.imageRelId}`;
+              content.background.imageRelId = prefixedRelId;
             }
           }
 
-          // Background image resolve
+          // Background image resolve (for slide-level backgrounds from layout/master cache)
           if (content.background?.imageRelId && !imageMap.has(content.background.imageRelId)) {
             if (layoutPath) {
               const layout = layoutCache.get(layoutPath);
+              // Try unprefixed first (original relId from layout/master XML)
               const bgSrc = layout?.imageMap.get(content.background.imageRelId);
               if (bgSrc) imageMap.set(content.background.imageRelId, bgSrc);
             }
@@ -2364,22 +2632,19 @@ export function PptxViewer({ data }: PptxViewerProps) {
     loadPptx();
   }, [data]);
 
-  // Zoom via Ctrl+Wheel (capture phase to intercept before WebView2 native zoom)
+  // Zoom via Ctrl+Wheel (document-level capture to intercept before WebView2 native zoom)
   useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        e.stopPropagation();
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        setZoom(prev => Math.min(3, Math.max(0.25, prev + delta)));
-      }
+    const handler = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (!scrollContainerRef.current?.contains(e.target as Node)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      setZoom(prev => Math.min(3, Math.max(0.25, prev + delta)));
     };
 
-    el.addEventListener('wheel', handleWheel, { passive: false, capture: true });
-    return () => el.removeEventListener('wheel', handleWheel, { capture: true });
+    document.addEventListener('wheel', handler, { passive: false, capture: true });
+    return () => document.removeEventListener('wheel', handler, { capture: true } as EventListenerOptions);
   }, []);
 
   // Zoom via Ctrl+Drag (drag up = zoom in, drag down = zoom out)
@@ -2533,10 +2798,15 @@ export function PptxViewer({ data }: PptxViewerProps) {
     };
 
     // Line height
+    // PowerPoint line spacing: 100% = single line (≈1.2 in CSS), 150% = 1.5 lines, etc.
+    // CSS line-height percentage is relative to font-size, so we need to convert
     if (para.lineHeightPt) {
       style.lineHeight = `${para.lineHeightPt}pt`;
     } else if (para.lineHeight) {
-      style.lineHeight = `${para.lineHeight}%`;
+      // PowerPoint% → CSS: multiply by 1.2 (default line height) and divide by 100
+      // e.g., PowerPoint 100% → CSS 1.2, PowerPoint 150% → CSS 1.8
+      const cssLineHeight = (para.lineHeight * 1.2) / 100;
+      style.lineHeight = cssLineHeight.toString();
     } else {
       style.lineHeight = inTable ? '1.2' : '1.2';
     }
@@ -3009,7 +3279,9 @@ export function PptxViewer({ data }: PptxViewerProps) {
       fontScaleStyle.fontSize = `${Math.round(tb.fontScale * 100)}%`;
     }
     if (tb?.lnSpcReduction && tb.lnSpcReduction > 0) {
-      fontScaleStyle.lineHeight = `${Math.round((1 - tb.lnSpcReduction) * 100)}%`;
+      // Reduce from default 1.2 line height (not percentage of font-size)
+      const reducedLineHeight = 1.2 * (1 - tb.lnSpcReduction);
+      fontScaleStyle.lineHeight = reducedLineHeight.toFixed(2);
     }
 
     // Resolve SVG path: customPath > PRESET_SHAPE_PATHS > null (div fallback)

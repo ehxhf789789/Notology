@@ -288,6 +288,7 @@ export interface CanvasNode {
   color?: string;
   borderRadius?: number;
   shape?: 'process' | 'terminal' | 'decision' | 'io' | 'subroutine' | 'database';
+  textAlign?: 'top-left' | 'center';
   text?: string;
   file?: string;
   url?: string;

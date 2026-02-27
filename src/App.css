@@ -7527,18 +7527,96 @@ html[data-theme="light"] .window-size-option.active .window-size-preview {
 
 /* DOCX Viewer */
 .docx-viewer {
+  display: flex;
+  flex-direction: column;
+  background: #525659;
+  padding: 0;
+}
+
+.docx-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 8px 16px;
+  background: #3c3c3c;
+  border-bottom: 1px solid #555;
+  flex-shrink: 0;
+}
+
+.docx-page-indicator {
+  color: #fff;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+
+.docx-toolbar .docx-zoom-indicator {
+  position: static;
+  color: #fff;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 12px;
+  border-radius: 4px;
+}
+
+.docx-scroll-container {
+  flex: 1;
+  overflow: auto;
   padding: 20px;
 }
 
-.docx-viewer .docx-wrapper {
-  background: white;
-  min-height: 100%;
+.docx-pages-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: fit-content;
 }
 
-/* XLSX Viewer */
+.docx-page {
+  font-family: 'Times New Roman', 'Batang', serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  color: #000;
+}
+
+.docx-page p {
+  margin: 0;
+  padding: 0;
+}
+
+.docx-page table {
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.docx-page td, .docx-page th {
+  border: 1px solid #000;
+  padding: 4px 8px;
+  vertical-align: top;
+}
+
+.docx-page img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Pages are section.docx elements - library sets background, shadow, margin */
+.docx-viewer .docx-wrapper > section.docx {
+  /* Library already provides: background: white, box-shadow, margin-bottom: 30px */
+  /* We just ensure proper display */
+}
+
+/* XLSX Viewer - Excel-like Spreadsheet */
 .xlsx-viewer {
   display: flex;
   flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  background: #f0f0f0;
+  outline: none;
 }
 
 .xlsx-sheet-tabs {
@@ -7572,42 +7650,132 @@ html[data-theme="light"] .window-size-option.active .window-size-preview {
   font-weight: 500;
 }
 
-.xlsx-content {
+/* Grid container */
+.xlsx-grid-container {
   flex: 1;
   overflow: auto;
-  padding: 12px;
+  background: #e8e8e8;
 }
 
-.xlsx-content table {
+.xlsx-grid-wrapper {
+  min-width: fit-content;
+}
+
+.xlsx-grid {
   border-collapse: collapse;
-  width: 100%;
-  font-size: 0.9em;
+  font-size: 12px;
+  background: white;
 }
 
-.xlsx-content td,
-.xlsx-content th {
-  border: 1px solid #ddd;
-  padding: 6px 10px;
-  text-align: left;
-  white-space: nowrap;
+/* Corner cell (intersection of row/column headers) */
+.xlsx-corner-cell {
+  background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+  border: 1px solid #b0b0b0;
+  border-right: 2px solid #a0a0a0;
+  border-bottom: 2px solid #a0a0a0;
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  cursor: pointer;
+  min-width: 40px;
+  min-height: 21px;
 }
 
-.xlsx-content th {
-  background: #f5f5f5;
+.xlsx-corner-cell:hover {
+  background: linear-gradient(135deg, #e0e0e0 0%, #d0d0d0 100%);
+}
+
+/* Column headers (A, B, C, ...) */
+.xlsx-column-header {
+  background: linear-gradient(180deg, #f9f9f9 0%, #e8e8e8 100%);
+  border: 1px solid #b0b0b0;
+  border-bottom: 2px solid #a0a0a0;
+  text-align: center;
   font-weight: 500;
+  font-size: 11px;
+  color: #333;
+  padding: 4px 8px;
+  min-width: 64px;
+  user-select: none;
+  cursor: pointer;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
-.xlsx-content tr:hover td {
-  background: #fafafa;
+.xlsx-column-header:hover {
+  background: linear-gradient(180deg, #e8e8e8 0%, #d8d8d8 100%);
 }
 
-/* Zoom Indicator */
+.xlsx-column-header.selected {
+  background: linear-gradient(180deg, #cce4f7 0%, #b3d7f0 100%);
+}
+
+/* Row headers (1, 2, 3, ...) */
+.xlsx-row-header {
+  background: linear-gradient(90deg, #f9f9f9 0%, #e8e8e8 100%);
+  border: 1px solid #b0b0b0;
+  border-right: 2px solid #a0a0a0;
+  text-align: center;
+  font-weight: 500;
+  font-size: 11px;
+  color: #333;
+  padding: 2px 6px;
+  min-width: 40px;
+  user-select: none;
+  cursor: pointer;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.xlsx-row-header:hover {
+  background: linear-gradient(90deg, #e8e8e8 0%, #d8d8d8 100%);
+}
+
+.xlsx-row-header.selected {
+  background: linear-gradient(90deg, #cce4f7 0%, #b3d7f0 100%);
+}
+
+/* Data cells */
+.xlsx-cell {
+  border: 1px solid #d4d4d4;
+  padding: 2px 4px;
+  min-width: 64px;
+  min-height: 21px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+  box-sizing: border-box;
+  background: white;
+  color: #1a1a1a; /* Ensure black text */
+}
+
+/* Selection styles */
+.xlsx-cell.selected {
+  background: rgba(0, 120, 215, 0.15) !important;
+}
+
+.xlsx-cell.selected-primary {
+  outline: 2px solid #0078d7;
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+/* Hover on non-selected cells */
+.xlsx-grid tbody tr:hover .xlsx-cell:not(.selected) {
+  background: #f8f8f8;
+}
+
+/* Zoom Indicator - Base styles */
 .xlsx-zoom-indicator,
 .docx-zoom-indicator,
 .pptx-zoom-indicator,
 .hwpx-zoom-indicator {
   position: absolute;
-  top: 8px;
   right: 16px;
   background: rgba(0, 0, 0, 0.6);
   color: white;
@@ -7619,6 +7787,23 @@ html[data-theme="light"] .window-size-option.active .window-size-preview {
   opacity: 0.8;
 }
 
+/* Position zoom indicators below headers/toolbars */
+.xlsx-zoom-indicator {
+  top: 48px; /* Below sheet tabs */
+}
+
+.docx-zoom-indicator {
+  top: 8px;
+}
+
+.pptx-zoom-indicator {
+  top: 48px; /* Below toolbar */
+}
+
+.hwpx-zoom-indicator {
+  top: 48px; /* Below toolbar */
+}
+
 .xlsx-viewer,
 .docx-viewer,
 .pptx-viewer,
@@ -7626,10 +7811,6 @@ html[data-theme="light"] .window-size-option.active .window-size-preview {
   position: relative;
 }
 
-/* DOCX Content Wrapper */
-.docx-content-wrapper {
-  padding: 20px;
-}
 
 /* PPTX Viewer */
 .pptx-viewer {
@@ -11653,7 +11834,7 @@ html[data-theme="light"] .suggestion-trigger-item {
 
 .canvas-node.selected {
   border-color: #00d4aa;
-  box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.5);
+  box-shadow: 0 0 0 2px rgba(0, 212, 170, 0.6), 0 4px 20px rgba(0, 212, 170, 0.3);
 }
 
 .canvas-node.editing {
@@ -11687,11 +11868,35 @@ html[data-theme="dark"] .canvas-node.editing {
 
 .canvas-node.hovered {
   border-color: #00d4aa;
+  box-shadow: 0 4px 16px rgba(0, 212, 170, 0.35);
+}
+
+/* Extend hover zone slightly beyond node bounds for easier interaction */
+.canvas-node::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: -12px;
+  right: -12px;
+  bottom: -12px;
+  pointer-events: none;
 }
 
 .canvas-node.connecting {
   border-color: #00d4aa;
   box-shadow: 0 0 0 3px rgba(0, 212, 170, 0.6);
+}
+
+/* Target node indicator during connection */
+.canvas-viewport.is-connecting .canvas-node.hovered:not(.connecting) {
+  border-color: #007acc;
+  box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.6), 0 0 20px rgba(0, 122, 204, 0.4);
+  animation: pulseTarget 1s ease-in-out infinite;
+}
+
+@keyframes pulseTarget {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.6), 0 0 20px rgba(0, 122, 204, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(0, 122, 204, 0.8), 0 0 30px rgba(0, 122, 204, 0.6); }
 }
 
 /* Shape-specific styles */
@@ -11754,15 +11959,19 @@ html[data-theme="dark"] .canvas-node.editing {
   cursor: move !important;
 }
 
-.canvas-node.shape-decision .canvas-node-text {
+.canvas-node.shape-decision .canvas-node-text,
+.canvas-node.shape-decision .canvas-node-text-display {
   text-align: center;
-  width: 100%;
-  height: 100%;
-  padding: 25%;
+  width: 50%;
+  height: 50%;
+  padding: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   overflow: hidden;
   word-wrap: break-word;
   pointer-events: auto;
@@ -11772,7 +11981,7 @@ html[data-theme="dark"] .canvas-node.editing {
 .canvas-node.shape-io {
   border: none;
   border-radius: 0;
-  padding: 12px 28px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11792,77 +12001,89 @@ html[data-theme="dark"] .canvas-node.editing {
   pointer-events: auto;
 }
 
-.canvas-node.shape-io .canvas-node-text {
+.canvas-node.shape-io .canvas-node-text,
+.canvas-node.shape-io .canvas-node-text-display {
   text-align: center;
-  width: 100%;
-  height: 100%;
+  width: 70%;
+  height: 70%;
+  padding: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   overflow: hidden;
   pointer-events: auto;
   z-index: 10;
 }
 
+/* Subroutine */
 .canvas-node.shape-subroutine {
   border-radius: 0;
-  position: relative;
-  padding: 12px 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 12px 24px;
 }
 
-.canvas-node.shape-subroutine::before,
-.canvas-node.shape-subroutine::after {
+/* Left line using ::before */
+.canvas-node.shape-subroutine::before {
   content: '';
   position: absolute;
+  left: 12px;
   top: 0;
   bottom: 0;
   width: 2px;
-  background-color: #666;
+  background-color: var(--border-light);
+  pointer-events: none;
 }
 
-.canvas-node.shape-subroutine::before {
-  left: 8px;
-}
-
-.canvas-node.shape-subroutine::after {
-  right: 8px;
-}
-
-.canvas-node.shape-subroutine:hover::before,
-.canvas-node.shape-subroutine:hover::after {
-  background-color: #00d4aa;
+.canvas-node.shape-subroutine:hover::before {
+  background-color: var(--border-light);
 }
 
 .canvas-node.shape-subroutine.selected::before,
-.canvas-node.shape-subroutine.selected::after {
-  background-color: #00d4aa;
-  width: 3px;
-}
-
-.canvas-node.shape-subroutine.selected {
-  border-color: #00d4aa;
-  border-width: 3px;
-}
-
 .canvas-node.shape-subroutine.connecting::before,
-.canvas-node.shape-subroutine.connecting::after {
+.canvas-node.shape-subroutine.hovered::before {
   background-color: #00d4aa;
-  width: 3px;
 }
 
-.canvas-node.shape-subroutine.connecting {
+.canvas-node.shape-subroutine.selected,
+.canvas-node.shape-subroutine.connecting,
+.canvas-node.shape-subroutine.hovered {
   border-color: #00d4aa;
   border-width: 3px;
+}
+
+/* Right line using ::after (overrides hover zone extension) */
+.canvas-node.shape-subroutine::after {
+  content: '';
+  position: absolute;
+  left: auto;
+  right: 12px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--border-light);
+  pointer-events: none;
+}
+
+.canvas-node.shape-subroutine:hover::after {
+  background-color: var(--border-light);
+}
+
+.canvas-node.shape-subroutine.selected::after,
+.canvas-node.shape-subroutine.connecting::after,
+.canvas-node.shape-subroutine.hovered::after {
+  background-color: #00d4aa;
 }
 
 .canvas-node.shape-database {
   border: none;
   border-radius: 0;
-  padding: 36px 16px 12px 16px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11870,16 +12091,29 @@ html[data-theme="dark"] .canvas-node.editing {
   background: transparent;
   box-shadow: none !important;
   box-sizing: border-box;
+  pointer-events: none;
 }
 
-.canvas-node.shape-database .canvas-node-text {
+.canvas-node.shape-database .canvas-node-handle,
+.canvas-node.shape-database .canvas-node-resize,
+.canvas-node.shape-database .canvas-node-delete {
+  pointer-events: auto;
+}
+
+.canvas-node.shape-database .canvas-node-text,
+.canvas-node.shape-database .canvas-node-text-display {
   text-align: center;
-  width: 100%;
-  height: 100%;
+  width: 80%;
+  height: auto;
+  max-height: 60%;
+  padding: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   overflow: hidden;
   pointer-events: auto;
   z-index: 10;
@@ -11887,16 +12121,23 @@ html[data-theme="dark"] .canvas-node.editing {
 
 .canvas-node-handle {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   background-color: #00d4aa;
-  border: 2px solid #2d2d2d;
+  border: 2px solid #1a1a1a;
   border-radius: 50%;
-  cursor: pointer;
+  cursor: crosshair;
   z-index: 35;
-  transition: transform 0.15s, background-color 0.15s;
-  box-shadow: 0 2px 6px rgba(0, 212, 170, 0.5);
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out, opacity 0.2s ease-out, box-shadow 0.15s ease-out;
+  box-shadow: 0 2px 8px rgba(0, 212, 170, 0.6);
   pointer-events: auto;
+  opacity: 0;
+  animation: handleFadeIn 0.2s ease-out forwards;
+}
+
+@keyframes handleFadeIn {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 /* Larger invisible hit area for easier clicking */
@@ -11906,75 +12147,18 @@ html[data-theme="dark"] .canvas-node.editing {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
 }
 
 .canvas-node-handle:hover {
   background-color: #00ffcc;
-  transform: scale(1.2);
-  box-shadow: 0 3px 10px rgba(0, 255, 204, 0.7);
+  box-shadow: 0 0 16px rgba(0, 255, 204, 0.9), 0 3px 10px rgba(0, 255, 204, 0.7);
+  transform: scale(1.25);
 }
 
-.canvas-node-handle-top {
-  top: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.canvas-node-handle-top:hover {
-  transform: translateX(-50%) scale(1.2);
-}
-
-.canvas-node-handle-right {
-  right: -6px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.canvas-node-handle-right:hover {
-  transform: translateY(-50%) scale(1.2);
-}
-
-.canvas-node-handle-bottom {
-  bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.canvas-node-handle-bottom:hover {
-  transform: translateX(-50%) scale(1.2);
-}
-
-.canvas-node-handle-left {
-  left: -6px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.canvas-node-handle-left:hover {
-  transform: translateY(-50%) scale(1.2);
-}
-
-/* Parallelogram (I/O) shape-specific handle positions */
-.canvas-node.shape-io .canvas-node-handle-top {
-  left: 57.5%; /* Parallelogram top center: (0.15 + 1) / 2 = 0.575 */
-}
-
-.canvas-node.shape-io .canvas-node-handle-bottom {
-  left: 42.5%; /* Parallelogram bottom center: 0.85 / 2 = 0.425 */
-}
-
-.canvas-node.shape-io .canvas-node-handle-left {
-  left: 1px; /* Parallelogram left center x offset */
-  top: 50%;
-}
-
-.canvas-node.shape-io .canvas-node-handle-right {
-  right: 1px; /* Parallelogram right center x offset */
-  top: 50%;
-}
+/* Handle positions are calculated via inline styles in JS for all shapes */
 
 /* Resize handles */
 .canvas-node-resize {
@@ -12024,9 +12208,25 @@ html[data-theme="dark"] .canvas-node.editing {
 .canvas-node-resize-se,
 .canvas-node-resize-sw,
 .canvas-node-resize-nw {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  opacity: 0;
+  animation: handleFadeIn 0.15s ease-out forwards;
+}
+
+/* Larger hit area for corner resize handles */
+.canvas-node-resize-ne::before,
+.canvas-node-resize-se::before,
+.canvas-node-resize-sw::before,
+.canvas-node-resize-nw::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
 }
 
 .canvas-node-resize-ne {
@@ -12056,7 +12256,7 @@ html[data-theme="dark"] .canvas-node.editing {
 .canvas-node-resize:hover {
   background-color: #007acc;
   border-color: #00d4aa;
-  transform: scale(1.2);
+  box-shadow: 0 0 8px rgba(0, 122, 204, 0.6);
 }
 
 /* Special shapes need visible handles and resize controls */
@@ -12086,8 +12286,7 @@ html[data-theme="dark"] .canvas-node.editing {
   pointer-events: auto !important;
 }
 
-/* SVG border overlay */
-.canvas-node-border-svg,
+/* SVG shape background */
 .canvas-node-shape-svg {
   z-index: -1 !important;
   pointer-events: none !important;
@@ -12147,20 +12346,25 @@ html[data-theme="dark"] .canvas-node.editing {
 
 .canvas-node-text-display strong.canvas-heading {
   display: block;
-  margin: 0 0 4px 0;
-  line-height: 1.4;
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+  color: var(--text-primary);
 }
 
 .canvas-node-text-display strong.canvas-heading-1 {
-  font-size: 1.2em;
+  font-size: 1.5em;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .canvas-node-text-display strong.canvas-heading-2 {
-  font-size: 1.1em;
+  font-size: 1.3em;
 }
 
 .canvas-node-text-display strong.canvas-heading-3 {
-  font-size: 1em;
+  font-size: 1.15em;
+  color: var(--text-secondary);
 }
 
 .canvas-node-text-display ul,
@@ -12473,6 +12677,151 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
 .canvas-properties-delete-btn:hover {
   background-color: #e74856;
   color: #fff;
+}
+
+/* Compact Properties Panel */
+.canvas-properties-panel.compact {
+  width: auto;
+  min-width: 200px;
+  padding: 8px;
+}
+
+.canvas-props-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.canvas-props-colors-row {
+  display: flex;
+  gap: 4px;
+}
+
+.canvas-props-color-btn {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.canvas-props-color-btn:hover {
+  transform: scale(1.15);
+}
+
+.canvas-props-color-btn.active {
+  border-color: #00d4aa;
+}
+
+.canvas-props-align-row {
+  display: flex;
+  gap: 2px;
+  margin-left: 4px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border-color);
+}
+
+.canvas-props-icon-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.canvas-props-icon-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.canvas-props-icon-btn.active {
+  background-color: #007acc;
+  color: #fff;
+}
+
+.canvas-props-expand-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-left: auto;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.canvas-props-expand-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.canvas-props-shapes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.canvas-props-shapes-grid.icons {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.canvas-props-shape-btn {
+  padding: 6px 8px;
+  font-size: 11px;
+  background-color: var(--bg-hover);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.canvas-props-shape-btn.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 6px;
+  min-height: 36px;
+}
+
+.canvas-props-shape-btn.icon svg {
+  opacity: 0.85;
+}
+
+.canvas-props-shape-btn:hover {
+  background-color: var(--border-color);
+}
+
+.canvas-props-shape-btn.icon:hover svg {
+  opacity: 1;
+}
+
+.canvas-props-shape-btn.active {
+  background-color: #007acc;
+  color: #fff;
+}
+
+.canvas-props-shape-btn.icon.active svg {
+  opacity: 1;
 }
 
 /* ============================================================ */
@@ -17585,4 +17934,125 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .bulk-tag-apply-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Canvas Node Context Menu */
+.canvas-context-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+}
+
+.canvas-context-menu {
+  position: fixed;
+  background: var(--bg-secondary, #2d2d2d);
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  min-width: 180px;
+  z-index: 1000;
+  padding: 8px 0;
+  animation: contextMenuFadeIn 0.15s ease-out;
+}
+
+@keyframes contextMenuFadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.canvas-context-section {
+  padding: 8px 12px;
+}
+
+.canvas-context-label {
+  font-size: 11px;
+  color: var(--text-secondary, #888);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.canvas-context-colors {
+  display: flex;
+  gap: 6px;
+}
+
+.canvas-context-color-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.canvas-context-color-btn:hover {
+  transform: scale(1.1);
+}
+
+.canvas-context-color-btn.active {
+  border-color: #00d4aa;
+}
+
+.canvas-context-shapes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.canvas-context-shape-btn {
+  padding: 6px;
+  background: var(--bg-tertiary, #3d3d3d);
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary, #aaa);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.canvas-context-shape-btn:hover {
+  background: var(--bg-hover, #4d4d4d);
+  color: var(--text-primary, #fff);
+}
+
+.canvas-context-shape-btn.active {
+  border-color: #00d4aa;
+  color: #00d4aa;
+}
+
+.canvas-context-divider {
+  height: 1px;
+  background: var(--border-color, #444);
+  margin: 4px 0;
+}
+
+.canvas-context-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary, #fff);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.canvas-context-item:hover {
+  background: var(--bg-hover, #3d3d3d);
+}
+
+.canvas-context-item.delete {
+  color: #f87171;
+}
+
+.canvas-context-item.delete:hover {
+  background: rgba(248, 113, 113, 0.15);
 }

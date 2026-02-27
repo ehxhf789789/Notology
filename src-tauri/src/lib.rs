@@ -1501,17 +1501,19 @@ async fn search_attachments(
         let note_name = note_file_name[..note_file_name.len() - 3].to_string();
 
         // Check if the attachment is actually linked in the note content
-        let is_linked = if note_exists {
+        let file_name_lower = file_name.to_lowercase();
+
+        // For .md files, also check without extension (wikilinks might not include .md)
+        let file_name_without_md = if file_name_lower.ends_with(".md") {
+            file_name_lower[..file_name_lower.len() - 3].to_string()
+        } else {
+            file_name_lower.clone()
+        };
+
+        // First check if linked in the corresponding .md note
+        let is_linked_in_md = if note_exists {
             if let Ok(content) = std::fs::read_to_string(&actual_note_path) {
                 let content_lower = content.to_lowercase();
-                let file_name_lower = file_name.to_lowercase();
-
-                // For .md files, also check without extension (wikilinks might not include .md)
-                let file_name_without_md = if file_name_lower.ends_with(".md") {
-                    file_name_lower[..file_name_lower.len() - 3].to_string()
-                } else {
-                    file_name_lower.clone()
-                };
 
                 // Check for TipTap HTML format first (most common in this app)
                 // <span data-wiki-link="file_name">
@@ -1547,14 +1549,135 @@ async fn search_attachments(
             false
         };
 
+        // If not linked in .md, check canvas files for file node references
+        // Canvas can be either .canvas files OR .md files with "canvas: true" in frontmatter
+        // Normalize the attachment's absolute path for comparison (lowercase, forward slashes)
+        let attachment_path_normalized = path.to_string_lossy().to_lowercase().replace("\\", "/");
+
+        // Also get vault-relative path for comparison
+        let attachment_relative = path.strip_prefix(vault)
+            .map(|p| p.to_string_lossy().to_lowercase().replace("\\", "/"))
+            .unwrap_or_default();
+
+        let (is_linked, linked_note_path) = if is_linked_in_md {
+            (true, actual_note_path.clone())
+        } else {
+            // Search all canvas files (.canvas or .md with canvas: true) for file node references
+            let mut found_in_canvas: Option<PathBuf> = None;
+
+            // Helper function to check if file nodes match the attachment
+            let check_canvas_nodes = |content: &str, is_md_file: bool| -> bool {
+                // For .md files, extract JSON after frontmatter
+                let json_str = if is_md_file {
+                    // Check if it has canvas: true in frontmatter
+                    if !content.contains("canvas: true") && !content.contains("canvas:true") {
+                        return false;
+                    }
+                    // Find the JSON part after frontmatter (after second ---)
+                    if let Some(start) = content.find("---") {
+                        if let Some(end) = content[start + 3..].find("---") {
+                            let after_frontmatter = &content[start + 3 + end + 3..];
+                            after_frontmatter.trim()
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                } else {
+                    content
+                };
+
+                // Parse canvas JSON and check for file nodes
+                if let Ok(canvas_json) = serde_json::from_str::<serde_json::Value>(json_str) {
+                    if let Some(nodes) = canvas_json.get("nodes").and_then(|n| n.as_array()) {
+                        for node in nodes {
+                            // Check if this is a file node
+                            if node.get("type").and_then(|t| t.as_str()) == Some("file") {
+                                if let Some(node_file_path) = node.get("file").and_then(|f| f.as_str()) {
+                                    // Normalize canvas file node path for comparison
+                                    let node_file_normalized = node_file_path.to_lowercase().replace("\\", "/");
+
+                                    // Try multiple matching strategies:
+                                    // 1. Full absolute path match
+                                    // 2. Vault-relative path match
+                                    // 3. Ends with relative path (for different vault roots)
+                                    // 4. File name match with parent folder check
+                                    let is_match = node_file_normalized == attachment_path_normalized
+                                        || node_file_normalized == attachment_relative
+                                        || node_file_normalized.ends_with(&format!("/{}", attachment_relative))
+                                        || attachment_path_normalized.ends_with(&format!("/{}", node_file_normalized))
+                                        || (
+                                            // Match by filename + parent folder for more flexibility
+                                            !file_name_lower.is_empty() &&
+                                            node_file_normalized.ends_with(&file_name_lower) &&
+                                            // Also verify parent folder contains _att
+                                            node_file_normalized.contains("_att/")
+                                        );
+
+                                    if is_match {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                false
+            };
+
+            for canvas_entry in WalkDir::new(&vault)
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|e| {
+                    if !e.file_type().is_file() {
+                        return false;
+                    }
+                    let ext = e.path().extension().and_then(|x| x.to_str()).unwrap_or("");
+                    ext.eq_ignore_ascii_case("canvas") || ext.eq_ignore_ascii_case("md")
+                })
+            {
+                if let Ok(file_content) = std::fs::read_to_string(canvas_entry.path()) {
+                    let ext = canvas_entry.path().extension().and_then(|x| x.to_str()).unwrap_or("");
+                    let is_md = ext.eq_ignore_ascii_case("md");
+
+                    // Skip .md files that don't have canvas: true (quick check before full parse)
+                    if is_md && !file_content.contains("canvas:") {
+                        continue;
+                    }
+
+                    if check_canvas_nodes(&file_content, is_md) {
+                        found_in_canvas = Some(canvas_entry.path().to_path_buf());
+                        break;
+                    }
+                }
+            }
+
+            if let Some(canvas_path) = found_in_canvas {
+                (true, canvas_path)
+            } else {
+                (false, actual_note_path.clone())
+            }
+        };
+
         // Get inferred note path (always show, regardless of link existence)
-        let inferred_note_path = if note_exists {
-            actual_note_path.strip_prefix(vault)
+        // Use linked_note_path if linked, otherwise use actual_note_path
+        let display_note_path = if is_linked {
+            &linked_note_path
+        } else {
+            &actual_note_path
+        };
+
+        let inferred_note_path = if is_linked || note_exists {
+            display_note_path.strip_prefix(vault)
                 .ok()
                 .and_then(|p: &Path| p.to_str())
                 .map(|s| {
+                    // Remove .md or .canvas extension for display
                     if s.ends_with(".md") {
-                        &s[..s.len() - 3] // Remove .md for display
+                        &s[..s.len() - 3]
+                    } else if s.ends_with(".canvas") {
+                        &s[..s.len() - 7]
                     } else {
                         s
                     }
@@ -1566,8 +1689,8 @@ async fn search_attachments(
         };
 
         // Get relative path from vault (using the note file, not the folder)
-        // Show "-" if note doesn't exist or attachment is not linked
-        let note_relative_path = if note_exists && is_linked {
+        // Show "-" if attachment is not linked anywhere
+        let note_relative_path = if is_linked {
             inferred_note_path.clone()
         } else {
             "-".to_string()
@@ -1599,16 +1722,26 @@ async fn search_attachments(
             }
         }
 
+        // Get the note name for display (handle both .md and .canvas)
+        let display_note_name = if is_linked {
+            linked_note_path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&note_name)
+                .to_string()
+        } else {
+            note_name.clone()
+        };
+
         results.push(AttachmentInfo {
             path: path.to_string_lossy().to_string(),
             file_name,
-            // Only provide note_path if the note exists AND the attachment is linked
-            note_path: if note_exists && is_linked {
-                actual_note_path.to_string_lossy().to_string()
+            // Only provide note_path if the attachment is linked
+            note_path: if is_linked {
+                linked_note_path.to_string_lossy().to_string()
             } else {
                 String::new()
             },
-            note_name,
+            note_name: display_note_name,
             note_relative_path,
             inferred_note_path,
             container,

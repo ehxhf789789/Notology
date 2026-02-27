@@ -15,6 +15,53 @@ function generateId(prefix: string): string {
 
 const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp'];
 
+// Shape definitions for node styling (shared between properties panel and context menu)
+const CANVAS_SHAPES = [
+  { value: 'process' as const },
+  { value: 'terminal' as const },
+  { value: 'decision' as const },
+  { value: 'io' as const },
+  { value: 'subroutine' as const },
+  { value: 'database' as const },
+];
+
+// Shape icons - visual representations for intuitive selection
+const CANVAS_SHAPE_ICONS: Record<string, React.ReactNode> = {
+  process: (
+    <svg width="32" height="20" viewBox="0 0 32 20">
+      <rect x="1" y="1" width="30" height="18" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  ),
+  terminal: (
+    <svg width="32" height="20" viewBox="0 0 32 20">
+      <rect x="1" y="1" width="30" height="18" rx="9" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  ),
+  decision: (
+    <svg width="32" height="20" viewBox="0 0 32 20">
+      <polygon points="16,1 31,10 16,19 1,10" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  ),
+  io: (
+    <svg width="32" height="20" viewBox="0 0 32 20">
+      <polygon points="6,1 31,1 26,19 1,19" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  ),
+  subroutine: (
+    <svg width="32" height="20" viewBox="0 0 32 20">
+      <rect x="1" y="1" width="30" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="7" y1="1" x2="7" y2="19" stroke="currentColor" strokeWidth="1.2" />
+      <line x1="25" y1="1" x2="25" y2="19" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  ),
+  database: (
+    <svg width="32" height="20" viewBox="0 0 32 20">
+      <ellipse cx="16" cy="4" rx="14" ry="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M2,4 L2,16 C2,18.5 8,20 16,20 C24,20 30,18.5 30,16 L30,4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  ),
+};
+
 // Shared logic: find text node at canvas coordinates
 function findTextNodeAtPosition(nodes: CanvasNode[], x: number, y: number): CanvasNode | null {
   for (let i = nodes.length - 1; i >= 0; i--) {
@@ -114,6 +161,8 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
   const [resizeHandle, setResizeHandle] = useState<'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw' | null>(null);
   const [resizeStart, setResizeStart] = useState<{ x: number; y: number; width: number; height: number; nodeX: number; nodeY: number } | null>(null);
   const [editingNode, setEditingNode] = useState<string | null>(null);
+  const [propsExpanded, setPropsExpanded] = useState(false); // Properties panel collapsed by default
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; nodeId: string } | null>(null);
 
   const copiedNodesRef = useRef<CanvasNode[]>([]);
   const copiedEdgesRef = useRef<CanvasEdge[]>([]);
@@ -122,6 +171,10 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
   const svgRef = useRef<SVGSVGElement>(null);
   const initializedRef = useRef(false);
   const dataRef = useRef<CanvasData>(data);
+
+  // Double-click detection via mousedown (more reliable than onDoubleClick with drag logic)
+  const lastNodeClickRef = useRef<{ nodeId: string; time: number } | null>(null);
+  const DOUBLE_CLICK_THRESHOLD = 350; // ms
 
   // Keep dataRef in sync with data
   useEffect(() => {
@@ -142,7 +195,22 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
     }
 
     if (e.button === 0 && !isTextarea) {
-      // Don't preventDefault here — allow browser to detect double-click
+      // Double-click detection in mousedown (more reliable with drag logic)
+      const now = Date.now();
+      const lastClick = lastNodeClickRef.current;
+
+      if (lastClick && lastClick.nodeId === nodeId && now - lastClick.time < DOUBLE_CLICK_THRESHOLD) {
+        // Double-click detected - enter edit mode for text nodes
+        const node = data.nodes.find(n => n.id === nodeId);
+        if (node && node.type === 'text') {
+          setEditingNode(nodeId);
+          lastNodeClickRef.current = null;
+          return; // Don't start drag on double-click
+        }
+      }
+
+      lastNodeClickRef.current = { nodeId, time: now };
+
       setSelectedNode(nodeId);
       setSelectedEdge(null);
       // Start pending drag instead of immediate drag (threshold will be checked in mousemove)
@@ -151,7 +219,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
       setSelectedNode(nodeId);
       setSelectedEdge(null);
     }
-  }, [readOnly, editingNode]);
+  }, [readOnly, editingNode, data.nodes]);
 
   const handleConnectionStart = useCallback((e: React.MouseEvent, nodeId: string, side: 'top' | 'right' | 'bottom' | 'left') => {
     if (readOnly) return;
@@ -389,7 +457,16 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
           toNode: targetNode.id,
           toSide: targetSide,
         };
-        onChange({ ...data, edges: [...data.edges, newEdge] });
+
+        // Remove existing edge between the same two nodes (in either direction)
+        // This ensures only one arrow exists between any pair of nodes
+        const filteredEdges = data.edges.filter(edge => {
+          const sameDirection = edge.fromNode === connectingFrom.nodeId && edge.toNode === targetNode.id;
+          const reverseDirection = edge.fromNode === targetNode.id && edge.toNode === connectingFrom.nodeId;
+          return !sameDirection && !reverseDirection;
+        });
+
+        onChange({ ...data, edges: [...filteredEdges, newEdge] });
       }
     }
 
@@ -487,7 +564,8 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
     setSelectionBox(null);
     setConnectingFrom(null);
     setConnectionPreview(null);
-    setHoveredNode(null);
+    // Don't clear hoveredNode here - let mouseEnter/mouseLeave handle it naturally
+    // This prevents flickering when mouse is still over a node after mouseUp
     setResizingNode(null);
     setResizeHandle(null);
     setResizeStart(null);
@@ -616,9 +694,12 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
   }, [handleWheel]);
 
 
-  // Fit all nodes in viewport when canvas loads
+  // Fit all nodes in viewport when canvas loads (runs only once when nodes first become available)
   useEffect(() => {
-    if (initializedRef.current || !canvasRef.current || data.nodes.length === 0) return;
+    // Only run once when nodes first become available
+    if (initializedRef.current) return;
+    if (!canvasRef.current || data.nodes.length === 0) return;
+
     initializedRef.current = true;
 
     // Calculate bounding box of all nodes
@@ -653,7 +734,8 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
 
     setViewportScale(scale);
     setViewportOffset({ x: offsetX, y: offsetY });
-  }, [data.nodes]);
+    // Only depend on nodesLengthRef to check if nodes became available, not on the entire nodes array
+  }, [data.nodes.length]);
 
   const addTextNode = useCallback(() => {
     if (readOnly) return;
@@ -716,6 +798,19 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
       setEditingNode(nodeId);
     }
   }, [readOnly, data.nodes]);
+
+  // Context menu on text node
+  const handleNodeContextMenu = useCallback((e: React.MouseEvent, nodeId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, nodeId });
+    setSelectedNode(nodeId);
+  }, []);
+
+  // Close context menu
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
 
   // Simple markdown → HTML renderer for view mode
   const renderNodeText = useCallback((text: string): string => {
@@ -899,61 +994,132 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
 
   const updateNodeProperties = useCallback((nodeId: string, properties: Partial<CanvasNode>) => {
     if (readOnly) return;
-    const updatedNodes = data.nodes.map(node =>
-      node.id === nodeId ? { ...node, ...properties } : node
-    );
+    const updatedNodes = data.nodes.map(node => {
+      if (node.id !== nodeId) return node;
+      // Explicitly preserve position and size when updating properties like shape/color
+      return {
+        ...node,
+        ...properties,
+        x: node.x,
+        y: node.y,
+        width: node.width,
+        height: node.height,
+      };
+    });
     onChange({ ...data, nodes: updatedNodes });
   }, [data, onChange, readOnly]);
 
-  // Shape-aware anchor point calculation for accurate arrow connections
-  const getShapeAnchorPoint = useCallback((node: CanvasNode, side: string) => {
+  // ============================================================================
+  // UNIFIED SHAPE GEOMETRY SYSTEM
+  // All handle positions and anchor points use the same calculation logic
+  // ============================================================================
+
+  // Get shape vertex/edge midpoint in node-local coordinates
+  // This is the single source of truth for all shape geometry
+  const getShapePoint = useCallback((node: CanvasNode, side: string, strokeWidth: number = 2) => {
     const shape = node.shape || 'process';
-    const borderOffset = 0;
-    const cx = node.x + node.width / 2;
-    const cy = node.y + node.height / 2;
+    const w = node.width;
+    const h = node.height;
+    const inset = strokeWidth / 2;
 
-    // Database (cylinder): ellipse height is 16px
-    if (shape === 'database') {
-      switch (side) {
-        case 'top': return { x: cx, y: node.y - borderOffset };
-        case 'bottom': return { x: cx, y: node.y + node.height + borderOffset };
-        case 'left': return { x: node.x - borderOffset, y: cy };
-        case 'right': return { x: node.x + node.width + borderOffset, y: cy };
-        default: return { x: cx, y: cy };
+    switch (shape) {
+      case 'decision': {
+        // Diamond: vertices at midpoints of bounding box edges, inset by stroke
+        // SVG polygon: top(w/2, inset), right(w-inset, h/2), bottom(w/2, h-inset), left(inset, h/2)
+        switch (side) {
+          case 'top': return { x: w / 2, y: inset };
+          case 'right': return { x: w - inset, y: h / 2 };
+          case 'bottom': return { x: w / 2, y: h - inset };
+          case 'left': return { x: inset, y: h / 2 };
+          default: return { x: w / 2, y: h / 2 };
+        }
+      }
+
+      case 'io': {
+        // Parallelogram: skewed 15% to the right
+        // SVG polygon: TL(skew+inset, inset), TR(w-inset, inset), BR(w*0.85-inset, h-inset), BL(inset, h-inset)
+        const skew = w * 0.15;
+        const topLeft = { x: skew + inset, y: inset };
+        const topRight = { x: w - inset, y: inset };
+        const bottomRight = { x: w * 0.85 - inset, y: h - inset };
+        const bottomLeft = { x: inset, y: h - inset };
+
+        switch (side) {
+          case 'top': return { x: (topLeft.x + topRight.x) / 2, y: inset };
+          case 'bottom': return { x: (bottomLeft.x + bottomRight.x) / 2, y: h - inset };
+          case 'left': return { x: (topLeft.x + bottomLeft.x) / 2, y: h / 2 };
+          case 'right': return { x: (topRight.x + bottomRight.x) / 2, y: h / 2 };
+          default: return { x: w / 2, y: h / 2 };
+        }
+      }
+
+      case 'database': {
+        // Cylinder: handles at outer edges of ellipses
+        switch (side) {
+          case 'top': return { x: w / 2, y: 0 }; // Top of top ellipse
+          case 'bottom': return { x: w / 2, y: h }; // Bottom of bottom ellipse
+          case 'left': return { x: 0, y: h / 2 };
+          case 'right': return { x: w, y: h / 2 };
+          default: return { x: w / 2, y: h / 2 };
+        }
+      }
+
+      case 'subroutine': {
+        // Rectangle with internal lines at 12px from edges
+        // Handles at the outer edges (same as rectangle)
+        switch (side) {
+          case 'top': return { x: w / 2, y: 0 };
+          case 'bottom': return { x: w / 2, y: h };
+          case 'left': return { x: 0, y: h / 2 };
+          case 'right': return { x: w, y: h / 2 };
+          default: return { x: w / 2, y: h / 2 };
+        }
+      }
+
+      case 'terminal': {
+        // Rounded rectangle (border-radius: 20px)
+        // Handles at the outer edges
+        switch (side) {
+          case 'top': return { x: w / 2, y: 0 };
+          case 'bottom': return { x: w / 2, y: h };
+          case 'left': return { x: 0, y: h / 2 };
+          case 'right': return { x: w, y: h / 2 };
+          default: return { x: w / 2, y: h / 2 };
+        }
+      }
+
+      case 'process':
+      default: {
+        // Standard rectangle
+        switch (side) {
+          case 'top': return { x: w / 2, y: 0 };
+          case 'bottom': return { x: w / 2, y: h };
+          case 'left': return { x: 0, y: h / 2 };
+          case 'right': return { x: w, y: h / 2 };
+          default: return { x: w / 2, y: h / 2 };
+        }
       }
     }
+  }, []);
 
-    // Decision (diamond): anchor at the vertices
-    if (shape === 'decision') {
-      switch (side) {
-        case 'top': return { x: cx, y: node.y - borderOffset };
-        case 'bottom': return { x: cx, y: node.y + node.height + borderOffset };
-        case 'left': return { x: node.x - borderOffset, y: cy };
-        case 'right': return { x: node.x + node.width + borderOffset, y: cy };
-        default: return { x: cx, y: cy };
-      }
-    }
+  // Calculate handle position (node-local coordinates, for inline styles)
+  const getHandlePosition = useCallback((node: CanvasNode, side: string, isSelected: boolean) => {
+    const strokeWidth = isSelected ? 3 : 2;
+    const point = getShapePoint(node, side, strokeWidth);
+    const halfHandle = 7; // Handle size is 14px
+    return {
+      left: point.x - halfHandle,
+      top: point.y - halfHandle
+    };
+  }, [getShapePoint]);
 
-    // I/O (parallelogram): skew offset is 15% of width
-    if (shape === 'io') {
-      const skew = node.width * 0.15;
-      switch (side) {
-        case 'top': return { x: cx + skew / 2, y: node.y - borderOffset };
-        case 'bottom': return { x: cx - skew / 2, y: node.y + node.height + borderOffset };
-        case 'left': return { x: node.x + skew / 2 - borderOffset, y: cy };
-        case 'right': return { x: node.x + node.width - skew / 2 + borderOffset, y: cy };
-        default: return { x: cx, y: cy };
-      }
-    }
-
-    // Default rectangular shapes (process, terminal, subroutine)
-    switch (side) {
-      case 'top': return { x: cx, y: node.y - borderOffset };
-      case 'right': return { x: node.x + node.width + borderOffset, y: cy };
-      case 'bottom': return { x: cx, y: node.y + node.height + borderOffset };
-      case 'left': return { x: node.x - borderOffset, y: cy };
-      default: return { x: cx, y: cy };
-    }
+  // Calculate anchor point (absolute canvas coordinates, for arrow connections)
+  const getShapeAnchorPoint = useCallback((node: CanvasNode, side: string) => {
+    const point = getShapePoint(node, side, 2); // Use base strokeWidth for arrows
+    return {
+      x: node.x + point.x,
+      y: node.y + point.y
+    };
   }, []);
 
   const getEdgePath = useCallback((edge: CanvasEdge): string => {
@@ -1070,7 +1236,19 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
               }}
               onMouseDown={e => handleNodeMouseDown(e, node.id)}
               onMouseEnter={() => setHoveredNode(node.id)}
-              onMouseLeave={() => setHoveredNode(null)}
+              onMouseLeave={(e) => {
+                // Only clear hover if not moving to a child element (like handles)
+                const relatedTarget = e.relatedTarget as HTMLElement | null;
+                if (!relatedTarget || !e.currentTarget.contains(relatedTarget)) {
+                  setHoveredNode(null);
+                }
+              }}
+              onDoubleClick={e => {
+                // Enter edit mode on double-click anywhere on the node (for text nodes)
+                if (node.type === 'text') {
+                  handleNodeDoubleClick(e, node.id);
+                }
+              }}
             >
               {/* SVG background for special shapes */}
               {(node.shape === 'decision' || node.shape === 'io' || node.shape === 'database') && (() => {
@@ -1201,7 +1379,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                       )}
                     </svg>
                     {/* Interactive hit area overlay for shape border (allows dragging from border) */}
-                    {(node.shape === 'decision' || node.shape === 'io') && (
+                    {(node.shape === 'decision' || node.shape === 'io' || node.shape === 'database') && (
                       <svg
                         className="canvas-node-shape-hit-area"
                         viewBox={`0 0 ${w} ${h}`}
@@ -1218,15 +1396,54 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                         }}
                       >
                         {/* Stroke area - wider hit area for border dragging */}
-                        <polygon
-                          points={node.shape === 'decision' ? decisionPoints : ioPoints}
-                          fill="none"
-                          stroke="transparent"
-                          strokeWidth={20}
-                          style={{ pointerEvents: 'stroke', cursor: 'move' }}
-                          onMouseEnter={() => setHoveredNode(node.id)}
-                          onMouseLeave={() => setHoveredNode(null)}
-                        />
+                        {node.shape === 'database' ? (
+                          <g
+                            style={{ pointerEvents: 'stroke', cursor: 'move' }}
+                            onMouseEnter={() => setHoveredNode(node.id)}
+                            onMouseLeave={() => setHoveredNode(null)}
+                          >
+                            {/* Cylinder body hit area */}
+                            <rect
+                              x={0}
+                              y={16}
+                              width={w}
+                              height={h - 32}
+                              fill="none"
+                              stroke="transparent"
+                              strokeWidth={20}
+                            />
+                            {/* Top ellipse hit area */}
+                            <ellipse
+                              cx={w / 2}
+                              cy={16}
+                              rx={w / 2}
+                              ry={16}
+                              fill="none"
+                              stroke="transparent"
+                              strokeWidth={20}
+                            />
+                            {/* Bottom ellipse hit area */}
+                            <ellipse
+                              cx={w / 2}
+                              cy={h - 16}
+                              rx={w / 2}
+                              ry={16}
+                              fill="none"
+                              stroke="transparent"
+                              strokeWidth={20}
+                            />
+                          </g>
+                        ) : (
+                          <polygon
+                            points={node.shape === 'decision' ? decisionPoints : ioPoints}
+                            fill="none"
+                            stroke="transparent"
+                            strokeWidth={20}
+                            style={{ pointerEvents: 'stroke', cursor: 'move' }}
+                            onMouseEnter={() => setHoveredNode(node.id)}
+                            onMouseLeave={() => setHoveredNode(null)}
+                          />
+                        )}
                       </svg>
                     )}
                   </>
@@ -1238,6 +1455,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                   value={node.text || ''}
                   onChange={e => updateNodeText(node.id, e.target.value)}
                   onMouseEnter={() => setHoveredNode(node.id)}
+                  onContextMenu={e => handleNodeContextMenu(e, node.id)}
                   onMouseDown={e => {
                     e.stopPropagation();
                   }}
@@ -1274,6 +1492,46 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                     // Escape to exit edit mode
                     if (e.key === 'Escape') {
                       setEditingNode(null);
+                      return;
+                    }
+                    // Ctrl+1/2/3 for headings
+                    if ((e.ctrlKey || e.metaKey) && ['1', '2', '3'].includes(e.key)) {
+                      e.preventDefault();
+                      const textarea = e.target as HTMLTextAreaElement;
+                      const { selectionStart, value } = textarea;
+                      const level = parseInt(e.key, 10);
+                      const prefix = '#'.repeat(level) + ' ';
+
+                      // Find the start of the current line
+                      let lineStart = selectionStart;
+                      while (lineStart > 0 && value[lineStart - 1] !== '\n') {
+                        lineStart--;
+                      }
+
+                      // Check if line already has a heading prefix
+                      const lineEnd = value.indexOf('\n', selectionStart);
+                      const currentLine = value.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
+                      const headingMatch = currentLine.match(/^(#{1,3})\s+/);
+
+                      let newText: string;
+                      let newCursorPos: number;
+
+                      if (headingMatch) {
+                        // Replace existing heading
+                        const oldPrefix = headingMatch[0];
+                        newText = value.slice(0, lineStart) + prefix + currentLine.slice(oldPrefix.length) + value.slice(lineEnd === -1 ? value.length : lineEnd);
+                        newCursorPos = lineStart + prefix.length + (selectionStart - lineStart - oldPrefix.length);
+                      } else {
+                        // Add new heading prefix
+                        newText = value.slice(0, lineStart) + prefix + value.slice(lineStart);
+                        newCursorPos = selectionStart + prefix.length;
+                      }
+
+                      updateNodeText(node.id, newText);
+                      // Restore cursor position after React re-render
+                      setTimeout(() => {
+                        textarea.selectionStart = textarea.selectionEnd = Math.max(0, newCursorPos);
+                      }, 0);
                     }
                   }}
                   autoFocus
@@ -1284,6 +1542,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                 <div
                   className={`canvas-node-text-display${node.textAlign === 'center' ? ' text-center' : ''}`}
                   onMouseEnter={() => setHoveredNode(node.id)}
+                  onContextMenu={e => handleNodeContextMenu(e, node.id)}
                   onDoubleClick={e => handleNodeDoubleClick(e, node.id)}
                   onClick={e => {
                     // Handle wikilink clicks
@@ -1364,30 +1623,26 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                   />
                 </>
               )}
-              {!readOnly && (hoveredNode === node.id || connectingFrom?.nodeId === node.id) && (
-                <>
-                  <div
-                    className="canvas-node-handle canvas-node-handle-top"
-                    onMouseDown={e => handleConnectionStart(e, node.id, 'top')}
-                    onMouseEnter={() => setHoveredNode(node.id)}
-                  />
-                  <div
-                    className="canvas-node-handle canvas-node-handle-right"
-                    onMouseDown={e => handleConnectionStart(e, node.id, 'right')}
-                    onMouseEnter={() => setHoveredNode(node.id)}
-                  />
-                  <div
-                    className="canvas-node-handle canvas-node-handle-bottom"
-                    onMouseDown={e => handleConnectionStart(e, node.id, 'bottom')}
-                    onMouseEnter={() => setHoveredNode(node.id)}
-                  />
-                  <div
-                    className="canvas-node-handle canvas-node-handle-left"
-                    onMouseDown={e => handleConnectionStart(e, node.id, 'left')}
-                    onMouseEnter={() => setHoveredNode(node.id)}
-                  />
-                </>
-              )}
+              {!readOnly && (hoveredNode === node.id || selectedNode === node.id || connectingFrom?.nodeId === node.id) && (() => {
+                const isNodeSelected = selectedNode === node.id || selectedNodes.includes(node.id);
+                // All shapes use unified inline position calculation
+                return (
+                  <>
+                    {(['top', 'right', 'bottom', 'left'] as const).map(side => {
+                      const pos = getHandlePosition(node, side, isNodeSelected);
+                      return (
+                        <div
+                          key={side}
+                          className="canvas-node-handle"
+                          style={{ left: pos.left, top: pos.top }}
+                          onMouseDown={e => handleConnectionStart(e, node.id, side)}
+                          onMouseEnter={() => setHoveredNode(node.id)}
+                        />
+                      );
+                    })}
+                  </>
+                );
+              })()}
             </div>
           ))}
         </div>
@@ -1518,7 +1773,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
         };
 
         return (
-          <div className="canvas-properties-panel">
+          <div className="canvas-properties-panel" onMouseDown={e => e.stopPropagation()}>
             <div className="canvas-properties-header">
               {tf('canvasMultiSelect', language, { nodeCount: selectedNodes.length, edgeCount: selectedEdges.length })}
             </div>
@@ -1614,86 +1869,81 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
         if (!node) return null;
 
         const colors = [
-          { name: 'Dark Gray', value: '#2d2d2d' },
-          { name: 'Blue', value: '#1e3a5f' },
-          { name: 'Green', value: '#1e4d2b' },
-          { name: 'Red', value: '#4d1e1e' },
-          { name: 'Purple', value: '#3d1e4d' },
-          { name: 'Orange', value: '#4d3a1e' },
-        ];
-
-        const shapes = [
-          { name: t('shapeProcess', language), value: 'process' as const },
-          { name: t('shapeTerminal', language), value: 'terminal' as const },
-          { name: t('shapeDecision', language), value: 'decision' as const },
-          { name: t('shapeIO', language), value: 'io' as const },
-          { name: t('shapeSubroutine', language), value: 'subroutine' as const },
-          { name: t('shapeDatabase', language), value: 'database' as const },
+          { value: '#2d2d2d' }, { value: '#1e3a5f' }, { value: '#1e4d2b' },
+          { value: '#4d1e1e' }, { value: '#3d1e4d' }, { value: '#4d3a1e' },
         ];
 
         return (
-          <div className="canvas-properties-panel">
-            <div className="canvas-properties-header">{t('canvasNodeProperties', language)}</div>
-
-            <div className="canvas-properties-section">
-              <div className="canvas-properties-label">{t('canvasColor', language)}</div>
-              <div className="canvas-properties-colors">
-                {colors.map(color => (
+          <div
+            className={`canvas-properties-panel compact${propsExpanded ? ' expanded' : ''}`}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            {/* Compact toolbar row */}
+            <div className="canvas-props-toolbar">
+              {/* Color picker */}
+              <div className="canvas-props-colors-row">
+                {colors.map(c => (
                   <button
-                    key={color.value}
-                    className={`canvas-properties-color${node.color === color.value ? ' active' : ''}`}
-                    style={{ backgroundColor: color.value }}
-                    onClick={() => updateNodeProperties(selectedNode, { color: color.value })}
-                    title={color.name}
+                    key={c.value}
+                    className={`canvas-props-color-btn${node.color === c.value ? ' active' : ''}`}
+                    style={{ backgroundColor: c.value }}
+                    onClick={() => updateNodeProperties(selectedNode, { color: c.value })}
                   />
                 ))}
               </div>
-            </div>
-
-            {node.type !== 'file' && (
-              <div className="canvas-properties-section">
-                <div className="canvas-properties-label">{t('canvasShape', language)}</div>
-                <div className="canvas-properties-shapes">
-                  {shapes.map(shape => (
-                    <button
-                      key={shape.value}
-                      className={`canvas-properties-shape${(node.shape || 'process') === shape.value ? ' active' : ''}`}
-                      onClick={() => updateNodeProperties(selectedNode, { shape: shape.value })}
-                    >
-                      {shape.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {node.type === 'text' && (
-              <div className="canvas-properties-section">
-                <div className="canvas-properties-label">{t('canvasTextAlign', language)}</div>
-                <div className="canvas-properties-align-btns">
+              {/* Align buttons for text nodes */}
+              {node.type === 'text' && (
+                <div className="canvas-props-align-row">
                   <button
-                    className={`canvas-properties-align-btn${(!node.textAlign || node.textAlign === 'top-left') ? ' active' : ''}`}
+                    className={`canvas-props-icon-btn${(!node.textAlign || node.textAlign === 'top-left') ? ' active' : ''}`}
                     onClick={() => updateNodeProperties(selectedNode, { textAlign: 'top-left' })}
                     title={t('canvasAlignTopLeft', language)}
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                      <rect x="1" y="2" width="10" height="2" />
-                      <rect x="1" y="6" width="7" height="2" />
-                      <rect x="1" y="10" width="9" height="2" />
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                      <rect x="1" y="3" width="9" height="2" />
+                      <rect x="1" y="7" width="6" height="2" />
+                      <rect x="1" y="11" width="8" height="2" />
                     </svg>
                   </button>
                   <button
-                    className={`canvas-properties-align-btn${node.textAlign === 'center' ? ' active' : ''}`}
+                    className={`canvas-props-icon-btn${node.textAlign === 'center' ? ' active' : ''}`}
                     onClick={() => updateNodeProperties(selectedNode, { textAlign: 'center' })}
                     title={t('canvasAlignCenter', language)}
                   >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                      <rect x="3" y="2" width="10" height="2" />
-                      <rect x="5" y="6" width="6" height="2" />
-                      <rect x="4" y="10" width="8" height="2" />
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                      <rect x="3" y="3" width="10" height="2" />
+                      <rect x="5" y="7" width="6" height="2" />
+                      <rect x="4" y="11" width="8" height="2" />
                     </svg>
                   </button>
                 </div>
+              )}
+              {/* Expand toggle */}
+              {node.type !== 'file' && (
+                <button
+                  className="canvas-props-expand-btn"
+                  onClick={() => setPropsExpanded(!propsExpanded)}
+                  title={propsExpanded ? t('canvasCollapse', language) : t('canvasExpand', language)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style={{ transform: propsExpanded ? 'rotate(180deg)' : 'none' }}>
+                    <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="2" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {/* Expanded: shape selector */}
+            {propsExpanded && node.type !== 'file' && (
+              <div className="canvas-props-shapes-grid icons">
+                {CANVAS_SHAPES.map(shape => (
+                  <button
+                    key={shape.value}
+                    className={`canvas-props-shape-btn icon${(node.shape || 'process') === shape.value ? ' active' : ''}`}
+                    onClick={() => updateNodeProperties(selectedNode, { shape: shape.value })}
+                    title={shape.value}
+                  >
+                    {CANVAS_SHAPE_ICONS[shape.value]}
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -1714,7 +1964,7 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
         ];
 
         return (
-          <div className="canvas-properties-panel">
+          <div className="canvas-properties-panel" onMouseDown={e => e.stopPropagation()}>
             <div className="canvas-properties-header">{t('canvasArrowProperties', language)}</div>
 
             <div className="canvas-properties-section">
@@ -1741,6 +1991,91 @@ function CanvasEditor({ data, onChange, readOnly = false, notePath, onSelectionC
               </button>
             </div>
           </div>
+        );
+      })()}
+
+      {/* Node Context Menu */}
+      {contextMenu && (() => {
+        const node = data.nodes.find(n => n.id === contextMenu.nodeId);
+        if (!node) return null;
+
+        const nodeColors = [
+          { name: 'Blue', value: '#1e3a5f' },
+          { name: 'Green', value: '#2d4a2c' },
+          { name: 'Red', value: '#5f1e1e' },
+          { name: 'Purple', value: '#3a1e5f' },
+          { name: 'Orange', value: '#5f3a1e' },
+          { name: 'Default', value: '#2d2d2d' },
+        ];
+
+        return (
+          <>
+            {/* Backdrop to close menu */}
+            <div
+              className="canvas-context-backdrop"
+              onClick={closeContextMenu}
+              onContextMenu={e => { e.preventDefault(); closeContextMenu(); }}
+            />
+            <div
+              className="canvas-context-menu"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+            >
+              <div className="canvas-context-section">
+                <div className="canvas-context-label">{t('canvasNodeColor', language)}</div>
+                <div className="canvas-context-colors">
+                  {nodeColors.map(c => (
+                    <button
+                      key={c.value}
+                      className={`canvas-context-color-btn${(node.color || '#2d2d2d') === c.value ? ' active' : ''}`}
+                      style={{ backgroundColor: c.value }}
+                      onClick={() => {
+                        updateNodeProperties(contextMenu.nodeId, { color: c.value });
+                        closeContextMenu();
+                      }}
+                      title={c.name}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="canvas-context-section">
+                <div className="canvas-context-label">{t('canvasShape', language)}</div>
+                <div className="canvas-context-shapes">
+                  {CANVAS_SHAPES.map(shape => (
+                    <button
+                      key={shape.value}
+                      className={`canvas-context-shape-btn${(node.shape || 'process') === shape.value ? ' active' : ''}`}
+                      onClick={() => {
+                        updateNodeProperties(contextMenu.nodeId, { shape: shape.value });
+                        closeContextMenu();
+                      }}
+                      title={shape.value}
+                    >
+                      {CANVAS_SHAPE_ICONS[shape.value]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="canvas-context-divider" />
+              <button
+                className="canvas-context-item"
+                onClick={() => {
+                  setEditingNode(contextMenu.nodeId);
+                  closeContextMenu();
+                }}
+              >
+                {t('canvasEditNode', language)}
+              </button>
+              <button
+                className="canvas-context-item delete"
+                onClick={() => {
+                  deleteNode(contextMenu.nodeId);
+                  closeContextMenu();
+                }}
+              >
+                {t('canvasDeleteNode', language)}
+              </button>
+            </div>
+          </>
         );
       })()}
     </div>
