@@ -1,0 +1,457 @@
+/* ============================================================ */
+
+/* Sidebar Collapsed Bar */
+.sidebar-collapsed-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px 12px;
+  background-color: var(--bg-secondary, #252526);
+  border-right: 1px solid var(--border-color, #3c3c3c);
+  flex-shrink: 0;
+}
+
+.sidebar-collapsed-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted, #888);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.sidebar-collapsed-toggle:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.1));
+  color: var(--text-primary, #fff);
+}
+
+/* Minimized windows in collapsed sidebar */
+.sidebar-collapsed-minimized {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-color);
+}
+
+.sidebar-collapsed-minimized-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+  opacity: 0.7;
+}
+
+.sidebar-collapsed-minimized-btn:hover {
+  background: var(--bg-hover);
+  opacity: 1;
+}
+
+.sidebar-collapsed-minimized-icon {
+  font-size: var(--font-xl);
+  line-height: 1;
+}
+
+/* Hover Panel Collapsed Bar */
+.hover-panel-collapsed-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 12px;
+  width: 48px;
+  background-color: var(--bg-primary);
+  border-left: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.hover-panel-collapsed-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.hover-panel-collapsed-toggle:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.hover-panel-collapsed-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  background: rgba(100, 150, 255, 0.6);
+  color: #fff;
+  padding: 0px 4px;
+  border-radius: var(--radius-lg);
+  min-width: 14px;
+  text-align: center;
+}
+
+/* All windows in collapsed right panel */
+.hover-panel-collapsed-windows {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
+}
+
+.hover-panel-collapsed-window-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  position: relative;
+  /* Smooth transitions - GPU accelerated */
+  transition:
+    opacity var(--duration-normal) cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    transform var(--duration-normal) cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    background-color var(--duration-fast) ease;
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-tap-highlight-color: transparent;
+  /* Scale fade entrance animation - GPU accelerated */
+  animation: collapsedBtnEnter 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Scale fade entrance animation - GPU accelerated (no blur) */
+@keyframes collapsedBtnEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateZ(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateZ(0);
+  }
+}
+
+/* GPU acceleration for all buttons - forces compositor layer */
+.hover-panel-collapsed-window-btn {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Active press feedback - instant haptic feel (no transition delay) */
+.hover-panel-collapsed-window-btn:active:not(.is-exiting) {
+  transform: scale(0.95) translateZ(0);
+  /* No transition - instant response */
+}
+
+/* Scale fade exit animation - GPU accelerated */
+.hover-panel-collapsed-window-btn.is-exiting {
+  animation: collapsedBtnExit 0.15s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes collapsedBtnExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateZ(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8) translateZ(0);
+  }
+}
+
+/* Minimized state - low opacity, no border */
+.hover-panel-collapsed-window-btn.minimized {
+  opacity: 0.5;
+}
+
+.hover-panel-collapsed-window-btn.minimized:hover {
+  background: rgba(255, 255, 255, 0.08);
+  opacity: 0.7;
+}
+
+/* Active state - medium opacity, subtle border */
+.hover-panel-collapsed-window-btn.active {
+  opacity: 0.75;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.hover-panel-collapsed-window-btn.active:hover {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0.9;
+}
+
+/* Focused state - full opacity, bright border, highlight effect */
+.hover-panel-collapsed-window-btn.focused {
+  opacity: 1;
+  border: 1px solid rgba(100, 150, 255, 0.6);
+  background: rgba(100, 150, 255, 0.15);
+  box-shadow: 0 0 6px rgba(100, 150, 255, 0.3);
+}
+
+.hover-panel-collapsed-window-btn.focused::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  background: rgba(100, 150, 255, 0.8);
+  border-radius: var(--radius-xs);
+}
+
+.hover-panel-collapsed-window-btn.focused:hover {
+  background: rgba(100, 150, 255, 0.2);
+  border-color: rgba(100, 150, 255, 0.8);
+}
+
+/* Custom color override for window buttons */
+.hover-panel-collapsed-window-btn.has-custom-color.active,
+.hover-panel-collapsed-window-btn.has-custom-color.focused {
+  background: color-mix(in srgb, var(--template-color) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--template-color) 40%, transparent);
+}
+
+.hover-panel-collapsed-window-btn.has-custom-color.focused {
+  box-shadow: 0 0 6px color-mix(in srgb, var(--template-color) 50%, transparent);
+}
+
+.hover-panel-collapsed-window-btn.has-custom-color.focused::before {
+  background: var(--template-color);
+}
+
+.hover-panel-collapsed-window-btn.has-custom-color:hover {
+  background: color-mix(in srgb, var(--template-color) 30%, transparent);
+  border-color: var(--template-color);
+}
+
+.hover-panel-collapsed-window-icon {
+  font-size: var(--font-xl);
+  line-height: 1;
+}
+
+.hover-panel-collapsed-window-icon.lucide-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+/* Sidebar */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--bg-secondary, #252526);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color, #3c3c3c);
+  flex-shrink: 0;
+}
+
+.sidebar-header-left {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted, #888);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.sidebar-toggle-btn:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.1));
+  color: var(--text-primary, #fff);
+}
+
+.sidebar-section-label {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary, #bbbbbb);
+  letter-spacing: 0.8px;
+}
+
+.sidebar-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.sidebar-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #cccccc);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-lg);
+  padding: 0;
+}
+
+.sidebar-action-btn:hover:not(:disabled) {
+  background-color: var(--bg-hover, #3c3c3c);
+}
+
+.sidebar-action-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.sidebar-action-btn.active {
+  color: var(--accent-color, var(--color-link));
+}
+
+/* Sidebar Input */
+.sidebar-input-row {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-color, #3c3c3c);
+  flex-shrink: 0;
+}
+
+.sidebar-input {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: var(--font-base);
+  background-color: var(--bg-tertiary, #3c3c3c);
+  border: 1px solid var(--border-light, #5a5a5a);
+  border-radius: var(--radius-md);
+  color: var(--text-primary, #e0e0e0);
+  outline: none;
+  transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
+}
+
+.sidebar-input:focus {
+  border-color: var(--accent-color, var(--color-link));
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+}
+
+/* Sidebar Content */
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sidebar-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  gap: var(--space-6);
+}
+
+.open-vault-btn {
+  padding: 8px 16px;
+  font-size: var(--font-md);
+  background-color: var(--color-link);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.open-vault-btn:hover {
+  background-color: var(--color-link-hover);
+}
+
+.sidebar-empty-text {
+  font-size: var(--font-base);
+  color: var(--text-muted);
+}
+
+/* Sidebar Footer (Vault & Settings) */
+.sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 8px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+  background-color: var(--bg-secondary);
+}
+
+.sidebar-footer-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  font-size: var(--font-base);
+}
+
+.sidebar-footer-btn:hover {
+  background-color: var(--bg-hover);
+}
+
+.sidebar-footer-btn.vault-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-footer-btn-text {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-footer-btn.settings-btn {
+  padding: 6px 8px;
+}

@@ -1,0 +1,265 @@
+/* ============================================================ */
+/* CSS Variables - Note Type Colors */
+/* ============================================================ */
+:root {
+  /* NOTE - 연구노트 (Purple) */
+  --note-color: #a78bfa;
+  --note-bg: rgba(167, 139, 250, 0.06);
+  --note-bg-hover: rgba(167, 139, 250, 0.12);
+  --note-border: rgba(167, 139, 250, 0.6);
+  --note-header: rgba(167, 139, 250, 0.15);
+
+  /* MTG - 회의록 (Blue) */
+  --mtg-color: #60a5fa;
+  --mtg-bg: rgba(96, 165, 250, 0.06);
+  --mtg-bg-hover: rgba(96, 165, 250, 0.12);
+  --mtg-border: rgba(96, 165, 250, 0.6);
+  --mtg-header: rgba(96, 165, 250, 0.15);
+
+  /* SEM - 세미나 (Orange) */
+  --sem-color: #fb923c;
+  --sem-bg: rgba(251, 146, 60, 0.06);
+  --sem-bg-hover: rgba(251, 146, 60, 0.12);
+  --sem-border: rgba(251, 146, 60, 0.6);
+  --sem-header: rgba(251, 146, 60, 0.15);
+
+  /* EVENT - 행사 (Red) */
+  --event-color: #f87171;
+  --event-bg: rgba(248, 113, 113, 0.06);
+  --event-bg-hover: rgba(248, 113, 113, 0.12);
+  --event-border: rgba(248, 113, 113, 0.6);
+  --event-header: rgba(248, 113, 113, 0.15);
+
+  /* OFA - 공무행정 (Green) */
+  --ofa-color: #34d399;
+  --ofa-bg: rgba(52, 211, 153, 0.06);
+  --ofa-bg-hover: rgba(52, 211, 153, 0.12);
+  --ofa-border: rgba(52, 211, 153, 0.6);
+  --ofa-header: rgba(52, 211, 153, 0.15);
+
+  /* CONTACT - 연락처 (Cyan) */
+  --contact-color: #22d3ee;
+  --contact-bg: rgba(34, 211, 238, 0.06);
+  --contact-bg-hover: rgba(34, 211, 238, 0.12);
+  --contact-border: rgba(34, 211, 238, 0.6);
+  --contact-header: rgba(34, 211, 238, 0.15);
+
+  /* SETUP - 설정 (Gray) */
+  --setup-color: #9ca3af;
+  --setup-bg: rgba(156, 163, 175, 0.06);
+  --setup-bg-hover: rgba(156, 163, 175, 0.12);
+  --setup-border: rgba(156, 163, 175, 0.6);
+  --setup-header: rgba(156, 163, 175, 0.15);
+
+  /* DATA - 자료 (Amber) */
+  --data-color: #fbbf24;
+  --data-bg: rgba(251, 191, 36, 0.06);
+  --data-bg-hover: rgba(251, 191, 36, 0.12);
+  --data-border: rgba(251, 191, 36, 0.6);
+  --data-header: rgba(251, 191, 36, 0.15);
+
+  /* THEO - 이론 (Indigo) */
+  --theo-color: #818cf8;
+  --theo-bg: rgba(129, 140, 248, 0.06);
+  --theo-bg-hover: rgba(129, 140, 248, 0.12);
+  --theo-border: rgba(129, 140, 248, 0.6);
+  --theo-header: rgba(129, 140, 248, 0.15);
+
+  /* PAPER - 논문 (Teal) */
+  --paper-color: #5eead4;
+  --paper-bg: rgba(94, 234, 212, 0.06);
+  --paper-bg-hover: rgba(94, 234, 212, 0.12);
+  --paper-border: rgba(94, 234, 212, 0.6);
+  --paper-header: rgba(94, 234, 212, 0.15);
+
+  /* LIT - 문헌 (Lime) */
+  --lit-color: #a3e635;
+  --lit-bg: rgba(163, 230, 53, 0.06);
+  --lit-bg-hover: rgba(163, 230, 53, 0.12);
+  --lit-border: rgba(163, 230, 53, 0.6);
+  --lit-header: rgba(163, 230, 53, 0.15);
+
+  /* SKETCH - 스케치/캔버스 (Pink) */
+  --sketch-color: #f472b6;
+  --sketch-bg: rgba(244, 114, 182, 0.06);
+  --sketch-bg-hover: rgba(244, 114, 182, 0.12);
+  --sketch-border: rgba(244, 114, 182, 0.6);
+  --sketch-header: rgba(244, 114, 182, 0.15);
+}
+
+/* ============================================================ */
+/* CSS Variables - Note Type Colors (Light Mode) */
+/* ============================================================ */
+html[data-theme="light"] {
+  /* NOTE - 연구노트 (Purple - darker for light mode) */
+  --note-color: #7c3aed;
+  --note-bg: rgba(124, 58, 237, 0.08);
+  --note-bg-hover: rgba(124, 58, 237, 0.15);
+  --note-border: rgba(124, 58, 237, 0.5);
+  --note-header: rgba(124, 58, 237, 0.12);
+
+  /* MTG - 회의록 (Blue - darker) */
+  --mtg-color: #2563eb;
+  --mtg-bg: rgba(37, 99, 235, 0.08);
+  --mtg-bg-hover: rgba(37, 99, 235, 0.15);
+  --mtg-border: rgba(37, 99, 235, 0.5);
+  --mtg-header: rgba(37, 99, 235, 0.12);
+
+  /* SEM - 세미나 (Orange - darker) */
+  --sem-color: #ea580c;
+  --sem-bg: rgba(234, 88, 12, 0.08);
+  --sem-bg-hover: rgba(234, 88, 12, 0.15);
+  --sem-border: rgba(234, 88, 12, 0.5);
+  --sem-header: rgba(234, 88, 12, 0.12);
+
+  /* EVENT - 행사 (Red - darker) */
+  --event-color: #dc2626;
+  --event-bg: rgba(220, 38, 38, 0.08);
+  --event-bg-hover: rgba(220, 38, 38, 0.15);
+  --event-border: rgba(220, 38, 38, 0.5);
+  --event-header: rgba(220, 38, 38, 0.12);
+
+  /* OFA - 공무행정 (Green - darker) */
+  --ofa-color: #059669;
+  --ofa-bg: rgba(5, 150, 105, 0.08);
+  --ofa-bg-hover: rgba(5, 150, 105, 0.15);
+  --ofa-border: rgba(5, 150, 105, 0.5);
+  --ofa-header: rgba(5, 150, 105, 0.12);
+
+  /* CONTACT - 연락처 (Cyan - darker) */
+  --contact-color: #0891b2;
+  --contact-bg: rgba(8, 145, 178, 0.08);
+  --contact-bg-hover: rgba(8, 145, 178, 0.15);
+  --contact-border: rgba(8, 145, 178, 0.5);
+  --contact-header: rgba(8, 145, 178, 0.12);
+
+  /* SETUP - 설정 (Gray - darker) */
+  --setup-color: #6b7280;
+  --setup-bg: rgba(107, 114, 128, 0.08);
+  --setup-bg-hover: rgba(107, 114, 128, 0.15);
+  --setup-border: rgba(107, 114, 128, 0.5);
+  --setup-header: rgba(107, 114, 128, 0.12);
+
+  /* DATA - 자료 (Amber - darker) */
+  --data-color: #d97706;
+  --data-bg: rgba(217, 119, 6, 0.08);
+  --data-bg-hover: rgba(217, 119, 6, 0.15);
+  --data-border: rgba(217, 119, 6, 0.5);
+  --data-header: rgba(217, 119, 6, 0.12);
+
+  /* THEO - 이론 (Indigo - darker) */
+  --theo-color: #4f46e5;
+  --theo-bg: rgba(79, 70, 229, 0.08);
+  --theo-bg-hover: rgba(79, 70, 229, 0.15);
+  --theo-border: rgba(79, 70, 229, 0.5);
+  --theo-header: rgba(79, 70, 229, 0.12);
+
+  /* PAPER - 논문 (Teal - darker) */
+  --paper-color: #0d9488;
+  --paper-bg: rgba(13, 148, 136, 0.08);
+  --paper-bg-hover: rgba(13, 148, 136, 0.15);
+  --paper-border: rgba(13, 148, 136, 0.5);
+  --paper-header: rgba(13, 148, 136, 0.12);
+
+  /* LIT - 문헌 (Lime - darker) */
+  --lit-color: #65a30d;
+  --lit-bg: rgba(101, 163, 13, 0.08);
+  --lit-bg-hover: rgba(101, 163, 13, 0.15);
+  --lit-border: rgba(101, 163, 13, 0.5);
+  --lit-header: rgba(101, 163, 13, 0.12);
+
+  /* SKETCH - 스케치/캔버스 (Pink - darker) */
+  --sketch-color: #db2777;
+  --sketch-bg: rgba(219, 39, 119, 0.08);
+  --sketch-bg-hover: rgba(219, 39, 119, 0.15);
+  --sketch-border: rgba(219, 39, 119, 0.5);
+  --sketch-header: rgba(219, 39, 119, 0.12);
+}
+
+@media (prefers-color-scheme: light) {
+  html[data-theme="system"] {
+    /* NOTE - 연구노트 (Purple - darker for light mode) */
+    --note-color: #7c3aed;
+    --note-bg: rgba(124, 58, 237, 0.08);
+    --note-bg-hover: rgba(124, 58, 237, 0.15);
+    --note-border: rgba(124, 58, 237, 0.5);
+    --note-header: rgba(124, 58, 237, 0.12);
+
+    /* MTG - 회의록 (Blue - darker) */
+    --mtg-color: #2563eb;
+    --mtg-bg: rgba(37, 99, 235, 0.08);
+    --mtg-bg-hover: rgba(37, 99, 235, 0.15);
+    --mtg-border: rgba(37, 99, 235, 0.5);
+    --mtg-header: rgba(37, 99, 235, 0.12);
+
+    /* SEM - 세미나 (Orange - darker) */
+    --sem-color: #ea580c;
+    --sem-bg: rgba(234, 88, 12, 0.08);
+    --sem-bg-hover: rgba(234, 88, 12, 0.15);
+    --sem-border: rgba(234, 88, 12, 0.5);
+    --sem-header: rgba(234, 88, 12, 0.12);
+
+    /* EVENT - 행사 (Red - darker) */
+    --event-color: #dc2626;
+    --event-bg: rgba(220, 38, 38, 0.08);
+    --event-bg-hover: rgba(220, 38, 38, 0.15);
+    --event-border: rgba(220, 38, 38, 0.5);
+    --event-header: rgba(220, 38, 38, 0.12);
+
+    /* OFA - 공무행정 (Green - darker) */
+    --ofa-color: #059669;
+    --ofa-bg: rgba(5, 150, 105, 0.08);
+    --ofa-bg-hover: rgba(5, 150, 105, 0.15);
+    --ofa-border: rgba(5, 150, 105, 0.5);
+    --ofa-header: rgba(5, 150, 105, 0.12);
+
+    /* CONTACT - 연락처 (Cyan - darker) */
+    --contact-color: #0891b2;
+    --contact-bg: rgba(8, 145, 178, 0.08);
+    --contact-bg-hover: rgba(8, 145, 178, 0.15);
+    --contact-border: rgba(8, 145, 178, 0.5);
+    --contact-header: rgba(8, 145, 178, 0.12);
+
+    /* SETUP - 설정 (Gray - darker) */
+    --setup-color: #6b7280;
+    --setup-bg: rgba(107, 114, 128, 0.08);
+    --setup-bg-hover: rgba(107, 114, 128, 0.15);
+    --setup-border: rgba(107, 114, 128, 0.5);
+    --setup-header: rgba(107, 114, 128, 0.12);
+
+    /* DATA - 자료 (Amber - darker) */
+    --data-color: #d97706;
+    --data-bg: rgba(217, 119, 6, 0.08);
+    --data-bg-hover: rgba(217, 119, 6, 0.15);
+    --data-border: rgba(217, 119, 6, 0.5);
+    --data-header: rgba(217, 119, 6, 0.12);
+
+    /* THEO - 이론 (Indigo - darker) */
+    --theo-color: #4f46e5;
+    --theo-bg: rgba(79, 70, 229, 0.08);
+    --theo-bg-hover: rgba(79, 70, 229, 0.15);
+    --theo-border: rgba(79, 70, 229, 0.5);
+    --theo-header: rgba(79, 70, 229, 0.12);
+
+    /* PAPER - 논문 (Teal - darker) */
+    --paper-color: #0d9488;
+    --paper-bg: rgba(13, 148, 136, 0.08);
+    --paper-bg-hover: rgba(13, 148, 136, 0.15);
+    --paper-border: rgba(13, 148, 136, 0.5);
+    --paper-header: rgba(13, 148, 136, 0.12);
+
+    /* LIT - 문헌 (Lime - darker) */
+    --lit-color: #65a30d;
+    --lit-bg: rgba(101, 163, 13, 0.08);
+    --lit-bg-hover: rgba(101, 163, 13, 0.15);
+    --lit-border: rgba(101, 163, 13, 0.5);
+    --lit-header: rgba(101, 163, 13, 0.12);
+
+    /* SKETCH - 스케치/캔버스 (Pink - darker) */
+    --sketch-color: #db2777;
+    --sketch-bg: rgba(219, 39, 119, 0.08);
+    --sketch-bg-hover: rgba(219, 39, 119, 0.15);
+    --sketch-border: rgba(219, 39, 119, 0.5);
+    --sketch-header: rgba(219, 39, 119, 0.12);
+  }
+}

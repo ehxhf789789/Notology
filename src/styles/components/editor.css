@@ -1,0 +1,241 @@
+/* ============================================================ */
+/* TipTap Editor */
+/* ============================================================ */
+
+.tiptap-editor {
+  padding: 24px 32px;
+  height: 100%;
+  outline: none;
+  color: var(--text-primary);
+  font-size: var(--font-lg);
+  line-height: 1.7;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.tiptap-editor h1 {
+  font-size: var(--font-3xl);
+  font-weight: 700;
+  margin: 18px 0 10px;
+  padding-left: var(--space-6);
+  border-left: 4px solid #7aa2f7;
+  color: var(--text-primary);
+}
+
+.tiptap-editor h2 {
+  font-size: var(--font-2xl);
+  font-weight: 600;
+  margin: 16px 0 8px;
+  padding-left: var(--space-5);
+  border-left: 3px solid #89b4fa;
+  color: var(--text-primary);
+}
+
+.tiptap-editor h3 {
+  font-size: var(--font-xl);
+  font-weight: 600;
+  margin: 14px 0 7px;
+  padding-left: var(--space-4);
+  border-left: 2px solid #94e2d5;
+  color: var(--text-primary);
+}
+
+.tiptap-editor p {
+  margin: 0 0 8px;
+}
+
+.tiptap-editor ul,
+.tiptap-editor ol {
+  padding-left: var(--space-12);
+  margin: 8px 0;
+}
+
+.tiptap-editor li {
+  margin: 4px 0;
+}
+
+/* Text formatting */
+.tiptap-editor strong,
+.tiptap-editor b {
+  font-weight: 700;
+}
+
+.tiptap-editor em,
+.tiptap-editor i,
+.ProseMirror em,
+.ProseMirror i,
+.hover-tiptap-editor em,
+.hover-tiptap-editor i {
+  font-style: italic !important;
+  /* Allow browser to synthesize italic for fonts without italic glyphs (CJK) */
+  font-synthesis: style;
+}
+
+.tiptap-editor u {
+  text-decoration: underline;
+}
+
+.tiptap-editor code {
+  background-color: var(--bg-hover);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: var(--font-md);
+}
+
+.tiptap-editor pre {
+  background-color: var(--bg-tertiary);
+  padding: var(--space-8);
+  border-radius: var(--radius-md);
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+.tiptap-editor pre code {
+  background: none;
+  padding: 0;
+  font-size: var(--font-md);
+  line-height: 1.5;
+}
+
+.tiptap-editor blockquote {
+  border-left: 3px solid var(--accent-color);
+  padding-left: var(--space-8);
+  margin: 12px 0;
+  color: var(--text-secondary);
+}
+
+/* hr styles moved to Code Block section for better organization */
+
+.tiptap-editor .is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-muted);
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap.ProseMirror {
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Frontmatter Panel */
+.frontmatter-panel {
+  padding: 12px 32px;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  font-family: "Consolas", "Monaco", monospace;
+  font-size: var(--font-base);
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.frontmatter-field {
+  display: flex;
+  gap: var(--space-4);
+  padding: 1px 0;
+}
+
+.frontmatter-key {
+  color: #569cd6;
+  flex-shrink: 0;
+}
+
+.frontmatter-value {
+  color: #ce9178;
+  word-break: break-all;
+}
+
+/* Wiki Links */
+.wiki-link-inline {
+  color: #a78bfa;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background-color: rgba(167, 139, 250, 0.1);
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  vertical-align: baseline;
+  user-select: all; /* Allow selection for drag operations (e.g., tab indentation) */
+  /* Hide the [[...]] brackets by setting font-size to 0 (for decoration-based links) */
+  font-size: 0;
+}
+
+/* Wiki link atom nodes (rendered directly without brackets) */
+.wiki-link-inline.wiki-link-node {
+  font-size: var(--font-lg);
+}
+
+/* Hide ::after for atom nodes since content is rendered directly */
+.wiki-link-inline.wiki-link-node::after {
+  content: none;
+}
+
+/* Show only the filename via ::after pseudo-element (for decoration-based links) */
+.wiki-link-inline::after {
+  content: attr(data-wiki-link);
+  font-size: var(--font-lg);
+  font-weight: 500;
+}
+
+.wiki-link-inline:hover {
+  background-color: rgba(167, 139, 250, 0.2);
+  border-color: rgba(167, 139, 250, 0.4);
+  color: #c4b5fd;
+  box-shadow: var(--shadow-sm);
+}
+
+.wiki-link-inline.unresolved {
+  color: #9ca3af;
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-decoration-color: #6b7280;
+  opacity: 0.8;
+}
+
+.wiki-link-inline.unresolved:hover {
+  background-color: rgba(156, 163, 175, 0.1);
+  color: #d1d5db;
+}
+
+.wiki-link-inline.attachment {
+  color: #00d4aa;
+  background-color: rgba(0, 212, 170, 0.08);
+  border-color: rgba(0, 212, 170, 0.3);
+}
+
+.wiki-link-inline.attachment::after {
+  font-family: 'Courier New', monospace;
+}
+
+.wiki-link-inline.attachment::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: var(--space-2);
+  margin-left: 0;
+  vertical-align: middle;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2300d4aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'%3E%3C/path%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+
+.wiki-link-inline.attachment:hover {
+  background-color: rgba(0, 212, 170, 0.2);
+  border-color: rgba(0, 212, 170, 0.5);
+  color: #00ffcc;
+}
+
+.wiki-link-inline.attachment.unresolved {
+  color: #9ca3af;
+}

@@ -1,0 +1,168 @@
+/* Title Bar */
+.titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  background-color: var(--bg-primary, #1e1e1e);
+  border-bottom: 1px solid var(--border-color, #3c3c3c);
+  flex-shrink: 0;
+  cursor: default;
+  user-select: none;
+}
+
+.titlebar-left {
+  display: flex;
+  align-items: center;
+  padding-left: var(--space-6);
+  gap: var(--space-3);
+}
+
+.titlebar-icon {
+  width: 16px;
+  height: 16px;
+  -webkit-user-drag: none;
+}
+
+.titlebar-title {
+  font-size: var(--font-base);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.titlebar-vault-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: var(--space-6);
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.titlebar-vault-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-color);
+  color: var(--text-primary);
+}
+
+.titlebar-vault-name {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-right: var(--space-6);
+}
+
+.titlebar-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 28px;
+  padding: 0 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.titlebar-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-xs);
+}
+
+.titlebar-action-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.titlebar-action-btn.active {
+  background: rgba(100, 150, 255, 0.2);
+  color: #6496ff;
+  border-color: rgba(100, 150, 255, 0.4);
+}
+
+.hover-panel-badge {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  background: rgba(100, 150, 255, 0.3);
+  color: #a0c4ff;
+  padding: 1px 6px;
+  border-radius: var(--radius-lg);
+  min-width: 18px;
+  text-align: center;
+}
+
+.titlebar-action-btn.active .hover-panel-badge {
+  background: rgba(100, 150, 255, 0.4);
+  color: #fff;
+}
+
+.titlebar-controls {
+  display: flex;
+  height: 100%;
+}
+
+.titlebar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 0;
+  padding: 0;
+}
+
+.titlebar-btn:hover {
+  background-color: var(--bg-hover);
+}
+
+.titlebar-btn-close:hover {
+  background-color: #e81123;
+  color: #ffffff;
+}
+
+.titlebar-btn-panel {
+  position: relative;
+  gap: var(--space-2);
+  border-left: 1px solid var(--border-color);
+  margin-left: var(--space-2);
+}
+
+.titlebar-btn-panel.active {
+  background-color: rgba(100, 150, 255, 0.15);
+  color: #6496ff;
+}
+
+.titlebar-btn-panel .hover-panel-badge {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  background: rgba(100, 150, 255, 0.4);
+  color: #fff;
+  padding: 0px 4px;
+  border-radius: var(--radius-lg);
+  min-width: 14px;
+  text-align: center;
+  line-height: 14px;
+}

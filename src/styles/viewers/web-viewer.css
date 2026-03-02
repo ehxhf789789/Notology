@@ -1,0 +1,15 @@
+/* ============================================================ */
+/* Web Viewer */
+/* ============================================================ */
+
+.web-viewer-body {
+  padding: 0;
+  overflow: hidden;
+}
+
+.web-viewer-body iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}

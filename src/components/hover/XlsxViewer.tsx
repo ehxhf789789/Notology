@@ -292,19 +292,6 @@ export function XlsxViewer({ data }: XlsxViewerProps) {
 
   return (
     <div ref={containerRef} className="office-viewer-container xlsx-viewer" tabIndex={0}>
-      {sheetNames.length > 1 && (
-        <div className="xlsx-sheet-tabs">
-          {sheetNames.map((name, idx) => (
-            <button
-              key={name}
-              className={`xlsx-sheet-tab${idx === currentSheet ? ' active' : ''}`}
-              onClick={() => setCurrentSheet(idx)}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-      )}
       <div className="xlsx-zoom-indicator">{Math.round(zoom * 100)}%</div>
       <div
         ref={gridContainerRef}
@@ -313,7 +300,7 @@ export function XlsxViewer({ data }: XlsxViewerProps) {
       >
         <div
           className="xlsx-grid-wrapper"
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
+          style={{ zoom: zoom }}
         >
           <table className="xlsx-grid">
             <thead>
@@ -355,6 +342,19 @@ export function XlsxViewer({ data }: XlsxViewerProps) {
           </table>
         </div>
       </div>
+      {sheetNames.length > 1 && (
+        <div className="xlsx-sheet-tabs">
+          {sheetNames.map((name, idx) => (
+            <button
+              key={name}
+              className={`xlsx-sheet-tab${idx === currentSheet ? ' active' : ''}`}
+              onClick={() => setCurrentSheet(idx)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

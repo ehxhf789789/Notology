@@ -1,0 +1,126 @@
+/* ============================================================ */
+/* ContainerView */
+/* ============================================================ */
+
+.container-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--bg-primary);
+}
+
+.container-description-section {
+  flex-shrink: 0;
+  max-height: 40%;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.container-description-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 8px 16px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.container-parent-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background-color: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: var(--font-lg);
+  flex-shrink: 0;
+  transition: background-color var(--duration-fast), border-color var(--duration-fast);
+}
+
+.container-parent-btn:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--accent-color);
+  color: var(--text-primary);
+}
+
+.container-description-title {
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.container-dirty-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: #d7ba7d;
+}
+
+.container-description-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Note Type Background Colors for Container */
+.container-description-body.note-type { background-color: var(--note-bg); }
+.container-description-body.sketch-type { background-color: var(--sketch-bg); }
+.container-description-body.mtg-type { background-color: var(--mtg-bg); }
+.container-description-body.sem-type { background-color: var(--sem-bg); }
+.container-description-body.event-type { background-color: var(--event-bg); }
+.container-description-body.ofa-type { background-color: var(--ofa-bg); }
+.container-description-body.paper-type { background-color: var(--paper-bg); }
+.container-description-body.lit-type { background-color: var(--lit-bg); }
+.container-description-body.data-type { background-color: var(--data-bg); }
+.container-description-body.theo-type { background-color: var(--theo-bg); }
+.container-description-body.contact-type { background-color: var(--contact-bg); }
+.container-description-body.setup-type { background-color: var(--setup-bg); }
+
+.tiptap-editor.container-description-editor {
+  padding: 12px 16px;
+  max-width: none;
+  margin: 0;
+  font-size: var(--font-lg);
+  min-height: 80px;
+}
+
+.container-actions {
+  display: flex;
+  gap: var(--space-4);
+  padding: 6px 16px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.container-action-btn {
+  padding: 4px 12px;
+  font-size: var(--font-base);
+  background-color: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.container-action-btn:hover {
+  background-color: var(--bg-elevated);
+}
+
+.container-new-input {
+  padding: 4px 16px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.container-search-section {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}

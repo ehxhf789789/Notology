@@ -1,8 +1,8 @@
 import { ReactRenderer } from '@tiptap/react';
 import tippy from 'tippy.js';
 import { AttachmentSuggestionPluginKey } from '../extensions/AttachmentSuggestion';
-import AttachmentSuggestionList from '../components/AttachmentSuggestionList';
-import type { AttachmentSuggestionListRef } from '../components/AttachmentSuggestionList';
+import AttachmentSuggestionList from '../components/editor/suggestions/AttachmentSuggestionList';
+import type { AttachmentSuggestionListRef } from '../components/editor/suggestions/AttachmentSuggestionList';
 import type { Editor, Range } from '@tiptap/core';
 import type { EditorState } from '@tiptap/pm/state';
 import { fileCommands } from '../services/tauriCommands';

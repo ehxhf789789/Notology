@@ -1,8 +1,8 @@
 import { ReactRenderer } from '@tiptap/react';
 import tippy from 'tippy.js';
 import { ImageEmbedSuggestionPluginKey } from '../extensions/ImageEmbedSuggestion';
-import ImageEmbedSuggestionList from '../components/ImageEmbedSuggestionList';
-import type { ImageEmbedSuggestionListRef } from '../components/ImageEmbedSuggestionList';
+import ImageEmbedSuggestionList from '../components/editor/suggestions/ImageEmbedSuggestionList';
+import type { ImageEmbedSuggestionListRef } from '../components/editor/suggestions/ImageEmbedSuggestionList';
 import type { Editor, Range } from '@tiptap/core';
 import type { EditorState } from '@tiptap/pm/state';
 

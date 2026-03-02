@@ -1,0 +1,59 @@
+/* ============================================================ */
+/* Validation Panel */
+/* ============================================================ */
+
+.validation-panel {
+  padding: 12px 16px;
+  background-color: #5a1e1e;
+  border: 1px solid #8b3434;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-8);
+}
+
+.validation-panel-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  color: #f48771;
+  font-size: var(--font-lg);
+}
+
+.validation-icon {
+  font-size: var(--font-2xl);
+}
+
+.validation-errors {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px 0;
+}
+
+.validation-error {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  background-color: #3c1e1e;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-4);
+  font-size: var(--font-md);
+}
+
+.error-path {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  color: #ff6b6b;
+  font-size: var(--font-base);
+  margin-bottom: var(--space-2);
+  font-weight: 600;
+}
+
+.error-message {
+  color: #f48771;
+  line-height: 1.4;
+}
+
+.validation-panel-hint {
+  font-size: var(--font-base);
+  color: #d4a676;
+  font-style: italic;
+}

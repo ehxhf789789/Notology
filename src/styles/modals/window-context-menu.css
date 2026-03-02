@@ -1,0 +1,60 @@
+/* ============================================================ */
+/* Window Context Menu - Hover Panel Window Actions */
+/* ============================================================ */
+.window-context-menu {
+  position: fixed;
+  z-index: var(--z-top);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  box-shadow: var(--shadow-md);
+  min-width: 120px;
+  max-height: min(500px, calc(100vh - 80px));
+  overflow-y: auto;
+}
+
+.window-context-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.window-context-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.window-context-menu::-webkit-scrollbar-thumb {
+  background: var(--border-color, #3c3c3c);
+  border-radius: var(--radius-sm);
+}
+
+.window-context-menu::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted, #666);
+}
+
+.window-context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--font-md);
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-fast);
+}
+
+.window-context-menu-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.window-context-menu-item-danger {
+  color: #e06c75;
+}
+
+.window-context-menu-item-danger:hover {
+  background: rgba(224, 108, 117, 0.15);
+  color: #ff7b85;
+}

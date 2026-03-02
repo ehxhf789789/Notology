@@ -1,0 +1,71 @@
+/* ===== Code Viewer ===== */
+
+.code-viewer-body {
+  overflow: auto;
+  background: var(--code-bg);
+}
+
+.code-viewer {
+  display: flex;
+  min-height: 100%;
+  font-family: 'Consolas', 'Monaco', 'Fira Code', 'JetBrains Mono', monospace;
+  font-size: var(--font-md);
+  line-height: 1.6;
+}
+
+.code-line-numbers {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 12px;
+  text-align: right;
+  color: var(--code-punctuation);
+  background: var(--code-bg);
+  user-select: none;
+  border-right: 1px solid var(--code-border);
+  min-width: 48px;
+}
+
+.code-line-numbers span {
+  font-size: var(--font-base);
+  line-height: 1.6;
+}
+
+.code-content {
+  flex: 1;
+  margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  background: var(--code-bg);
+  color: var(--code-text);
+}
+
+.code-content code {
+  font-family: inherit;
+  white-space: pre;
+}
+
+/* Code Viewer syntax highlighting */
+.code-content .hljs-comment,
+.code-content .hljs-quote { color: var(--code-comment); font-style: italic; }
+.code-content .hljs-keyword,
+.code-content .hljs-selector-tag { color: var(--code-keyword); }
+.code-content .hljs-string,
+.code-content .hljs-addition { color: var(--code-string); }
+.code-content .hljs-number,
+.code-content .hljs-literal { color: var(--code-number); }
+.code-content .hljs-function,
+.code-content .hljs-title { color: var(--code-function); }
+.code-content .hljs-variable,
+.code-content .hljs-deletion { color: var(--code-variable); }
+.code-content .hljs-built_in,
+.code-content .hljs-attr { color: var(--code-property); }
+.code-content .hljs-symbol,
+.code-content .hljs-bullet { color: var(--code-operator); }
+.code-content .hljs-tag { color: var(--code-tag); }
+.code-content .hljs-attribute { color: var(--code-attribute); }
+.code-content .hljs-punctuation { color: var(--code-punctuation); }
+.code-content .hljs-type,
+.code-content .hljs-class { color: var(--code-type); }
+.code-content .hljs-name { color: var(--code-tag); }
+.code-content .hljs-section { color: var(--code-function); font-weight: bold; }
+.code-content .hljs-meta { color: var(--code-comment); }

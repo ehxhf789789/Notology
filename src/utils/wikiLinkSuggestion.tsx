@@ -1,8 +1,8 @@
 import { ReactRenderer } from '@tiptap/react';
 import tippy from 'tippy.js';
 import { WikiLinkSuggestionPluginKey } from '../extensions/WikiLinkSuggestion';
-import WikiLinkSuggestionList from '../components/WikiLinkSuggestionList';
-import type { WikiLinkSuggestionListRef } from '../components/WikiLinkSuggestionList';
+import WikiLinkSuggestionList from '../components/editor/suggestions/WikiLinkSuggestionList';
+import type { WikiLinkSuggestionListRef } from '../components/editor/suggestions/WikiLinkSuggestionList';
 import type { FileNode } from '../types';
 import type { Editor, Range } from '@tiptap/core';
 import type { EditorState } from '@tiptap/pm/state';

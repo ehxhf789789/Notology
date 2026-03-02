@@ -1,6 +1,6 @@
 import type { FolderNoteTemplate, NoteTemplate, NoteFrontmatter } from '../types';
 import type { NoteType } from '../types/frontmatter';
-import type { FacetedTagSelection } from '../components/TagInputSection';
+import type { FacetedTagSelection } from '../components/shared/TagInputSection';
 import { serializeFrontmatter, getCurrentTimestamp } from './frontmatter';
 import { createFromTemplate, getBodyTemplate, applyTemplateVariables as applyTemplateVars } from './templateUtils';
 import type { LanguageSetting } from './i18n';

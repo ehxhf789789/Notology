@@ -1,0 +1,34 @@
+/* ===== Code Syntax Highlighting ===== */
+/* Code syntax highlighting - works with highlight.js */
+.tiptap-editor pre code .hljs-comment,
+.tiptap-editor pre code .hljs-quote { color: var(--code-comment); font-style: italic; }
+.tiptap-editor pre code .hljs-keyword,
+.tiptap-editor pre code .hljs-selector-tag { color: var(--code-keyword); }
+.tiptap-editor pre code .hljs-string,
+.tiptap-editor pre code .hljs-addition { color: var(--code-string); }
+.tiptap-editor pre code .hljs-number,
+.tiptap-editor pre code .hljs-literal { color: var(--code-number); }
+.tiptap-editor pre code .hljs-function,
+.tiptap-editor pre code .hljs-title { color: var(--code-function); }
+.tiptap-editor pre code .hljs-variable,
+.tiptap-editor pre code .hljs-deletion { color: var(--code-variable); }
+.tiptap-editor pre code .hljs-built_in,
+.tiptap-editor pre code .hljs-attr { color: var(--code-property); }
+.tiptap-editor pre code .hljs-symbol,
+.tiptap-editor pre code .hljs-bullet { color: var(--code-operator); }
+.tiptap-editor pre code .hljs-tag { color: var(--code-tag); }
+.tiptap-editor pre code .hljs-attribute { color: var(--code-attribute); }
+.tiptap-editor pre code .hljs-punctuation { color: var(--code-punctuation); }
+.tiptap-editor pre code .hljs-type,
+.tiptap-editor pre code .hljs-class { color: var(--code-type); }
+.tiptap-editor pre code .hljs-name { color: var(--code-tag); }
+.tiptap-editor pre code .hljs-section { color: var(--code-function); font-weight: bold; }
+.tiptap-editor pre code .hljs-meta { color: var(--code-comment); }
+
+/* Blockquote */
+.tiptap-editor blockquote {
+  border-left: 3px solid var(--border-light);
+  padding-left: 14px;
+  margin: 8px 0;
+  color: var(--text-secondary);
+}

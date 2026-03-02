@@ -1,0 +1,198 @@
+/* ============================================
+   Bulk Tag Modal
+   ============================================ */
+
+.bulk-tag-modal {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 400px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bulk-tag-modal-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.bulk-tag-modal-header h3 {
+  margin: 0 0 4px;
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bulk-tag-modal-count {
+  font-size: var(--font-base);
+  color: var(--text-secondary);
+}
+
+.bulk-tag-namespace-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 12px;
+}
+
+.bulk-tag-ns-tab {
+  flex: 1;
+  padding: 8px 4px;
+  font-size: var(--font-base);
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color var(--duration-fast), border-color var(--duration-fast);
+  text-align: center;
+}
+
+.bulk-tag-ns-tab:hover {
+  color: var(--text-primary);
+}
+
+.bulk-tag-ns-tab.active {
+  font-weight: 500;
+}
+
+.bulk-tag-input-wrapper {
+  position: relative;
+  padding: 12px 16px 8px;
+}
+
+.bulk-tag-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: var(--font-md);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color var(--duration-fast);
+}
+
+.bulk-tag-input:focus {
+  border-color: var(--accent-primary);
+}
+
+.bulk-tag-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.bulk-tag-suggestions {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 100%;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: var(--z-raised);
+}
+
+.bulk-tag-suggestion-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: var(--font-base);
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration-fast);
+}
+
+.bulk-tag-suggestion-item:hover,
+.bulk-tag-suggestion-item.selected {
+  background-color: var(--accent-primary);
+  color: #111;
+}
+
+.bulk-tag-selected-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: 4px 16px 12px;
+}
+
+.bulk-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-base);
+  white-space: nowrap;
+}
+
+.bulk-tag-chip-ns {
+  opacity: 0.6;
+  font-size: var(--font-sm);
+}
+
+.bulk-tag-chip-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: var(--font-lg);
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.5;
+  line-height: 1;
+}
+
+.bulk-tag-chip-remove:hover {
+  opacity: 1;
+  color: var(--color-danger);
+}
+
+.bulk-tag-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.bulk-tag-cancel-btn {
+  padding: 6px 16px;
+  font-size: var(--font-md);
+  color: var(--text-secondary);
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast);
+}
+
+.bulk-tag-cancel-btn:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.bulk-tag-apply-btn {
+  padding: 6px 16px;
+  font-size: var(--font-md);
+  color: #fff;
+  background-color: var(--accent-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: opacity var(--duration-fast);
+}
+
+.bulk-tag-apply-btn:hover {
+  opacity: 0.9;
+}
+
+.bulk-tag-apply-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

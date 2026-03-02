@@ -301,7 +301,6 @@ function ContextMenu() {
     position: 'fixed',
     left: adjustedPos.x,
     top: adjustedPos.y,
-    zIndex: 10000,
   };
 
   // Check if wiki link target is an attachment (non-.md file or in _att folder)

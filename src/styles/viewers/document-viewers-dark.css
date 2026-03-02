@@ -1,0 +1,157 @@
+/* ============================================================ */
+/* Document Viewer - Dark Mode Overrides                        */
+/* Document content (slides/pages/cells) stays white.           */
+/* Only surrounding UI adapts to dark theme.                    */
+/* ============================================================ */
+
+html[data-theme="dark"] .office-viewer-container {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* DOCX: dark surround, white paper */
+html[data-theme="dark"] .docx-viewer {
+  background: var(--bg-secondary);
+}
+
+/* XLSX: surrounding UI goes dark, cells stay white with dark text */
+html[data-theme="dark"] .xlsx-viewer {
+  background: var(--bg-primary);
+}
+
+html[data-theme="dark"] .xlsx-sheet-tabs {
+  background: var(--bg-secondary);
+  border-top-color: var(--border-color);
+}
+
+html[data-theme="dark"] .xlsx-sheet-tab {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+html[data-theme="dark"] .xlsx-sheet-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .xlsx-sheet-tab.active {
+  background: var(--bg-primary);
+  border-top-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+html[data-theme="dark"] .xlsx-grid-container {
+  background: var(--bg-tertiary);
+  scrollbar-color: var(--text-muted) var(--bg-tertiary);
+}
+
+html[data-theme="dark"] .xlsx-grid-container::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+}
+
+html[data-theme="dark"] .xlsx-grid-container::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-color: var(--bg-tertiary);
+}
+
+html[data-theme="dark"] .xlsx-grid-container::-webkit-scrollbar-corner {
+  background: var(--bg-tertiary);
+}
+
+/* Grid table: stays WHITE — cells are paper-like, not dark */
+/* (no dark override for .xlsx-grid — keeps background: white) */
+
+/* Headers: dark theme */
+html[data-theme="dark"] .xlsx-corner-cell {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+html[data-theme="dark"] .xlsx-corner-cell:hover {
+  background: var(--bg-hover);
+}
+
+html[data-theme="dark"] .xlsx-column-header {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+html[data-theme="dark"] .xlsx-column-header:hover {
+  background: var(--bg-hover);
+}
+
+html[data-theme="dark"] .xlsx-column-header.selected {
+  background: rgba(96, 165, 250, 0.25);
+}
+
+html[data-theme="dark"] .xlsx-row-header {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+html[data-theme="dark"] .xlsx-row-header:hover {
+  background: var(--bg-hover);
+}
+
+html[data-theme="dark"] .xlsx-row-header.selected {
+  background: rgba(96, 165, 250, 0.25);
+}
+
+/* Cells: stay WHITE background + DARK text (like Excel in dark mode) */
+html[data-theme="dark"] .xlsx-cell {
+  border-color: #d4d4d4;
+  background: white;
+  color: #1a1a1a;
+}
+
+html[data-theme="dark"] .xlsx-cell.selected {
+  background: rgba(0, 120, 215, 0.15) !important;
+}
+
+html[data-theme="dark"] .xlsx-grid tbody tr:hover .xlsx-cell:not(.selected) {
+  background: #f8f8f8;
+}
+
+html[data-theme="dark"] .xlsx-zoom-indicator {
+  background: rgba(0, 0, 0, 0.6);
+  color: #ccc;
+}
+
+/* PPTX: dark surround, white slides */
+html[data-theme="dark"] .pptx-viewer {
+  background: var(--bg-primary);
+}
+
+/* HWPX: dark surround, white pages */
+html[data-theme="dark"] .hwpx-viewer {
+  background: var(--bg-primary, #1e1e1e);
+}
+
+html[data-theme="dark"] .hwpx-page {
+  box-shadow: var(--shadow-md);
+}
+
+html[data-theme="dark"] .hwpx-figure figcaption {
+  color: #999;
+}
+
+html[data-theme="dark"] .hwpx-zoom-indicator {
+  background: rgba(0,0,0,0.6);
+  color: #ccc;
+}
+
+html[data-theme="dark"] .hwpx-image {
+  border-color: var(--border-color);
+}
+
+/* HWP (SVG from Rust): dark surround */
+html[data-theme="dark"] .hwp-viewer {
+  background: var(--bg-secondary);
+}
+
+html[data-theme="dark"] .hwp-content {
+  background: var(--bg-secondary);
+}

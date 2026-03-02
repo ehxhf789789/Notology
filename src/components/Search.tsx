@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, type
 import { searchCommands, utilCommands } from '../services/tauriCommands';
 import { FilePlus, Filter } from 'lucide-react';
 
-const GraphView = lazy(() => import('./GraphView'));
+const GraphView = lazy(() => import('./features/GraphView'));
 import { useHoverStore, hoverActions } from '../stores/zustand/hoverStore';
 import { useVaultPath } from '../stores/zustand/fileTreeStore';
 import { fileTreeActions } from '../stores/zustand/fileTreeStore';
@@ -20,7 +20,7 @@ import { getTemplateCustomColor as getTemplateColor } from '../utils/noteTypeHel
 import { NOTE_TYPES } from './search/searchHelpers';
 import { SearchFilters } from './search/SearchFilters';
 import { FrontmatterResultRow, ContentResultCard, AttachmentResultRow, DetailsResultCard } from './search/SearchResultItem';
-import BulkTagModal from './BulkTagModal';
+import BulkTagModal from './modals/BulkTagModal';
 import FloatingWords from './search/FloatingWords';
 
 // Conditional logging - only in development
@@ -1463,7 +1463,6 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
             position: 'fixed',
             left: customContextMenu.x,
             top: customContextMenu.y,
-            zIndex: 10000,
           }}
         >
           <button
@@ -1488,7 +1487,6 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
             position: 'fixed',
             left: noteContextMenu.x,
             top: noteContextMenu.y,
-            zIndex: 10000,
           }}
         >
           <button

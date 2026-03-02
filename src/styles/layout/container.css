@@ -1,0 +1,19 @@
+/* Container */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Allow text selection in inputs/textareas within the main window */
+.app-container input,
+.app-container textarea,
+.app-container select,
+.app-container [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+}

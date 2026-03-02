@@ -1,0 +1,125 @@
+/* ============================================================ */
+/* Hover Editor Tag Panel */
+/* ============================================================ */
+
+.hover-editor-tag-panel {
+  width: 360px;
+  min-width: 280px;
+  max-width: 480px;
+  border-left: 1px solid var(--border-color, #3c3c3c);
+  background-color: var(--bg-primary, #1e1e1e);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.hover-editor-content-row {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.hover-editor-body {
+  flex: 1;
+  overflow-y: auto;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+/* Folder note tag section (above search) */
+.hover-editor-tag-section {
+  border-top: 1px solid var(--border-color, #3c3c3c);
+  background-color: var(--bg-primary, #1e1e1e);
+  overflow-y: auto;
+  max-height: 400px;
+  flex-shrink: 0;
+}
+
+/* ============================================================ */
+/* Tag Panel */
+/* ============================================================ */
+
+.tag-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+.tag-panel-empty,
+.tag-panel-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: var(--font-lg);
+  padding: var(--space-8);
+}
+
+.tag-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.tag-panel-title {
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tag-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.tag-panel-mode-toggle {
+  display: flex;
+  gap: var(--space-1);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1);
+}
+
+.tag-panel-mode-btn {
+  padding: 3px 10px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-base);
+  transition: background-color var(--duration-fast);
+}
+
+.tag-panel-mode-btn:hover {
+  background-color: var(--bg-hover);
+}
+
+.tag-panel-mode-btn.active {
+  background-color: var(--color-link);
+  color: #fff;
+}
+
+.tag-panel-saving {
+  font-size: var(--font-base);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.tag-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-6);
+}
+
+/* Hide faceted tag editor title inside tag panel (redundant with panel header) */
+.tag-panel .faceted-tag-editor-title {
+  display: none;
+}

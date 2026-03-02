@@ -1,0 +1,83 @@
+/* =========================================================
+   Notology Design System Tokens
+   ========================================================= */
+
+:root {
+  /* ── Spacing Scale (4px base) ── */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-8: 16px;
+  --space-10: 20px;
+  --space-12: 24px;
+  --space-16: 32px;
+
+  /* ── Border Radius ── */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 50%;
+
+  /* ── Z-Index Scale ── */
+  --z-base: 1;
+  --z-above: 5;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 500;
+  --z-overlay: 900;
+  --z-modal-backdrop: 1000;
+  --z-modal: 1001;
+  --z-context-menu: 2000;
+  --z-popover: 5000;
+  --z-settings: 6000;
+  --z-notification: 8000;
+  --z-toast: 9000;
+  --z-titlebar: 10000;
+  --z-window-menu: 10100;
+  --z-top: 99999;
+
+  /* ── Shadow Scale ── */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px var(--shadow-color);
+  --shadow-lg: 0 8px 32px var(--shadow-color);
+  --shadow-xl: 0 12px 40px var(--shadow-color);
+  --shadow-focus: 0 0 0 2px var(--accent-primary);
+
+  /* ── Semantic Colors ── */
+  --color-link: #007acc;
+  --color-link-hover: #0098ff;
+  --color-danger: #f87171;
+  --color-danger-bg: rgba(248, 113, 113, 0.15);
+  --color-warning: #eab308;
+  --color-success: #4ade80;
+  --color-info: #60a5fa;
+
+  /* ── Font Size Scale ── */
+  --font-xs: 9px;
+  --font-sm: 11px;
+  --font-base: 12px;
+  --font-md: 13px;
+  --font-lg: 14px;
+  --font-xl: 16px;
+  --font-2xl: 18px;
+  --font-3xl: 20px;
+
+  /* ── Transition Durations ── */
+  --duration-fast: 0.1s;
+  --duration-normal: 0.2s;
+  --duration-slow: 0.3s;
+
+  /* ── V2 Polish Tokens ── */
+  --focus-ring: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-primary);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.15);
+  --btn-height-sm: 28px;
+  --btn-height-md: 32px;
+  --btn-height-lg: 36px;
+  --backdrop-blur: blur(8px);
+  --radius-2xl: 16px;
+}

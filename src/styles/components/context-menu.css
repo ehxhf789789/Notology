@@ -1,0 +1,169 @@
+/* ============================================================ */
+/* File Tree Context Menu */
+/* ============================================================ */
+
+.file-tree-context-menu {
+  position: fixed;
+  z-index: var(--z-context-menu);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-2);
+  min-width: 100px;
+  animation: contextMenuFadeIn 0.12s ease-out;
+  max-height: min(500px, calc(100vh - 80px));
+  overflow-y: auto;
+}
+
+.file-tree-context-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.file-tree-context-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.file-tree-context-menu::-webkit-scrollbar-thumb {
+  background: var(--border-color, #3c3c3c);
+  border-radius: var(--radius-sm);
+}
+
+.file-tree-context-menu::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted, #666);
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 16px;
+  font-size: var(--font-base);
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  margin: 0 var(--space-1);
+}
+
+.context-menu-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.context-menu-item.delete {
+  color: var(--color-danger);
+}
+
+.context-menu-item.delete:hover {
+  background-color: #4a2020;
+}
+
+/* ============================================================ */
+/* Wiki Link Context Menu */
+/* ============================================================ */
+
+.context-menu {
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 4px 0;
+  min-width: 140px;
+  max-height: min(500px, calc(100vh - 80px));
+  overflow: visible;
+  z-index: var(--z-titlebar);
+}
+
+.context-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.context-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.context-menu::-webkit-scrollbar-thumb {
+  background: var(--border-color, #3c3c3c);
+  border-radius: var(--radius-sm);
+}
+
+.context-menu::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted, #666);
+}
+
+.context-menu-separator {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 4px 0;
+}
+
+.context-menu-submenu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  cursor: pointer;
+  padding: 6px 16px;
+  font-size: var(--font-base);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  margin: 0 var(--space-1);
+}
+
+.context-menu-submenu-trigger:hover {
+  background-color: var(--bg-hover);
+}
+
+.context-menu-arrow {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  margin-left: var(--space-4);
+}
+
+.context-menu-submenu {
+  position: absolute;
+  left: 100%;
+  top: -4px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 4px 0;
+  min-width: 160px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: var(--z-titlebar);
+}
+
+.context-menu-type-prefix {
+  display: inline-block;
+  font-size: var(--font-xs);
+  font-weight: 700;
+  color: #7aa2f7;
+  background-color: rgba(122, 162, 247, 0.1);
+  padding: 1px 4px;
+  border-radius: var(--radius-xs);
+  margin-right: var(--space-3);
+  min-width: 36px;
+  text-align: center;
+}
+
+.context-menu-check {
+  display: inline-block;
+  width: 16px;
+  font-size: var(--font-sm);
+  color: #7aa2f7;
+  flex-shrink: 0;
+}
+
+.context-menu-type-desc {
+  margin-left: auto;
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  padding-left: var(--space-6);
+}
+
+.context-menu-item.checked {
+  background-color: rgba(122, 162, 247, 0.1);
+}

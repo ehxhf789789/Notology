@@ -1,0 +1,153 @@
+/* ============================================================ */
+/* Backlinks Panel */
+/* ============================================================ */
+
+.backlinks-panel {
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.backlinks-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  font-size: var(--font-base);
+  color: var(--text-muted);
+  background-color: var(--bg-secondary);
+  transition: background-color var(--duration-fast) ease;
+}
+
+.backlinks-header:hover {
+  background-color: var(--bg-hover);
+}
+
+.backlinks-toggle {
+  font-size: var(--font-sm);
+  width: 12px;
+}
+
+.backlinks-title {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.backlinks-count {
+  margin-left: auto;
+  background-color: var(--bg-hover);
+  padding: 0 6px;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-sm);
+}
+
+.backlinks-list {
+  padding: 4px 0;
+}
+
+.backlinks-empty {
+  padding: 8px 16px;
+  font-size: var(--font-base);
+  color: var(--text-muted);
+}
+
+.backlink-item {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 16px;
+  cursor: pointer;
+  gap: var(--space-1);
+  border-radius: var(--radius-sm);
+  margin: 0 var(--space-2);
+  transition: background-color var(--duration-fast) ease;
+}
+
+.backlink-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.backlink-file-name {
+  font-size: var(--font-md);
+  color: var(--color-link);
+  font-weight: 500;
+}
+
+.backlink-context {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backlinks-section {
+  padding: 4px 0;
+}
+
+.backlinks-section-title {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  padding: 2px 8px;
+  font-weight: 500;
+}
+
+/* ============================================================ */
+/* Relationship Panel */
+/* ============================================================ */
+
+.relationship-panel {
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--space-4);
+}
+
+.relationship-header {
+  padding: 6px 12px;
+  background-color: var(--bg-secondary);
+}
+
+.relationship-title {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.relationship-content {
+  padding: 4px 0;
+}
+
+.relationship-section {
+  padding: 4px 0;
+}
+
+.relationship-section-title {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  padding: 2px 12px;
+}
+
+.relationship-item {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 16px;
+  cursor: pointer;
+}
+
+.relationship-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.relationship-link-name {
+  font-size: var(--font-base);
+  color: var(--color-link);
+}
+
+.relationship-context {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}

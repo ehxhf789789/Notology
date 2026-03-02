@@ -1,0 +1,80 @@
+/* ===== Heading Fold/Unfold ===== */
+
+.tiptap-editor .heading-wrapper {
+  position: relative;
+}
+
+.tiptap-editor .heading-wrapper h1,
+.tiptap-editor .heading-wrapper h2,
+.tiptap-editor .heading-wrapper h3,
+.tiptap-editor .heading-wrapper h4,
+.tiptap-editor .heading-wrapper h5,
+.tiptap-editor .heading-wrapper h6 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Adjust padding for headings in wrapper to make room for toggle button */
+.tiptap-editor .heading-wrapper h1 {
+  padding-left: var(--space-4);
+}
+.tiptap-editor .heading-wrapper h2 {
+  padding-left: var(--space-3);
+}
+.tiptap-editor .heading-wrapper h3 {
+  padding-left: var(--space-2);
+}
+
+.tiptap-editor .heading-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  margin-right: var(--space-1);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted, #6c7086);
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--duration-fast) ease;
+  flex-shrink: 0;
+}
+
+.tiptap-editor .heading-wrapper:hover .heading-toggle-btn {
+  opacity: 0.7;
+}
+
+.tiptap-editor .heading-toggle-btn:hover {
+  opacity: 1;
+  background: var(--bg-hover, rgba(255, 255, 255, 0.1));
+  color: var(--text-primary, #fff);
+}
+
+.tiptap-editor .heading-wrapper.collapsed .heading-toggle-btn {
+  opacity: 1;
+  color: var(--accent-color, #7aa2f7);
+}
+
+.tiptap-editor .heading-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.tiptap-editor .heading-collapsed-indicator {
+  color: var(--text-muted, #6c7086);
+  font-weight: normal;
+  font-size: 0.75em;
+  margin-left: var(--space-4);
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+/* Hide content following collapsed headings */
+.tiptap-editor .heading-collapsed-content {
+  display: none !important;
+}

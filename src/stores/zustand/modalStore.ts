@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { ContextMenuState, VaultLockInfo } from '../../types';
-import type { FacetedTagSelection } from '../../components/TagInputSection';
+import type { FacetedTagSelection } from '../../components/shared/TagInputSection';
 
 export interface TitleInputResult {
   title: string;

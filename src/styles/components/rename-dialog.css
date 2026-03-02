@@ -1,0 +1,82 @@
+/* ============================================================ */
+/* Rename Dialog */
+/* ============================================================ */
+
+.rename-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-toast);
+}
+
+.rename-dialog {
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  width: 360px;
+  padding: var(--space-8);
+  box-shadow: var(--shadow-lg);
+}
+
+.rename-dialog-title {
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-6);
+}
+
+.rename-dialog-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: var(--font-md);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.rename-dialog-input:focus {
+  border-color: #7aa2f7;
+}
+
+.rename-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  margin-top: 14px;
+}
+
+.rename-dialog-btn {
+  padding: 6px 14px;
+  font-size: var(--font-base);
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+}
+
+.rename-dialog-btn.cancel {
+  background-color: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.rename-dialog-btn.cancel:hover {
+  background-color: var(--border-color);
+}
+
+.rename-dialog-btn.confirm {
+  background-color: #7aa2f7;
+  color: #1e1e1e;
+  font-weight: 600;
+}
+
+.rename-dialog-btn.confirm:hover {
+  background-color: #89b4fa;
+}

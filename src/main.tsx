@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import './styles/tokens.css'
 import './index.css'
 import 'tippy.js/dist/tippy.css'
 // Initialize editor pool early for fast hover window opening

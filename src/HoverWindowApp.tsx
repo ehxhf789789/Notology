@@ -15,16 +15,16 @@ import HoverCodeViewer from './components/hover/HoverCodeViewer';
 import HoverWebViewer from './components/hover/HoverWebViewer';
 import HoverDocumentViewer from './components/hover/HoverDocumentViewer';
 import ContextMenu from './components/ContextMenu';
-import RenameDialog from './components/RenameDialog';
-import ConfirmDeleteModal from './components/ConfirmDeleteModal';
-import AlertModal from './components/AlertModal';
+import RenameDialog from './components/modals/RenameDialog';
+import ConfirmDeleteModal from './components/modals/ConfirmDeleteModal';
+import AlertModal from './components/modals/AlertModal';
 import { useTheme, settingsActions } from './stores/zustand';
 import { useSettingsStore } from './stores/zustand/settingsStore';
 import { useFileTreeStore } from './stores/zustand/fileTreeStore';
 import { useDragDropListener } from './hooks/useDragDrop';
 import type { HoverWindow } from './types';
 import type { ThemeSetting } from './stores/zustand/settingsStore';
-import './App.css';
+import './styles/index.css';
 
 // Apply initial theme from URL immediately to prevent flash
 const urlTheme = new URLSearchParams(window.location.search).get('theme');

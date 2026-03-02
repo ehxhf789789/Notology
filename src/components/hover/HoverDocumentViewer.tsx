@@ -8,10 +8,10 @@ import { useLanguage } from '../../stores/zustand';
 import { t } from '../../utils/i18n';
 import { isHoverWindow } from '../../utils/multiWindow';
 import { runAnimation, HOVER_WINDOW_OPEN_DURATION, hoverWindowPropsAreEqual, type HoverEditorWindowProps } from './hoverAnimationUtils';
-import { DocxViewer } from './DocxViewer';
+import { DocxViewer } from './viewers/docx';
 import { XlsxViewer } from './XlsxViewer';
-import { PptxViewer } from './PptxViewer';
-import { HwpxViewer } from './HwpxViewer';
+import { PptxViewer } from './viewers/pptx';
+import { HwpxViewer } from './viewers/hwpx';
 import { HwpViewer } from './HwpViewer';
 
 const DEV = import.meta.env.DEV;

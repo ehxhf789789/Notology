@@ -1,0 +1,54 @@
+/* ============================================================ */
+/* YAML Editor */
+/* ============================================================ */
+
+.yaml-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.yaml-editor-error {
+  padding: 12px 16px;
+  background-color: #5a1e1e;
+  border: 1px solid #8b3434;
+  border-radius: var(--radius-sm);
+  color: #f48771;
+  font-size: var(--font-md);
+  margin-bottom: var(--space-8);
+}
+
+.yaml-editor-textarea {
+  flex: 1;
+  padding: var(--space-8);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: var(--font-md);
+  line-height: 1.6;
+  resize: none;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+.yaml-editor-textarea:focus {
+  outline: none;
+  border-color: var(--color-link);
+}
+
+.yaml-editor-hint {
+  margin-top: var(--space-8);
+  padding: var(--space-6);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-base);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.yaml-editor-hint strong {
+  color: var(--color-link);
+}

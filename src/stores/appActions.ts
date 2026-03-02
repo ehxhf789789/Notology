@@ -17,7 +17,7 @@ import { uiActions } from './zustand/uiStore';
 import { vaultConfigActions, useVaultConfigStore } from './zustand/vaultConfigStore';
 import type { RecentVault } from './zustand/vaultConfigStore';
 import type { LockAcquireResult } from '../types';
-import type { FacetedTagSelection } from '../components/TagInputSection';
+import type { FacetedTagSelection } from '../components/shared/TagInputSection';
 import { computeLevel } from '../utils/frontmatter';
 import { findTemplateForLevel, applyTemplateVariables, applyNoteTemplateVariables } from '../utils/templates';
 import { loadVaultConfig, clearVaultConfigCache } from '../utils/vaultConfigUtils';

@@ -1,0 +1,423 @@
+/* ===== TipTap Element Styles ===== */
+
+/* Task List */
+.tiptap-editor ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.tiptap-editor ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: 2px 0;
+}
+
+.tiptap-editor ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-top: 3px;
+}
+
+.tiptap-editor ul[data-type="taskList"] li > label input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  accent-color: #7aa2f7;
+}
+
+.tiptap-editor ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+.tiptap-editor ul[data-type="taskList"] li[data-checked="true"] > div {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Highlight */
+.tiptap-editor mark {
+  background-color: rgba(255, 224, 102, 0.3);
+  color: inherit;
+  border-radius: var(--radius-xs);
+  padding: 1px 2px;
+}
+
+/* Callout */
+.tiptap-editor .callout {
+  border-left: 4px solid var(--border-light);
+  padding: 10px 14px;
+  margin: 8px 0;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+
+.tiptap-editor .callout-info {
+  border-left-color: #7aa2f7;
+  background: rgba(122, 162, 247, 0.08);
+}
+
+.tiptap-editor .callout-warning {
+  border-left-color: #e0af68;
+  background: rgba(224, 175, 104, 0.08);
+}
+
+.tiptap-editor .callout-error {
+  border-left-color: #f7768e;
+  background: rgba(247, 118, 142, 0.08);
+}
+
+.tiptap-editor .callout-success {
+  border-left-color: #9ece6a;
+  background: rgba(158, 206, 106, 0.08);
+}
+
+.tiptap-editor .callout-note {
+  border-left-color: #bb9af7;
+  background: rgba(187, 154, 247, 0.08);
+}
+
+.tiptap-editor .callout-tip {
+  border-left-color: #73daca;
+  background: rgba(115, 218, 202, 0.08);
+}
+
+/* Table */
+.tiptap-editor table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+}
+
+.tiptap-editor th,
+.tiptap-editor td {
+  border: 1px solid var(--border-color);
+  padding: 6px 10px;
+  text-align: left;
+  min-width: 60px;
+}
+
+.tiptap-editor th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tiptap-editor td {
+  background: transparent;
+}
+
+.tiptap-editor .selectedCell {
+  position: relative;
+}
+
+/* Selection overlay on top of cell background color */
+.tiptap-editor .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(122, 162, 247, 0.3);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Ensure cell content stays above the overlay */
+.tiptap-editor td.selectedCell > *,
+.tiptap-editor th.selectedCell > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Subscript / Superscript */
+.tiptap-editor sub {
+  font-size: 0.75em;
+  vertical-align: sub;
+}
+
+.tiptap-editor sup {
+  font-size: 0.75em;
+  vertical-align: super;
+}
+
+/* Underline - inherits from browser default */
+
+/* Horizontal Rule - NodeView Wrapper */
+.tiptap-editor .horizontal-rule-wrapper {
+  position: relative;
+  margin: 8px 0;
+  user-select: none;
+}
+
+.tiptap-editor .horizontal-rule-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.tiptap-editor .horizontal-rule-line {
+  border: none;
+  border-top: 2px solid var(--border-color);
+  margin: 0;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.tiptap-editor .horizontal-rule-wrapper:hover .horizontal-rule-line,
+.tiptap-editor .horizontal-rule-wrapper.ProseMirror-selectednode .horizontal-rule-line {
+  border-top-color: var(--accent-color, #a78bfa);
+}
+
+/* Insert zones above and below the line */
+.tiptap-editor .horizontal-rule-insert-zone {
+  height: 12px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.tiptap-editor .horizontal-rule-wrapper:hover .horizontal-rule-insert-zone {
+  opacity: 1;
+}
+
+.tiptap-editor .horizontal-rule-insert-line {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: transparent;
+  border-radius: 1px;
+  transition: background var(--duration-fast) ease;
+}
+
+.tiptap-editor .horizontal-rule-insert-zone:hover .horizontal-rule-insert-line {
+  background: var(--accent-color, #a78bfa);
+}
+
+/* Delete button - circular design */
+.tiptap-editor .horizontal-rule-actions {
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  z-index: var(--z-raised);
+  animation: hrButtonFadeIn 0.15s ease;
+}
+
+@keyframes hrButtonFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+.tiptap-editor .horizontal-rule-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.tiptap-editor .horizontal-rule-btn svg {
+  width: 10px;
+  height: 10px;
+}
+
+.tiptap-editor .horizontal-rule-btn:hover {
+  background: #f38ba8;
+  border-color: #f38ba8;
+  color: #1e1e2e;
+  transform: scale(1.1);
+}
+
+/* Legacy hr styles for non-NodeView contexts */
+.tiptap-editor hr:not(.horizontal-rule-line) {
+  border: none;
+  border-top: 2px solid var(--border-color);
+  margin: 16px 0;
+  padding: 4px 0;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.tiptap-editor hr:not(.horizontal-rule-line).ProseMirror-selectednode,
+.tiptap-editor hr:not(.horizontal-rule-line):focus,
+.tiptap-editor hr:not(.horizontal-rule-line):hover {
+  border-top-color: var(--accent-color, #a78bfa);
+  outline: none;
+}
+
+/* Code Block improvements */
+.tiptap-editor .code-block-wrapper {
+  margin: 10px 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--code-border, #313244);
+  background: var(--code-bg, #1e1e2e);
+}
+
+.tiptap-editor .code-block-wrapper.collapsed {
+  background: var(--code-header-bg, rgba(0, 0, 0, 0.2));
+}
+
+.tiptap-editor .code-block-wrapper.collapsed .code-block-header {
+  border-bottom: none;
+}
+
+.tiptap-editor .code-block-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 6px 12px;
+  background: var(--code-header-bg, rgba(0, 0, 0, 0.2));
+  border-bottom: 1px solid var(--code-border, #313244);
+}
+
+.tiptap-editor .code-block-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--code-text, #cdd6f4);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+  flex-shrink: 0;
+}
+
+.tiptap-editor .code-block-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tiptap-editor .code-block-collapsed-info {
+  font-size: var(--font-sm);
+  color: var(--text-muted, #6c7086);
+  margin-left: auto;
+  margin-right: var(--space-4);
+}
+
+.tiptap-editor .code-block-actions {
+  display: flex;
+  gap: var(--space-2);
+  opacity: 0;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.tiptap-editor .code-block-wrapper:hover .code-block-actions {
+  opacity: 1;
+}
+
+.tiptap-editor .code-block-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--code-text, #cdd6f4);
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.tiptap-editor .code-block-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--code-border, #313244);
+}
+
+.tiptap-editor .code-block-copy-btn:hover {
+  color: var(--accent-color, #a78bfa);
+}
+
+.tiptap-editor .code-block-add-btn:hover {
+  color: #89b4fa;
+}
+
+.tiptap-editor .code-block-delete-btn:hover {
+  color: #f38ba8;
+  background: rgba(243, 139, 168, 0.1);
+}
+
+.tiptap-editor .code-block-language-select {
+  background: var(--code-select-bg, rgba(255, 255, 255, 0.1));
+  border: 1px solid var(--code-border, #313244);
+  border-radius: var(--radius-sm);
+  color: var(--code-text, #cdd6f4);
+  font-size: var(--font-base);
+  padding: 4px 8px;
+  cursor: pointer;
+  outline: none;
+  transition: background var(--duration-fast) ease, border-color var(--duration-fast) ease;
+}
+
+.tiptap-editor .code-block-language-select:hover {
+  background: var(--code-select-hover-bg, rgba(255, 255, 255, 0.15));
+  border-color: var(--accent-color, #a78bfa);
+}
+
+.tiptap-editor .code-block-language-select:focus {
+  border-color: var(--accent-color, #a78bfa);
+}
+
+.tiptap-editor .code-block-language-select option {
+  background: var(--bg-secondary, #2d2d2d);
+  color: var(--text-primary, #fff);
+}
+
+.tiptap-editor .code-block-wrapper pre {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 14px 18px;
+  margin: 0;
+  overflow-x: auto;
+}
+
+.tiptap-editor pre {
+  background: var(--code-bg, #1e1e2e);
+  border: 1px solid var(--code-border, #313244);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.tiptap-editor pre code {
+  font-family: 'Consolas', 'Monaco', 'Fira Code', 'JetBrains Mono', monospace;
+  font-size: var(--font-md);
+  line-height: 1.6;
+  color: var(--code-text, #cdd6f4);
+  background: transparent;
+}
+
+/* Inline code */
+.tiptap-editor code:not(pre code) {
+  background: var(--code-inline-bg, rgba(122, 162, 247, 0.15));
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 0.9em;
+  color: var(--code-inline-text, #7aa2f7);
+  font-family: 'Consolas', 'Monaco', 'Fira Code', monospace;
+}

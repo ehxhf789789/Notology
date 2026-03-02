@@ -1,0 +1,26 @@
+/* ===== Comment System ===== */
+
+.hover-editor-content-row {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Only limit height for folder notes */
+.hover-editor-content-row.is-folder-note {
+  flex-shrink: 0;
+  flex: none;
+  max-height: 40%;
+}
+
+.hover-editor-content-row .hover-editor-body {
+  flex: 1;
+}
+
+/* Comment highlight in editor */
+.comment-highlight {
+  background: rgba(187, 154, 247, 0.2);
+  border-bottom: 2px solid #bb9af7;
+  cursor: pointer;
+}

@@ -1,0 +1,253 @@
+/* ============================================================ */
+/* Panel Slide Animations - GPU Accelerated */
+/* ============================================================ */
+/*
+ * PERFORMANCE OPTIMIZATION:
+ * 1. All animations use GPU-only properties: transform, opacity, scale
+ * 2. translate3d() forces GPU compositing layer
+ * 3. will-change hints browser to prepare for animation
+ * 4. contain: layout style - isolates repaint/reflow
+ * 5. backface-visibility: hidden - enables 3D acceleration
+ * 6. Using cubic-bezier(0.22, 1, 0.36, 1) - smooth deceleration curve
+ */
+
+/* Sidebar Wrapper - Left Panel (GPU-optimized, smooth slide animation)
+ * OPTIMIZATION: Uses transform for GPU acceleration with smooth width transition.
+ */
+.sidebar-wrapper {
+  display: flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  contain: layout style;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  transition: width var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: var(--bg-secondary);
+}
+
+.sidebar-wrapper.open {
+  /* Width is set inline */
+}
+
+.sidebar-wrapper.closed {
+  width: 44px !important; /* Collapsed bar width */
+}
+
+/* Closing state - animating to collapsed */
+.sidebar-wrapper.closing {
+  /* Width transitions smoothly via transition property */
+}
+
+/* Sidebar content - GPU layer ready */
+.sidebar-wrapper > .sidebar {
+  flex: 1;
+  min-width: 0;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Opening animation - smooth slide in from left */
+.sidebar-wrapper.opening > .sidebar {
+  animation: sidebarOpen 0.18s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Closing animation - smooth slide out to left */
+.sidebar-wrapper.closing > .sidebar {
+  animation: sidebarClose 0.12s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+/* Divider fade animation */
+.sidebar-wrapper.opening > .divider {
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
+.sidebar-wrapper.closing > .divider {
+  animation: fadeOut 0.08s ease-out forwards;
+}
+
+.sidebar-wrapper.closed > .sidebar-collapsed-bar {
+  animation: fadeIn 0.08s ease-out forwards;
+}
+
+/* Hover Panel Wrapper - Right Panel (GPU-optimized, smooth slide animation)
+ * OPTIMIZATION: Uses transform for GPU acceleration with smooth width transition.
+ */
+.hover-panel-wrapper {
+  display: flex;
+  flex-shrink: 0;
+  overflow: hidden;
+  contain: layout style;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  transition: width var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: var(--bg-primary);
+}
+
+.hover-panel-wrapper.open {
+  /* Width is set inline */
+}
+
+.hover-panel-wrapper.closed {
+  width: 44px !important; /* Collapsed bar width */
+}
+
+/* Closing state - animating to collapsed */
+.hover-panel-wrapper.closing {
+  /* Width transitions smoothly via transition property */
+}
+
+/* Panel content - GPU layer ready (supports .right-panel) */
+.hover-panel-wrapper > .right-panel,
+.hover-panel-wrapper > .hover-windows-panel {
+  flex-shrink: 0;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Opening animation - smooth slide in from right */
+.hover-panel-wrapper.opening > .right-panel,
+.hover-panel-wrapper.opening > .hover-windows-panel {
+  animation: panelOpen 0.18s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Closing animation - smooth slide out to right */
+.hover-panel-wrapper.closing > .right-panel,
+.hover-panel-wrapper.closing > .hover-windows-panel {
+  animation: panelClose 0.12s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.hover-panel-wrapper.closed > .hover-panel-collapsed-bar {
+  animation: fadeIn 0.08s ease-out forwards;
+}
+
+/* Sidebar-specific animations - subtle slide for smooth feel */
+@keyframes sidebarOpen {
+  0% {
+    opacity: 0;
+    transform: translate3d(-16px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes sidebarClose {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-16px, 0, 0);
+  }
+}
+
+/* Panel-specific animations - subtle slide for smooth feel */
+@keyframes panelOpen {
+  0% {
+    opacity: 0;
+    transform: translate3d(16px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes panelClose {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(16px, 0, 0);
+  }
+}
+
+/* Slide animations - GPU accelerated with will-change for performance */
+@keyframes slideInLeft {
+  0% {
+    opacity: 0;
+    transform: translate3d(-100%, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slideOutLeft {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-100%, 0, 0);
+  }
+}
+
+@keyframes slideInRight {
+  0% {
+    opacity: 0;
+    transform: translate3d(100%, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slideOutRight {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* V2: Modal entrance animations */
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalOverlayEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
