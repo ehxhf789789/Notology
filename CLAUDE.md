@@ -323,7 +323,43 @@ All must include `|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx` alongside pdf/image exte
 - `rename_with_retry` in Rust: retries rename up to 3 times with delays
 - Frontend rollback: if rename fails after retries, reverts to original name
 
+## NAS-Centric Sync Architecture (v3.0.0)
+
+### Core Principle
+- **NAS WebDAV is the source of truth** — local files are synchronized copies
+- **WebDAV connection is the first prerequisite** — no vault opens without NAS
+- **VaultSelector opens as separate window** — main window hidden until vault selected
+
+### Sync Backend (`src-tauri/src/features/sync/`)
+- `webdav.rs`: RFC 4918 WebDAV client (PROPFIND/GET/PUT/DELETE/MKCOL/MOVE)
+- `engine.rs`: Sync engine with SQLite WAL queue, 3-retry backoff, etag conflict detection
+- `conflict.rs`: 3-way merge (LCS block diff), delete-conflict protection
+- `connections.rs`: Global NAS connection history (`%APPDATA%/Notology/nas-connections.json`)
+- `state.rs`: SyncConfig/SyncStatus management
+- `mod.rs`: 27+ Tauri commands
+
+### EventBus Integration (every data mutation emits an event)
+```
+Core emits:                    Sync subscribes:
+file:saved      ──────────→    onFileSaved() → queue upload
+file:deleted    ──────────→    onFileDeleted() → queue delete
+file:renamed    ──────────→    onFileDeleted(old) + onFileSaved(new) + syncNow()
+folder:created  ──────────→    onFileSaved() → MKCOL
+folder:deleted  ──────────→    onFileDeleted()
+attachment:saved ─────────→    onFileSaved()
+attachment:deleted ───────→    onFileDeleted()
+comments:saved  ──────────→    onFileSaved(commentsPath)
+vault:opened    ──────────→    init() + startMonitor()
+Tauri sync:online ────────→    syncNow() (auto-flush on reconnect)
+```
+
+### Infrastructure
+- `core/infrastructure/eventBus.ts`: Core→Feature unidirectional events
+- `core/infrastructure/slotRegistry.ts`: UI plugin slots (titlebar-status)
+
 ## Version History
+- v3.0.0: Modular architecture redesign, NAS WebDAV sync engine, NAS-centric vault management, EventBus infrastructure, VaultSelector separate window, sync resilience (retry/queue/checkpoint/conflict)
+- v2.0.0: Full UI design polish & codebase modularization
 - v1.3.1: Wikilink fix, modal redesign, time selector, legacy format handling
 - v1.3.0: Document preview system, editor performance, Synology sync, tag UI improvements
 - v1.2.1: Heading/CodeBlock fold/unfold, HR delete button, table cell colors, attachment fixes

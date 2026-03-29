@@ -53,10 +53,14 @@ export const fileCommands = {
     }),
 
   deleteFolder: (path: string) =>
-    invoke<void>('delete_folder', { path }),
+    invoke<void>('delete_folder', { path }).then(() => {
+      EventBus.emit('folder:deleted', { path });
+    }),
 
   moveFile: (oldPath: string, newPath: string) =>
-    invoke<void>('move_file', { oldPath, newPath }),
+    invoke<void>('move_file', { oldPath, newPath }).then(() => {
+      EventBus.emit('file:renamed', { oldPath, newPath });
+    }),
 
   ensureDirectory: (path: string) =>
     invoke<void>('ensure_directory', { path }),
@@ -84,19 +88,33 @@ export const fileCommands = {
 
 export const noteCommands = {
   createNote: (dirPath: string, title: string) =>
-    invoke<string>('create_note', { dirPath, title }),
+    invoke<string>('create_note', { dirPath, title }).then((path) => {
+      EventBus.emit('file:saved', { path });
+      return path;
+    }),
 
   createFolder: (parentPath: string, name: string, templateFrontmatter: string | null, templateBody: string) =>
-    invoke<string>('create_folder', { parentPath, name, templateFrontmatter, templateBody }),
+    invoke<string>('create_folder', { parentPath, name, templateFrontmatter, templateBody }).then((path) => {
+      EventBus.emit('folder:created', { path });
+      return path;
+    }),
 
   createNoteWithTemplate: (dirPath: string, fileName: string, frontmatterYaml: string, body: string) =>
-    invoke<string>('create_note_with_template', { dirPath, fileName, frontmatterYaml, body }),
+    invoke<string>('create_note_with_template', { dirPath, fileName, frontmatterYaml, body }).then((path) => {
+      EventBus.emit('file:saved', { path });
+      return path;
+    }),
 
   deleteNote: (notePath: string) =>
-    invoke<void>('delete_note', { notePath }),
+    invoke<void>('delete_note', { notePath }).then(() => {
+      EventBus.emit('file:deleted', { path: notePath });
+    }),
 
   moveNote: (notePath: string, newDir: string) =>
-    invoke<string>('move_note', { notePath, newDir }),
+    invoke<string>('move_note', { notePath, newDir }).then((newPath) => {
+      EventBus.emit('file:renamed', { oldPath: notePath, newPath });
+      return newPath;
+    }),
 
   renameFileWithLinks: (filePath: string, newName: string, vaultPath: string) =>
     invoke<string>('rename_file_with_links', { filePath, newName, vaultPath }).then((newPath) => {
@@ -105,16 +123,24 @@ export const noteCommands = {
     }),
 
   updateFrontmatter: (notePath: string, newFrontmatterYaml: string) =>
-    invoke<void>('update_note_frontmatter', { notePath, newFrontmatterYaml }),
+    invoke<void>('update_note_frontmatter', { notePath, newFrontmatterYaml }).then(() => {
+      EventBus.emit('file:saved', { path: notePath });
+    }),
 
   touchNoteModified: (notePath: string) =>
     invoke<void>('touch_note_modified', { notePath }),
 
   importAttachment: (sourcePath: string, notePath: string) =>
-    invoke<string>('import_attachment', { sourcePath, notePath }),
+    invoke<string>('import_attachment', { sourcePath, notePath }).then((path) => {
+      EventBus.emit('attachment:saved', { path });
+      return path;
+    }),
 
   importFile: (sourcePath: string, vaultPath: string, targetDir: string | null) =>
-    invoke<string>('import_file', { sourcePath, vaultPath, targetDir }),
+    invoke<string>('import_file', { sourcePath, vaultPath, targetDir }).then((path) => {
+      EventBus.emit('file:saved', { path });
+      return path;
+    }),
 };
 
 // ============================================================================
@@ -159,7 +185,12 @@ export const searchCommands = {
     invoke<number>('delete_multiple_files', { paths }),
 
   deleteAttachmentsWithLinks: (paths: string[]) =>
-    invoke<[number, number, string[]]>('delete_attachments_with_links', { paths }),
+    invoke<[number, number, string[]]>('delete_attachments_with_links', { paths }).then((result) => {
+      for (const p of paths) {
+        EventBus.emit('attachment:deleted', { path: p });
+      }
+      return result;
+    }),
 
   getGraphData: (containerPath?: string | null, includeAttachments?: boolean) =>
     invoke<GraphData>('get_graph_data', { containerPath: containerPath ?? null, includeAttachments: includeAttachments ?? false }),
@@ -191,7 +222,14 @@ export const memoCommands = {
     invoke<CommentsWithMtime>('read_comments', { notePath }),
 
   writeComments: (notePath: string, commentsJson: string) =>
-    invoke<number>('write_comments', { notePath, commentsJson }),
+    invoke<number>('write_comments', { notePath, commentsJson }).then((mtime) => {
+      // Comments are stored in {noteStem}_att/comments.json
+      const stem = notePath.replace(/\\/g, '/').split('/').pop()?.replace('.md', '') || '';
+      const dir = notePath.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
+      const commentsPath = `${dir}/${stem}_att/comments.json`;
+      EventBus.emit('comments:saved', { notePath, commentsPath });
+      return mtime;
+    }),
 
   indexNoteMemos: (notePath: string) =>
     invoke<void>('index_note_memos', { notePath }),

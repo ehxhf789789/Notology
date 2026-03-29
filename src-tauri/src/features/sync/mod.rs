@@ -285,6 +285,34 @@ pub async fn sync_on_file_saved(
     Ok(())
 }
 
+/// Get remote file content for conflict comparison.
+#[tauri::command]
+pub async fn sync_get_remote_file(
+    file_path: String,
+    sync_state: tauri::State<'_, TauriSyncState>,
+) -> Result<String, String> {
+    let guard = sync_state.engine.lock().await;
+    let engine = guard.as_ref().ok_or("Sync engine not initialized")?;
+    let config = sync_state.inner.get_config().ok_or("Not configured")?;
+    let client = WebDavClient::new(&config.url, &config.username, &config.password)?;
+    let remote_path = engine.to_remote_path(&file_path)?;
+    let bytes = client.get_file(&remote_path).await?;
+    String::from_utf8(bytes).map_err(|e| format!("Remote file is not UTF-8: {}", e))
+}
+
+/// Notify sync engine that a file was deleted.
+#[tauri::command]
+pub async fn sync_on_file_deleted(
+    file_path: String,
+    sync_state: tauri::State<'_, TauriSyncState>,
+) -> Result<(), String> {
+    let guard = sync_state.engine.lock().await;
+    if let Some(engine) = guard.as_ref() {
+        engine.on_file_deleted(&file_path).await?;
+    }
+    Ok(())
+}
+
 /// Start background connectivity monitor (30s interval).
 /// Detects offline→online transitions and flushes queue automatically.
 /// Idempotent — calling multiple times has no effect.
@@ -599,6 +627,10 @@ pub async fn sync_rename_vault(
 
     // MOVE on NAS
     client.move_resource(old_trimmed, &new_remote_path).await?;
+
+    // Verify MOVE succeeded by checking new path exists on NAS
+    let files = client.list_files(&new_remote_path).await
+        .map_err(|_| format!("NAS에서 이름 변경 후 {} 폴더를 확인할 수 없습니다. 변경이 실패했을 수 있습니다.", new_remote_path))?;
 
     // Update connections.json
     let mut data = connections::load_connections()?;

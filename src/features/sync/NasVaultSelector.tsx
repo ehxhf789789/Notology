@@ -24,7 +24,21 @@ type Phase =
  */
 async function validateVaultsAgainstNas(conn: import('./syncCommands').NasConnection) {
   for (const vault of conn.vaults) {
-    // Extract folder name from remote_path (NAS truth)
+    // Verify vault actually exists on NAS
+    try {
+      const exists = await syncCommands.checkVault(conn.url, conn.username, conn.password, vault.remote_path);
+      if (!exists) {
+        // Vault path exists but no .notology → might be wrong path
+        console.warn(`[validateVaults] ${vault.remote_path} exists but is not a Notology vault`);
+      }
+    } catch {
+      // Vault path doesn't exist on NAS at all
+      console.error(`[validateVaults] ${vault.remote_path} NOT FOUND on NAS — vault may have been moved or deleted`);
+      // Don't auto-fix — let user handle this
+      continue;
+    }
+
+    // Sync display name with NAS folder name
     const nasName = vault.remote_path.replace(/\/+$/, '').split('/').pop() || vault.name;
     if (nasName !== vault.name) {
       console.log(`[validateVaults] Syncing name: "${vault.name}" → "${nasName}" (NAS truth)`);
@@ -160,14 +174,25 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
     };
 
     window.addEventListener('focus', checkMainWindow);
-    // Also check periodically (main window might close while selector is in background)
-    const interval = setInterval(checkMainWindow, 3000);
+    const interval = setInterval(() => {
+      checkMainWindow();
+      // Also refresh vault list to update sync times
+      if (connectionId) {
+        nasCommands.loadConnections().then(data => {
+          const conn = data.connections.find(c => c.id === connectionId);
+          if (conn) {
+            setVaults(conn.vaults);
+            if (data.last_active) setLastActiveRemotePath(data.last_active.remote_path);
+          }
+        }).catch(() => {});
+      }
+    }, 10000); // Refresh every 10 seconds
 
     return () => {
       window.removeEventListener('focus', checkMainWindow);
       clearInterval(interval);
     };
-  }, []);
+  }, [connectionId]);
 
   // Listen for download progress + online recovery
   useEffect(() => {

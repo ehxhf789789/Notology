@@ -292,6 +292,8 @@ pub fn run() {
             features::sync::sync_resolve_conflict,
             features::sync::sync_init,
             features::sync::sync_on_file_saved,
+            features::sync::sync_on_file_deleted,
+            features::sync::sync_get_remote_file,
             features::sync::sync_start_monitor,
             features::sync::sync_browse_folder,
             features::sync::sync_check_vault,

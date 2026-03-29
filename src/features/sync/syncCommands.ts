@@ -46,6 +46,12 @@ export const syncCommands = {
   onFileSaved: (filePath: string) =>
     invoke<void>('sync_on_file_saved', { filePath }),
 
+  onFileDeleted: (filePath: string) =>
+    invoke<void>('sync_on_file_deleted', { filePath }),
+
+  getRemoteFile: (filePath: string) =>
+    invoke<string>('sync_get_remote_file', { filePath }),
+
   startMonitor: () =>
     invoke<void>('sync_start_monitor'),
 

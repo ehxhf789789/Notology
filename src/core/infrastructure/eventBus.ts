@@ -14,6 +14,13 @@ export interface EventMap {
   'file:saved': { path: string };
   'file:deleted': { path: string };
   'file:renamed': { oldPath: string; newPath: string };
+  'folder:created': { path: string };
+  'folder:deleted': { path: string };
+  'folder:renamed': { oldPath: string; newPath: string };
+  'attachment:saved': { path: string };
+  'attachment:deleted': { path: string };
+  'comments:saved': { notePath: string; commentsPath: string };
+  'config:saved': { path: string };
   'vault:opened': { path: string };
   'vault:closed': {};
 }

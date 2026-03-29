@@ -40,8 +40,15 @@ export function ConflictResolverPanel({ onClose }: ConflictResolverPanelProps) {
       }
     })();
 
-    // Remote content would need a separate command — for now show placeholder
-    setRemoteContent(ko ? '(NAS 버전 — 동기화 해결 후 확인 가능)' : '(NAS version — available after resolution)');
+    // Fetch remote content from NAS
+    (async () => {
+      try {
+        const remote = await syncCommands.getRemoteFile(currentFile);
+        setRemoteContent(remote);
+      } catch {
+        setRemoteContent(ko ? '(NAS 버전을 불러올 수 없습니다)' : '(Cannot load NAS version)');
+      }
+    })();
   }, [currentFile, ko]);
 
   const handleResolve = useCallback(async (choice: ConflictChoice) => {
