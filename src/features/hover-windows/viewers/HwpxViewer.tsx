@@ -1,0 +1,1 @@
+export { HwpxViewer } from './hwpx';

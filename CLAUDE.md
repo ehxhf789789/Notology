@@ -1,5 +1,53 @@
 # Notology - Claude Code Project Guide
 
+## ⚠️ 아키텍처 원칙 (모든 작업 전 필독)
+
+### 폴더 책임
+- `src/core/` : 편집기, 파일트리, 검색, 그래프 — Notology의 본관
+- `src/features/{name}/` : sync, mobile, ai, export 등 — 독립 부설 모듈
+- `src-tauri/src/core/` : 파일 I/O, 검색 인덱스, 볼트 관리
+- `src-tauri/src/features/{name}/` : 동기화, 내보내기 등 부가 기능
+
+### 황금 규칙
+1. Core 파일을 직접 수정하지 않는다
+   새 기능 때문에 Editor.tsx, FileTree.tsx 등을 건드리는 순간 설계가 무너진다
+2. Feature → Core 방향으로만 참조한다
+   Core가 Feature를 import하면 안 된다
+3. 통신은 EventBus로만 한다
+```typescript
+   // Core: 이벤트 발행만
+   EventBus.emit('file:saved', { path, content })
+
+   // Feature: 이벤트 구독
+   EventBus.on('file:saved', ({ path }) => syncToNas(path))
+```
+4. 새 기능 추가 시 체크리스트
+   - [ ] src/features/{name}/ 폴더 생성했는가
+   - [ ] Core 파일을 수정하지 않았는가
+   - [ ] 이 Feature를 삭제해도 앱이 정상 작동하는가
+
+### 금지 패턴
+```typescript
+// ❌ 금지: Core 컴포넌트 안에 feature 코드 삽입
+// Editor.tsx
+const handleSave = async () => {
+  await saveFile(content)
+  await webdavSync(content)  // ← 금지
+}
+
+// ✅ 허용: Feature가 Core 이벤트를 구독
+// features/sync/SyncModule.ts
+EventBus.on('file:saved', async ({ path }) => {
+  await webdavSync(path)
+})
+```
+
+### 현재 Feature 모듈 목록
+- `features/sync/` : WebDAV 기반 NAS 동기화 (구현 예정)
+- `features/mobile/` : 모바일 전용 UI 레이어 (구현 예정)
+- `features/export/` : PDF/HTML/Docx 내보내기 (구현 예정)
+- `features/ai/` : AI 제안 기능 (구현 예정)
+
 ## Project Overview
 Notology is a personal knowledge management (PKM) application built with Tauri + React + TipTap editor.
 It's a markdown-based note-taking app similar to Obsidian, with support for wikilinks, attachments, canvas, and Synology NAS sync.
@@ -12,30 +60,90 @@ It's a markdown-based note-taking app similar to Obsidian, with support for wiki
 - **Styling**: CSS (App.css)
 - **Build**: GitHub Actions workflow for Windows releases
 
-## Key Directories
+## Architecture (v2.1+)
+
+### Modular Architecture
+The codebase follows a Core + Features architecture:
+- **Core** (`src/core/`): Platform essentials — removing a feature must NOT break core
+- **Features** (`src/features/`): Independent modules — each can be removed without affecting core
+- **Communication**: Core ↔ Feature via Zustand stores (frontend) and Tauri Commands (backend)
+
+### Path Aliases (tsconfig + vite)
+```
+@core/*      → src/core/*
+@features/*  → src/features/*
+@services/*  → src/core/services/*
+```
+New code SHOULD use these aliases. Existing code uses relative paths (both work).
+
+### Frontend Directory Structure
 ```
 src/
-├── components/       # React components
-│   ├── HoverEditor.tsx    # Main hover window editor (2000+ lines)
-│   ├── EditorToolbar.tsx  # Toolbar with formatting buttons
-│   ├── EditorContextMenu.tsx  # Right-click context menu
-│   ├── HeadingView.tsx    # Custom heading NodeView with fold/unfold
-│   ├── CodeBlockView.tsx  # Custom code block NodeView with fold/unfold
-│   └── HorizontalRuleView.tsx  # Custom HR NodeView with delete button
-├── extensions/       # TipTap extensions
-│   ├── HeadingWithAlign.ts      # Heading with collapse support
-│   ├── CodeBlockWithHighlight.ts # Code block with syntax highlighting
-│   ├── ParagraphWithIndent.ts   # Paragraph with indent/alignment
-│   ├── HorizontalRuleNoGap.ts   # HR with keyboard shortcuts
-│   └── TableHeaderWithColor.ts  # Table with cell background colors
-├── hooks/           # Custom React hooks
-│   └── useDragDrop.ts     # File drag-drop handling
-├── stores/zustand/  # Zustand stores
-├── services/        # Tauri command wrappers
-└── utils/           # Utility functions
-    ├── editorConfig.ts    # TipTap editor configuration
-    └── editorPool.ts      # Editor instance pooling
+├── core/                    # Barrel re-exports to original files
+│   ├── app/                 # App.tsx, HoverWindowApp.tsx
+│   ├── editor/              # editorConfig, editorPool, editorSaveRegistry
+│   ├── stores/              # fileTreeStore, uiStore, settingsStore, refreshStore, etc.
+│   ├── services/            # tauriCommands (fileCommands, noteCommands, etc.)
+│   ├── layout/              # TitleBar, Sidebar, RightPanel, RibbonBar
+│   ├── hooks/               # useDragDrop, useAppKeyboardShortcuts, useModalListeners
+│   └── utils/               # i18n, frontmatter, shortcuts, multiWindow, windowSync, etc.
+├── features/                # Independent feature modules (barrel re-exports)
+│   ├── note-editor/         # ContainerView, EditorToolbar, useContentLoader
+│   ├── hover-windows/       # hoverStore, HoverEditor, all viewers (docx/pptx/hwpx/xlsx)
+│   ├── search/              # Search, SearchFilters, SearchResultItem
+│   ├── canvas/              # CanvasEditor, useCanvasInteraction
+│   ├── tags/                # tagOntologyUtils, TagPanel, FacetedTagEditor
+│   ├── metadata/            # YamlEditor, useFrontmatter
+│   ├── comments/            # CommentPanel, useNoteComments
+│   ├── templates/           # templateStore, TemplateEditor, templates
+│   ├── graph/               # GraphView
+│   ├── calendar/            # Calendar
+│   ├── context-menu/        # ContextMenu
+│   ├── vault-config/        # vaultConfigStore, VaultSelector, VaultLockModal
+│   ├── content-cache/       # contentCacheStore, noteTypeCacheStore
+│   ├── modals/              # modalStore, all input/action modals
+│   ├── settings/            # Settings, KeyboardShortcuts
+│   ├── suggestions/         # wikiLinkSuggestion, attachmentSuggestion
+│   ├── folder-tree/         # FolderTree
+│   └── shared/              # LoadingScreen, ParticipantInput, TagInputSection
+├── components/              # Original component files (source of truth)
+├── extensions/              # TipTap extensions (source of truth)
+├── hooks/                   # Custom React hooks (source of truth)
+├── stores/                  # Zustand stores (source of truth)
+├── services/                # Tauri command wrappers (source of truth)
+└── utils/                   # Utility functions (source of truth)
 ```
+
+### Backend Directory Structure (Rust)
+```
+src-tauri/src/
+├── lib.rs                   # Module registration + run() (~160 lines)
+├── core/
+│   ├── types.rs             # Shared structs (FileNode, FileContent, etc.)
+│   └── file_io.rs           # Atomic writes, file locks, backup, rename_with_retry
+├── features/
+│   ├── note.rs              # Note/file CRUD (25 commands)
+│   ├── wikilink.rs          # WikiLink rename, backlinks, parallel update
+│   ├── attachment.rs        # Attachment search, delete, canvas link detection
+│   ├── tags.rs              # Bulk tag add/rename/delete
+│   ├── preview.rs           # LibreOffice → PDF, HWP → SVG
+│   ├── note_lock.rs         # Per-note editing locks (Synology safe)
+│   ├── cache.rs             # Meta cache, batch frontmatter reads
+│   ├── comments.rs          # Comments/memos, calendar memos
+│   ├── system.rs            # GPU, NAS detection, URL metadata, window management
+│   └── search_commands.rs   # Search index init/query/reindex
+├── search/                  # Tantivy full-text search engine
+├── frontmatter/             # YAML frontmatter parsing
+├── memo/                    # Comments/memos indexing
+└── vault_lock.rs            # Multi-device vault locking
+```
+
+### Migration Strategy
+- `src/core/` and `src/features/` contain **barrel re-export files** (index.ts)
+- Original source files remain in their current locations
+- New features go directly into `src/features/{name}/` with actual source files
+- Over time, source files can be physically moved into core/features structure
+- The barrel approach ensures zero breakage during incremental migration
 
 ## Important Implementation Patterns
 

@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "2.0.0"
+version = "3.0.0"
 description = "Notology - Personal Knowledge Management"
 authors = ["you"]
 license = ""
@@ -38,7 +38,9 @@ serde_yaml = "0.9"
 notify = "7"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
 opener = "0.7"
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.12", features = ["blocking", "rustls-tls"] }
+quick-xml = "0.37"
+rusqlite = { version = "0.31", features = ["bundled"] }
 scraper = "0.21"
 url = "2.5"
 jsonschema = "0.22"

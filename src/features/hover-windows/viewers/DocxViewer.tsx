@@ -1,0 +1,1 @@
+export { DocxViewer } from './docx';

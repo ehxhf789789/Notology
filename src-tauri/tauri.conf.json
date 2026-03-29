@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Notology",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "identifier": "com.notology.app",
   "plugins": {
     "updater": {
@@ -30,7 +30,8 @@
         "fullscreen": false,
         "decorations": false,
         "titleBarStyle": "Overlay",
-        "backgroundColor": [30, 30, 30, 255]
+        "backgroundColor": [30, 30, 30, 255],
+        "visible": false
       }
     ],
     "withGlobalTauri": true,

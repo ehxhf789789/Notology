@@ -1,0 +1,330 @@
+import { invoke } from '@tauri-apps/api/core';
+import type {
+  FileNode, FileContent, SearchResult, NoteMetadata, NoteFilter, AttachmentInfo,
+  CalendarMemo, LockAcquireResult, NasPlatformInfo, GraphData,
+} from '../types';
+import { EventBus } from '../infrastructure/eventBus';
+
+// Types not in ../types - defined locally
+export interface FrontmatterOnly {
+  path: string;
+  frontmatter: string | null;
+  mtime: number;
+}
+
+export interface FileMeta {
+  path: string;
+  mtime: number;
+}
+
+export interface UrlMetadata {
+  title: string;
+  description: string;
+  image: string;
+  favicon: string;
+}
+
+export interface AttachmentFileInfo {
+  file_name: string;
+  path: string;
+  is_image: boolean;
+  mtime: number;
+}
+
+// ============================================================================
+// File Commands
+// ============================================================================
+
+export const fileCommands = {
+  readDirectory: (path: string) =>
+    invoke<FileNode[]>('read_directory', { path }),
+
+  readFile: (path: string) =>
+    invoke<FileContent>('read_file', { path }),
+
+  writeFile: (path: string, frontmatter: string | null, body: string) =>
+    invoke<void>('write_file', { path, frontmatter, body }).then(() => {
+      EventBus.emit('file:saved', { path });
+    }),
+
+  deleteFile: (path: string) =>
+    invoke<void>('delete_file', { path }).then(() => {
+      EventBus.emit('file:deleted', { path });
+    }),
+
+  deleteFolder: (path: string) =>
+    invoke<void>('delete_folder', { path }),
+
+  moveFile: (oldPath: string, newPath: string) =>
+    invoke<void>('move_file', { oldPath, newPath }),
+
+  ensureDirectory: (path: string) =>
+    invoke<void>('ensure_directory', { path }),
+
+  readTextFile: (path: string) =>
+    invoke<string>('read_text_file', { path }),
+
+  checkFileExists: (path: string) =>
+    invoke<boolean>('check_file_exists', { path }),
+
+  listFilesInDirectory: (path: string, extension: string) =>
+    invoke<string[]>('list_files_in_directory', { path, extension }),
+
+  getFileMtime: (path: string) =>
+    invoke<number>('get_file_mtime', { path }),
+
+  /** Read attachment folder contents with mtime, sorted by most recent first */
+  readAttachmentFolder: (attFolderPath: string, query: string) =>
+    invoke<AttachmentFileInfo[]>('read_attachment_folder', { attFolderPath, query }),
+};
+
+// ============================================================================
+// Note Commands
+// ============================================================================
+
+export const noteCommands = {
+  createNote: (dirPath: string, title: string) =>
+    invoke<string>('create_note', { dirPath, title }),
+
+  createFolder: (parentPath: string, name: string, templateFrontmatter: string | null, templateBody: string) =>
+    invoke<string>('create_folder', { parentPath, name, templateFrontmatter, templateBody }),
+
+  createNoteWithTemplate: (dirPath: string, fileName: string, frontmatterYaml: string, body: string) =>
+    invoke<string>('create_note_with_template', { dirPath, fileName, frontmatterYaml, body }),
+
+  deleteNote: (notePath: string) =>
+    invoke<void>('delete_note', { notePath }),
+
+  moveNote: (notePath: string, newDir: string) =>
+    invoke<string>('move_note', { notePath, newDir }),
+
+  renameFileWithLinks: (filePath: string, newName: string, vaultPath: string) =>
+    invoke<string>('rename_file_with_links', { filePath, newName, vaultPath }).then((newPath) => {
+      EventBus.emit('file:renamed', { oldPath: filePath, newPath });
+      return newPath;
+    }),
+
+  updateFrontmatter: (notePath: string, newFrontmatterYaml: string) =>
+    invoke<void>('update_note_frontmatter', { notePath, newFrontmatterYaml }),
+
+  touchNoteModified: (notePath: string) =>
+    invoke<void>('touch_note_modified', { notePath }),
+
+  importAttachment: (sourcePath: string, notePath: string) =>
+    invoke<string>('import_attachment', { sourcePath, notePath }),
+
+  importFile: (sourcePath: string, vaultPath: string, targetDir: string | null) =>
+    invoke<string>('import_file', { sourcePath, vaultPath, targetDir }),
+};
+
+// ============================================================================
+// Search Commands
+// ============================================================================
+
+export const searchCommands = {
+  initIndex: (vaultPath: string) =>
+    invoke<void>('init_search_index', { vaultPath }),
+
+  resetSearchState: () =>
+    invoke<void>('reset_search_state'),
+
+  fullTextSearch: (query: string, limit?: number) =>
+    invoke<SearchResult[]>('full_text_search', { query, limit }),
+
+  queryNotes: (filter: NoteFilter) =>
+    invoke<NoteMetadata[]>('query_notes', { filter }),
+
+  indexNote: (path: string) =>
+    invoke<void>('index_note', { path }),
+
+  removeFromIndex: (path: string) =>
+    invoke<void>('remove_note_from_index', { path }),
+
+  reindexVault: () =>
+    invoke<void>('reindex_vault'),
+
+  clearIndex: (vaultPath: string) =>
+    invoke<void>('clear_search_index', { vaultPath }),
+
+  searchAttachments: (vaultPath: string, query: string) =>
+    invoke<AttachmentInfo[]>('search_attachments', { vaultPath, query }),
+
+  getAllUsedTags: () =>
+    invoke<string[]>('get_all_used_tags'),
+
+  getSuggestionTerms: (limit?: number) =>
+    invoke<[string, number][]>('get_suggestion_terms', { limit }),
+
+  deleteMultipleFiles: (paths: string[]) =>
+    invoke<number>('delete_multiple_files', { paths }),
+
+  deleteAttachmentsWithLinks: (paths: string[]) =>
+    invoke<[number, number, string[]]>('delete_attachments_with_links', { paths }),
+
+  getGraphData: (containerPath?: string | null, includeAttachments?: boolean) =>
+    invoke<GraphData>('get_graph_data', { containerPath: containerPath ?? null, includeAttachments: includeAttachments ?? false }),
+
+  bulkDeleteTag: (tag: string) =>
+    invoke<{ affected_count: number; failed_paths: string[]; cancelled: boolean }>('bulk_delete_tag', { tag }),
+
+  bulkRenameTag: (oldTag: string, newTag: string) =>
+    invoke<{ affected_count: number; failed_paths: string[]; cancelled: boolean }>('bulk_rename_tag', { oldTag, newTag }),
+
+  bulkAddTags: (paths: string[], tag: string) =>
+    invoke<{ affected_count: number; failed_paths: string[]; cancelled: boolean }>('bulk_add_tags', { paths, tag }),
+
+  cancelBulkOperation: () =>
+    invoke<void>('cancel_bulk_operation'),
+};
+
+// ============================================================================
+// Memo Commands
+// ============================================================================
+
+export interface CommentsWithMtime {
+  comments: string;
+  mtime: number;
+}
+
+export const memoCommands = {
+  readComments: (notePath: string) =>
+    invoke<CommentsWithMtime>('read_comments', { notePath }),
+
+  writeComments: (notePath: string, commentsJson: string) =>
+    invoke<number>('write_comments', { notePath, commentsJson }),
+
+  indexNoteMemos: (notePath: string) =>
+    invoke<void>('index_note_memos', { notePath }),
+
+  collectCalendarMemos: (containerPath: string) =>
+    invoke<CalendarMemo[]>('collect_calendar_memos', { containerPath }),
+};
+
+// ============================================================================
+// Vault Commands
+// ============================================================================
+
+export const vaultCommands = {
+  acquireLock: (vaultPath: string, force: boolean) =>
+    invoke<LockAcquireResult>('acquire_lock', { vaultPath, force }),
+
+  releaseLock: (vaultPath: string) =>
+    invoke<void>('release_lock', { vaultPath }),
+
+  cleanupOldBackups: (vaultPath: string) =>
+    invoke<number>('cleanup_old_backups', { vaultPath }),
+
+  detectNasPlatform: (vaultPath: string) =>
+    invoke<NasPlatformInfo>('detect_nas_platform', { vaultPath }),
+};
+
+// ============================================================================
+// Note Lock Commands
+// ============================================================================
+
+export interface NoteLockInfo {
+  machine_id: string;
+  hostname: string;
+  file_path: string;
+  locked_at: string;
+  heartbeat: string;
+}
+
+export const noteLockCommands = {
+  acquireNoteLock: (vaultPath: string, notePath: string) =>
+    invoke<void>('acquire_note_lock', { vaultPath, notePath }),
+
+  releaseNoteLock: (vaultPath: string, notePath: string) =>
+    invoke<void>('release_note_lock', { vaultPath, notePath }),
+
+  updateHeartbeat: (vaultPath: string, notePath: string) =>
+    invoke<void>('update_note_lock_heartbeat', { vaultPath, notePath }),
+
+  checkNoteLock: (vaultPath: string, notePath: string) =>
+    invoke<NoteLockInfo | null>('check_note_lock', { vaultPath, notePath }),
+};
+
+// ============================================================================
+// Cache Commands
+// ============================================================================
+
+export const cacheCommands = {
+  readMetaCache: (vaultPath: string) =>
+    invoke<string>('read_meta_cache', { vaultPath }),
+
+  writeMetaCache: (vaultPath: string, cacheJson: string) =>
+    invoke<void>('write_meta_cache', { vaultPath, cacheJson }),
+
+  readFrontmattersBatch: (paths: string[]) =>
+    invoke<FrontmatterOnly[]>('read_frontmatters_batch', { paths }),
+
+  getFilesMtime: (paths: string[]) =>
+    invoke<FileMeta[]>('get_files_mtime', { paths }),
+};
+
+// ============================================================================
+// Frontmatter Commands
+// ============================================================================
+
+export const frontmatterCommands = {
+  parseFrontmatter: <T>(content: string) =>
+    invoke<T>('parse_frontmatter', { content }),
+
+  validateFrontmatter: <T>(frontmatterJson: string) =>
+    invoke<T>('validate_frontmatter', { frontmatterJson }),
+
+  frontmatterToYaml: (frontmatterJson: string) =>
+    invoke<string>('frontmatter_to_yaml', { frontmatterJson }),
+
+  yamlToFrontmatter: <T>(yamlStr: string) =>
+    invoke<T>('yaml_to_frontmatter', { yamlStr }),
+};
+
+// ============================================================================
+// Utility Commands
+// ============================================================================
+
+export const utilCommands = {
+  openInDefaultApp: (path: string) =>
+    invoke<void>('open_in_default_app', { path }),
+
+  revealInExplorer: (path: string) =>
+    invoke<void>('reveal_in_explorer', { path }),
+
+  openUrlInBrowser: (url: string) =>
+    invoke<void>('open_url_in_browser', { url }),
+
+  fetchUrlMetadata: (url: string) =>
+    invoke<UrlMetadata>('fetch_url_metadata', { url }),
+
+  toggleDevtools: () =>
+    invoke<void>('toggle_devtools'),
+};
+
+// ============================================================================
+// Document Preview Commands
+// ============================================================================
+
+export interface PreviewEngineInfo {
+  available: boolean;
+  engine: string;
+  path: string | null;
+}
+
+export const previewCommands = {
+  checkPreviewEngine: () =>
+    invoke<PreviewEngineInfo>('check_preview_engine'),
+
+  convertToPreviewPdf: (filePath: string) =>
+    invoke<string>('convert_to_preview_pdf', { filePath }),
+
+  cleanupPreviewCache: (maxAgeDays?: number) =>
+    invoke<number>('cleanup_preview_cache', { maxAgeDays }),
+
+  readBinaryFile: (path: string) =>
+    invoke<number[]>('read_binary_file', { path }),
+
+  // HWP rendering via Rust hwpers crate
+  renderHwpToSvg: (path: string) =>
+    invoke<string>('render_hwp_to_svg', { path }),
+};

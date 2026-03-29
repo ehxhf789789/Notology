@@ -1,0 +1,1 @@
+export { PptxViewer } from './pptx';

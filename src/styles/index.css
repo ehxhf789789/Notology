@@ -62,6 +62,7 @@
 @import './features/canvas-editor.css';
 @import './features/calendar.css';
 @import './features/loading-screen.css';
+@import './features/sync.css';
 
 /* ── Metadata ── */
 @import './metadata/yaml-editor.css';
