@@ -336,7 +336,7 @@ impl SyncQueue {
 pub struct SyncEngine {
     pub queue: SyncQueue,
     pub state: std::sync::Arc<SyncState>,
-    vault_path: String,
+    pub vault_path: String,
 }
 
 impl SyncEngine {
@@ -360,7 +360,7 @@ impl SyncEngine {
         Ok(format!("{}/{}", config.remote_base.trim_end_matches('/'), rel))
     }
 
-    fn to_relative_path(&self, local_path: &str) -> Result<String, String> {
+    pub fn to_relative_path(&self, local_path: &str) -> Result<String, String> {
         let vault = Path::new(&self.vault_path);
         let local = Path::new(local_path);
         let rel = local.strip_prefix(vault)
@@ -614,7 +614,8 @@ impl SyncEngine {
     pub async fn pull_changes(&self) -> Result<Vec<String>, String> {
         let client = self.client()?;
         let config = self.config()?;
-        let remote_files = client.list_files(&config.remote_base).await?;
+        // Recursive listing to include all subdirectories
+        let remote_files = self.list_remote_recursive(&client, &config.remote_base).await?;
         let mut manifest = SyncManifest::load(&self.vault_path);
         let mut updated = Vec::new();
 
@@ -713,6 +714,26 @@ impl SyncEngine {
         if let Ok(client) = self.client() {
             client.test_connection().await.unwrap_or(false)
         } else { false }
+    }
+
+    /// Recursively list all files on NAS (not just depth=1).
+    fn list_remote_recursive<'a>(&'a self, client: &'a WebDavClient, path: &'a str)
+        -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<super::webdav::RemoteFile>, String>> + Send + 'a>>
+    {
+        Box::pin(async move {
+            let entries = client.list_files(path).await?;
+            let mut all = Vec::new();
+            for entry in &entries {
+                all.push(entry.clone());
+                if entry.is_collection {
+                    match self.list_remote_recursive(client, &entry.path).await {
+                        Ok(sub) => all.extend(sub),
+                        Err(e) => log::warn!("[sync] Failed to list {}: {}", entry.path, e),
+                    }
+                }
+            }
+            Ok(all)
+        })
     }
 }
 

@@ -39,18 +39,20 @@ EventBus.on('file:renamed', ({ oldPath, newPath }) => {
   setTimeout(() => syncCommands.syncNow().catch(() => {}), 2000);
 });
 
-// Folder events
-EventBus.on('folder:created', ({ path }) => {
-  syncCommands.onFileSaved(path).catch(() => {}); // MKCOL on NAS
+// Folder events — use full sync instead of individual delete/create
+// to avoid losing folder contents on NAS
+EventBus.on('folder:created', () => {
+  setTimeout(() => syncCommands.syncNow().catch(() => {}), 2000);
 });
 
-EventBus.on('folder:deleted', ({ path }) => {
-  syncCommands.onFileDeleted(path).catch(() => {});
+EventBus.on('folder:deleted', () => {
+  setTimeout(() => syncCommands.syncNow().catch(() => {}), 2000);
 });
 
-EventBus.on('folder:renamed', ({ oldPath, newPath }) => {
-  syncCommands.onFileDeleted(oldPath).catch(() => {});
-  syncCommands.onFileSaved(newPath).catch(() => {});
+EventBus.on('folder:renamed', () => {
+  // Folder rename is complex (all internal files move too)
+  // Use full sync to detect all changes safely
+  setTimeout(() => syncCommands.syncNow().catch(() => {}), 2000);
 });
 
 // Attachment events

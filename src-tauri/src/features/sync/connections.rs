@@ -5,6 +5,11 @@ use serde::{Serialize, Deserialize};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
+
+/// Global mutex for connections.json read-modify-write atomicity.
+static CONNECTIONS_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NasConnections {
@@ -124,6 +129,7 @@ pub fn save_connections(data: &NasConnections) -> Result<(), String> {
 
 /// Add or update a connection. Returns the connection ID.
 pub fn upsert_connection(url: &str, username: &str, password: &str, display_name: &str) -> Result<String, String> {
+    let _lock = CONNECTIONS_LOCK.lock().map_err(|e| format!("lock: {}", e))?;
     let mut data = load_connections()?;
     let id = make_connection_id(url, username);
 
@@ -171,6 +177,7 @@ pub fn find_port_changed_connection(url: &str, username: &str) -> Result<Option<
 /// Migrate an old connection's vaults to a new connection (port change).
 /// Moves vault entries + updates local_cache_path references without re-downloading.
 pub fn migrate_port_change(old_connection_id: &str, new_url: &str, new_username: &str, new_password: &str) -> Result<String, String> {
+    let _lock = CONNECTIONS_LOCK.lock().map_err(|e| format!("lock: {}", e))?;
     let mut data = load_connections()?;
     let new_id = make_connection_id(new_url, new_username);
 
@@ -245,6 +252,7 @@ pub fn add_vault_to_connection(
     remote_path: &str,
     vault_name: &str,
 ) -> Result<String, String> {
+    let _lock = CONNECTIONS_LOCK.lock().map_err(|e| format!("lock: {}", e))?;
     let mut data = load_connections()?;
     let conn = data.connections.iter_mut()
         .find(|c| c.id == connection_id)
@@ -283,6 +291,7 @@ pub fn add_vault_to_connection(
 
 /// Remove a vault from a connection.
 pub fn remove_vault_from_connection(connection_id: &str, remote_path: &str) -> Result<(), String> {
+    let _lock = CONNECTIONS_LOCK.lock().map_err(|e| format!("lock: {}", e))?;
     let mut data = load_connections()?;
     if let Some(conn) = data.connections.iter_mut().find(|c| c.id == connection_id) {
         conn.vaults.retain(|v| v.remote_path != remote_path);
@@ -298,6 +307,7 @@ pub fn remove_vault_from_connection(connection_id: &str, remote_path: &str) -> R
 
 /// Remove an entire connection.
 pub fn remove_connection(connection_id: &str) -> Result<(), String> {
+    let _lock = CONNECTIONS_LOCK.lock().map_err(|e| format!("lock: {}", e))?;
     let mut data = load_connections()?;
     data.connections.retain(|c| c.id != connection_id);
     if let Some(ref la) = data.last_active {
@@ -310,6 +320,7 @@ pub fn remove_connection(connection_id: &str) -> Result<(), String> {
 
 /// Set last active vault.
 pub fn set_last_active(connection_id: &str, remote_path: &str) -> Result<(), String> {
+    let _lock = CONNECTIONS_LOCK.lock().map_err(|e| format!("lock: {}", e))?;
     let mut data = load_connections()?;
     data.last_active = Some(LastActiveVault {
         connection_id: connection_id.to_string(),
@@ -320,6 +331,7 @@ pub fn set_last_active(connection_id: &str, remote_path: &str) -> Result<(), Str
 
 /// Update last_synced for a vault.
 pub fn update_vault_sync_time(connection_id: &str, remote_path: &str) -> Result<(), String> {
+    let _lock = CONNECTIONS_LOCK.lock().map_err(|e| format!("lock: {}", e))?;
     let mut data = load_connections()?;
     if let Some(conn) = data.connections.iter_mut().find(|c| c.id == connection_id) {
         if let Some(vault) = conn.vaults.iter_mut().find(|v| v.remote_path == remote_path) {

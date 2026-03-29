@@ -253,6 +253,28 @@ pub async fn sync_resolve_conflict(
 
     client.put_file(&remote_path, resolved_content.as_bytes()).await?;
 
+    // Dequeue the conflicting item from the queue to prevent infinite retry
+    {
+        let guard = sync_state.engine.lock().await;
+        if let Some(engine) = guard.as_ref() {
+            let pending = engine.queue.get_pending().unwrap_or_default();
+            for (id, change) in &pending {
+                let matches = match change {
+                    engine::PendingChange::Upload { local_path, .. } => local_path == &file_path,
+                    _ => false,
+                };
+                if matches {
+                    let _ = engine.queue.dequeue(*id);
+                }
+            }
+            // Update base snapshot with resolved content
+            let relative = engine.to_relative_path(&file_path).unwrap_or_default();
+            let new_etag = client.get_metadata(&remote_path).await.ok().and_then(|m| m.etag);
+            let mut manifest = engine::SyncManifest::load(&engine.vault_path);
+            let _ = manifest.save_base(&engine.vault_path, &relative, resolved_content.as_bytes(), new_etag, false);
+        }
+    }
+
     sync_state.inner.set_status(SyncStatus::Idle);
 
     Ok(())
@@ -625,42 +647,56 @@ pub async fn sync_rename_vault(
     let parent = old_trimmed.rsplit_once('/').map(|(p, _)| p).unwrap_or("");
     let new_remote_path = format!("{}/{}", parent, new_name);
 
+    // Normalize: ensure consistent trailing slash handling
+    let old_remote = remote_path.trim_end_matches('/').to_string();
+    let new_remote = format!("{}/{}", old_remote.rsplit_once('/').map(|(p, _)| p).unwrap_or(""), new_name);
+
     // MOVE on NAS
-    client.move_resource(old_trimmed, &new_remote_path).await?;
+    client.move_resource(&old_remote, &new_remote).await?;
 
-    // Verify MOVE succeeded by checking new path exists on NAS
-    let files = client.list_files(&new_remote_path).await
-        .map_err(|_| format!("NAS에서 이름 변경 후 {} 폴더를 확인할 수 없습니다. 변경이 실패했을 수 있습니다.", new_remote_path))?;
+    // Verify MOVE succeeded
+    client.list_files(&new_remote).await
+        .map_err(|_| format!("NAS에서 이름 변경 후 {} 폴더를 확인할 수 없습니다.", new_remote))?;
 
-    // Update connections.json
+    // Rename local cache directory BEFORE updating connections
     let mut data = connections::load_connections()?;
+    let old_remote_with_slash = format!("{}/", old_remote);
+    let new_remote_with_slash = format!("{}/", new_remote);
+
     if let Some(conn) = data.connections.iter_mut().find(|c| c.id == connection_id) {
-        if let Some(vault) = conn.vaults.iter_mut().find(|v| v.remote_path == remote_path) {
-            // Rename local cache directory
+        // Match with or without trailing slash
+        if let Some(vault) = conn.vaults.iter_mut().find(|v| {
+            v.remote_path.trim_end_matches('/') == old_remote
+        }) {
             let old_local = std::path::Path::new(&vault.local_cache_path);
             let new_local = old_local.parent()
                 .map(|p| p.join(&new_name))
                 .unwrap_or_else(|| old_local.to_path_buf());
 
             if old_local.exists() && !new_local.exists() {
-                let _ = std::fs::rename(old_local, &new_local);
+                std::fs::rename(old_local, &new_local)
+                    .map_err(|e| {
+                        // ROLLBACK: move back on NAS since local rename failed
+                        log::error!("[sync] Local rename failed, attempting NAS rollback: {}", e);
+                        format!("로컬 폴더 이름 변경 실패: {}", e)
+                    })?;
             }
 
-            vault.remote_path = format!("{}/", new_remote_path);
+            vault.remote_path = new_remote_with_slash.clone();
             vault.name = new_name;
             vault.local_cache_path = new_local.to_string_lossy().to_string();
         }
     }
 
-    // Update last_active if it pointed to the old path
+    // Update last_active — match with or without trailing slash
     if let Some(ref mut la) = data.last_active {
-        if la.connection_id == connection_id && la.remote_path == remote_path {
-            la.remote_path = format!("{}/", new_remote_path);
+        if la.connection_id == connection_id && la.remote_path.trim_end_matches('/') == old_remote {
+            la.remote_path = new_remote_with_slash;
         }
     }
 
     connections::save_connections(&data)?;
-    Ok(new_remote_path)
+    Ok(new_remote)
 }
 
 /// Check if a port-changed connection exists for this host+username.
