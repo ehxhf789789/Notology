@@ -293,8 +293,23 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
 
   const handleSelectVault = useCallback(async (vault: NasVaultEntry) => {
     await nasCommands.setLastActive(connectionId, vault.remote_path).catch(() => {});
+
+    // Configure sync engine for this vault (writes sync-config.json inside vault)
+    await syncCommands.connect(url, username, password, vault.local_cache_path).catch((e) => {
+      console.warn('[VaultSelector] sync_connect failed:', e);
+    });
+
+    // Pull latest changes from NAS before opening
+    setPhase('downloading');
+    setDownloadProgress({ total: 0, current: 0, file: '동기화 중...' });
+    try {
+      await nasCommands.initialDownload(url, username, password, vault.remote_path, vault.local_cache_path);
+    } catch (e) {
+      console.warn('[VaultSelector] initial sync failed:', e);
+    }
+
     onVaultSelected(vault.local_cache_path, vault.name);
-  }, [connectionId, onVaultSelected]);
+  }, [connectionId, url, username, password, onVaultSelected]);
 
   const handleOpenExistingVault = useCallback(async (selectedPath: string) => {
     setError('');
