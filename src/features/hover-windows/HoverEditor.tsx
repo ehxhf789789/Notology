@@ -508,7 +508,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   const handleCanvasChange = useCallback((data: CanvasData) => {
     const jsonBody = JSON.stringify(data, null, 2);
     setCanvasData(data);
-    bodyRef.current = jsonBody; // Keep ref in sync for emergency save
+    setBody(jsonBody); // Sync body state so bodyRef stays current across re-renders
     setIsDirty(true);
 
     const currentComments = commentsRef.current;
