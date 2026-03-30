@@ -3,7 +3,7 @@
  * Rendered when URL has ?vault-selector=true or window label is "vault-selector".
  * When a vault is selected, emits a Tauri event and closes itself.
  */
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { emit } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
@@ -16,6 +16,17 @@ import '../../styles/index.css';
 import './index';
 
 export function VaultSelectorWindow() {
+  // Dynamic theme from system preference
+  const [theme, setTheme] = useState(() => {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+  useEffect(() => {
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setTheme(e.matches ? 'dark' : 'light');
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
   // Custom titlebar drag
   useEffect(() => {
     const header = document.querySelector('.vault-selector-window-header');
@@ -42,7 +53,7 @@ export function VaultSelectorWindow() {
   }, []);
 
   return (
-    <div className="vault-selector-window" data-theme="dark">
+    <div className="vault-selector-window" data-theme={theme}>
       <div className="vault-selector-window-header">
         <span className="vault-selector-window-title">Notology</span>
         <button className="vault-selector-window-close" onClick={handleClose}>×</button>

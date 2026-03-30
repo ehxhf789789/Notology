@@ -151,7 +151,7 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
           if (conn.vaults.length > 0) {
             setPhase('offline');
           } else {
-            setError('NAS에 연결할 수 없습니다. 네트워크를 확인하세요.');
+            setError('WebDAV에 연결할 수 없습니다. 네트워크를 확인하세요.');
             setPhase('connect');
           }
         }
@@ -351,7 +351,7 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
       <div className="nas-vault-selector">
         <div className="nas-section">
           <div className="nas-loading">
-            {phase === 'loading' ? '설정 확인 중...' : 'NAS 연결 중...'}
+            {phase === 'loading' ? '설정 확인 중...' : 'WebDAV 연결 중...'}
           </div>
         </div>
       </div>
@@ -362,7 +362,7 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
     <div className="nas-vault-selector">
       {/* ── Connection Section ── */}
       <div className="nas-section">
-        <div className="nas-section-title"><Cloud size={16} /> NAS 연결</div>
+        <div className="nas-section-title"><Cloud size={16} /> WebDAV 연결</div>
 
         {phase === 'connect' ? (
           <div className="nas-connect-form">
@@ -400,7 +400,7 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
         <div className="nas-section">
           <div className="nas-section-title">오프라인 모드</div>
           <div className="nas-offline-warning">
-            NAS에 연결할 수 없습니다. 로컬 사본 보관소를 열 수 있습니다.
+            WebDAV에 연결할 수 없습니다. 로컬 사본 보관소를 열 수 있습니다.
             온라인으로 전환되면 자동으로 변경사항이 동기화됩니다.
           </div>
           {vaults.length > 0 ? (
@@ -428,7 +428,7 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
           </div>
 
           {vaults.length === 0 && (
-            <p className="nas-empty">연결된 NAS에 등록된 보관소가 없습니다.</p>
+            <p className="nas-empty">연결된 WebDAV에 등록된 보관소가 없습니다.</p>
           )}
 
           {vaults.map(v => {
@@ -519,14 +519,14 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
               <span className="nas-action-icon"><FolderOpen size={16} /></span>
               <div className="nas-action-text">
                 <strong>보관소 열기</strong>
-                <span>NAS에서 기존 보관소 폴더를 선택</span>
+                <span>WebDAV에서 기존 보관소 폴더를 선택</span>
               </div>
             </button>
             <button className="nas-action-card" onClick={() => { setError(''); setPhase('browse-create'); }}>
               <span className="nas-action-icon"><Plus size={16} /></span>
               <div className="nas-action-text">
                 <strong>보관소 생성</strong>
-                <span>NAS에 새 보관소를 만듭니다</span>
+                <span>WebDAV에 새 보관소를 만듭니다</span>
               </div>
             </button>
           </div>

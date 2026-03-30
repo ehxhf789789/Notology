@@ -1,3 +1,4 @@
+pub mod provider;
 pub mod webdav;
 pub mod state;
 pub mod engine;
