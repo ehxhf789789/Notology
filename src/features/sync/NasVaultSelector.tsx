@@ -422,115 +422,115 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
 
       {/* ── Vault List (Online) ── */}
       {phase === 'vaults' && (
-        <div className="nas-section">
-          <div className="nas-section-title">
-            {vaults.length > 0 ? '보관소 목록' : '보관소 없음'}
+        <>
+          <div className="nas-section">
+            <div className="nas-vault-section-header">등록된 보관소</div>
+
+            {vaults.length === 0 ? (
+              <p className="nas-empty">연결된 WebDAV에 등록된 보관소가 없습니다.</p>
+            ) : (
+              <div className="nas-vault-list-section">
+                {vaults.map(v => {
+                  const normalizeP = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+                  const isCurrent = mainVaultPath
+                    ? normalizeP(mainVaultPath) === normalizeP(v.local_cache_path)
+                    : (mainWindowActive && !!lastActiveRemotePath && normalizeP(lastActiveRemotePath) === normalizeP(v.remote_path));
+                  return (
+                    <div
+                      key={v.remote_path}
+                      className={`nas-vault-item ${isCurrent ? 'current' : ''}`}
+                      onClick={() => !isCurrent && handleSelectVault(v)}
+                    >
+                      <span className="nas-vault-icon"><Package size={16} /></span>
+                      <div className="nas-vault-info">
+                        {renamingVault === v.remote_path ? (
+                          <form className="nas-vault-rename-form" onSubmit={e => {
+                            e.preventDefault();
+                            if (renameValue.trim() && renameValue !== v.name) {
+                              nasCommands.renameVault(url, username, password, connectionId, v.remote_path, renameValue.trim()).then(() => {
+                                nasCommands.loadConnections().then(data => {
+                                  const conn = data.connections.find(c => c.id === connectionId);
+                                  if (conn) { setVaults(conn.vaults); setConnection(conn); }
+                                  if (isCurrent && conn) {
+                                    const renamed = conn.vaults.find(vv => vv.name === renameValue.trim());
+                                    if (renamed) onVaultSelected(renamed.local_cache_path, renamed.name);
+                                  }
+                                });
+                              }).catch(e => setError(e?.toString() || '이름 변경 실패'));
+                            }
+                            setRenamingVault(null);
+                          }}>
+                            <input
+                              className="nas-vault-rename-input"
+                              value={renameValue}
+                              onChange={e => setRenameValue(e.target.value)}
+                              autoFocus
+                              onBlur={() => setRenamingVault(null)}
+                              onKeyDown={e => { if (e.key === 'Escape') setRenamingVault(null); }}
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </form>
+                        ) : (
+                          <span className="nas-vault-name">
+                            {v.name}
+                            {isCurrent && <span className="nas-vault-current-badge">현재</span>}
+                          </span>
+                        )}
+                        <span className="nas-vault-path">{v.remote_path}</span>
+                      </div>
+                      <div className="nas-vault-meta">
+                        {v.last_synced && <span className="nas-vault-synced">{formatTimeAgo(v.last_synced)}</span>}
+                        <div className="nas-vault-actions-inline" onClick={e => e.stopPropagation()}>
+                          <button
+                            className="nas-vault-action-btn"
+                            title="이름 변경"
+                            onClick={() => {
+                              setRenamingVault(v.remote_path);
+                              setRenameValue(v.name);
+                            }}
+                          ><Pencil size={14} /></button>
+                          {!isCurrent && (
+                            <button
+                              className="nas-vault-action-btn danger"
+                              title="보관소 삭제"
+                              onClick={() => {
+                                nasCommands.removeVault(connectionId, v.remote_path, false).then(() => {
+                                  nasCommands.loadConnections().then(data => {
+                                    const conn = data.connections.find(c => c.id === connectionId);
+                                    if (conn) { setVaults(conn.vaults); setConnection(conn); }
+                                  });
+                                });
+                              }}
+                            ><Trash2 size={14} /></button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {error && <div className="nas-error">{error}</div>}
           </div>
 
-          {vaults.length === 0 && (
-            <p className="nas-empty">연결된 WebDAV에 등록된 보관소가 없습니다.</p>
-          )}
-
-          {vaults.map(v => {
-            const normalizeP = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
-            // "현재" = main window is visible AND has this vault open
-            const isCurrent = mainVaultPath
-              ? normalizeP(mainVaultPath) === normalizeP(v.local_cache_path)
-              : (mainWindowActive && !!lastActiveRemotePath && normalizeP(lastActiveRemotePath) === normalizeP(v.remote_path));
-            return (
-              <div
-                key={v.remote_path}
-                className={`nas-vault-item ${isCurrent ? 'current' : ''}`}
-                onClick={() => !isCurrent && handleSelectVault(v)}
-              >
-                <span className="nas-vault-icon"><Package size={16} /></span>
-                <div className="nas-vault-info">
-                  {renamingVault === v.remote_path ? (
-                    <form className="nas-vault-rename-form" onSubmit={e => {
-                      e.preventDefault();
-                      if (renameValue.trim() && renameValue !== v.name) {
-                        nasCommands.renameVault(url, username, password, connectionId, v.remote_path, renameValue.trim()).then(() => {
-                          nasCommands.loadConnections().then(data => {
-                            const conn = data.connections.find(c => c.id === connectionId);
-                            if (conn) { setVaults(conn.vaults); setConnection(conn); }
-                            // If this was the current vault, reopen with new path
-                            if (isCurrent && conn) {
-                              const renamed = conn.vaults.find(vv => vv.name === renameValue.trim());
-                              if (renamed) onVaultSelected(renamed.local_cache_path, renamed.name);
-                            }
-                          });
-                        }).catch(e => setError(e?.toString() || '이름 변경 실패'));
-                      }
-                      setRenamingVault(null);
-                    }}>
-                      <input
-                        className="nas-vault-rename-input"
-                        value={renameValue}
-                        onChange={e => setRenameValue(e.target.value)}
-                        autoFocus
-                        onBlur={() => setRenamingVault(null)}
-                        onKeyDown={e => { if (e.key === 'Escape') setRenamingVault(null); }}
-                        onClick={e => e.stopPropagation()}
-                      />
-                    </form>
-                  ) : (
-                    <span className="nas-vault-name">
-                      {v.name}
-                      {isCurrent && <span className="nas-vault-current-badge">현재</span>}
-                    </span>
-                  )}
-                  <span className="nas-vault-path">{v.remote_path}</span>
-                </div>
-                <div className="nas-vault-meta">
-                  {v.last_synced && <span className="nas-vault-synced">{formatTimeAgo(v.last_synced)}</span>}
-                  <div className="nas-vault-actions-inline" onClick={e => e.stopPropagation()}>
-                    <button
-                      className="nas-vault-action-btn"
-                      title="이름 변경"
-                      onClick={() => {
-                        setRenamingVault(v.remote_path);
-                        setRenameValue(v.name);
-                      }}
-                    ><Pencil size={14} /></button>
-                    {!isCurrent && (
-                      <button
-                        className="nas-vault-action-btn danger"
-                        title="보관소 삭제"
-                        onClick={() => {
-                          nasCommands.removeVault(connectionId, v.remote_path, false).then(() => {
-                            nasCommands.loadConnections().then(data => {
-                              const conn = data.connections.find(c => c.id === connectionId);
-                              if (conn) { setVaults(conn.vaults); setConnection(conn); }
-                            });
-                          });
-                        }}
-                      ><Trash2 size={14} /></button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {error && <div className="nas-error">{error}</div>}
-
-          <div className="nas-vault-actions">
+          <div className="nas-action-section">
             <button className="nas-action-card" onClick={() => { setError(''); setPhase('browse-open'); }}>
-              <span className="nas-action-icon"><FolderOpen size={16} /></span>
-              <div className="nas-action-text">
-                <strong>보관소 열기</strong>
-                <span>WebDAV에서 기존 보관소 폴더를 선택</span>
+              <span className="nas-action-card-icon"><FolderOpen size={18} /></span>
+              <div className="nas-action-card-text">
+                <span className="nas-action-card-title">보관소 열기</span>
+                <span className="nas-action-card-desc">WebDAV에서 기존 보관소 폴더를 선택</span>
               </div>
             </button>
             <button className="nas-action-card" onClick={() => { setError(''); setPhase('browse-create'); }}>
-              <span className="nas-action-icon"><Plus size={16} /></span>
-              <div className="nas-action-text">
-                <strong>보관소 생성</strong>
-                <span>WebDAV에 새 보관소를 만듭니다</span>
+              <span className="nas-action-card-icon"><Plus size={18} /></span>
+              <div className="nas-action-card-text">
+                <span className="nas-action-card-title">보관소 생성</span>
+                <span className="nas-action-card-desc">WebDAV에 새 보관소를 만듭니다</span>
               </div>
             </button>
           </div>
-        </div>
+        </>
       )}
 
       {/* ── Browse: Open ── */}
