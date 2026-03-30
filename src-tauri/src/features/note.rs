@@ -109,9 +109,9 @@ pub async fn write_file(
     body: String,
     _state: tauri::State<'_, Mutex<SearchState>>,
 ) -> Result<(), String> {
-    // Detect canvas/SKETCH body
     let trimmed_body = body.trim_start();
     let is_canvas = trimmed_body.starts_with("{\"nodes\":") || trimmed_body.starts_with("{ \"nodes\":");
+    log::info!("[write_file] path={} fm_len={:?} is_canvas={} body_len={}", path, frontmatter.as_ref().map(|s| s.len()), is_canvas, body.len());
 
     let content = match &frontmatter {
         Some(fm) if is_canvas && (fm.trim().is_empty() || !fm.contains("canvas")) => {
