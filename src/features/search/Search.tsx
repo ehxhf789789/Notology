@@ -530,7 +530,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       }
 
       // Open window on confirmed double-click
-      hoverActions.open(path);
+      hoverActions.open(path, noteType);
       return;
     }
 
