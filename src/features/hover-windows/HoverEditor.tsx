@@ -88,6 +88,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   const isCanvasNote = !!(frontmatter?.canvas || (!frontmatter && body.trimStart().startsWith('{"nodes":')));
   const [isDirty, setIsDirty] = useState(false);
   const mtimeOnLoadRef = useRef<number>(0);
+  const lastSaveTimeRef = useRef<number>(0);
   const [editorMenuPos, setEditorMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [canvasData, setCanvasData] = useState<CanvasData>({ nodes: [], edges: [] });
   const [canvasSelection, setCanvasSelection] = useState<CanvasSelection | null>(null);
@@ -333,13 +334,19 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     if (mtimeOnLoadRef.current > 0) {
       const currentMtime = await fileCommands.getFileMtime(win.filePath);
       if (currentMtime > mtimeOnLoadRef.current) {
-        log(`[HoverEditor] External modification detected, showing conflict UI`);
-        setConflictState({
-          myContent: bodyToSave,
-          myFrontmatter: { ...fm },
-          externalMtime: currentMtime,
-        });
-        return;
+        // Check if this was our own recent save (within 5 seconds)
+        const timeSinceOurSave = Date.now() - (lastSaveTimeRef.current || 0);
+        if (timeSinceOurSave > 5000) {
+          log(`[HoverEditor] External modification detected, showing conflict UI`);
+          setConflictState({
+            myContent: bodyToSave,
+            myFrontmatter: { ...fm },
+            externalMtime: currentMtime,
+          });
+          return;
+        }
+        // Our own save — update mtime reference
+        mtimeOnLoadRef.current = currentMtime;
       }
     }
 
@@ -367,6 +374,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       setFrontmatter(updatedFm);
       setIsDirty(false);
       markAsSelfSaved(win.filePath);
+      lastSaveTimeRef.current = Date.now();
 
       const estimatedMtime = Date.now();
       contentCacheActions.updateContent(win.filePath, bodyToSave, updatedFm, estimatedMtime);
