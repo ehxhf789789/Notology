@@ -402,8 +402,17 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
-      const ed = editorRef.current;
       const fm = frontmatterRef.current;
+      // Canvas notes: save canvas data, not TipTap markdown
+      if (fm?.canvas) {
+        if (isDirtyRef.current && !isLoadingRef.current) {
+          const updatedFm = { ...fm, modified: getCurrentTimestamp() };
+          const fmString = serializeFrontmatter(updatedFm);
+          fileCommands.writeFile(win.filePath, fmString, bodyRef.current).catch(() => {});
+        }
+        return;
+      }
+      const ed = editorRef.current;
       if (isDirtyRef.current && ed && !ed.isDestroyed && fm && !isLoadingRef.current) {
         const markdown = (ed.storage as any).markdown.getMarkdown();
         const updatedFm = { ...fm, modified: getCurrentTimestamp() };
