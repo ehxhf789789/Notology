@@ -326,7 +326,9 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   const saveFile = useCallback(async (currentBody?: string) => {
     const fm = frontmatterRef.current;
     const bodyToSave = currentBody !== undefined ? currentBody : bodyRef.current;
-    if (!win.filePath || !fm) return;
+    const isCanvas = bodyToSave?.trimStart().startsWith('{"nodes":');
+    console.log('[saveFile]', { hasFm: !!fm, isCanvas, bodyLen: bodyToSave?.length, isLoading: isLoadingRef.current, mtime: mtimeOnLoadRef.current });
+    if (!win.filePath || !fm) { console.log('[saveFile] SKIP: no path or fm'); return; }
 
     if (isLoadingRef.current) {
       log('[HoverEditor] saveFile skipped -- content still loading');
@@ -336,7 +338,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     if (mtimeOnLoadRef.current > 0) {
       const currentMtime = await fileCommands.getFileMtime(win.filePath);
       if (currentMtime > mtimeOnLoadRef.current) {
-        log(`[HoverEditor] External modification detected, showing conflict UI`);
+        console.log('[saveFile] CONFLICT: mtime changed', { stored: mtimeOnLoadRef.current, current: currentMtime });
         setConflictState({
           myContent: bodyToSave,
           myFrontmatter: { ...fm },
