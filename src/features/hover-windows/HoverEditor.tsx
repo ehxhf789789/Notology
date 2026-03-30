@@ -834,7 +834,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
           className={`hover-editor-body${frontmatter?.cssclasses ? ' ' + frontmatter.cssclasses.join(' ') : ''}`}
           style={isCanvasNote ? undefined : { zoom: hoverZoomLevel / 100 }}
         >
-          {(isContentLoading || (!editor && !isCanvasNote)) ? (
+          {(isContentLoading || (!editor && !isCanvasNote && win.noteType?.toUpperCase() !== 'SKETCH')) ? (
             <div className="hover-editor-skeleton">
               <div className="skeleton-line skeleton-title" />
               <div className="skeleton-line skeleton-full" />
@@ -843,7 +843,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
               <div className="skeleton-line skeleton-full" />
               <div className="skeleton-line skeleton-medium" />
             </div>
-          ) : isCanvasNote ? (
+          ) : (isCanvasNote || win.noteType?.toUpperCase() === 'SKETCH') ? (
             <CanvasEditor
               data={canvasData}
               onChange={handleCanvasChange}
