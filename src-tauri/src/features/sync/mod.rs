@@ -297,33 +297,49 @@ pub async fn sync_on_file_saved(
     file_path: String,
     sync_state: tauri::State<'_, TauriSyncState>,
 ) -> Result<(), String> {
-    // If engine not initialized yet, try to init from vault path
-    {
-        let guard = sync_state.engine.lock().await;
-        if guard.is_none() {
-            // Try to determine vault path from file path and init
-            let vault_path = file_path.split(".notology").next()
-                .or_else(|| {
-                    // Walk up to find .notology dir
-                    let mut p = std::path::Path::new(&file_path);
-                    while let Some(parent) = p.parent() {
-                        if parent.join(".notology").exists() {
-                            return Some(parent.to_str().unwrap_or(""));
-                        }
-                        p = parent;
-                    }
-                    None
-                });
-            if let Some(vp) = vault_path {
-                drop(guard); // Release lock before init
-                let _ = sync_state.init_engine(vp).await;
-            }
-        }
-    }
-
     let guard = sync_state.engine.lock().await;
     if let Some(engine) = guard.as_ref() {
         engine.on_file_saved(&file_path).await?;
+
+        // Spawn a background task to flush the queue after a short delay.
+        // This avoids blocking the current Tauri command handler.
+        let inner = Arc::clone(&sync_state.inner);
+        let vault_path = engine.vault_path.clone();
+        drop(guard); // Release lock before spawning
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            // Re-create engine for flush (lightweight)
+            if let Some(config) = inner.get_config() {
+                if let Ok(client) = WebDavClient::new(&config.url, &config.username, &config.password) {
+                    if let Ok(queue) = engine::SyncQueue::open(&vault_path) {
+                        let pending = queue.get_pending().unwrap_or_default();
+                        for (id, change) in &pending {
+                            match change {
+                                engine::PendingChange::Upload { local_path, remote_path, relative_path, .. } => {
+                                    if let Ok(content) = std::fs::read(local_path) {
+                                        let _ = engine::SyncEngine::ensure_remote_dirs(&client, remote_path).await;
+                                        if client.put_file(remote_path, &content).await.is_ok() {
+                                            let _ = queue.dequeue(*id);
+                                            inner.set_status(SyncStatus::Idle);
+                                        }
+                                    }
+                                }
+                                engine::PendingChange::Delete { remote_path, .. } => {
+                                    if client.delete_file(remote_path).await.is_ok() {
+                                        let _ = queue.dequeue(*id);
+                                    }
+                                }
+                                engine::PendingChange::Mkdir { remote_path, .. } => {
+                                    let _ = client.mkdir(remote_path).await;
+                                    let _ = queue.dequeue(*id);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        return Ok(());
         // Update last_synced timestamp
         if let Some(config) = sync_state.inner.get_config() {
             let conn_id = connections::make_connection_id(&config.url, &config.username);
@@ -379,15 +395,25 @@ pub async fn sync_start_monitor(
 
     // We need the config to create a client for connectivity checks.
     // The monitor re-reads config each iteration so it picks up changes.
+    // Clone engine mutex for the monitor task
+    let engine_mutex = sync_state.engine.lock().await;
+    let has_engine = engine_mutex.is_some();
+    drop(engine_mutex);
+
+    if !has_engine {
+        return Ok(());
+    }
+
     tokio::spawn(async move {
         let mut was_offline = false;
 
         loop {
-            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+            // Check every 10 seconds for pending queue items
+            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
             let config = match inner.get_config() {
                 Some(c) => c,
-                None => continue, // Not configured yet
+                None => continue,
             };
 
             let client = match WebDavClient::new(&config.url, &config.username, &config.password) {
@@ -397,13 +423,16 @@ pub async fn sync_start_monitor(
 
             let online = client.test_connection().await.unwrap_or(false);
 
-            if online && was_offline {
-                log::info!("[sync-monitor] Online again — emit sync:online");
-                inner.set_status(SyncStatus::Idle);
-                let _ = app_handle.emit("sync:online", ());
-                // Frontend should call sync_now() when it receives sync:online
-                was_offline = false;
-            } else if !online && !was_offline {
+            if online {
+                if was_offline {
+                    log::info!("[sync-monitor] Online again");
+                    inner.set_status(SyncStatus::Idle);
+                    let _ = app_handle.emit("sync:online", ());
+                    was_offline = false;
+                }
+                // Flush pending queue items (individual PUT, not full recursive sync)
+                let _ = app_handle.emit("sync:flush-queue", ());
+            } else if !was_offline {
                 log::info!("[sync-monitor] Offline detected");
                 inner.set_status(SyncStatus::Offline);
                 let _ = app_handle.emit("sync:offline", ());
