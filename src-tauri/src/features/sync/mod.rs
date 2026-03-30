@@ -297,6 +297,30 @@ pub async fn sync_on_file_saved(
     file_path: String,
     sync_state: tauri::State<'_, TauriSyncState>,
 ) -> Result<(), String> {
+    // If engine not initialized yet, try to init from vault path
+    {
+        let guard = sync_state.engine.lock().await;
+        if guard.is_none() {
+            // Try to determine vault path from file path and init
+            let vault_path = file_path.split(".notology").next()
+                .or_else(|| {
+                    // Walk up to find .notology dir
+                    let mut p = std::path::Path::new(&file_path);
+                    while let Some(parent) = p.parent() {
+                        if parent.join(".notology").exists() {
+                            return Some(parent.to_str().unwrap_or(""));
+                        }
+                        p = parent;
+                    }
+                    None
+                });
+            if let Some(vp) = vault_path {
+                drop(guard); // Release lock before init
+                let _ = sync_state.init_engine(vp).await;
+            }
+        }
+    }
+
     let guard = sync_state.engine.lock().await;
     if let Some(engine) = guard.as_ref() {
         engine.on_file_saved(&file_path).await?;
