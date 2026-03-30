@@ -77,6 +77,11 @@ function HoverWindowApp() {
     if (isClosingRef.current) return;
     isClosingRef.current = true;
     setIsClosing(true);
+    // Flush all pending saves before closing
+    const { flushAllEditorSaves } = await import('../editor/editorSaveRegistry');
+    flushAllEditorSaves();
+    // Wait for save IPC to complete
+    await new Promise(resolve => setTimeout(resolve, 300));
     // Wait for fade-out animation
     await new Promise(resolve => setTimeout(resolve, CLOSE_ANIMATION_DURATION));
     windowRef.current.close();

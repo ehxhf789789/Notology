@@ -600,7 +600,11 @@ impl SyncEngine {
         }
 
         // NAS changed → need merge
-        if Self::is_binary(relative_path) {
+        // SKETCH (canvas JSON): treat like binary — can't 3-way text merge JSON
+        let local_is_sketch = std::str::from_utf8(&local_content).ok()
+            .map(|s| s.contains("canvas: true") || s.trim_start().starts_with("{\"nodes\":"))
+            .unwrap_or(false);
+        if local_is_sketch || Self::is_binary(relative_path) {
             // Binary: can't 3-way merge → keep both, backup old
             log::info!("[sync] Binary conflict: {}, keeping local + backup remote", relative_path);
             // Download remote as .conflict backup

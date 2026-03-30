@@ -493,10 +493,11 @@ export function useCloseMinimize({
         } catch (err) {
           console.error('[HoverWindow] Conflict auto-save FAILED on close:', err);
         }
-      } else if (isDirty && frontmatter && editor) {
+      } else if (isDirty && frontmatter) {
         // Save before closing if dirty
         try {
-          const currentBody = (editor.storage as any).markdown.getMarkdown();
+          // SKETCH: use body state (canvas JSON), not TipTap markdown
+          const currentBody = frontmatter.canvas ? body : (editor ? (editor.storage as any).markdown.getMarkdown() : body);
           await saveFile(currentBody);
           // Explicitly wait for indexing to complete BEFORE closing
           // This ensures search index is updated before the window is destroyed
@@ -561,7 +562,8 @@ export function useCloseMinimize({
 
     // Save before closing
     if (isDirty && frontmatter) {
-      const currentBody = editor ? (editor.storage as any).markdown.getMarkdown() : body;
+      // SKETCH: use body state (canvas JSON), not TipTap markdown
+      const currentBody = frontmatter.canvas ? body : (editor ? (editor.storage as any).markdown.getMarkdown() : body);
       const syncGrace = remoteLock ? new Promise(r => setTimeout(r, 2000)) : Promise.resolve();
       await syncGrace;
       await saveFile(currentBody).catch(err => console.error('Background save failed:', err));

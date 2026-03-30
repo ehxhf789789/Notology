@@ -293,14 +293,17 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         }
         const ed = editorRef.current;
         const fm = frontmatterRef.current;
-        if (isDirtyRef.current && ed && !ed.isDestroyed && fm && !isLoadingRef.current) {
-          const markdown = (ed.storage as any).markdown.getMarkdown();
+        if (isDirtyRef.current && fm && !isLoadingRef.current) {
           const updatedFm = { ...fm, modified: getCurrentTimestamp() };
           const fmString = serializeFrontmatter(updatedFm);
-          fileCommands.writeFile(win.filePath, fmString, markdown).catch(() => {});
+          // SKETCH: use bodyRef (canvas JSON), not TipTap markdown
+          const content = fm.canvas ? bodyRef.current : (ed && !ed.isDestroyed ? (ed.storage as any).markdown.getMarkdown() : bodyRef.current);
+          fileCommands.writeFile(win.filePath, fmString, content).catch(() => {});
         }
-        ed.off('update');
-        editorPool.release(ed);
+        if (ed && !ed.isDestroyed) {
+          ed.off('update');
+          editorPool.release(ed);
+        }
         editorRef.current = null;
       }
       editorAcquiredRef.current = false;
@@ -330,8 +333,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       return;
     }
 
-    // Skip mtime check for canvas JSON (Rust backend protects SKETCH files)
-    if (!bodyToSave.trimStart().startsWith('{"nodes":') && mtimeOnLoadRef.current > 0) {
+    if (mtimeOnLoadRef.current > 0) {
       const currentMtime = await fileCommands.getFileMtime(win.filePath);
       if (currentMtime > mtimeOnLoadRef.current) {
         log(`[HoverEditor] External modification detected, showing conflict UI`);
@@ -403,13 +405,14 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
-      const ed = editorRef.current;
       const fm = frontmatterRef.current;
-      if (isDirtyRef.current && ed && !ed.isDestroyed && fm && !isLoadingRef.current) {
-        const markdown = (ed.storage as any).markdown.getMarkdown();
+      if (isDirtyRef.current && fm && !isLoadingRef.current) {
         const updatedFm = { ...fm, modified: getCurrentTimestamp() };
         const fmString = serializeFrontmatter(updatedFm);
-        fileCommands.writeFile(win.filePath, fmString, markdown).catch(() => {});
+        // SKETCH: use bodyRef (canvas JSON), not TipTap markdown
+        const ed = editorRef.current;
+        const content = fm.canvas ? bodyRef.current : (ed && !ed.isDestroyed ? (ed.storage as any).markdown.getMarkdown() : bodyRef.current);
+        fileCommands.writeFile(win.filePath, fmString, content).catch(() => {});
       }
     });
     return () => unregisterEditorSave(win.id);
@@ -480,7 +483,9 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
   // ========== CANVAS CHANGE ==========
   const handleCanvasChange = useCallback((data: CanvasData) => {
+    const jsonBody = JSON.stringify(data, null, 2);
     setCanvasData(data);
+    setBody(jsonBody);
     setIsDirty(true);
 
     const currentComments = commentsRef.current;
