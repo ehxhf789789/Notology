@@ -677,7 +677,8 @@ impl SyncEngine {
     async fn push_missing(&self) -> Result<(), String> {
         let client = self.client()?;
         let config = self.config()?;
-        let remote_files = client.list_files(&config.remote_base).await?;
+        // Recursive listing to catch all nested files
+        let remote_files = self.list_remote_recursive(&client, &config.remote_base).await?;
         let remote_paths: std::collections::HashSet<String> = remote_files.iter()
             .map(|f| f.path.strip_prefix(&config.remote_base).unwrap_or(&f.path).trim_start_matches('/').to_string())
             .collect();
