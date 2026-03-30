@@ -422,8 +422,8 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
 
       {/* ── Vault List (Online) ── */}
       {phase === 'vaults' && (
-        <>
-          <div className="nas-section">
+        <div className="nas-vaults-layout">
+          <div className="nas-vaults-left">
             <div className="nas-vault-section-header">등록된 보관소</div>
 
             {vaults.length === 0 ? (
@@ -514,23 +514,24 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
             {error && <div className="nas-error">{error}</div>}
           </div>
 
-          <div className="nas-action-section">
+          <div className="nas-vaults-right">
+            <div className="nas-vault-section-header">관리</div>
             <button className="nas-action-card" onClick={() => { setError(''); setPhase('browse-open'); }}>
               <span className="nas-action-card-icon"><FolderOpen size={18} /></span>
               <div className="nas-action-card-text">
                 <span className="nas-action-card-title">보관소 열기</span>
-                <span className="nas-action-card-desc">WebDAV에서 기존 보관소 폴더를 선택</span>
+                <span className="nas-action-card-desc">기존 보관소 폴더 선택</span>
               </div>
             </button>
             <button className="nas-action-card" onClick={() => { setError(''); setPhase('browse-create'); }}>
               <span className="nas-action-card-icon"><Plus size={18} /></span>
               <div className="nas-action-card-text">
                 <span className="nas-action-card-title">보관소 생성</span>
-                <span className="nas-action-card-desc">WebDAV에 새 보관소를 만듭니다</span>
+                <span className="nas-action-card-desc">새 보관소 만들기</span>
               </div>
             </button>
           </div>
-        </>
+        </div>
       )}
 
       {/* ── Browse: Open ── */}

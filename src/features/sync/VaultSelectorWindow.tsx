@@ -9,6 +9,7 @@ import { emit } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { NasVaultSelector } from './NasVaultSelector';
 import logoWhite from '../../assets/logo-white.png';
+import logoBlack from '../../assets/logo-black.png';
 import '../../styles/tokens.css';
 import '../../styles/index.css';
 
@@ -60,7 +61,7 @@ export function VaultSelectorWindow() {
       </div>
       <div className="vault-selector-window-body">
         <div className="vault-selector-window-logo">
-          <img src={logoWhite} alt="Notology" className="vault-selector-logo-img" />
+          <img src={theme === 'dark' ? logoWhite : logoBlack} alt="Notology" className="vault-selector-logo-img" />
           <div className="vault-selector-logo-text">
             <h1>Notology</h1>
             <span className="vault-selector-version">v3.0.0</span>
