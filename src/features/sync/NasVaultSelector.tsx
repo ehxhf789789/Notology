@@ -294,16 +294,16 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
   const handleSelectVault = useCallback(async (vault: NasVaultEntry) => {
     await nasCommands.setLastActive(connectionId, vault.remote_path).catch(() => {});
 
-    // Configure sync engine for this vault (writes sync-config.json inside vault)
-    await syncCommands.connect(url, username, password, vault.local_cache_path).catch((e) => {
+    // Configure sync engine — use URL with vault remote_path as the base
+    const vaultUrl = url.replace(/\/+$/, '') + vault.remote_path;
+    await syncCommands.connect(vaultUrl, username, password, vault.local_cache_path).catch((e) => {
       console.warn('[VaultSelector] sync_connect failed:', e);
     });
 
-    // Full sync: pull NAS→local + push local→NAS
+    // Initial sync: pull NAS→local + push local→NAS
     setPhase('downloading');
     setDownloadProgress({ total: 0, current: 0, file: '동기화 중...' });
     try {
-      // syncNow does: flush_queue + pull_changes (recursive) + push_missing (recursive)
       await syncCommands.syncNow();
     } catch (e) {
       console.warn('[VaultSelector] sync failed:', e);
