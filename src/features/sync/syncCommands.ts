@@ -22,8 +22,8 @@ export type ConflictChoice =
   | { Custom: { content: string } };
 
 export const syncCommands = {
-  connect: (url: string, username: string, password: string, vaultPath: string) =>
-    invoke<boolean>('sync_connect', { url, username, password, vaultPath }),
+  connect: (url: string, username: string, password: string, vaultPath: string, remoteBase?: string) =>
+    invoke<boolean>('sync_connect', { url, username, password, vaultPath, remoteBase: remoteBase ?? null }),
 
   disconnect: (vaultPath: string) =>
     invoke<void>('sync_disconnect', { vaultPath }),

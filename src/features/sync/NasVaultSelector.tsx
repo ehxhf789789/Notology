@@ -294,9 +294,8 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
   const handleSelectVault = useCallback(async (vault: NasVaultEntry) => {
     await nasCommands.setLastActive(connectionId, vault.remote_path).catch(() => {});
 
-    // Configure sync engine — use URL with vault remote_path as the base
-    const vaultUrl = url.replace(/\/+$/, '') + vault.remote_path;
-    await syncCommands.connect(vaultUrl, username, password, vault.local_cache_path).catch((e) => {
+    // Configure sync engine with explicit remote_base pointing to vault folder
+    await syncCommands.connect(url, username, password, vault.local_cache_path, vault.remote_path).catch((e) => {
       console.warn('[VaultSelector] sync_connect failed:', e);
     });
 

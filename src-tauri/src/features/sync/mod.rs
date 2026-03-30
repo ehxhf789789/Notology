@@ -56,6 +56,7 @@ pub async fn sync_connect(
     username: String,
     password: String,
     vault_path: String,
+    remote_base: Option<String>,
     sync_state: tauri::State<'_, TauriSyncState>,
 ) -> Result<bool, String> {
     let client = WebDavClient::new(&url, &username, &password)?;
@@ -65,8 +66,10 @@ pub async fn sync_connect(
         return Ok(false);
     }
 
-    let parsed = url::Url::parse(&url).map_err(|e| format!("Invalid URL: {}", e))?;
-    let remote_base = parsed.path().to_string();
+    // Use explicitly provided remote_base, or fall back to URL path
+    let remote_base = remote_base.unwrap_or_else(|| {
+        url::Url::parse(&url).map(|p| p.path().to_string()).unwrap_or_default()
+    });
 
     let config = SyncConfig {
         url: url.clone(),
