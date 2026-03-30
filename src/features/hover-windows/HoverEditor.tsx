@@ -330,7 +330,8 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       return;
     }
 
-    if (mtimeOnLoadRef.current > 0) {
+    // Skip mtime check for canvas JSON (Rust backend protects SKETCH files)
+    if (!bodyToSave.trimStart().startsWith('{"nodes":') && mtimeOnLoadRef.current > 0) {
       const currentMtime = await fileCommands.getFileMtime(win.filePath);
       if (currentMtime > mtimeOnLoadRef.current) {
         log(`[HoverEditor] External modification detected, showing conflict UI`);

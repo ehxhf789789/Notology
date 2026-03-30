@@ -120,7 +120,7 @@ pub async fn write_file(
             let existing_is_canvas = existing_body.starts_with("{\"nodes\":") || existing_body.starts_with("{ \"nodes\":");
             if has_canvas_fm || existing_is_canvas {
                 log::warn!("[write_file] BLOCKED: TipTap trying to overwrite SKETCH file with markdown: {}", path);
-                return Ok(()); // Silently ignore — don't corrupt the file
+                return Err("SKETCH_PROTECTED".to_string());
             }
         }
     }
