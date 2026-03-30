@@ -4,18 +4,18 @@
 
 .link-card {
   margin: 16px 0;
-  border: 1px solid var(--border-color);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-app);
   cursor: pointer;
   transition: background-color var(--duration-normal), border-color var(--duration-normal);
   position: relative;
 }
 
 .link-card:hover {
-  background-color: var(--bg-tertiary);
-  border-color: var(--border-light);
+  background-color: var(--bg-elevated);
+  border-color: var(--sep);
 }
 
 .link-card.loading,
@@ -37,7 +37,7 @@
   width: 200px;
   height: 140px;
   overflow: hidden;
-  background-color: var(--bg-primary);
+  background-color: var(--bg-base);
 }
 
 .link-card-image img {
@@ -70,7 +70,7 @@
 .link-card-title {
   font-weight: 600;
   font-size: var(--font-lg);
-  color: var(--text-primary);
+  color: var(--tx-1);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -145,7 +145,7 @@
   padding: var(--space-2);
   max-height: 300px;
   overflow-y: auto;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
 }
 
 .wiki-link-suggestion-item {
@@ -156,7 +156,7 @@
   border-radius: var(--radius-sm);
   background: none;
   border: none;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   text-align: left;
   width: 100%;
@@ -164,11 +164,11 @@
 }
 
 .wiki-link-suggestion-item:hover {
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-elevated);
 }
 
 .wiki-link-suggestion-item.selected {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #fff;
 }
 
@@ -224,7 +224,7 @@
   padding: var(--space-3);
   max-height: 320px;
   overflow-y: auto;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   color: #e0e0e0;
   min-width: 200px;
 }
@@ -232,7 +232,7 @@
 html[data-theme="light"] .attachment-suggestion-list {
   background-color: #ffffff;
   border: 1px solid #ddd;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   color: #1a1a1a;
 }
 
@@ -369,14 +369,14 @@ html[data-theme="light"] .attachment-suggestion-empty {
   padding: var(--space-3);
   max-height: 280px;
   overflow-y: auto;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   color: #e0e0e0;
 }
 
 html[data-theme="light"] .image-embed-suggestion-list {
   background-color: #ffffff;
   border: 1px solid #ddd;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   color: #1a1a1a;
 }
 

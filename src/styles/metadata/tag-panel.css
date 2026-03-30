@@ -42,8 +42,8 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: var(--bg-primary);
-  color: var(--text-secondary);
+  background-color: var(--bg-base);
+  color: var(--tx-2);
 }
 
 .tag-panel-empty,
@@ -52,7 +52,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-size: var(--font-lg);
   padding: var(--space-8);
 }
@@ -62,15 +62,15 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border-color);
-  background-color: var(--bg-secondary);
+  border-bottom: 0.5px solid var(--sep-l);
+  background-color: var(--bg-app);
   flex-shrink: 0;
 }
 
 .tag-panel-title {
   font-size: var(--font-lg);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .tag-panel-header-actions {
@@ -82,7 +82,7 @@
 .tag-panel-mode-toggle {
   display: flex;
   gap: var(--space-1);
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-elevated);
   border-radius: var(--radius-sm);
   padding: var(--space-1);
 }
@@ -91,7 +91,7 @@
   padding: 3px 10px;
   background: none;
   border: none;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   border-radius: var(--radius-sm);
   font-size: var(--font-base);
@@ -103,13 +103,13 @@
 }
 
 .tag-panel-mode-btn.active {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #fff;
 }
 
 .tag-panel-saving {
   font-size: var(--font-base);
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-style: italic;
 }
 

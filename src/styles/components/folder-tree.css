@@ -15,9 +15,9 @@
   justify-content: space-between;
   padding: 8px 12px;
   font-size: var(--font-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   text-transform: uppercase;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 0.5px solid var(--sep-l);
   flex-shrink: 0;
 }
 
@@ -39,7 +39,7 @@
   justify-content: center;
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: var(--tx-3);
   cursor: pointer;
   padding: var(--space-1);
   border-radius: var(--radius-sm);
@@ -49,7 +49,7 @@
 .folder-tree-expand-btn:hover,
 .folder-tree-new-btn:hover {
   background-color: var(--bg-hover);
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 .folder-tree-content {
@@ -80,7 +80,7 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
-  color: var(--text-muted);
+  color: var(--tx-3);
   cursor: grab;
   padding: var(--space-1);
   margin-left: -4px;
@@ -95,7 +95,7 @@
 
 .container-drag-handle:hover {
   opacity: 1 !important;
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-elevated);
 }
 
 .container-drag-handle:active,
@@ -124,7 +124,7 @@ body:has(.container-tree-section.dragging) * {
   padding: 6px 12px;
   cursor: pointer;
   font-size: var(--font-md);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   gap: var(--space-4);
   transition: background-color var(--duration-fast), transform var(--duration-fast) ease;
   white-space: nowrap;
@@ -135,7 +135,7 @@ body:has(.container-tree-section.dragging) * {
 }
 
 .container-tree-item:hover {
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-elevated);
 }
 
 .container-tree-item:active {
@@ -144,7 +144,7 @@ body:has(.container-tree-section.dragging) * {
 
 .container-tree-item.selected {
   background-color: var(--calendar-selected-bg);
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .container-tree-item.selected:hover {
@@ -158,7 +158,7 @@ body:has(.container-tree-section.dragging) * {
 
 .container-tree-item.root-active {
   background-color: var(--calendar-selected-bg);
-  border-left: 2px solid var(--color-link);
+  border-left: 2px solid var(--c-blue);
 }
 
 .container-tree-item.storage {
@@ -188,7 +188,7 @@ body:has(.container-tree-section.dragging) * {
   padding: 4px 8px;
   cursor: pointer;
   font-size: var(--font-base);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   gap: var(--space-3);
   transition: background-color var(--duration-fast), transform var(--duration-fast) ease;
   white-space: nowrap;
@@ -201,7 +201,7 @@ body:has(.container-tree-section.dragging) * {
 }
 
 .folder-tree-item:hover {
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-elevated);
 }
 
 .folder-tree-item:active {
@@ -213,7 +213,7 @@ body:has(.container-tree-section.dragging) * {
 }
 
 .folder-tree-item.folder-note {
-  color: var(--color-link);
+  color: var(--c-blue);
 }
 
 .folder-tree-item.focused {
@@ -250,7 +250,7 @@ body:has(.container-tree-section.dragging) * {
 .folder-tree-empty {
   padding: var(--space-6);
   font-size: var(--font-base);
-  color: var(--text-muted);
+  color: var(--tx-3);
   text-align: center;
 }
 
@@ -261,11 +261,11 @@ body:has(.container-tree-section.dragging) * {
 }
 
 .folder-icon.container {
-  color: var(--color-link);
+  color: var(--c-blue);
 }
 
 .folder-icon.container.root {
-  color: var(--color-link);
+  color: var(--c-blue);
 }
 
 .folder-icon.container.root.expanded {
@@ -301,8 +301,8 @@ body:has(.container-tree-section.dragging) * {
 .folder-note-count {
   margin-left: auto;
   font-size: var(--font-sm);
-  color: var(--text-muted);
-  background-color: var(--bg-tertiary);
+  color: var(--tx-3);
+  background-color: var(--bg-elevated);
   padding: 1px 5px;
   border-radius: var(--radius-lg);
   flex-shrink: 0;
@@ -376,7 +376,7 @@ body:has(.container-tree-section.dragging) * {
 
 .divider:hover,
 .divider:active {
-  background-color: var(--accent-color, var(--color-link));
+  background-color: var(--accent-color, var(--c-blue));
 }
 
 /* Editor Area */
@@ -393,10 +393,10 @@ body:has(.container-tree-section.dragging) * {
   align-items: center;
   justify-content: center;
   height: 100%;
-  background-color: var(--bg-primary);
+  background-color: var(--bg-base);
 }
 
 .editor-empty-text {
   font-size: var(--font-lg);
-  color: var(--text-muted);
+  color: var(--tx-3);
 }

@@ -5,8 +5,8 @@
 .suggestion-panel {
   margin-top: var(--space-8);
   padding: 12px 16px;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-md);
 }
 
@@ -25,14 +25,14 @@
 .suggestion-panel-header h3 {
   font-size: var(--font-lg);
   font-weight: 600;
-  color: var(--accent-color);
+  color: var(--c-blue);
   margin: 0;
   flex: 1;
 }
 
 .suggestion-count {
   padding: 2px 8px;
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #fff;
   border-radius: var(--radius-lg);
   font-size: var(--font-sm);
@@ -40,14 +40,14 @@
 }
 
 .suggestion-toggle {
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-size: var(--font-base);
 }
 
 .suggestion-loading {
   padding: var(--space-8);
   text-align: center;
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-size: var(--font-md);
 }
 
@@ -60,14 +60,14 @@
 
 .suggestion-item {
   padding: var(--space-6);
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
   transition: border-color var(--duration-normal);
 }
 
 .suggestion-item:hover {
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
 }
 
 .suggestion-header {
@@ -84,14 +84,14 @@
 .suggestion-type {
   font-size: var(--font-base);
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   flex: 1;
 }
 
 .suggestion-confidence {
   padding: 2px 8px;
-  background-color: var(--bg-tertiary);
-  color: var(--text-secondary);
+  background-color: var(--bg-elevated);
+  color: var(--tx-2);
   border-radius: var(--radius-lg);
   font-size: var(--font-sm);
   font-weight: 600;
@@ -99,7 +99,7 @@
 
 .suggestion-description {
   font-size: var(--font-md);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   line-height: 1.5;
   margin-bottom: var(--space-6);
 }
@@ -121,7 +121,7 @@
 }
 
 .suggestion-apply-btn {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #fff;
 }
 
@@ -130,8 +130,8 @@
 }
 
 .suggestion-dismiss-btn {
-  background-color: var(--bg-tertiary);
-  color: var(--text-secondary);
+  background-color: var(--bg-elevated);
+  color: var(--tx-2);
 }
 
 .suggestion-dismiss-btn:hover {

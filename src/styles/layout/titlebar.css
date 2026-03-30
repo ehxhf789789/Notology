@@ -26,7 +26,7 @@
 
 .titlebar-title {
   font-size: var(--font-base);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   font-weight: 500;
 }
 
@@ -36,10 +36,10 @@
   gap: var(--space-3);
   margin-left: var(--space-6);
   padding: 4px 10px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-size: var(--font-sm);
   cursor: pointer;
   transition: all var(--duration-fast) ease;
@@ -47,8 +47,8 @@
 
 .titlebar-vault-btn:hover {
   background: var(--bg-hover);
-  border-color: var(--accent-color);
-  color: var(--text-primary);
+  border-color: var(--c-blue);
+  color: var(--tx-1);
 }
 
 .titlebar-vault-name {
@@ -72,18 +72,18 @@
   gap: var(--space-2);
   height: 28px;
   padding: 0 10px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-md);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   transition: all var(--duration-fast) ease;
 }
 
 .titlebar-action-btn:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
-  border-color: var(--border-light);
+  color: var(--tx-1);
+  border-color: var(--sep);
   transform: translateY(-1px);
   box-shadow: var(--shadow-xs);
 }
@@ -128,7 +128,7 @@
   height: 100%;
   border: none;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   border-radius: 0;
   padding: 0;
@@ -146,7 +146,7 @@
 .titlebar-btn-panel {
   position: relative;
   gap: var(--space-2);
-  border-left: 1px solid var(--border-color);
+  border-left: 0.5px solid var(--sep-l);
   margin-left: var(--space-2);
 }
 

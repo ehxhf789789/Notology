@@ -454,7 +454,7 @@ html[data-theme="light"] .pptx-slides-scroll-container {
 .pptx-slide {
   background: white;
   color: #1a1a1a;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
@@ -719,7 +719,7 @@ html[data-theme="dark"] .hwpx-page-input {
 .hwp-content svg {
   max-width: 100%;
   height: auto;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--sh-sm);
 }
 
 .hwp-zoom-indicator {

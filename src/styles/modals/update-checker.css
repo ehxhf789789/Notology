@@ -66,7 +66,7 @@
 
 .update-checker-error {
   font-size: var(--font-base);
-  color: var(--color-danger);
+  color: var(--c-red);
   margin-top: var(--space-2);
 }
 

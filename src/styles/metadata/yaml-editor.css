@@ -21,10 +21,10 @@
 .yaml-editor-textarea {
   flex: 1;
   padding: var(--space-8);
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-base);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
+  color: var(--tx-1);
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: var(--font-md);
   line-height: 1.6;
@@ -36,19 +36,19 @@
 
 .yaml-editor-textarea:focus {
   outline: none;
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
 }
 
 .yaml-editor-hint {
   margin-top: var(--space-8);
   padding: var(--space-6);
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-elevated);
   border-radius: var(--radius-sm);
   font-size: var(--font-base);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   line-height: 1.5;
 }
 
 .yaml-editor-hint strong {
-  color: var(--color-link);
+  color: var(--c-blue);
 }

@@ -8,10 +8,10 @@
   left: 0;
   right: 0;
   margin-top: var(--space-2);
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   z-index: var(--z-dropdown);
   max-height: 400px;
   display: flex;
@@ -20,22 +20,22 @@
 
 .tag-search {
   padding: var(--space-4);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 0.5px solid var(--sep-l);
 }
 
 .tag-search input {
   width: 100%;
   padding: 8px 12px;
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-base);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   font-size: var(--font-md);
 }
 
 .tag-search input:focus {
   outline: none;
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
 }
 
 .tag-search-results,
@@ -52,7 +52,7 @@
   padding: 8px 12px;
   background: none;
   border: none;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   text-align: left;
   width: 100%;
@@ -61,12 +61,12 @@
 }
 
 .tag-item:hover {
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-elevated);
 }
 
 /* Keyboard navigation selected state */
 .tag-item-selected {
-  background-color: var(--accent-color) !important;
+  background-color: var(--c-blue) !important;
   color: #111 !important;
 }
 
@@ -85,12 +85,12 @@
 
 .tag-item-breadcrumb {
   font-size: var(--font-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   margin-top: var(--space-1);
 }
 
 .tag-item-arrow {
-  color: var(--text-muted);
+  color: var(--tx-3);
   margin-left: var(--space-4);
 }
 
@@ -107,7 +107,7 @@
 .tag-item-delete {
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: var(--tx-3);
   cursor: pointer;
   padding: 4px 8px;
   font-size: var(--font-lg);
@@ -123,7 +123,7 @@
 .tag-item-rename {
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: var(--tx-3);
   cursor: pointer;
   padding: 4px 6px;
   font-size: var(--font-md);
@@ -157,7 +157,7 @@
   padding: 20px 24px;
   min-width: 340px;
   max-width: 420px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--sh-lg);
 }
 
 .tag-bulk-dialog h3 {
@@ -295,9 +295,9 @@
 }
 
 .tag-bulk-btn-confirm {
-  background: var(--color-link);
+  background: var(--c-blue);
   color: #fff;
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
 }
 
 .tag-bulk-btn-confirm:hover {
@@ -321,7 +321,7 @@
 .tag-empty {
   padding: var(--space-8);
   text-align: center;
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-size: var(--font-md);
   display: flex;
   flex-direction: column;
@@ -339,7 +339,7 @@
 
 .tag-typo-label {
   font-size: var(--font-base);
-  color: var(--text-muted);
+  color: var(--tx-3);
 }
 
 .tag-typo-list {
@@ -351,8 +351,8 @@
 
 .tag-typo-btn {
   padding: 3px 10px;
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
+  background: var(--bg-elevated);
+  color: var(--tx-1);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -369,7 +369,7 @@
 .tag-create-btn {
   margin-top: var(--space-6);
   padding: 6px 12px;
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #ffffff;
   border: none;
   border-radius: var(--radius-sm);
@@ -387,8 +387,8 @@
   display: flex;
   align-items: center;
   padding: 8px 12px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border-bottom: 0.5px solid var(--sep-l);
   font-size: var(--font-base);
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -397,7 +397,7 @@
 .breadcrumb-item {
   background: none;
   border: none;
-  color: var(--color-link);
+  color: var(--c-blue);
   cursor: pointer;
   padding: 2px 6px;
   border-radius: var(--radius-sm);
@@ -405,7 +405,7 @@
 }
 
 .breadcrumb-item:hover {
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-elevated);
 }
 
 .breadcrumb-separator-wrapper {
@@ -415,12 +415,12 @@
 }
 
 .breadcrumb-separator {
-  color: var(--text-muted);
+  color: var(--tx-3);
 }
 
 .tag-recent {
   padding: var(--space-6);
-  border-top: 1px solid var(--border-color);
+  border-top: 0.5px solid var(--sep-l);
 }
 
 .tag-recent-header {
@@ -432,14 +432,14 @@
 
 .tag-recent-title {
   font-size: var(--font-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .tag-recent-clear {
   font-size: var(--font-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   background: none;
   border: none;
   cursor: pointer;
@@ -451,7 +451,7 @@
 
 .tag-recent-clear:hover {
   opacity: 1;
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .tag-recent-list {
@@ -462,18 +462,18 @@
 
 .tag-chip-small {
   padding: 4px 10px;
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-light);
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep);
   border-radius: var(--radius-xl);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   font-size: var(--font-sm);
   transition: all var(--duration-normal);
 }
 
 .tag-chip-small:hover {
-  background-color: var(--color-link);
-  border-color: var(--color-link);
+  background-color: var(--c-blue);
+  border-color: var(--c-blue);
   color: #fff;
 }
 
@@ -494,7 +494,7 @@
   transform: translateY(-50%);
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-size: var(--font-lg);
   line-height: 1;
   cursor: pointer;
@@ -518,26 +518,26 @@
 
 /* Orphan tags (deleted from ontology but still in recent list) */
 .tag-chip-small-orphan {
-  background-color: var(--bg-secondary) !important;
-  border-color: var(--border-light) !important;
-  color: var(--text-muted) !important;
+  background-color: var(--bg-app) !important;
+  border-color: var(--sep) !important;
+  color: var(--tx-3) !important;
   text-decoration: line-through;
   opacity: 0.7;
   cursor: not-allowed !important;
 }
 
 .tag-chip-small-orphan:hover {
-  background-color: var(--bg-secondary) !important;
-  border-color: var(--border-light) !important;
-  color: var(--text-muted) !important;
+  background-color: var(--bg-app) !important;
+  border-color: var(--sep) !important;
+  color: var(--tx-3) !important;
 }
 
 .tag-chip-orphan .tag-chip-remove {
-  color: var(--text-muted);
+  color: var(--tx-3);
 }
 
 .tag-chip-orphan:hover .tag-chip-remove {
-  color: var(--text-muted);
+  color: var(--tx-3);
 }
 
 .tag-chip-orphan .tag-chip-remove:hover {

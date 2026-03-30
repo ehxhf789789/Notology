@@ -3,7 +3,7 @@
 /* ============================================================ */
 
 .backlinks-panel {
-  border-top: 1px solid var(--border-color);
+  border-top: 0.5px solid var(--sep-l);
   flex-shrink: 0;
   max-height: 200px;
   overflow-y: auto;
@@ -17,8 +17,8 @@
   cursor: pointer;
   user-select: none;
   font-size: var(--font-base);
-  color: var(--text-muted);
-  background-color: var(--bg-secondary);
+  color: var(--tx-3);
+  background-color: var(--bg-app);
   transition: background-color var(--duration-fast) ease;
 }
 
@@ -52,7 +52,7 @@
 .backlinks-empty {
   padding: 8px 16px;
   font-size: var(--font-base);
-  color: var(--text-muted);
+  color: var(--tx-3);
 }
 
 .backlink-item {
@@ -72,13 +72,13 @@
 
 .backlink-file-name {
   font-size: var(--font-md);
-  color: var(--color-link);
+  color: var(--c-blue);
   font-weight: 500;
 }
 
 .backlink-context {
   font-size: var(--font-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -90,7 +90,7 @@
 
 .backlinks-section-title {
   font-size: var(--font-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   padding: 2px 8px;
   font-weight: 500;
 }
@@ -100,18 +100,18 @@
 /* ============================================================ */
 
 .relationship-panel {
-  border-top: 1px solid var(--border-color);
+  border-top: 0.5px solid var(--sep-l);
   margin-top: var(--space-4);
 }
 
 .relationship-header {
   padding: 6px 12px;
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-app);
 }
 
 .relationship-title {
   font-size: var(--font-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -126,7 +126,7 @@
 
 .relationship-section-title {
   font-size: var(--font-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   padding: 2px 12px;
 }
 
@@ -143,11 +143,11 @@
 
 .relationship-link-name {
   font-size: var(--font-base);
-  color: var(--color-link);
+  color: var(--c-blue);
 }
 
 .relationship-context {
   font-size: var(--font-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   margin-top: var(--space-1);
 }

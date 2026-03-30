@@ -37,7 +37,7 @@
   gap: var(--space-2);
   margin-top: var(--space-4);
   padding-top: var(--space-4);
-  border-top: 1px solid var(--border-color);
+  border-top: 0.5px solid var(--sep-l);
 }
 
 .sidebar-collapsed-minimized-btn {
@@ -71,8 +71,8 @@
   align-items: center;
   padding: 8px 12px;
   width: 48px;
-  background-color: var(--bg-primary);
-  border-left: 1px solid var(--border-color);
+  background-color: var(--bg-base);
+  border-left: 0.5px solid var(--sep-l);
   flex-shrink: 0;
 }
 
@@ -87,14 +87,14 @@
   background: none;
   border: none;
   border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   cursor: pointer;
   transition: all var(--duration-fast) ease;
 }
 
 .hover-panel-collapsed-toggle:hover {
   background-color: var(--bg-hover);
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .hover-panel-collapsed-badge {
@@ -264,7 +264,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 /* Sidebar */
@@ -348,7 +348,7 @@
 }
 
 .sidebar-action-btn.active {
-  color: var(--accent-color, var(--color-link));
+  color: var(--accent-color, var(--c-blue));
 }
 
 /* Sidebar Input */
@@ -371,7 +371,7 @@
 }
 
 .sidebar-input:focus {
-  border-color: var(--accent-color, var(--color-link));
+  border-color: var(--accent-color, var(--c-blue));
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
 }
 
@@ -394,7 +394,7 @@
 .open-vault-btn {
   padding: 8px 16px;
   font-size: var(--font-md);
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   border: none;
   border-radius: var(--radius-sm);
   color: #ffffff;
@@ -408,7 +408,7 @@
 
 .sidebar-empty-text {
   font-size: var(--font-base);
-  color: var(--text-muted);
+  color: var(--tx-3);
 }
 
 /* Sidebar Footer (Vault & Settings) */
@@ -417,9 +417,9 @@
   align-items: center;
   gap: var(--space-2);
   padding: 8px 8px;
-  border-top: 1px solid var(--border-color);
+  border-top: 0.5px solid var(--sep-l);
   flex-shrink: 0;
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-app);
 }
 
 .sidebar-footer-btn {
@@ -429,7 +429,7 @@
   padding: 6px 10px;
   border: none;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   border-radius: var(--radius-md);
   font-size: var(--font-base);

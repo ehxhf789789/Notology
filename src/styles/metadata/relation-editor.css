@@ -16,31 +16,31 @@
 .relation-editor-title {
   font-size: var(--font-xl);
   font-weight: 600;
-  color: var(--color-link);
+  color: var(--c-blue);
   margin: 0;
 }
 
 .relation-add-btn {
   padding: 6px 14px;
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-light);
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep);
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   font-size: var(--font-base);
   transition: all var(--duration-normal);
 }
 
 .relation-add-btn:hover {
-  background-color: var(--color-link);
-  border-color: var(--color-link);
+  background-color: var(--c-blue);
+  border-color: var(--c-blue);
   color: #fff;
 }
 
 .relation-add-form {
   padding: var(--space-8);
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-8);
 }
@@ -61,7 +61,7 @@
 
 .relation-form-field label {
   font-size: var(--font-base);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   margin-bottom: var(--space-3);
   font-weight: 500;
 }
@@ -69,10 +69,10 @@
 .relation-form-field input,
 .relation-form-field select {
   padding: 8px 12px;
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-base);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   font-size: var(--font-md);
   width: 100%;
   box-sizing: border-box;
@@ -82,13 +82,13 @@
 .relation-form-field input:focus,
 .relation-form-field select:focus {
   outline: none;
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
 }
 
 .relation-form-submit {
   width: 100%;
   padding: var(--space-4);
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   border: none;
   border-radius: var(--radius-sm);
   color: #fff;
@@ -104,10 +104,10 @@
 .relation-empty {
   padding: var(--space-12);
   text-align: center;
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-size: var(--font-md);
-  background-color: var(--bg-secondary);
-  border: 1px dashed var(--border-color);
+  background-color: var(--bg-app);
+  border: 1px dashed var(--sep-l);
   border-radius: var(--radius-sm);
 }
 
@@ -119,14 +119,14 @@
 
 .relation-item {
   padding: var(--space-6);
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
   transition: border-color var(--duration-normal);
 }
 
 .relation-item:hover {
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
 }
 
 .relation-item-header {
@@ -137,7 +137,7 @@
 
 .relation-type {
   padding: 4px 10px;
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #fff;
   border-radius: var(--radius-xl);
   font-size: var(--font-sm);
@@ -145,21 +145,21 @@
 }
 
 .relation-arrow {
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-size: var(--font-xl);
 }
 
 .relation-target {
   flex: 1;
   font-size: var(--font-md);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   font-weight: 500;
 }
 
 .relation-remove-btn {
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: var(--tx-3);
   cursor: pointer;
   font-size: var(--font-3xl);
   line-height: 1;
@@ -168,20 +168,20 @@
 }
 
 .relation-remove-btn:hover {
-  color: var(--color-danger);
+  color: var(--c-red);
 }
 
 .relation-strength-bar {
   margin-top: var(--space-4);
   height: 4px;
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-elevated);
   border-radius: var(--radius-xs);
   overflow: hidden;
 }
 
 .relation-strength-fill {
   height: 100%;
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   transition: width var(--duration-slow);
 }
 
@@ -190,25 +190,25 @@
   top: 100%;
   left: 0;
   right: 0;
-  background-color: var(--bg-primary);
-  border: 1px solid var(--color-link);
+  background-color: var(--bg-base);
+  border: 1px solid var(--c-blue);
   border-radius: var(--radius-sm);
   max-height: 200px;
   overflow-y: auto;
   z-index: var(--z-modal-backdrop);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   margin-top: var(--space-2);
 }
 
 .note-suggestion-item {
   padding: 8px 12px;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   font-size: var(--font-md);
   transition: background-color var(--duration-fast);
 }
 
 .note-suggestion-item:hover {
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
+  background-color: var(--bg-app);
+  color: var(--tx-1);
 }

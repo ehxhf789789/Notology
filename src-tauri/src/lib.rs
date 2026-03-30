@@ -70,6 +70,7 @@ pub(crate) struct SearchState {
     _watcher: Option<VaultWatcher>,
     memo_index: Option<Arc<MemoIndex>>,
     init_in_progress: bool,
+    vault_path: Option<String>,
 }
 
 // Re-export frontmatter module for features that need it
@@ -140,6 +141,7 @@ pub fn run() {
             _watcher: None,
             memo_index: None,
             init_in_progress: false,
+            vault_path: None,
         }))
         .manage(BulkOperationState {
             cancel_requested: AtomicBool::new(false),

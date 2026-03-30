@@ -215,7 +215,7 @@ export function useAppKeyboardShortcuts() {
       }
 
       // Search (Ctrl+Shift+F)
-      if (checkShortcut('search')) {
+      if (checkShortcut('search') || (e.ctrlKey && e.key === 'k' && !e.shiftKey && !e.altKey)) {
         e.preventDefault();
         uiActions.setShowSearch(true);
         return;

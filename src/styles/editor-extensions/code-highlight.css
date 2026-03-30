@@ -27,8 +27,8 @@
 
 /* Blockquote */
 .tiptap-editor blockquote {
-  border-left: 3px solid var(--border-light);
+  border-left: 3px solid var(--sep);
   padding-left: 14px;
   margin: 8px 0;
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }

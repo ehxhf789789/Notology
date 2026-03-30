@@ -23,7 +23,7 @@
   -webkit-backface-visibility: hidden;
   transform: translateZ(0);
   transition: width var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-app);
 }
 
 .sidebar-wrapper.open {
@@ -84,7 +84,7 @@
   -webkit-backface-visibility: hidden;
   transform: translateZ(0);
   transition: width var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
-  background-color: var(--bg-primary);
+  background-color: var(--bg-base);
 }
 
 .hover-panel-wrapper.open {

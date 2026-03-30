@@ -18,10 +18,18 @@ pub async fn init_search_index(
         let mut search_state = state.lock().map_err(|e| e.to_string())?;
 
         if search_state.index.is_some() {
-            log::info!("[init_search_index] Already initialized, re-emitting event");
-            drop(search_state);
-            let _ = app.emit("search-index-ready", ());
-            return Ok(());
+            if search_state.vault_path.as_deref() == Some(&vault_path) {
+                log::info!("[init_search_index] Already initialized for same vault, re-emitting event");
+                drop(search_state);
+                let _ = app.emit("search-index-ready", ());
+                return Ok(());
+            } else {
+                log::info!("[init_search_index] Vault changed from {:?} to {}, reinitializing", search_state.vault_path, vault_path);
+                search_state.index = None;
+                search_state._watcher = None;
+                search_state.memo_index = None;
+                search_state.vault_path = None;
+            }
         }
 
         if search_state.init_in_progress {
@@ -93,6 +101,7 @@ pub async fn init_search_index(
         let mut search_state = state.lock().map_err(|e| e.to_string())?;
         search_state._watcher = watcher;
         search_state.memo_index = Some(memo_index);
+        search_state.vault_path = Some(vault_path.clone());
         search_state.init_in_progress = false;
     }
 

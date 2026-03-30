@@ -6,7 +6,7 @@
   padding: 24px 32px;
   height: 100%;
   outline: none;
-  color: var(--text-primary);
+  color: var(--tx-1);
   font-size: var(--font-lg);
   line-height: 1.7;
   max-width: 800px;
@@ -20,7 +20,7 @@
   margin: 18px 0 10px;
   padding-left: var(--space-6);
   border-left: 4px solid #7aa2f7;
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .tiptap-editor h2 {
@@ -29,7 +29,7 @@
   margin: 16px 0 8px;
   padding-left: var(--space-5);
   border-left: 3px solid #89b4fa;
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .tiptap-editor h3 {
@@ -38,7 +38,7 @@
   margin: 14px 0 7px;
   padding-left: var(--space-4);
   border-left: 2px solid #94e2d5;
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .tiptap-editor p {
@@ -85,7 +85,7 @@
 }
 
 .tiptap-editor pre {
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-elevated);
   padding: var(--space-8);
   border-radius: var(--radius-md);
   margin: 12px 0;
@@ -100,10 +100,10 @@
 }
 
 .tiptap-editor blockquote {
-  border-left: 3px solid var(--accent-color);
+  border-left: 3px solid var(--c-blue);
   padding-left: var(--space-8);
   margin: 12px 0;
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 /* hr styles moved to Code Block section for better organization */
@@ -111,7 +111,7 @@
 .tiptap-editor .is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: var(--text-muted);
+  color: var(--tx-3);
   pointer-events: none;
   height: 0;
 }
@@ -124,8 +124,8 @@
 /* Frontmatter Panel */
 .frontmatter-panel {
   padding: 12px 32px;
-  background-color: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-elevated);
+  border-bottom: 0.5px solid var(--sep-l);
   font-family: "Consolas", "Monaco", monospace;
   font-size: var(--font-base);
   max-width: 800px;
@@ -191,7 +191,7 @@
   background-color: rgba(167, 139, 250, 0.2);
   border-color: rgba(167, 139, 250, 0.4);
   color: #c4b5fd;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--sh-sm);
 }
 
 .wiki-link-inline.unresolved {

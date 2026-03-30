@@ -5,8 +5,8 @@
 .hover-window-app {
   width: 100vw;
   height: 100vh;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--bg-base);
+  color: var(--tx-1);
   overflow: hidden;
   /* Content ready before show() - instant display */
   opacity: 1;
@@ -36,7 +36,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--bg-primary);
+  background-color: var(--bg-base);
 }
 
 .hover-window-error {
@@ -45,7 +45,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--bg-primary);
-  color: var(--text-secondary);
+  background-color: var(--bg-base);
+  color: var(--tx-2);
   font-size: var(--font-lg);
 }

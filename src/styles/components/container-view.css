@@ -6,7 +6,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: var(--bg-primary);
+  background-color: var(--bg-base);
 }
 
 .container-description-section {
@@ -14,7 +14,7 @@
   max-height: 40%;
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 0.5px solid var(--sep-l);
 }
 
 .container-description-header {
@@ -22,8 +22,8 @@
   align-items: center;
   gap: var(--space-4);
   padding: 8px 16px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border-bottom: 0.5px solid var(--sep-l);
   flex-shrink: 0;
 }
 
@@ -34,9 +34,9 @@
   width: 24px;
   height: 24px;
   background-color: transparent;
-  border: 1px solid var(--border-light);
+  border: 0.5px solid var(--sep);
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   font-size: var(--font-lg);
   flex-shrink: 0;
@@ -45,14 +45,14 @@
 
 .container-parent-btn:hover {
   background-color: var(--bg-hover);
-  border-color: var(--accent-color);
-  color: var(--text-primary);
+  border-color: var(--c-blue);
+  color: var(--tx-1);
 }
 
 .container-description-title {
   font-size: var(--font-lg);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .container-dirty-indicator {
@@ -93,8 +93,8 @@
   display: flex;
   gap: var(--space-4);
   padding: 6px 16px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border-bottom: 0.5px solid var(--sep-l);
   flex-shrink: 0;
 }
 
@@ -102,9 +102,9 @@
   padding: 4px 12px;
   font-size: var(--font-base);
   background-color: var(--bg-hover);
-  border: 1px solid var(--border-light);
+  border: 0.5px solid var(--sep);
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
 }
 
@@ -114,7 +114,7 @@
 
 .container-new-input {
   padding: 4px 16px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 0.5px solid var(--sep-l);
   flex-shrink: 0;
 }
 

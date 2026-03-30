@@ -1368,25 +1368,26 @@ impl SearchIndex {
         Ok(update_count)
     }
 
-    /// Parallel file collection using walkdir (optimized for 100k+ files)
+    /// File collection using walkdir with filter_entry + dedup (avoids par_bridge duplicates)
     fn collect_md_files_parallel(&self) -> Vec<PathBuf> {
+        let mut seen = std::collections::HashSet::new();
         WalkDir::new(&self.vault_path)
             .into_iter()
-            .par_bridge() // Convert to parallel iterator
+            .filter_entry(|entry| {
+                let name = entry.file_name().to_string_lossy();
+                !name.starts_with('.') && !name.ends_with("_att")
+            })
             .filter_map(|entry| entry.ok())
             .filter(|entry| {
                 let path = entry.path();
                 let name = entry.file_name().to_string_lossy();
-
-                // Skip hidden files/dirs and attachment folders
-                if name.starts_with('.') || name.ends_with("_att") {
-                    return false;
-                }
-
-                // Only include .md files
                 path.is_file() && name.ends_with(".md")
             })
-            .map(|entry| entry.path().to_path_buf())
+            .filter_map(|entry| {
+                let path = entry.into_path();
+                let key = path.to_string_lossy().to_lowercase();
+                if seen.insert(key) { Some(path) } else { None }
+            })
             .collect()
     }
 

@@ -190,7 +190,7 @@ pub async fn sync_check_vault(
     Ok(has_notology)
 }
 
-/// Manual sync trigger: flush queue + pull changes.
+/// Manual sync trigger: flush queue + pull changes (spawned, non-blocking).
 #[tauri::command]
 pub async fn sync_now(
     sync_state: tauri::State<'_, TauriSyncState>,
@@ -199,21 +199,37 @@ pub async fn sync_now(
     let guard = sync_state.engine.lock().await;
     let engine = guard.as_ref().ok_or("Sync engine not initialized")?;
 
-    match engine.full_sync().await {
-        Ok(()) => {
-            if let Some(config) = sync_state.inner.get_config() {
-                let conn_id = connections::make_connection_id(&config.url, &config.username);
-                let _ = connections::update_vault_sync_time(&conn_id, &config.remote_base);
+    let inner = Arc::clone(&sync_state.inner);
+    let vault_path = engine.vault_path.clone();
+    drop(guard);
+
+    let app_handle = app.clone();
+    tokio::spawn(async move {
+        let inner_clone = Arc::clone(&inner);
+        match engine::SyncEngine::new(&vault_path, inner_clone) {
+            Ok(temp_engine) => {
+                match temp_engine.full_sync().await {
+                    Ok(()) => {
+                        if let Some(config) = inner.get_config() {
+                            let conn_id = connections::make_connection_id(&config.url, &config.username);
+                            let _ = connections::update_vault_sync_time(&conn_id, &config.remote_base);
+                        }
+                        let _ = app_handle.emit("sync:completed", ());
+                    }
+                    Err(e) => {
+                        inner.set_status(SyncStatus::Error { message: e.clone() });
+                        let _ = app_handle.emit("sync:error", &e);
+                    }
+                }
             }
-            let _ = app.emit("sync:completed", ());
-            Ok(())
+            Err(e) => {
+                log::warn!("[sync_now] Failed to create temp engine: {}", e);
+                let _ = app_handle.emit("sync:error", &e);
+            }
         }
-        Err(e) => {
-            sync_state.inner.set_status(SyncStatus::Error { message: e.clone() });
-            let _ = app.emit("sync:error", &e);
-            Err(e)
-        }
-    }
+    });
+
+    Ok(())
 }
 
 /// Resolve a conflict: user chooses local, remote, both, or custom.
@@ -360,6 +376,28 @@ pub async fn sync_on_file_deleted(
     let guard = sync_state.engine.lock().await;
     if let Some(engine) = guard.as_ref() {
         engine.on_file_deleted(&file_path).await?;
+
+        // Spawn background flush (same pattern as sync_on_file_saved)
+        let inner = Arc::clone(&sync_state.inner);
+        let vault_path = engine.vault_path.clone();
+        drop(guard);
+
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+            if let Some(config) = inner.get_config() {
+                if let Ok(temp_engine) = engine::SyncEngine::new(&vault_path, Arc::clone(&inner)) {
+                    if let Err(e) = temp_engine.flush_queue().await {
+                        log::warn!("[sync-bg] delete flush failed: {}", e);
+                    } else {
+                        let conn_id = connections::make_connection_id(&config.url, &config.username);
+                        let _ = connections::update_vault_sync_time(&conn_id, &config.remote_base);
+                    }
+                }
+            }
+        });
+    } else {
+        drop(guard);
     }
     Ok(())
 }
@@ -393,10 +431,12 @@ pub async fn sync_start_monitor(
 
     tokio::spawn(async move {
         let mut was_offline = false;
+        let mut tick_count: u32 = 0;
 
         loop {
             // Check every 10 seconds for pending queue items
             tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+            tick_count += 1;
 
             let config = match inner.get_config() {
                 Some(c) => c,
@@ -421,6 +461,8 @@ pub async fn sync_start_monitor(
                 let inner_clone = Arc::clone(&inner);
                 let vault_path = config.vault_path.clone();
                 let config_clone = config.clone();
+                let app_clone = app_handle.clone();
+                let do_pull = tick_count % 6 == 0;
                 tokio::spawn(async move {
                     if let Ok(temp_engine) = engine::SyncEngine::new(&vault_path, inner_clone.clone()) {
                         if let Ok(count) = temp_engine.queue.count() {
@@ -432,6 +474,18 @@ pub async fn sync_start_monitor(
                                     let conn_id = connections::make_connection_id(&config_clone.url, &config_clone.username);
                                     let _ = connections::update_vault_sync_time(&conn_id, &config_clone.remote_base);
                                 }
+                            }
+                        }
+
+                        // Every 6th tick (~60s): pull remote changes
+                        if do_pull {
+                            match temp_engine.pull_changes().await {
+                                Ok(updated) if !updated.is_empty() => {
+                                    log::info!("[sync-monitor] Pulled {} updated files", updated.len());
+                                    let _ = app_clone.emit("sync:files-updated", &updated);
+                                }
+                                Err(e) => log::warn!("[sync-monitor] pull failed: {}", e),
+                                _ => {}
                             }
                         }
                     }

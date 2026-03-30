@@ -4,11 +4,11 @@
 .window-context-menu {
   position: fixed;
   z-index: var(--z-top);
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-light);
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep);
   border-radius: var(--radius-sm);
   padding: var(--space-2);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   min-width: 120px;
   max-height: min(500px, calc(100vh - 80px));
   overflow-y: auto;
@@ -37,7 +37,7 @@
   padding: 6px 12px;
   background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   font-size: var(--font-md);
   text-align: left;
   cursor: pointer;
@@ -47,7 +47,7 @@
 
 .window-context-menu-item:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .window-context-menu-item-danger {

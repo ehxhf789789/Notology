@@ -9,17 +9,17 @@
 .faceted-tag-editor-loading {
   padding: var(--space-8);
   text-align: center;
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-size: var(--font-md);
 }
 
 .faceted-tag-editor-title {
   font-size: var(--font-xl);
   font-weight: 600;
-  color: var(--color-link);
+  color: var(--c-blue);
   margin: 0 0 16px 0;
   padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 0.5px solid var(--sep-l);
 }
 
 .facet-group {
@@ -40,7 +40,7 @@
   gap: var(--space-2);
   font-size: var(--font-md);
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   margin-right: var(--space-4);
 }
 
@@ -51,24 +51,24 @@
 
 .facet-description {
   font-size: var(--font-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-weight: normal;
 }
 
 .facet-add-btn {
   padding: 4px 12px;
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-light);
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep);
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   font-size: var(--font-base);
   transition: all var(--duration-normal);
 }
 
 .facet-add-btn:hover {
-  background-color: var(--color-link);
-  border-color: var(--color-link);
+  background-color: var(--c-blue);
+  border-color: var(--c-blue);
   color: #fff;
 }
 
@@ -81,8 +81,8 @@
   flex-wrap: nowrap;
   gap: var(--space-3);
   padding: 6px 8px;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
   min-height: 34px;
   overflow-x: auto;
@@ -108,11 +108,11 @@
   top: 50%;
   transform: translateY(-50%);
   font-size: var(--font-sm);
-  color: var(--text-muted);
-  background: var(--bg-tertiary);
+  color: var(--tx-3);
+  background: var(--bg-elevated);
   padding: 1px 6px;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
+  border: 0.5px solid var(--sep-l);
   pointer-events: none;
   z-index: 1;
   white-space: nowrap;
@@ -313,12 +313,12 @@ html[data-theme="light"] .container-type-selector-item-v2.storage:hover {
 
 /* Light mode — divider */
 html[data-theme="light"] .divider {
-  background-color: var(--border-color);
+  background-color: var(--sep-l);
   width: 1px;
 }
 html[data-theme="light"] .divider:hover,
 html[data-theme="light"] .divider:active {
-  background-color: var(--accent-color, var(--color-link));
+  background-color: var(--accent-color, var(--c-blue));
   width: 3px;
 }
 
@@ -428,12 +428,12 @@ html[data-theme="light"] .search-tag-empty {
   html[data-theme="system"] .ribbon-btn-prefix { color: #4338ca; }
   /* System theme — divider */
   html[data-theme="system"] .divider {
-    background-color: var(--border-color);
+    background-color: var(--sep-l);
     width: 1px;
   }
   html[data-theme="system"] .divider:hover,
   html[data-theme="system"] .divider:active {
-    background-color: var(--accent-color, var(--color-link));
+    background-color: var(--accent-color, var(--c-blue));
     width: 3px;
   }
   /* System theme — vault selector */
@@ -480,5 +480,5 @@ html[data-theme="light"] .search-tag-empty {
 
 .tag-remove-btn:hover {
   opacity: 1;
-  color: var(--color-danger);
+  color: var(--c-red);
 }

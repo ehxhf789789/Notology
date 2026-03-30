@@ -17,12 +17,12 @@
 
 /* New Container Modal */
 .new-container-modal {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-lg);
   width: 320px;
   max-width: 90vw;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--sh-lg);
   padding: var(--space-8);
   display: flex;
   flex-direction: column;
@@ -32,27 +32,27 @@
 .new-container-modal-header {
   font-size: var(--font-lg);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .new-container-modal-input {
   width: 100%;
   padding: 10px 12px;
   font-size: var(--font-md);
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-base);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
+  color: var(--tx-1);
   outline: none;
   box-sizing: border-box;
 }
 
 .new-container-modal-input:focus {
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
 }
 
 .new-container-modal-input::placeholder {
-  color: var(--text-muted);
+  color: var(--tx-3);
 }
 
 .new-container-modal-actions {
@@ -71,8 +71,8 @@
 }
 
 .new-container-modal-btn.cancel {
-  background-color: var(--bg-tertiary);
-  color: var(--text-secondary);
+  background-color: var(--bg-elevated);
+  color: var(--tx-2);
 }
 
 .new-container-modal-btn.cancel:hover {
@@ -80,7 +80,7 @@
 }
 
 .new-container-modal-btn.create {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #ffffff;
 }
 
@@ -94,8 +94,8 @@
 }
 
 .contact-input-modal {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-xl);
   width: 480px;
   max-width: 90vw;
@@ -153,7 +153,7 @@
 .contact-input-label {
   font-size: var(--font-base);
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -161,20 +161,20 @@
 .contact-input-input {
   padding: 8px 12px;
   font-size: var(--font-lg);
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-base);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
+  color: var(--tx-1);
   outline: none;
   transition: border-color var(--duration-normal);
 }
 
 .contact-input-input:focus {
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
 }
 
 .contact-input-input::placeholder {
-  color: var(--text-muted);
+  color: var(--tx-3);
 }
 
 .contact-input-actions {
@@ -182,7 +182,7 @@
   justify-content: flex-end;
   gap: var(--space-5);
   padding: 12px 18px;
-  border-top: 1px solid var(--border-color);
+  border-top: 0.5px solid var(--sep-l);
   flex-shrink: 0;
 }
 
@@ -198,17 +198,17 @@
 
 .contact-input-cancel {
   background-color: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
+  color: var(--tx-2);
+  border: 0.5px solid var(--sep-l);
 }
 
 .contact-input-cancel:hover {
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
+  background-color: var(--bg-elevated);
+  color: var(--tx-1);
 }
 
 .contact-input-submit {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #ffffff;
 }
 

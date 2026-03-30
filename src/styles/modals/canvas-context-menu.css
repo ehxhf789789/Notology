@@ -13,7 +13,7 @@
   background: var(--bg-secondary, #2d2d2d);
   border: 1px solid var(--border-color, #444);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--sh-lg);
   min-width: 180px;
   z-index: var(--z-modal-backdrop);
   padding: 8px 0;
@@ -112,7 +112,7 @@
 }
 
 .canvas-context-item.delete {
-  color: var(--color-danger);
+  color: var(--c-red);
 }
 
 .canvas-context-item.delete:hover {

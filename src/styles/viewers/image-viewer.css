@@ -8,7 +8,7 @@
   align-items: center;
   justify-content: center;
   overflow: auto;
-  background: var(--bg-primary);
+  background: var(--bg-base);
 }
 
 .image-viewer-body img {

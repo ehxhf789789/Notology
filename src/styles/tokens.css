@@ -73,7 +73,7 @@
   --duration-slow: 0.3s;
 
   /* ── V2 Polish Tokens ── */
-  --focus-ring: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-primary);
+  --focus-ring: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--accent-primary);
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.15);
   --btn-height-sm: 28px;
   --btn-height-md: 32px;

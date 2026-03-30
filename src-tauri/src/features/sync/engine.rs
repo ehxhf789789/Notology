@@ -382,8 +382,31 @@ impl SyncEngine {
             .unwrap_or_default();
         matches!(name.as_str(),
             "vault-config.yaml" | "tag-ontology.yaml" | "content-cache.json" |
-            "sync-config.json" | "manifest.json"
+            "sync-config.json" | "manifest.json" | "comments.json"
         ) || relative_path.starts_with(".notology")
+    }
+
+    fn merge_comments_json(local_bytes: &[u8], remote_bytes: &[u8]) -> Option<String> {
+        let local_arr: Vec<serde_json::Value> = serde_json::from_slice(local_bytes).ok()?;
+        let remote_arr: Vec<serde_json::Value> = serde_json::from_slice(remote_bytes).ok()?;
+        let mut map: std::collections::HashMap<String, serde_json::Value> = std::collections::HashMap::new();
+        for item in remote_arr {
+            if let Some(id) = item.get("id").and_then(|v| v.as_str()) {
+                map.insert(id.to_string(), item);
+            }
+        }
+        for item in local_arr {
+            if let Some(id) = item.get("id").and_then(|v| v.as_str()) {
+                let id_str = id.to_string();
+                if let Some(existing) = map.get(&id_str) {
+                    let local_ts = item.get("updatedAt").or_else(|| item.get("createdAt")).and_then(|v| v.as_str()).unwrap_or("");
+                    let remote_ts = existing.get("updatedAt").or_else(|| existing.get("createdAt")).and_then(|v| v.as_str()).unwrap_or("");
+                    if local_ts >= remote_ts { map.insert(id_str, item); }
+                } else { map.insert(id_str, item); }
+            }
+        }
+        let merged: Vec<serde_json::Value> = map.into_values().collect();
+        serde_json::to_string_pretty(&merged).ok()
     }
 
     // ================================================================
@@ -599,6 +622,29 @@ impl SyncEngine {
         // Config files: auto-resolve by uploading local version (no conflict UI)
         if Self::is_auto_resolve(relative_path) {
             log::info!("[sync] Auto-resolving config file conflict: {}", relative_path);
+
+            // comments.json: merge by id with timestamp comparison
+            if relative_path.ends_with("comments.json") {
+                if let Ok(remote_bytes) = client.get_file(remote_path).await {
+                    if let Some(merged) = Self::merge_comments_json(&local_content, &remote_bytes) {
+                        let merged_bytes = merged.as_bytes().to_vec();
+                        // Write merged to local
+                        crate::core::file_io::atomic_write_file(Path::new(local_path), &merged_bytes)
+                            .unwrap_or_else(|e| log::warn!("[sync] Failed to write merged comments: {}", e));
+                        // Upload merged
+                        match client.put_file(remote_path, &merged_bytes).await {
+                            Ok(()) => {
+                                let new_etag = client.get_metadata(remote_path).await.ok().and_then(|m| m.etag);
+                                let _ = manifest.save_base(&self.vault_path, relative_path, &merged_bytes, new_etag, false);
+                                return UploadResult::Success;
+                            }
+                            Err(_) => return UploadResult::NetworkError,
+                        }
+                    }
+                }
+                // Fallback: upload local as-is if merge fails
+            }
+
             match client.put_file(remote_path, &local_content).await {
                 Ok(()) => {
                     let new_etag = client.get_metadata(remote_path).await.ok().and_then(|m| m.etag);

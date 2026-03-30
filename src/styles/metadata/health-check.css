@@ -5,8 +5,8 @@
 .health-check-panel {
   margin-top: var(--space-8);
   padding: 12px 16px;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-md);
 }
 
@@ -25,7 +25,7 @@
 .health-check-header h3 {
   font-size: var(--font-lg);
   font-weight: 600;
-  color: var(--accent-color);
+  color: var(--c-blue);
   margin: 0;
   flex: 1;
 }
@@ -54,12 +54,12 @@
 
 .health-score-label {
   font-size: var(--font-base);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   font-weight: 600;
 }
 
 .health-toggle {
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-size: var(--font-base);
 }
 
@@ -102,7 +102,7 @@
 .health-stat-value {
   font-size: 24px;
   font-weight: 700;
-  color: var(--color-link);
+  color: var(--c-blue);
 }
 
 .health-filter {
@@ -128,14 +128,14 @@
 }
 
 .health-filter-btn.active {
-  background-color: var(--color-link);
-  border-color: var(--color-link);
+  background-color: var(--c-blue);
+  border-color: var(--c-blue);
   color: #fff;
 }
 
 .health-filter-btn.error.active {
-  background-color: var(--color-danger);
-  border-color: var(--color-danger);
+  background-color: var(--c-red);
+  border-color: var(--c-red);
 }
 
 .health-filter-btn.warning.active {
@@ -172,7 +172,7 @@
 }
 
 .health-issue.error {
-  border-left-color: var(--color-danger);
+  border-left-color: var(--c-red);
 }
 
 .health-issue.warning {
@@ -220,7 +220,7 @@
 
 .health-issue-note-link {
   padding: 4px 10px;
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   border: none;
   border-radius: var(--radius-sm);
   color: #fff;

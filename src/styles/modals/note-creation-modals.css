@@ -2,8 +2,8 @@
 
 /* Title Input Modal */
 .title-input-modal {
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-xl);
   width: 420px;
   max-width: 90vw;
@@ -36,7 +36,7 @@
 }
 
 .title-input-header-text {
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .title-input-modal.with-template-info {
@@ -48,8 +48,8 @@
   align-items: flex-start;
   gap: var(--space-6);
   padding: 16px 18px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border-bottom: 0.5px solid var(--sep-l);
 }
 
 .title-input-template-icon {
@@ -67,13 +67,13 @@
 .title-input-template-name {
   font-size: var(--font-lg);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--tx-1);
   margin-bottom: var(--space-2);
 }
 
 .title-input-template-desc {
   font-size: var(--font-base);
-  color: var(--text-muted);
+  color: var(--tx-3);
   line-height: 1.4;
 }
 
@@ -85,22 +85,22 @@
   width: 100%;
   padding: 8px 12px;
   font-size: var(--font-lg);
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-base);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-md);
-  color: var(--text-primary);
+  color: var(--tx-1);
   outline: none;
   transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
 }
 
 .title-input-field:focus {
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
 }
 
 .title-input-actions {
   padding: 12px 18px;
-  border-top: 1px solid var(--border-color);
+  border-top: 0.5px solid var(--sep-l);
   display: flex;
   justify-content: flex-end;
   gap: var(--space-5);
@@ -118,16 +118,16 @@
 
 .title-input-cancel {
   background-color: var(--bg-hover);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   border-radius: var(--radius-md);
 }
 
 .title-input-cancel:hover {
-  background-color: var(--border-color);
+  background-color: var(--sep-l);
 }
 
 .title-input-submit {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #ffffff;
   transition: background-color var(--duration-normal), transform var(--duration-fast), box-shadow var(--duration-normal);
 }
@@ -138,8 +138,8 @@
 
 /* Meeting Input Modal */
 .meeting-input-modal {
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-xl);
   width: 480px;
   max-width: 90vw;
@@ -196,7 +196,7 @@
 .meeting-input-label {
   font-size: var(--font-base);
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -204,20 +204,20 @@
 .meeting-input-input {
   padding: 8px 12px;
   font-size: var(--font-lg);
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-base);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-md);
-  color: var(--text-primary);
+  color: var(--tx-1);
   outline: none;
   transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
 }
 
 .meeting-input-input::placeholder {
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 .meeting-input-input:focus {
-  border-color: var(--accent-color, var(--color-link));
+  border-color: var(--accent-color, var(--c-blue));
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
 }
 
@@ -229,10 +229,10 @@
 .meeting-input-select {
   padding: 8px 12px;
   font-size: var(--font-lg);
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-base);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
+  color: var(--tx-1);
   outline: none;
   cursor: pointer;
   flex: 1;
@@ -240,17 +240,17 @@
 }
 
 .meeting-input-select:focus {
-  border-color: var(--accent-color, var(--color-link));
+  border-color: var(--accent-color, var(--c-blue));
 }
 
 .meeting-input-select option {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--bg-base);
+  color: var(--tx-1);
 }
 
 .meeting-input-actions {
   padding: 12px 18px;
-  border-top: 1px solid var(--border-color);
+  border-top: 0.5px solid var(--sep-l);
   display: flex;
   justify-content: flex-end;
   gap: var(--space-5);
@@ -268,16 +268,16 @@
 
 .meeting-input-cancel {
   background-color: var(--bg-hover);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   border-radius: var(--radius-md);
 }
 
 .meeting-input-cancel:hover {
-  background-color: var(--border-color);
+  background-color: var(--sep-l);
 }
 
 .meeting-input-submit {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #ffffff;
   transition: background-color var(--duration-normal), transform var(--duration-fast), box-shadow var(--duration-normal);
 }
@@ -297,10 +297,10 @@
   left: 0;
   right: 0;
   margin-top: var(--space-2);
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   max-height: 240px;
   overflow-y: auto;
   z-index: var(--z-top) !important;  /* 모달 위에 표시 */
@@ -324,7 +324,7 @@
   width: 28px;
   height: 28px;
   border-radius: var(--radius-full);
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -342,12 +342,12 @@
 .participant-suggestion-name {
   font-size: var(--font-md);
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .participant-suggestion-org {
   font-size: var(--font-sm);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   margin-top: 1px;
 }
 
@@ -357,8 +357,8 @@
   flex-wrap: wrap;
   gap: var(--space-3);
   padding: 8px 10px;
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-base);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-md);
   min-height: 40px;
   align-items: center;
@@ -367,7 +367,7 @@
 }
 
 .participant-chips-container:focus-within {
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
 }
 
 .participant-chip {
@@ -376,10 +376,10 @@
   gap: var(--space-2);
   padding: 4px 8px;
   background-color: var(--bg-hover);
-  border: 1px solid var(--border-color);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-xl);
   font-size: var(--font-base);
-  color: var(--text-primary);
+  color: var(--tx-1);
   font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
 }
 
@@ -387,7 +387,7 @@
   background-color: rgba(59, 130, 246, 0.2);
   border-color: #3b82f6;
   border-width: 2px;
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .participant-chip-name {
@@ -426,18 +426,18 @@
   border: none;
   outline: none;
   font-size: var(--font-md);
-  color: var(--text-primary);
+  color: var(--tx-1);
   font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
 }
 
 .participant-input-inline::placeholder {
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 /* Tag Input Section (for note creation modals) */
 .tag-input-section {
   margin-top: var(--space-4);
-  border: 1px solid var(--border-light);
+  border: 0.5px solid var(--sep);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -454,12 +454,12 @@
 }
 
 .tag-input-section-header:hover {
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-app);
 }
 
 .tag-input-collapse-icon {
   font-size: var(--font-sm);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   transition: transform var(--duration-normal);
 }
 
@@ -470,20 +470,20 @@
 .tag-input-section-title {
   font-size: var(--font-md);
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .tag-input-section-count {
   font-size: var(--font-sm);
-  color: var(--text-secondary);
-  background-color: var(--bg-tertiary);
+  color: var(--tx-2);
+  background-color: var(--bg-elevated);
   padding: 2px 6px;
   border-radius: var(--radius-lg);
 }
 
 .tag-input-section-content {
   padding: 8px 12px;
-  border-top: 1px solid var(--border-light);
+  border-top: 0.5px solid var(--sep);
 }
 
 .tag-input-facet-row {
@@ -497,7 +497,7 @@
   width: 40px;
   flex-shrink: 0;
   font-size: var(--font-sm);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   padding-top: var(--space-2);
 }
 
@@ -516,7 +516,7 @@
   padding: 3px 8px;
   font-size: var(--font-sm);
   font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-  color: var(--text-primary);
+  color: var(--tx-1);
   background-color: var(--accent-primary);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -613,9 +613,9 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   justify-content: center;
   padding: 0;
   font-size: var(--font-lg);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   background-color: transparent;
-  border: 1px dashed var(--border-light);
+  border: 1px dashed var(--sep);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--duration-normal);
@@ -631,23 +631,23 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   min-width: 100px;
   padding: 3px 6px;
   font-size: var(--font-sm);
-  color: var(--text-primary);
-  background-color: var(--bg-secondary);
+  color: var(--tx-1);
+  background-color: var(--bg-app);
   border: 1px solid var(--accent-primary);
   border-radius: var(--radius-sm);
   outline: none;
 }
 
 .tag-input-inline::placeholder {
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 /* Tag Input Autocomplete - rendered via Portal */
 .tag-input-suggestions {
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   max-height: 200px;
   overflow-y: auto;
   z-index: var(--z-window-menu);
@@ -658,7 +658,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   width: 100%;
   padding: 6px 10px;
   font-size: var(--font-base);
-  color: var(--text-primary);
+  color: var(--tx-1);
   background: none;
   border: none;
   text-align: left;
@@ -674,10 +674,10 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 /* Tag Context Menu */
 .tag-context-menu {
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   padding: var(--space-6);
   min-width: 200px;
   max-height: min(500px, calc(100vh - 80px));
@@ -704,9 +704,9 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .tag-context-menu-header {
   font-size: var(--font-lg);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--tx-1);
   padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 0.5px solid var(--sep);
   margin-bottom: var(--space-5);
 }
 
@@ -717,7 +717,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .tag-context-menu-label {
   display: block;
   font-size: var(--font-sm);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   margin-bottom: var(--space-3);
 }
 
@@ -730,7 +730,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .tag-context-menu-color-input {
   width: 32px;
   height: 32px;
-  border: 1px solid var(--border-light);
+  border: 0.5px solid var(--sep);
   border-radius: var(--radius-sm);
   cursor: pointer;
   background: transparent;
@@ -743,9 +743,9 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   align-items: center;
   justify-content: center;
   font-size: var(--font-lg);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   background-color: transparent;
-  border: 1px dashed var(--border-light);
+  border: 1px dashed var(--sep);
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
@@ -775,7 +775,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   gap: var(--space-4);
   justify-content: flex-end;
   padding-top: var(--space-4);
-  border-top: 1px solid var(--border-light);
+  border-top: 0.5px solid var(--sep);
   margin-top: var(--space-2);
 }
 
@@ -788,14 +788,14 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .tag-context-menu-remove {
-  color: var(--text-secondary);
+  color: var(--tx-2);
   background: transparent;
-  border: 1px solid var(--border-light);
+  border: 0.5px solid var(--sep);
 }
 
 .tag-context-menu-remove:hover {
-  color: var(--color-danger);
-  border-color: var(--color-danger);
+  color: var(--c-red);
+  border-color: var(--c-red);
 }
 
 .tag-context-menu-save {
@@ -826,12 +826,12 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   align-items: center;
   justify-content: center;
   font-size: var(--font-base);
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 .tag-context-menu-preset-btn:hover {
   transform: scale(1.1);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--sh-sm);
 }
 
 .tag-context-menu-preset-btn.active {
@@ -840,7 +840,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .tag-context-menu-preset-btn.preset-none {
-  border: 2px dashed var(--border-light);
+  border: 2px dashed var(--sep);
   background-color: transparent !important;
 }
 
@@ -871,12 +871,12 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   align-items: center;
   justify-content: center;
   font-size: var(--font-lg);
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 .tag-context-menu-scheme-btn:hover {
   transform: scale(1.08);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--sh-sm);
 }
 
 .tag-context-menu-scheme-btn.active {
@@ -884,7 +884,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .tag-context-menu-scheme-btn.preset-none {
-  border: 2px dashed var(--border-light);
+  border: 2px dashed var(--sep);
   font-size: var(--font-xl);
 }
 
@@ -900,7 +900,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .tag-context-menu-preview-section {
   margin-top: var(--space-6);
   padding-top: var(--space-5);
-  border-top: 1px solid var(--border-light);
+  border-top: 0.5px solid var(--sep);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -942,7 +942,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 .tag-color-scheme-btn.active {
@@ -950,7 +950,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .tag-color-scheme-btn.preset-none {
-  border: 2px dashed var(--border-light) !important;
+  border: 2px dashed var(--sep) !important;
 }
 
 .tag-color-scheme-btn.preset-none.active {
@@ -960,8 +960,8 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 /* Paper Input Modal */
 .paper-input-modal {
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-xl);
   width: 480px;
   max-width: 90vw;
@@ -994,7 +994,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .paper-input-header-text {
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .paper-input-body {
@@ -1021,7 +1021,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .paper-input-label {
   font-size: var(--font-base);
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1029,20 +1029,20 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .paper-input-input {
   padding: 8px 12px;
   font-size: var(--font-lg);
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-base);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-md);
-  color: var(--text-primary);
+  color: var(--tx-1);
   outline: none;
   transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
 }
 
 .paper-input-input::placeholder {
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 .paper-input-input:focus {
-  border-color: var(--accent-color, var(--color-link));
+  border-color: var(--accent-color, var(--c-blue));
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
 }
 
@@ -1065,8 +1065,8 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .paper-input-cancel {
-  background-color: var(--bg-tertiary);
-  color: var(--text-secondary);
+  background-color: var(--bg-elevated);
+  color: var(--tx-2);
   border-radius: var(--radius-md);
 }
 
@@ -1075,7 +1075,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .paper-input-submit {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #ffffff;
   transition: background-color var(--duration-normal), transform var(--duration-fast), box-shadow var(--duration-normal);
 }
@@ -1093,8 +1093,8 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 /* Literature Input Modal */
 .literature-input-modal {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-xl);
   width: 480px;
   max-width: 90vw;
@@ -1154,7 +1154,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .literature-input-label {
   font-size: var(--font-base);
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1171,11 +1171,11 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .literature-input-input::placeholder {
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 .literature-input-input:focus {
-  border-color: var(--accent-color, var(--color-link));
+  border-color: var(--accent-color, var(--c-blue));
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
 }
 
@@ -1198,8 +1198,8 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .literature-input-cancel {
-  background-color: var(--bg-tertiary);
-  color: var(--text-secondary);
+  background-color: var(--bg-elevated);
+  color: var(--tx-2);
   border-radius: var(--radius-md);
 }
 
@@ -1208,7 +1208,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .literature-input-submit {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #ffffff;
   transition: background-color var(--duration-normal), transform var(--duration-fast), box-shadow var(--duration-normal);
 }
@@ -1226,8 +1226,8 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 /* Event Input Modal */
 .event-input-modal {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-xl);
   width: 480px;
   max-width: 90vw;
@@ -1284,7 +1284,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .event-input-label {
   font-size: var(--font-base);
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--tx-2);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -1301,11 +1301,11 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .event-input-input::placeholder {
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 .event-input-input:focus {
-  border-color: var(--accent-color, var(--color-link));
+  border-color: var(--accent-color, var(--c-blue));
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
 }
 
@@ -1328,8 +1328,8 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .event-input-cancel {
-  background-color: var(--bg-tertiary);
-  color: var(--text-secondary);
+  background-color: var(--bg-elevated);
+  color: var(--tx-2);
   border-radius: var(--radius-md);
 }
 
@@ -1338,7 +1338,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .event-input-submit {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #ffffff;
   transition: background-color var(--duration-normal), transform var(--duration-fast), box-shadow var(--duration-normal);
 }
@@ -1367,12 +1367,12 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 /* Confirm Delete Modal */
 .confirm-delete-modal {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-lg);
   width: 380px;
   max-width: 90vw;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--sh-lg);
   display: flex;
   flex-direction: column;
   animation: modalEnter 0.2s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1380,7 +1380,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .confirm-delete-header {
   padding: 14px 18px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 0.5px solid var(--sep-l);
   font-size: var(--font-lg);
   font-weight: 600;
   color: #e06c75;
@@ -1391,25 +1391,25 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .confirm-delete-message {
-  color: var(--text-primary);
+  color: var(--tx-1);
   font-size: var(--font-lg);
   margin: 0 0 8px 0;
 }
 
 .confirm-delete-message strong {
-  color: var(--text-primary);
+  color: var(--tx-1);
   font-weight: 600;
 }
 
 .confirm-delete-warning {
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-size: var(--font-md);
   margin: 0;
 }
 
 .confirm-delete-actions {
   padding: 12px 18px;
-  border-top: 1px solid var(--border-color);
+  border-top: 0.5px solid var(--sep-l);
   display: flex;
   justify-content: flex-end;
   gap: var(--space-5);
@@ -1426,8 +1426,8 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .confirm-delete-cancel {
-  background-color: var(--bg-tertiary);
-  color: var(--text-secondary);
+  background-color: var(--bg-elevated);
+  color: var(--tx-2);
 }
 
 .confirm-delete-cancel:hover {
@@ -1445,12 +1445,12 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 /* Alert Modal */
 .alert-modal {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-lg);
   width: 420px;
   max-width: 90vw;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--sh-lg);
   display: flex;
   flex-direction: column;
   animation: modalEnter 0.2s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1458,7 +1458,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .alert-modal-header {
   padding: 14px 18px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 0.5px solid var(--sep-l);
   font-size: var(--font-lg);
   font-weight: 600;
   color: #f0a020;
@@ -1469,7 +1469,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .alert-modal-message {
-  color: var(--text-primary);
+  color: var(--tx-1);
   font-size: var(--font-lg);
   margin: 0;
   line-height: 1.6;
@@ -1478,7 +1478,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .alert-modal-actions {
   padding: 12px 18px;
-  border-top: 1px solid var(--border-color);
+  border-top: 0.5px solid var(--sep-l);
   display: flex;
   justify-content: flex-end;
 }
@@ -1490,7 +1490,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   border: none;
   cursor: pointer;
   font-weight: 500;
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #ffffff;
   transition: background-color var(--duration-normal);
 }

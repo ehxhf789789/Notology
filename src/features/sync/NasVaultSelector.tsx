@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Cloud, Package, FolderOpen, Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
 import { syncCommands, nasCommands, type NasConnection, type NasVaultEntry } from './syncCommands';
 import { NasFolderBrowser } from './NasFolderBrowser';
 import { useVaultPath } from '../../core/stores/fileTreeStore';
@@ -361,7 +362,7 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
     <div className="nas-vault-selector">
       {/* ── Connection Section ── */}
       <div className="nas-section">
-        <div className="nas-section-title">☁️ NAS 연결</div>
+        <div className="nas-section-title"><Cloud size={16} /> NAS 연결</div>
 
         {phase === 'connect' ? (
           <div className="nas-connect-form">
@@ -387,7 +388,7 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
             <span className="nas-connected-dot nas-dot-offline" />
             <span className="nas-connected-info">
               <strong>{connection?.display_name || url}</strong>
-              <span className="nas-connected-user">⚠ 오프라인 — 네트워크 연결을 확인하세요</span>
+              <span className="nas-connected-user"><AlertTriangle size={14} /> 오프라인 — 네트워크 연결을 확인하세요</span>
             </span>
             <button className="nas-btn-sm" onClick={() => { setPhase('connect'); }}>연결 수정</button>
           </div>
@@ -405,7 +406,7 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
           {vaults.length > 0 ? (
             vaults.map(v => (
               <div key={v.remote_path} className="nas-vault-item nas-vault-offline" onClick={() => handleOfflineOpen(v)}>
-                <span className="nas-vault-icon">📦</span>
+                <span className="nas-vault-icon"><Package size={16} /></span>
                 <div className="nas-vault-info">
                   <span className="nas-vault-name">{v.name}</span>
                   <span className="nas-vault-path">{v.remote_path}</span>
@@ -442,7 +443,7 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
                 className={`nas-vault-item ${isCurrent ? 'current' : ''}`}
                 onClick={() => !isCurrent && handleSelectVault(v)}
               >
-                <span className="nas-vault-icon">📦</span>
+                <span className="nas-vault-icon"><Package size={16} /></span>
                 <div className="nas-vault-info">
                   {renamingVault === v.remote_path ? (
                     <form className="nas-vault-rename-form" onSubmit={e => {
@@ -490,7 +491,7 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
                         setRenamingVault(v.remote_path);
                         setRenameValue(v.name);
                       }}
-                    >✏️</button>
+                    ><Pencil size={14} /></button>
                     {!isCurrent && (
                       <button
                         className="nas-vault-action-btn danger"
@@ -503,7 +504,7 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
                             });
                           });
                         }}
-                      >🗑️</button>
+                      ><Trash2 size={14} /></button>
                     )}
                   </div>
                 </div>
@@ -515,14 +516,14 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
 
           <div className="nas-vault-actions">
             <button className="nas-action-card" onClick={() => { setError(''); setPhase('browse-open'); }}>
-              <span className="nas-action-icon">📂</span>
+              <span className="nas-action-icon"><FolderOpen size={16} /></span>
               <div className="nas-action-text">
                 <strong>보관소 열기</strong>
                 <span>NAS에서 기존 보관소 폴더를 선택</span>
               </div>
             </button>
             <button className="nas-action-card" onClick={() => { setError(''); setPhase('browse-create'); }}>
-              <span className="nas-action-icon">＋</span>
+              <span className="nas-action-icon"><Plus size={16} /></span>
               <div className="nas-action-text">
                 <strong>보관소 생성</strong>
                 <span>NAS에 새 보관소를 만듭니다</span>
@@ -584,7 +585,7 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
             </p>
             <div className="nas-port-change-vaults">
               {portChangeInfo.vault_names.map(n => (
-                <span key={n} className="nas-port-change-vault-name">📦 {n}</span>
+                <span key={n} className="nas-port-change-vault-name"><Package size={14} /> {n}</span>
               ))}
             </div>
             <p>

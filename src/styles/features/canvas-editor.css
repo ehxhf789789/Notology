@@ -7,7 +7,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-primary);
+  background-color: var(--bg-base);
   position: relative;
 }
 
@@ -16,8 +16,8 @@
   align-items: center;
   gap: var(--space-4);
   padding: 8px 12px;
-  background-color: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-elevated);
+  border-bottom: 0.5px solid var(--sep-l);
 }
 
 .canvas-toolbar-btn {
@@ -29,13 +29,13 @@
   background-color: var(--bg-hover);
   border: none;
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
+  color: var(--tx-1);
   cursor: pointer;
   transition: background-color var(--duration-normal);
 }
 
 .canvas-toolbar-btn:hover {
-  background-color: var(--border-color);
+  background-color: var(--sep-l);
 }
 
 .canvas-toolbar-btn:disabled {
@@ -44,7 +44,7 @@
 }
 
 .canvas-toolbar-btn.active {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #fff;
 }
 
@@ -55,7 +55,7 @@
 .canvas-toolbar-hint {
   flex: 1;
   font-size: var(--font-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   padding-left: var(--space-4);
 }
 
@@ -112,11 +112,11 @@
 }
 
 .canvas-edge:hover {
-  stroke: var(--color-link) !important;
+  stroke: var(--c-blue) !important;
 }
 
 .canvas-edge.selected {
-  stroke: var(--color-link) !important;
+  stroke: var(--c-blue) !important;
 }
 
 .canvas-nodes {
@@ -131,11 +131,11 @@
 
 .canvas-node {
   position: absolute;
-  border: 2px solid var(--border-light);
+  border: 2px solid var(--sep);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
   cursor: move;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--sh-sm);
   transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
   pointer-events: auto;
   box-sizing: border-box;
@@ -168,7 +168,7 @@
 }
 
 .canvas-node.editing {
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
   box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.5), 0 0 12px rgba(0, 122, 204, 0.15);
 }
 
@@ -219,7 +219,7 @@ html[data-theme="dark"] .canvas-node.editing {
 
 /* Target node indicator during connection */
 .canvas-viewport.is-connecting .canvas-node.hovered:not(.connecting) {
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
   box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.6), 0 0 20px rgba(0, 122, 204, 0.4);
   animation: pulseTarget 1s ease-in-out infinite;
 }
@@ -366,12 +366,12 @@ html[data-theme="dark"] .canvas-node.editing {
   top: 0;
   bottom: 0;
   width: 2px;
-  background-color: var(--border-light);
+  background-color: var(--sep);
   pointer-events: none;
 }
 
 .canvas-node.shape-subroutine:hover::before {
-  background-color: var(--border-light);
+  background-color: var(--sep);
 }
 
 .canvas-node.shape-subroutine.selected::before,
@@ -396,12 +396,12 @@ html[data-theme="dark"] .canvas-node.editing {
   top: 0;
   bottom: 0;
   width: 2px;
-  background-color: var(--border-light);
+  background-color: var(--sep);
   pointer-events: none;
 }
 
 .canvas-node.shape-subroutine:hover::after {
-  background-color: var(--border-light);
+  background-color: var(--sep);
 }
 
 .canvas-node.shape-subroutine.selected::after,
@@ -494,7 +494,7 @@ html[data-theme="dark"] .canvas-node.editing {
 .canvas-node-resize {
   position: absolute;
   background-color: #fff;
-  border: 2px solid var(--color-link);
+  border: 2px solid var(--c-blue);
   z-index: var(--z-raised);
   pointer-events: auto;
   transition: background-color var(--duration-normal), border-color var(--duration-normal), transform var(--duration-normal);
@@ -584,7 +584,7 @@ html[data-theme="dark"] .canvas-node.editing {
 }
 
 .canvas-node-resize:hover {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   border-color: #00d4aa;
   box-shadow: 0 0 8px rgba(0, 122, 204, 0.6);
 }
@@ -627,7 +627,7 @@ html[data-theme="dark"] .canvas-node.editing {
   height: 100%;
   background: transparent;
   border: none;
-  color: var(--text-primary);
+  color: var(--tx-1);
   font-size: var(--font-md);
   font-family: inherit;
   outline: none;
@@ -638,7 +638,7 @@ html[data-theme="dark"] .canvas-node.editing {
 }
 
 .canvas-node-text::placeholder {
-  color: var(--text-muted);
+  color: var(--tx-3);
 }
 
 .canvas-node-text.text-center {
@@ -649,7 +649,7 @@ html[data-theme="dark"] .canvas-node.editing {
 .canvas-node-text-display {
   width: 100%;
   height: 100%;
-  color: var(--text-primary);
+  color: var(--tx-1);
   font-size: var(--font-md);
   font-family: inherit;
   overflow: hidden;
@@ -678,12 +678,12 @@ html[data-theme="dark"] .canvas-node.editing {
   display: block;
   margin: 0 0 6px 0;
   line-height: 1.3;
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .canvas-node-text-display strong.canvas-heading-1 {
   font-size: 1.5em;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 0.5px solid var(--sep-l);
   padding-bottom: var(--space-2);
   margin-bottom: var(--space-4);
 }
@@ -694,7 +694,7 @@ html[data-theme="dark"] .canvas-node.editing {
 
 .canvas-node-text-display strong.canvas-heading-3 {
   font-size: 1.15em;
-  color: var(--text-secondary);
+  color: var(--tx-2);
 }
 
 .canvas-node-text-display ul,
@@ -711,13 +711,13 @@ html[data-theme="dark"] .canvas-node.editing {
 .canvas-node-text-display blockquote {
   margin: 0 0 4px 0;
   padding-left: var(--space-4);
-  border-left: 3px solid var(--border-color);
-  color: var(--text-muted);
+  border-left: 3px solid var(--sep-l);
+  color: var(--tx-3);
   font-style: italic;
 }
 
 .canvas-node-text-display .canvas-wikilink {
-  color: var(--color-link);
+  color: var(--c-blue);
   text-decoration: underline;
   text-decoration-style: dotted;
   cursor: pointer;
@@ -741,7 +741,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
 }
 
 .canvas-node-text-display .canvas-placeholder {
-  color: var(--text-muted);
+  color: var(--tx-3);
   font-style: italic;
 }
 
@@ -757,21 +757,21 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
   justify-content: center;
   width: 32px;
   height: 28px;
-  border: 1px solid var(--border-color);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
   background-color: var(--bg-hover);
-  color: var(--text-primary);
+  color: var(--tx-1);
   cursor: pointer;
   transition: background-color var(--duration-normal), border-color var(--duration-normal);
 }
 
 .canvas-properties-align-btn:hover {
-  background-color: var(--border-color);
+  background-color: var(--sep-l);
 }
 
 .canvas-properties-align-btn.active {
-  background-color: var(--color-link);
-  border-color: var(--color-link);
+  background-color: var(--c-blue);
+  border-color: var(--c-blue);
   color: #fff;
 }
 
@@ -783,7 +783,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
   height: 28px;
   border-radius: var(--radius-full);
   background-color: #dc3545;
-  border: 3px solid var(--bg-primary);
+  border: 3px solid var(--bg-base);
   color: #fff;
   font-size: var(--font-3xl);
   font-family: Arial, sans-serif;
@@ -798,7 +798,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
   transition: background-color var(--duration-normal), transform var(--duration-fast);
   pointer-events: auto;
   z-index: var(--z-dropdown);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--sh-sm);
 }
 
 .canvas-node-delete:hover {
@@ -851,7 +851,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
   border-radius: var(--radius-sm);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--sh-sm);
 }
 
 .canvas-node-file-icon {
@@ -861,7 +861,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  color: var(--color-link);
+  color: var(--c-blue);
   opacity: 0.8;
 }
 
@@ -897,7 +897,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
 
 .canvas-viewport.drag-over {
   background-color: rgba(0, 122, 204, 0.1);
-  outline: 2px dashed var(--color-link);
+  outline: 2px dashed var(--c-blue);
   outline-offset: -4px;
 }
 
@@ -906,21 +906,21 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
   top: 60px;
   right: 16px;
   width: 220px;
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
   z-index: var(--z-window-menu);
 }
 
 .canvas-properties-header {
   font-size: var(--font-md);
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--tx-1);
   margin-bottom: var(--space-6);
   padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 0.5px solid var(--sep-l);
 }
 
 .canvas-properties-section {
@@ -933,7 +933,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
 
 .canvas-properties-label {
   font-size: var(--font-sm);
-  color: var(--text-muted);
+  color: var(--tx-3);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: var(--space-4);
@@ -959,7 +959,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
 }
 
 .canvas-properties-color.active {
-  border-color: var(--color-link);
+  border-color: var(--c-blue);
   box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.3);
 }
 
@@ -975,19 +975,19 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
   background-color: var(--bg-hover);
   border: 2px solid transparent;
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
+  color: var(--tx-1);
   cursor: pointer;
   text-align: left;
   transition: background-color var(--duration-normal), border-color var(--duration-normal);
 }
 
 .canvas-properties-shape:hover {
-  background-color: var(--border-color);
+  background-color: var(--sep-l);
 }
 
 .canvas-properties-shape.active {
-  background-color: var(--color-link);
-  border-color: var(--color-link);
+  background-color: var(--c-blue);
+  border-color: var(--c-blue);
   color: #fff;
 }
 
@@ -1049,7 +1049,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
   gap: var(--space-1);
   margin-left: var(--space-2);
   padding-left: var(--space-4);
-  border-left: 1px solid var(--border-color);
+  border-left: 0.5px solid var(--sep-l);
 }
 
 .canvas-props-icon-btn {
@@ -1061,18 +1061,18 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   transition: background-color var(--duration-fast), color var(--duration-fast);
 }
 
 .canvas-props-icon-btn:hover {
   background-color: var(--bg-hover);
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .canvas-props-icon-btn.active {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #fff;
 }
 
@@ -1083,9 +1083,9 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: 1px solid var(--border-color);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--tx-2);
   cursor: pointer;
   margin-left: auto;
   transition: background-color var(--duration-fast), color var(--duration-fast);
@@ -1093,7 +1093,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
 
 .canvas-props-expand-btn:hover {
   background-color: var(--bg-hover);
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 .canvas-props-shapes-grid {
@@ -1102,7 +1102,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
   gap: var(--space-2);
   margin-top: var(--space-4);
   padding-top: var(--space-4);
-  border-top: 1px solid var(--border-color);
+  border-top: 0.5px solid var(--sep-l);
 }
 
 .canvas-props-shapes-grid.icons {
@@ -1116,7 +1116,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
   background-color: var(--bg-hover);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
+  color: var(--tx-1);
   cursor: pointer;
   text-align: center;
   transition: background-color var(--duration-fast), border-color var(--duration-fast);
@@ -1138,7 +1138,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
 }
 
 .canvas-props-shape-btn:hover {
-  background-color: var(--border-color);
+  background-color: var(--sep-l);
 }
 
 .canvas-props-shape-btn.icon:hover svg {
@@ -1146,7 +1146,7 @@ html[data-theme="dark"] .canvas-node-text-display .canvas-wikilink:hover {
 }
 
 .canvas-props-shape-btn.active {
-  background-color: var(--color-link);
+  background-color: var(--c-blue);
   color: #fff;
 }
 

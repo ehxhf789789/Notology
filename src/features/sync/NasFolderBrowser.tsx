@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { Package, Folder, ChevronDown, ChevronRight } from 'lucide-react';
 import { syncCommands, type RemoteFolderEntry } from './syncCommands';
 
 interface NasFolderBrowserProps {
@@ -190,14 +191,14 @@ function FolderTreeItem({
           {node.loading ? (
             <span className="nas-spinner">&#8635;</span>
           ) : node.expanded ? (
-            '▼'
+            <ChevronDown size={14} />
           ) : (
-            '▶'
+            <ChevronRight size={14} />
           )}
         </button>
 
         <span className="nas-folder-icon">
-          {node.isVault ? '📦' : '📁'}
+          {node.isVault ? <Package size={14} /> : <Folder size={14} />}
         </span>
 
         <span className="nas-folder-name" style={{ color: '#ff0', minWidth: '100px', display: 'inline-block' }}>

@@ -1,3 +1,4 @@
+import { Lock } from 'lucide-react';
 import { useModalStore } from '../modals/stores/modalStore';
 import { forceOpenLockedVault } from '../../core/stores/appActions';
 import { useSettingsStore } from '../../core/stores/settingsStore';
@@ -32,7 +33,7 @@ function VaultLockModal() {
     <div className="modal-overlay" onClick={hideVaultLockModal}>
       <div className="modal-content vault-lock-modal" onClick={e => e.stopPropagation()}>
         <div className="vault-lock-modal-header">
-          <span className="vault-lock-icon">🔒</span>
+          <span className="vault-lock-icon"><Lock size={20} /></span>
           <h2>{t('vaultInUse', language)}</h2>
         </div>
 

@@ -5,58 +5,58 @@
 /* ============================================================ */
 
 html[data-theme="dark"] .office-viewer-container {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--bg-base);
+  color: var(--tx-1);
 }
 
 /* DOCX: dark surround, white paper */
 html[data-theme="dark"] .docx-viewer {
-  background: var(--bg-secondary);
+  background: var(--bg-app);
 }
 
 /* XLSX: surrounding UI goes dark, cells stay white with dark text */
 html[data-theme="dark"] .xlsx-viewer {
-  background: var(--bg-primary);
+  background: var(--bg-base);
 }
 
 html[data-theme="dark"] .xlsx-sheet-tabs {
-  background: var(--bg-secondary);
-  border-top-color: var(--border-color);
+  background: var(--bg-app);
+  border-top-color: var(--sep-l);
 }
 
 html[data-theme="dark"] .xlsx-sheet-tab {
-  background: var(--bg-tertiary);
-  border-color: var(--border-color);
-  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border-color: var(--sep-l);
+  color: var(--tx-2);
 }
 
 html[data-theme="dark"] .xlsx-sheet-tab:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
+  color: var(--tx-1);
 }
 
 html[data-theme="dark"] .xlsx-sheet-tab.active {
-  background: var(--bg-primary);
-  border-top-color: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--bg-base);
+  border-top-color: var(--bg-base);
+  color: var(--tx-1);
 }
 
 html[data-theme="dark"] .xlsx-grid-container {
-  background: var(--bg-tertiary);
-  scrollbar-color: var(--text-muted) var(--bg-tertiary);
+  background: var(--bg-elevated);
+  scrollbar-color: var(--tx-3) var(--bg-elevated);
 }
 
 html[data-theme="dark"] .xlsx-grid-container::-webkit-scrollbar-track {
-  background: var(--bg-tertiary);
+  background: var(--bg-elevated);
 }
 
 html[data-theme="dark"] .xlsx-grid-container::-webkit-scrollbar-thumb {
-  background: var(--text-muted);
-  border-color: var(--bg-tertiary);
+  background: var(--tx-3);
+  border-color: var(--bg-elevated);
 }
 
 html[data-theme="dark"] .xlsx-grid-container::-webkit-scrollbar-corner {
-  background: var(--bg-tertiary);
+  background: var(--bg-elevated);
 }
 
 /* Grid table: stays WHITE — cells are paper-like, not dark */
@@ -64,8 +64,8 @@ html[data-theme="dark"] .xlsx-grid-container::-webkit-scrollbar-corner {
 
 /* Headers: dark theme */
 html[data-theme="dark"] .xlsx-corner-cell {
-  background: var(--bg-tertiary);
-  border-color: var(--border-color);
+  background: var(--bg-elevated);
+  border-color: var(--sep-l);
 }
 
 html[data-theme="dark"] .xlsx-corner-cell:hover {
@@ -73,9 +73,9 @@ html[data-theme="dark"] .xlsx-corner-cell:hover {
 }
 
 html[data-theme="dark"] .xlsx-column-header {
-  background: var(--bg-tertiary);
-  border-color: var(--border-color);
-  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border-color: var(--sep-l);
+  color: var(--tx-2);
 }
 
 html[data-theme="dark"] .xlsx-column-header:hover {
@@ -87,9 +87,9 @@ html[data-theme="dark"] .xlsx-column-header.selected {
 }
 
 html[data-theme="dark"] .xlsx-row-header {
-  background: var(--bg-tertiary);
-  border-color: var(--border-color);
-  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border-color: var(--sep-l);
+  color: var(--tx-2);
 }
 
 html[data-theme="dark"] .xlsx-row-header:hover {
@@ -122,7 +122,7 @@ html[data-theme="dark"] .xlsx-zoom-indicator {
 
 /* PPTX: dark surround, white slides */
 html[data-theme="dark"] .pptx-viewer {
-  background: var(--bg-primary);
+  background: var(--bg-base);
 }
 
 /* HWPX: dark surround, white pages */
@@ -131,7 +131,7 @@ html[data-theme="dark"] .hwpx-viewer {
 }
 
 html[data-theme="dark"] .hwpx-page {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--sh-md);
 }
 
 html[data-theme="dark"] .hwpx-figure figcaption {
@@ -144,14 +144,14 @@ html[data-theme="dark"] .hwpx-zoom-indicator {
 }
 
 html[data-theme="dark"] .hwpx-image {
-  border-color: var(--border-color);
+  border-color: var(--sep-l);
 }
 
 /* HWP (SVG from Rust): dark surround */
 html[data-theme="dark"] .hwp-viewer {
-  background: var(--bg-secondary);
+  background: var(--bg-app);
 }
 
 html[data-theme="dark"] .hwp-content {
-  background: var(--bg-secondary);
+  background: var(--bg-app);
 }

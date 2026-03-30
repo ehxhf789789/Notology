@@ -85,6 +85,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   // ========== CORE STATE & REFS ==========
   const [frontmatter, setFrontmatter] = useState<NoteFrontmatter | null>(null);
   const [body, setBody] = useState('');
+  const isCanvasNote = !!(frontmatter?.canvas || (!frontmatter && body.trimStart().startsWith('{"nodes":')));
   const [isDirty, setIsDirty] = useState(false);
   const mtimeOnLoadRef = useRef<number>(0);
   const [editorMenuPos, setEditorMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -594,7 +595,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     hoverEditorRef,
     hoverZoomEnabled,
     hoverZoomLevel,
-    isCanvas: !!frontmatter?.canvas,
+    isCanvas: !!isCanvasNote,
     setHoverZoomLevel: appStoreActionsRef.current.setHoverZoomLevel,
   });
 
@@ -613,7 +614,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   // ========== FILE DROP (extracted hook) ==========
   const { handleFileDrop } = useFileDrop({
     editor,
-    isCanvas: !!frontmatter?.canvas,
+    isCanvas: !!isCanvasNote,
     saveFile,
     saveTimeoutRef,
     refreshHoverWindowsForFile,
@@ -671,7 +672,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     <div
       ref={(el) => {
         (hoverEditorRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-        if (!frontmatter?.canvas) {
+        if (!isCanvasNote) {
           dropTargetRef(el);
         }
       }}
@@ -694,7 +695,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         ...(templateCustomColor ? { '--template-color': templateCustomColor } as React.CSSProperties : {}),
       }}
       onMouseDown={handleMouseDown}
-      data-drop-target={frontmatter?.canvas ? undefined : `hover-editor-${win.id}`}
+      data-drop-target={isCanvasNote ? undefined : `hover-editor-${win.id}`}
       data-hover-id={win.id}
     >
       <div className="hover-editor-header" onMouseDown={handleDragStart} onDoubleClick={handleDoubleClick}>
@@ -744,7 +745,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
           </button>
         </div>
       </div>
-      {!frontmatter?.canvas && <EditorToolbar editor={editor} defaultCollapsed={toolbarDefaultCollapsed} />}
+      {!isCanvasNote && <EditorToolbar editor={editor} defaultCollapsed={toolbarDefaultCollapsed} />}
       {conflictState && (
         <div className="hover-editor-conflict-bar">
           <span className="conflict-bar-message">{t('conflictDetected', language)}</span>
@@ -792,9 +793,9 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         <div
           ref={editorBodyRef}
           className={`hover-editor-body${frontmatter?.cssclasses ? ' ' + frontmatter.cssclasses.join(' ') : ''}`}
-          style={frontmatter?.canvas ? undefined : { zoom: hoverZoomLevel / 100 }}
+          style={isCanvasNote ? undefined : { zoom: hoverZoomLevel / 100 }}
         >
-          {(isContentLoading || (!editor && !frontmatter?.canvas)) ? (
+          {(isContentLoading || (!editor && !isCanvasNote)) ? (
             <div className="hover-editor-skeleton">
               <div className="skeleton-line skeleton-title" />
               <div className="skeleton-line skeleton-full" />
@@ -803,7 +804,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
               <div className="skeleton-line skeleton-full" />
               <div className="skeleton-line skeleton-medium" />
             </div>
-          ) : frontmatter?.canvas ? (
+          ) : isCanvasNote ? (
             <CanvasEditor
               data={canvasData}
               onChange={handleCanvasChange}
@@ -827,17 +828,17 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
               commentHandlers.setPendingTaskMode(false);
             }}
             selectedText={
-              frontmatter?.canvas
+              isCanvasNote
                 ? (canvasSelection?.text || '')
                 : (commentHandlers.preservedSelection?.text || '')
             }
             selectionRange={
-              frontmatter?.canvas
+              isCanvasNote
                 ? (canvasSelection ? { from: canvasSelection.from, to: canvasSelection.to } : null)
                 : (commentHandlers.preservedSelection?.range || null)
             }
             activeCommentId={commentHandlers.activeCommentId}
-            canvasSelection={frontmatter?.canvas ? canvasSelection : undefined}
+            canvasSelection={isCanvasNote ? canvasSelection : undefined}
             initialTaskMode={commentHandlers.pendingTaskMode}
           />
         )}
