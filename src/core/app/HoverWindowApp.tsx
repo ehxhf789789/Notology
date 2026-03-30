@@ -244,10 +244,12 @@ function HoverWindowApp() {
   }
 
   // Create mock hover window data for components
+  const urlNoteType = new URLSearchParams(window.location.search).get('noteType') || undefined;
   const hoverWindow: HoverWindow = {
     id: windowRef.current.label,
     filePath,
     type: fileType,
+    noteType: urlNoteType,
     position: { x: 0, y: 0 },
     size: { width: 800, height: 600 },
     zIndex: 1000,
