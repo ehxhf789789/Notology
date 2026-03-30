@@ -139,13 +139,18 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
     if (!searchReady || !vaultPath) return;
     setLoading(true);
     try {
-      const data = await searchCommands.getGraphData(
-        containerPath ?? null,
-        graphSettings.showAttachments,
+      // Timeout to prevent infinite loading if Tauri command hangs
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Graph data timeout')), 10000)
       );
+      const data = await Promise.race([
+        searchCommands.getGraphData(containerPath ?? null, graphSettings.showAttachments),
+        timeoutPromise,
+      ]);
       setGraphData(data);
     } catch (err) {
       console.error('[GraphView] Failed to load graph data:', err);
+      setGraphData(null);
     } finally {
       setLoading(false);
     }
