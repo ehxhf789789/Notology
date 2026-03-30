@@ -85,7 +85,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   // ========== CORE STATE & REFS ==========
   const [frontmatter, setFrontmatter] = useState<NoteFrontmatter | null>(null);
   const [body, setBody] = useState('');
-  const isCanvasNote = !!(frontmatter?.canvas || (!frontmatter && body.trimStart().startsWith('{"nodes":')));
+  const isCanvasNote = !!(frontmatter?.canvas || (!frontmatter && body.trimStart().startsWith('{') && body.includes('"nodes":')));
   const [isDirty, setIsDirty] = useState(false);
   const mtimeOnLoadRef = useRef<number>(0);
   const [editorMenuPos, setEditorMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -326,7 +326,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   const saveFile = useCallback(async (currentBody?: string) => {
     const fm = frontmatterRef.current;
     const bodyToSave = currentBody !== undefined ? currentBody : bodyRef.current;
-    const isCanvas = bodyToSave?.trimStart().startsWith('{"nodes":');
+    const isCanvas = bodyToSave ? (bodyToSave.trimStart().startsWith('{"nodes":') || bodyToSave.trimStart().startsWith('{\n') && bodyToSave.includes('"nodes":')) : false;
     console.log('[saveFile]', { hasFm: !!fm, isCanvas, bodyLen: bodyToSave?.length, isLoading: isLoadingRef.current, mtime: mtimeOnLoadRef.current });
     if (!win.filePath || !fm) { console.log('[saveFile] SKIP: no path or fm'); return; }
 
