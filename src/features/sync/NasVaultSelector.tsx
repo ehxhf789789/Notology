@@ -300,16 +300,13 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
       console.warn('[VaultSelector] sync_connect failed:', e);
     });
 
-    // Initial sync: pull NAS→local + push local→NAS
-    setPhase('downloading');
-    setDownloadProgress({ total: 0, current: 0, file: '동기화 중...' });
-    try {
-      await syncCommands.syncNow();
-    } catch (e) {
-      console.warn('[VaultSelector] sync failed:', e);
-    }
-
+    // Open vault immediately — sync runs in background
     onVaultSelected(vault.local_cache_path, vault.name);
+
+    // Background sync after vault opens
+    syncCommands.syncNow().catch((e) => {
+      console.warn('[VaultSelector] background sync failed:', e);
+    });
   }, [connectionId, url, username, password, onVaultSelected]);
 
   const handleOpenExistingVault = useCallback(async (selectedPath: string) => {
