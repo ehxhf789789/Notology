@@ -421,13 +421,6 @@ fn parse_http_date(s: &str) -> Option<DateTime<Utc>> {
 
 /// Percent-decode a URL path.
 fn decode_href(href: &str) -> String {
-    url::form_urlencoded::parse(href.as_bytes())
-        .map(|(k, v)| if v.is_empty() { k.to_string() } else { format!("{}={}", k, v) })
-        .collect::<Vec<_>>()
-        .join("")
-        // Actually just use the percent_decode approach
-        ;
-    // Simpler: manual percent-decode
     percent_decode(href)
 }
 

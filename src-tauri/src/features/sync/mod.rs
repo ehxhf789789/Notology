@@ -297,54 +297,41 @@ pub async fn sync_on_file_saved(
     file_path: String,
     sync_state: tauri::State<'_, TauriSyncState>,
 ) -> Result<(), String> {
+    // Quick check: is this a directory? Skip if so (directories use MKCOL, not PUT)
+    if std::path::Path::new(&file_path).is_dir() {
+        return Ok(());
+    }
+    // Skip .notology internal files
+    if file_path.contains(".notology") {
+        return Ok(());
+    }
+
     let guard = sync_state.engine.lock().await;
     if let Some(engine) = guard.as_ref() {
         engine.on_file_saved(&file_path).await?;
 
-        // Spawn a background task to flush the queue after a short delay.
-        // This avoids blocking the current Tauri command handler.
+        // Extract what we need, then release the lock
         let inner = Arc::clone(&sync_state.inner);
         let vault_path = engine.vault_path.clone();
-        drop(guard); // Release lock before spawning
+        drop(guard);
+
+        // Spawn background flush task (does NOT block Tauri runtime)
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-            // Re-create engine for flush (lightweight)
+
             if let Some(config) = inner.get_config() {
-                if let Ok(client) = WebDavClient::new(&config.url, &config.username, &config.password) {
-                    if let Ok(queue) = engine::SyncQueue::open(&vault_path) {
-                        let pending = queue.get_pending().unwrap_or_default();
-                        for (id, change) in &pending {
-                            match change {
-                                engine::PendingChange::Upload { local_path, remote_path, relative_path, .. } => {
-                                    if let Ok(content) = std::fs::read(local_path) {
-                                        let _ = engine::SyncEngine::ensure_remote_dirs(&client, remote_path).await;
-                                        if client.put_file(remote_path, &content).await.is_ok() {
-                                            let _ = queue.dequeue(*id);
-                                            inner.set_status(SyncStatus::Idle);
-                                        }
-                                    }
-                                }
-                                engine::PendingChange::Delete { remote_path, .. } => {
-                                    if client.delete_file(remote_path).await.is_ok() {
-                                        let _ = queue.dequeue(*id);
-                                    }
-                                }
-                                engine::PendingChange::Mkdir { remote_path, .. } => {
-                                    let _ = client.mkdir(remote_path).await;
-                                    let _ = queue.dequeue(*id);
-                                }
-                            }
-                        }
+                // Create a temporary SyncEngine for proper flush (with conflict detection + manifest)
+                if let Ok(temp_engine) = engine::SyncEngine::new(&vault_path, Arc::clone(&inner)) {
+                    if let Err(e) = temp_engine.flush_queue().await {
+                        log::warn!("[sync-bg] flush failed: {}", e);
+                    } else {
+                        // Update last_synced on success
+                        let conn_id = connections::make_connection_id(&config.url, &config.username);
+                        let _ = connections::update_vault_sync_time(&conn_id, &config.remote_base);
                     }
                 }
             }
         });
-        return Ok(());
-        // Update last_synced timestamp
-        if let Some(config) = sync_state.inner.get_config() {
-            let conn_id = connections::make_connection_id(&config.url, &config.username);
-            let _ = connections::update_vault_sync_time(&conn_id, &config.remote_base);
-        }
     }
     Ok(())
 }
@@ -430,8 +417,25 @@ pub async fn sync_start_monitor(
                     let _ = app_handle.emit("sync:online", ());
                     was_offline = false;
                 }
-                // Flush pending queue items (individual PUT, not full recursive sync)
-                let _ = app_handle.emit("sync:flush-queue", ());
+                // Flush pending queue items directly (no event, no frontend involvement)
+                let inner_clone = Arc::clone(&inner);
+                let vault_path = config.vault_path.clone();
+                let config_clone = config.clone();
+                tokio::spawn(async move {
+                    if let Ok(temp_engine) = engine::SyncEngine::new(&vault_path, inner_clone.clone()) {
+                        if let Ok(count) = temp_engine.queue.count() {
+                            if count > 0 {
+                                log::info!("[sync-monitor] Flushing {} pending items", count);
+                                if let Err(e) = temp_engine.flush_queue().await {
+                                    log::warn!("[sync-monitor] flush failed: {}", e);
+                                } else {
+                                    let conn_id = connections::make_connection_id(&config_clone.url, &config_clone.username);
+                                    let _ = connections::update_vault_sync_time(&conn_id, &config_clone.remote_base);
+                                }
+                            }
+                        }
+                    }
+                });
             } else if !was_offline {
                 log::info!("[sync-monitor] Offline detected");
                 inner.set_status(SyncStatus::Offline);

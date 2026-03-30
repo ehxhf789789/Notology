@@ -733,10 +733,16 @@ impl SyncEngine {
         Ok(())
     }
 
+    /// Ensure all parent directories exist on NAS (like mkdir -p).
+    /// Uses string splitting instead of std::path::Path to avoid Windows path issues.
     pub async fn ensure_remote_dirs(client: &WebDavClient, remote_path: &str) -> Result<(), String> {
-        if let Some(parent) = Path::new(remote_path).parent() {
-            let p = parent.to_string_lossy().replace('\\', "/");
-            if !p.is_empty() && p != "/" { let _ = client.mkdir(&p).await; }
+        let path = remote_path.replace('\\', "/");
+        let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+        // Create each ancestor directory (skip the last part which is the file name)
+        let mut current = String::new();
+        for part in &parts[..parts.len().saturating_sub(1)] {
+            current = format!("{}/{}", current, part);
+            let _ = client.mkdir(&current).await; // MKCOL is idempotent
         }
         Ok(())
     }
