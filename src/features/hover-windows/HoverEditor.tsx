@@ -356,7 +356,9 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       return;
     }
 
-    if (mtimeOnLoadRef.current > 0) {
+    // SKETCH: skip mtime conflict check (Rust backend protects against bad saves)
+    const isCanvasBody = bodyToSave.trimStart().startsWith('{"nodes":');
+    if (!isCanvasBody && mtimeOnLoadRef.current > 0) {
       const currentMtime = await fileCommands.getFileMtime(win.filePath);
       if (currentMtime > mtimeOnLoadRef.current) {
         // Check if this was our own recent save (within 5 seconds)
