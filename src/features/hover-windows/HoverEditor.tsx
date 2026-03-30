@@ -322,9 +322,16 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
   // ========== SAVE FILE ==========
   const saveFile = useCallback(async (currentBody?: string) => {
-    const fm = frontmatterRef.current;
+    let fm = frontmatterRef.current;
     const bodyToSave = currentBody !== undefined ? currentBody : bodyRef.current;
-    if (!win.filePath || !fm) return;
+    if (!win.filePath) return;
+    // Reconstruct frontmatter for SKETCH notes if missing
+    if (!fm && bodyToSave.trimStart().startsWith('{"nodes":')) {
+      fm = { type: 'SKETCH', canvas: true, title: win.filePath.split(/[\\/]/).pop()?.replace(/\.md$/, '') || '', cssclasses: ['sketch-type'], tags: [] } as any;
+      frontmatterRef.current = fm;
+      setFrontmatter(fm as any);
+    }
+    if (!fm) return;
 
     if (isLoadingRef.current) {
       log('[HoverEditor] saveFile skipped -- content still loading');
@@ -499,7 +506,9 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
   // ========== CANVAS CHANGE ==========
   const handleCanvasChange = useCallback((data: CanvasData) => {
+    const jsonBody = JSON.stringify(data, null, 2);
     setCanvasData(data);
+    bodyRef.current = jsonBody; // Keep ref in sync for emergency save
     setIsDirty(true);
 
     const currentComments = commentsRef.current;
