@@ -402,19 +402,40 @@ impl SyncEngine {
         let manifest = SyncManifest::load(&self.vault_path);
         let base_etag = manifest.get_entry(&relative_path).and_then(|e| e.etag.clone());
 
+        let remote_path_clone = remote_path.clone();
+        let relative_path_clone = relative_path.clone();
+        let base_etag_clone = base_etag.clone();
+
         self.queue.enqueue(&PendingChange::Upload {
             local_path: local_path.to_string(), remote_path, relative_path,
             timestamp: Utc::now(), base_etag,
         })?;
 
-        // Try immediate flush
+        // Try to upload this single file immediately (non-blocking approach)
         if let Ok(client) = self.client() {
-            if client.test_connection().await.unwrap_or(false) {
-                let _ = self.flush_queue().await;
-                return Ok(());
+            let content = std::fs::read(local_path).ok();
+            if let Some(content) = content {
+                // Ensure parent dirs exist on NAS
+                Self::ensure_remote_dirs(&client, &remote_path_clone).await.ok();
+                // Upload directly
+                if client.put_file(&remote_path_clone, &content).await.is_ok() {
+                    // Success — dequeue and update base
+                    let pending = self.queue.get_pending().unwrap_or_default();
+                    for (id, change) in &pending {
+                        if matches!(change, PendingChange::Upload { relative_path: rp, .. } if rp == &relative_path_clone) {
+                            let _ = self.queue.dequeue(*id);
+                            break;
+                        }
+                    }
+                    let new_etag = client.get_metadata(&remote_path_clone).await.ok().and_then(|m| m.etag);
+                    let mut manifest = SyncManifest::load(&self.vault_path);
+                    let _ = manifest.save_base(&self.vault_path, &relative_path_clone, &content, new_etag, Self::is_binary(&relative_path_clone));
+                    self.state.set_status(SyncStatus::Idle);
+                    return Ok(());
+                }
             }
+            // Upload failed — stays in queue, will retry later
         }
-        self.state.set_status(SyncStatus::Offline);
         Ok(())
     }
 
