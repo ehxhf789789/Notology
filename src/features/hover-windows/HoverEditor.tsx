@@ -223,6 +223,10 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       if (pooledEditor) {
         pooledEditor.on('update', ({ editor: ed }) => {
           if (isLoadingRef.current) return;
+          // SKETCH notes use canvas editor, not TipTap — skip TipTap auto-save
+          const currentFm = frontmatterRef.current;
+          if (currentFm?.canvas || bodyRef.current.trimStart().startsWith('{"nodes":')) return;
+
           const markdown = (ed.storage as any).markdown.getMarkdown();
           setBody(markdown);
           setIsDirty(true);
