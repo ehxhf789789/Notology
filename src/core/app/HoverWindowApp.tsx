@@ -19,7 +19,6 @@ import RenameDialog from '../../features/modals/RenameDialog';
 import ConfirmDeleteModal from '../../features/modals/ConfirmDeleteModal';
 import AlertModal from '../../features/modals/AlertModal';
 import { useTheme, settingsActions } from '../stores/zustand';
-import { flushAllEditorSaves } from '../editor/editorSaveRegistry';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useFileTreeStore } from '../stores/fileTreeStore';
 import { useDragDropListener } from '../hooks/useDragDrop';
@@ -78,10 +77,6 @@ function HoverWindowApp() {
     if (isClosingRef.current) return;
     isClosingRef.current = true;
     setIsClosing(true);
-    // Flush all pending saves BEFORE closing — must await to prevent data loss
-    flushAllEditorSaves();
-    // Give writeFile time to complete (Tauri IPC + disk I/O)
-    await new Promise(resolve => setTimeout(resolve, 300));
     // Wait for fade-out animation
     await new Promise(resolve => setTimeout(resolve, CLOSE_ANIMATION_DURATION));
     windowRef.current.close();
@@ -244,12 +239,10 @@ function HoverWindowApp() {
   }
 
   // Create mock hover window data for components
-  const urlNoteType = new URLSearchParams(window.location.search).get('noteType') || undefined;
   const hoverWindow: HoverWindow = {
     id: windowRef.current.label,
     filePath,
     type: fileType,
-    noteType: urlNoteType,
     position: { x: 0, y: 0 },
     size: { width: 800, height: 600 },
     zIndex: 1000,

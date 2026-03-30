@@ -112,9 +112,6 @@ export async function openHoverWindow(filePath: string, vaultPath?: string, note
     if (encodedVault) {
       url += `&vault=${encodedVault}`;
     }
-    if (noteType) {
-      url += `&noteType=${encodeURIComponent(noteType)}`;
-    }
 
     // Calculate cascade position for diagonal offset
     // This prevents windows from stacking exactly on top of each other

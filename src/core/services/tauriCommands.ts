@@ -42,21 +42,10 @@ export const fileCommands = {
   readFile: (path: string) =>
     invoke<FileContent>('read_file', { path }),
 
-  writeFile: (path: string, frontmatter: string | null, body: string) => {
-    const bodyTrimmed = body?.trimStart() || '';
-    if (bodyTrimmed.startsWith('{"nodes":') || bodyTrimmed.startsWith('{ "nodes":')) {
-      console.warn('[SKETCH-WRITE]', {
-        path: path.split(/[\\/]/).pop(),
-        hasFrontmatter: !!frontmatter,
-        fmPreview: frontmatter?.substring(0, 30),
-        bodyLen: body?.length,
-        stack: new Error().stack?.split('\n').slice(1, 5).map(s => s.trim()),
-      });
-    }
-    return invoke<void>('write_file', { path, frontmatter, body }).then(() => {
+  writeFile: (path: string, frontmatter: string | null, body: string) =>
+    invoke<void>('write_file', { path, frontmatter, body }).then(() => {
       EventBus.emit('file:saved', { path });
-    });
-  },
+    }),
 
   deleteFile: (path: string) =>
     invoke<void>('delete_file', { path }).then(() => {

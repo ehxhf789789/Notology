@@ -88,7 +88,6 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   const isCanvasNote = !!(frontmatter?.canvas || (!frontmatter && body.trimStart().startsWith('{"nodes":')));
   const [isDirty, setIsDirty] = useState(false);
   const mtimeOnLoadRef = useRef<number>(0);
-  const lastSaveTimeRef = useRef<number>(0);
   const [editorMenuPos, setEditorMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [canvasData, setCanvasData] = useState<CanvasData>({ nodes: [], edges: [] });
   const [canvasSelection, setCanvasSelection] = useState<CanvasSelection | null>(null);
@@ -199,15 +198,6 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
   useEffect(() => {
     if (editorAcquiredRef.current) return;
-    // SKETCH notes don't use TipTap — check ALL sources
-    const isSketch =
-      win.noteType?.toUpperCase() === 'SKETCH' ||
-      useContentCacheStore.getState().getFrontmatter(win.filePath)?.canvas === true ||
-      useContentCacheStore.getState().getFrontmatter(win.filePath)?.type?.toUpperCase() === 'SKETCH';
-    if (isSketch) {
-      editorAcquiredRef.current = true;
-      return;
-    }
     editorAcquiredRef.current = true;
 
     const acquireStart = performance.now();
@@ -232,10 +222,6 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       if (pooledEditor) {
         pooledEditor.on('update', ({ editor: ed }) => {
           if (isLoadingRef.current) return;
-          // SKETCH notes use canvas editor, not TipTap — skip TipTap auto-save
-          const currentFm = frontmatterRef.current;
-          if (currentFm?.canvas || bodyRef.current.trimStart().startsWith('{"nodes":')) return;
-
           const markdown = (ed.storage as any).markdown.getMarkdown();
           setBody(markdown);
           setIsDirty(true);
@@ -282,18 +268,13 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         logTiming(`Editor acquired from pool (${(performance.now() - acquireStart).toFixed(1)}ms)`);
 
         if (pendingBodyRef.current !== null && !contentSetRef.current) {
-          // Skip TipTap content load for SKETCH notes — canvas JSON must NOT enter TipTap
-          const pending = pendingBodyRef.current;
-          const isSketchBody = pending.trimStart().startsWith('{"nodes":') || pending.trimStart().startsWith('{ "nodes":');
-          if (!isSketchBody) {
-            const setContentStart = performance.now();
-            isLoadingRef.current = true;
-            pooledEditor.commands.setContent(preprocessWikiLinks(pending));
-            isLoadingRef.current = false;
-            contentSetRef.current = true;
-            logTiming(`Editor setContent (deferred) (${(performance.now() - setContentStart).toFixed(1)}ms)`);
-          }
+          const setContentStart = performance.now();
+          isLoadingRef.current = true;
+          pooledEditor.commands.setContent(preprocessWikiLinks(pendingBodyRef.current));
+          isLoadingRef.current = false;
+          contentSetRef.current = true;
           pendingBodyRef.current = null;
+          logTiming(`Editor setContent (deferred) (${(performance.now() - setContentStart).toFixed(1)}ms)`);
         }
       }
     };
@@ -340,40 +321,25 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
   // ========== SAVE FILE ==========
   const saveFile = useCallback(async (currentBody?: string) => {
-    let fm = frontmatterRef.current;
+    const fm = frontmatterRef.current;
     const bodyToSave = currentBody !== undefined ? currentBody : bodyRef.current;
-    if (!win.filePath) return;
-    // Reconstruct frontmatter for SKETCH notes if missing
-    if (!fm && bodyToSave.trimStart().startsWith('{"nodes":')) {
-      fm = { type: 'SKETCH', canvas: true, title: win.filePath.split(/[\\/]/).pop()?.replace(/\.md$/, '') || '', cssclasses: ['sketch-type'], tags: [] } as any;
-      frontmatterRef.current = fm;
-      setFrontmatter(fm as any);
-    }
-    if (!fm) return;
+    if (!win.filePath || !fm) return;
 
     if (isLoadingRef.current) {
       log('[HoverEditor] saveFile skipped -- content still loading');
       return;
     }
 
-    // SKETCH: skip mtime conflict check (Rust backend protects against bad saves)
-    const isCanvasBody = bodyToSave.trimStart().startsWith('{"nodes":');
-    if (!isCanvasBody && mtimeOnLoadRef.current > 0) {
+    if (mtimeOnLoadRef.current > 0) {
       const currentMtime = await fileCommands.getFileMtime(win.filePath);
       if (currentMtime > mtimeOnLoadRef.current) {
-        // Check if this was our own recent save (within 5 seconds)
-        const timeSinceOurSave = Date.now() - (lastSaveTimeRef.current || 0);
-        if (timeSinceOurSave > 5000) {
-          log(`[HoverEditor] External modification detected, showing conflict UI`);
-          setConflictState({
-            myContent: bodyToSave,
-            myFrontmatter: { ...fm },
-            externalMtime: currentMtime,
-          });
-          return;
-        }
-        // Our own save — update mtime reference
-        mtimeOnLoadRef.current = currentMtime;
+        log(`[HoverEditor] External modification detected, showing conflict UI`);
+        setConflictState({
+          myContent: bodyToSave,
+          myFrontmatter: { ...fm },
+          externalMtime: currentMtime,
+        });
+        return;
       }
     }
 
@@ -397,12 +363,10 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     }
 
     try {
-      console.log('[SKETCH-DEBUG] saveFile writing:', { path: win.filePath, hasFm: !!fmString, fmPreview: fmString?.substring(0, 50), bodyPreview: bodyToSave?.substring(0, 50), canvas: fm?.canvas });
       await fileCommands.writeFile(win.filePath, fmString, bodyToSave);
       setFrontmatter(updatedFm);
       setIsDirty(false);
       markAsSelfSaved(win.filePath);
-      lastSaveTimeRef.current = Date.now();
 
       const estimatedMtime = Date.now();
       contentCacheActions.updateContent(win.filePath, bodyToSave, updatedFm, estimatedMtime);
@@ -438,20 +402,8 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
       }
-      const fm = frontmatterRef.current;
-      const currentBody = bodyRef.current;
-      // Canvas notes: save canvas data, not TipTap markdown
-      const isCanvas = fm?.canvas || currentBody.trimStart().startsWith('{"nodes":');
-      if (isCanvas) {
-        if (isDirtyRef.current && !isLoadingRef.current) {
-          const baseFm = fm || { type: 'SKETCH', canvas: true, title: win.filePath.split(/[\\/]/).pop()?.replace(/\.md$/, '') || '', cssclasses: ['sketch-type'], tags: [] };
-          const updatedFm = { ...baseFm, canvas: true, modified: getCurrentTimestamp() };
-          const fmString = serializeFrontmatter(updatedFm);
-          fileCommands.writeFile(win.filePath, fmString, currentBody).catch(() => {});
-        }
-        return;
-      }
       const ed = editorRef.current;
+      const fm = frontmatterRef.current;
       if (isDirtyRef.current && ed && !ed.isDestroyed && fm && !isLoadingRef.current) {
         const markdown = (ed.storage as any).markdown.getMarkdown();
         const updatedFm = { ...fm, modified: getCurrentTimestamp() };
@@ -527,9 +479,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
   // ========== CANVAS CHANGE ==========
   const handleCanvasChange = useCallback((data: CanvasData) => {
-    const jsonBody = JSON.stringify(data, null, 2);
     setCanvasData(data);
-    setBody(jsonBody); // Sync body state so bodyRef stays current across re-renders
     setIsDirty(true);
 
     const currentComments = commentsRef.current;
@@ -845,7 +795,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
           className={`hover-editor-body${frontmatter?.cssclasses ? ' ' + frontmatter.cssclasses.join(' ') : ''}`}
           style={isCanvasNote ? undefined : { zoom: hoverZoomLevel / 100 }}
         >
-          {(isContentLoading || (!editor && !isCanvasNote && win.noteType?.toUpperCase() !== 'SKETCH')) ? (
+          {(isContentLoading || (!editor && !isCanvasNote)) ? (
             <div className="hover-editor-skeleton">
               <div className="skeleton-line skeleton-title" />
               <div className="skeleton-line skeleton-full" />
@@ -854,7 +804,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
               <div className="skeleton-line skeleton-full" />
               <div className="skeleton-line skeleton-medium" />
             </div>
-          ) : (isCanvasNote || win.noteType?.toUpperCase() === 'SKETCH') ? (
+          ) : isCanvasNote ? (
             <CanvasEditor
               data={canvasData}
               onChange={handleCanvasChange}
