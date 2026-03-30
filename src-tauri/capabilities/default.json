@@ -9,6 +9,8 @@
   ],
   "permissions": [
     "core:default",
+    "core:event:default",
+    "core:window:allow-is-visible",
     "core:window:allow-minimize",
     "core:window:allow-unminimize",
     "core:window:allow-toggle-maximize",
