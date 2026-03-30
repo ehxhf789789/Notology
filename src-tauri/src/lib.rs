@@ -156,6 +156,22 @@ pub fn run() {
                 )?;
             }
 
+            // Close any leftover hover windows from previous session
+            {
+                use tauri::Manager;
+                let windows: Vec<String> = app.webview_windows()
+                    .keys()
+                    .filter(|label| label.starts_with("hover-"))
+                    .cloned()
+                    .collect();
+                for label in &windows {
+                    if let Some(win) = app.get_webview_window(label) {
+                        log::info!("[setup] Closing leftover hover window: {}", label);
+                        let _ = win.close();
+                    }
+                }
+            }
+
             // Open VaultSelector window on startup.
             // Main window stays hidden until a vault is selected.
             let app_handle = app.handle().clone();
