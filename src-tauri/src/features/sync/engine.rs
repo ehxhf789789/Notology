@@ -725,6 +725,18 @@ impl SyncEngine {
                     continue;
                 }
 
+                // Skip files recently modified locally (within 30s) to avoid false conflict triggers
+                if local_path.exists() {
+                    if let Ok(meta) = std::fs::metadata(&local_path) {
+                        if let Ok(modified) = meta.modified() {
+                            let age = std::time::SystemTime::now().duration_since(modified).unwrap_or_default();
+                            if age.as_secs() < 30 {
+                                continue;
+                            }
+                        }
+                    }
+                }
+
                 match client.get_file(&remote.path).await {
                     Ok(content) => {
                         crate::core::file_io::atomic_write_file(&local_path, &content)?;
