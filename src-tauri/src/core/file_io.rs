@@ -21,6 +21,11 @@ pub fn atomic_write_file(path: &Path, content: &[u8]) -> Result<(), String> {
     use std::io::Write;
 
     let file_name = path.file_name().unwrap_or_default().to_string_lossy();
+    // Debug: log all .md file writes through this path
+    if file_name.ends_with(".md") {
+        let preview = std::str::from_utf8(&content[..std::cmp::min(50, content.len())]).unwrap_or("[binary]");
+        log::info!("[atomic_write] path={:?} len={} preview={:?}", path, content.len(), preview);
+    }
     let temp_path = path.with_file_name(format!("{}.notology-tmp", file_name));
 
     let mut file = fs::File::create(&temp_path)
