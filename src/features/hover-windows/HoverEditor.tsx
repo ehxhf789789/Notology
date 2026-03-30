@@ -403,12 +403,15 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         saveTimeoutRef.current = null;
       }
       const fm = frontmatterRef.current;
+      const currentBody = bodyRef.current;
       // Canvas notes: save canvas data, not TipTap markdown
-      if (fm?.canvas) {
+      const isCanvas = fm?.canvas || currentBody.trimStart().startsWith('{"nodes":');
+      if (isCanvas) {
         if (isDirtyRef.current && !isLoadingRef.current) {
-          const updatedFm = { ...fm, modified: getCurrentTimestamp() };
+          const baseFm = fm || { type: 'SKETCH', canvas: true, title: win.filePath.split(/[\\/]/).pop()?.replace(/\.md$/, '') || '', cssclasses: ['sketch-type'], tags: [] };
+          const updatedFm = { ...baseFm, canvas: true, modified: getCurrentTimestamp() };
           const fmString = serializeFrontmatter(updatedFm);
-          fileCommands.writeFile(win.filePath, fmString, bodyRef.current).catch(() => {});
+          fileCommands.writeFile(win.filePath, fmString, currentBody).catch(() => {});
         }
         return;
       }
