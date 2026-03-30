@@ -44,6 +44,12 @@ async function initializeApp() {
     const { VaultSelectorWindow } = await import('../../features/sync/VaultSelectorWindow');
     root.render(<VaultSelectorWindow />);
   } else if (isHoverWindow) {
+    // Auto-restored hover windows from previous session have no path param — close them
+    if (!urlParams.get('path')) {
+      console.warn('[main] Closing stale hover window (no path):', windowLabel);
+      getCurrentWindow().destroy().catch(() => getCurrentWindow().close().catch(() => {}));
+      return;
+    }
     root.render(<HoverWindowApp />);
   } else {
     root.render(<App />);
