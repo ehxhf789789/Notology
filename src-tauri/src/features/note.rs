@@ -111,6 +111,20 @@ pub async fn write_file(
 ) -> Result<(), String> {
     let trimmed_body = body.trim_start();
     let is_canvas = trimmed_body.starts_with("{\"nodes\":") || trimmed_body.starts_with("{ \"nodes\":");
+
+    // SKETCH protection: if existing file is canvas but new body is NOT canvas, block the save
+    if !is_canvas {
+        if let Ok(existing) = std::fs::read_to_string(&path) {
+            let has_canvas_fm = existing.contains("canvas: true") || existing.contains("canvas:true");
+            let existing_body = existing.split("---").nth(2).unwrap_or("").trim_start();
+            let existing_is_canvas = existing_body.starts_with("{\"nodes\":") || existing_body.starts_with("{ \"nodes\":");
+            if has_canvas_fm || existing_is_canvas {
+                log::warn!("[write_file] BLOCKED: TipTap trying to overwrite SKETCH file with markdown: {}", path);
+                return Ok(()); // Silently ignore — don't corrupt the file
+            }
+        }
+    }
+
     log::info!("[write_file] path={} fm_len={:?} is_canvas={} body_len={}", path, frontmatter.as_ref().map(|s| s.len()), is_canvas, body.len());
 
     let content = match &frontmatter {
