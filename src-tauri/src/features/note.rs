@@ -109,17 +109,27 @@ pub async fn write_file(
     body: String,
     _state: tauri::State<'_, Mutex<SearchState>>,
 ) -> Result<(), String> {
-    let content = match frontmatter {
-        Some(fm) => format!("---\n{}\n---\n\n{}", fm, body),
-        None => {
-            // Protect SKETCH files: never save JSON canvas data without frontmatter
-            let trimmed = body.trim_start();
-            if trimmed.starts_with("{\"nodes\":") || trimmed.starts_with("{ \"nodes\":") {
-                log::warn!("[write_file] Blocked save of canvas JSON without frontmatter: {}", path);
-                return Err("Cannot save canvas data without frontmatter".to_string());
-            }
-            body
+    // Detect canvas/SKETCH body
+    let trimmed_body = body.trim_start();
+    let is_canvas = trimmed_body.starts_with("{\"nodes\":") || trimmed_body.starts_with("{ \"nodes\":");
+
+    let content = match &frontmatter {
+        Some(fm) if is_canvas && (fm.trim().is_empty() || !fm.contains("canvas")) => {
+            // Canvas body with missing/empty/wrong frontmatter → force SKETCH frontmatter
+            let title = Path::new(&path).file_stem()
+                .map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+            log::warn!("[write_file] Restoring SKETCH frontmatter for: {}", path);
+            format!("---\ntype: SKETCH\ncanvas: true\ntitle: \"{}\"\ncssclasses:\n  - sketch-type\ntags: []\n---\n\n{}", title, body)
         }
+        Some(fm) => format!("---\n{}\n---\n\n{}", fm, body),
+        None if is_canvas => {
+            // Canvas body with no frontmatter → force SKETCH frontmatter
+            let title = Path::new(&path).file_stem()
+                .map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+            log::warn!("[write_file] Adding SKETCH frontmatter for: {}", path);
+            format!("---\ntype: SKETCH\ncanvas: true\ntitle: \"{}\"\ncssclasses:\n  - sketch-type\ntags: []\n---\n\n{}", title, body)
+        }
+        None => body,
     };
 
     let lock = get_file_lock(&path);
