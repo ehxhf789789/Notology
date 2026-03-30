@@ -110,7 +110,7 @@ pub async fn write_file(
     _state: tauri::State<'_, Mutex<SearchState>>,
 ) -> Result<(), String> {
     let trimmed_body = body.trim_start();
-    let is_canvas = trimmed_body.starts_with("{\"nodes\":") || trimmed_body.starts_with("{ \"nodes\":") || (trimmed_body.starts_with('{') && trimmed_body.contains("\"nodes\":"));
+    let is_canvas = trimmed_body.starts_with('{') && trimmed_body.contains("\"nodes\":");
 
     // SKETCH protection: if existing file is canvas but new body is NOT canvas, block the save
     if !is_canvas {
