@@ -528,11 +528,14 @@ pub async fn sync_initial_download(
 
     let mut downloaded = 0usize;
 
-    for (i, remote_file) in all_files.iter().enumerate() {
+    for (_i, remote_file) in all_files.iter().enumerate() {
         let relative = remote_file.path
             .strip_prefix(&remote_path).unwrap_or(&remote_file.path)
             .trim_start_matches('/');
         if relative.is_empty() { continue; }
+
+        // Skip .notology internal files (sync metadata, not user data)
+        if relative.starts_with(".notology") { continue; }
 
         // Skip already completed files (resume)
         if completed_set.contains(relative) { continue; }
@@ -834,6 +837,10 @@ fn collect_remote_files_recursive<'a>(
         let entries = client.list_files(path).await?;
         let mut all = Vec::new();
         for entry in &entries {
+            // Skip .notology internal directories
+            let name = entry.path.trim_end_matches('/').rsplit('/').next().unwrap_or("");
+            if name.starts_with('.') { continue; }
+
             all.push(entry.clone());
             if entry.is_collection {
                 match collect_remote_files_recursive(client, &entry.path).await {

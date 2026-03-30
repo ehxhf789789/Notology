@@ -725,6 +725,10 @@ impl SyncEngine {
             let entries = client.list_files(path).await?;
             let mut all = Vec::new();
             for entry in &entries {
+                // Skip hidden/internal directories (.notology, etc.)
+                let name = entry.path.trim_end_matches('/').rsplit('/').next().unwrap_or("");
+                if name.starts_with('.') { continue; }
+
                 all.push(entry.clone());
                 if entry.is_collection {
                     match self.list_remote_recursive(client, &entry.path).await {
