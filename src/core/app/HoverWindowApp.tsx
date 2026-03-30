@@ -19,6 +19,7 @@ import RenameDialog from '../../features/modals/RenameDialog';
 import ConfirmDeleteModal from '../../features/modals/ConfirmDeleteModal';
 import AlertModal from '../../features/modals/AlertModal';
 import { useTheme, settingsActions } from '../stores/zustand';
+import { flushAllEditorSaves } from '../editor/editorSaveRegistry';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useFileTreeStore } from '../stores/fileTreeStore';
 import { useDragDropListener } from '../hooks/useDragDrop';
@@ -77,6 +78,10 @@ function HoverWindowApp() {
     if (isClosingRef.current) return;
     isClosingRef.current = true;
     setIsClosing(true);
+    // Flush all pending saves BEFORE closing — must await to prevent data loss
+    flushAllEditorSaves();
+    // Give writeFile time to complete (Tauri IPC + disk I/O)
+    await new Promise(resolve => setTimeout(resolve, 300));
     // Wait for fade-out animation
     await new Promise(resolve => setTimeout(resolve, CLOSE_ANIMATION_DURATION));
     windowRef.current.close();
