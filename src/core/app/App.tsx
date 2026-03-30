@@ -179,9 +179,19 @@ function AppLayout() {
   }, []);
 
   // Main window is hidden until vault is selected (via Rust setup).
-  // If vaultPath is null, we just render nothing — the window is hidden anyway.
+  // If vaultPath is null, try reopening VaultSelector (handles HMR recovery)
   if (!vaultPath) {
-    return null;
+    // Auto-reopen vault selector if main window is visible (HMR recovery)
+    import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+      getCurrentWindow().isVisible().then(visible => {
+        if (visible) {
+          import('@tauri-apps/api/core').then(({ invoke }) => {
+            invoke('sync_open_vault_selector').catch(() => {});
+          });
+        }
+      });
+    }).catch(() => {});
+    return <LoadingScreen isLoading={true} />;
   }
 
   // Open vault selector window when manually triggered (e.g. from sidebar)

@@ -144,19 +144,20 @@ export async function openVault(newVaultPath?: string) {
     fileTreeActions.setFileTree(tree);
     await loadVaultSettings(selected);
 
-    // Show the app immediately — search indexes in the background
-    refreshActions.setSearchReady(true);
-    refreshActions.setSearchIndexing(true);
-
     // Infrastructure: notify features that vault is ready
+    refreshActions.setSearchIndexing(true);
     EventBus.emit('vault:opened', { path: selected });
 
+    // Search indexes MUST complete before searchReady=true
+    // Otherwise graph/search could show data from previous vault
     initSearchIndex(selected).then(() => {
       console.log('[openVault] Search index ready');
+      refreshActions.setSearchReady(true);
       refreshActions.setSearchIndexing(false);
       refreshActions.incrementSearchRefresh();
     }).catch(searchErr => {
       console.error('[openVault] Background search init failed:', searchErr);
+      refreshActions.setSearchReady(true);
       refreshActions.setSearchIndexing(false);
     });
   } catch (e) {
@@ -500,16 +501,16 @@ export async function forceOpenLockedVault() {
       fileTreeActions.setFileTree(tree);
       await loadVaultSettings(lockedVaultPath);
 
-      // Show the app immediately — search indexes in the background
-      refreshActions.setSearchReady(true);
       refreshActions.setSearchIndexing(true);
 
       initSearchIndex(lockedVaultPath).then(() => {
         console.log('[forceOpenLockedVault] Search index ready');
+        refreshActions.setSearchReady(true);
         refreshActions.setSearchIndexing(false);
         refreshActions.incrementSearchRefresh();
       }).catch(searchErr => {
         console.error('[forceOpenLockedVault] Background search init failed:', searchErr);
+        refreshActions.setSearchReady(true);
         refreshActions.setSearchIndexing(false);
       });
     } catch (e) {

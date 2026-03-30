@@ -73,6 +73,7 @@ pub async fn init_search_index(
     {
         let mut search_state = state.lock().map_err(|e| e.to_string())?;
         search_state.index = Some(Arc::clone(&index));
+        search_state.vault_path = Some(vault_path.clone());
     }
 
     let _ = app.emit("search-index-ready", ());

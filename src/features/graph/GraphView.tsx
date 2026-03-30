@@ -784,7 +784,7 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
     return () => { destroyGraph(); };
   }, [destroyGraph]);
 
-  if (loading && !graphData) {
+  if ((loading && !graphData) || !searchReady) {
     return (
       <div className="graph-view-container">
         <div className="graph-loading">{t('graphLoading', language)}</div>
