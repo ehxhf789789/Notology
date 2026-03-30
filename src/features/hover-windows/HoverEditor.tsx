@@ -199,6 +199,11 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
 
   useEffect(() => {
     if (editorAcquiredRef.current) return;
+    // SKETCH notes don't use TipTap — skip editor pool entirely
+    if (isCanvasNote) {
+      editorAcquiredRef.current = true;
+      return;
+    }
     editorAcquiredRef.current = true;
 
     const acquireStart = performance.now();
