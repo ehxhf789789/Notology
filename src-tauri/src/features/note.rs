@@ -111,7 +111,15 @@ pub async fn write_file(
 ) -> Result<(), String> {
     let content = match frontmatter {
         Some(fm) => format!("---\n{}\n---\n\n{}", fm, body),
-        None => body,
+        None => {
+            // Protect SKETCH files: never save JSON canvas data without frontmatter
+            let trimmed = body.trim_start();
+            if trimmed.starts_with("{\"nodes\":") || trimmed.starts_with("{ \"nodes\":") {
+                log::warn!("[write_file] Blocked save of canvas JSON without frontmatter: {}", path);
+                return Err("Cannot save canvas data without frontmatter".to_string());
+            }
+            body
+        }
     };
 
     let lock = get_file_lock(&path);
