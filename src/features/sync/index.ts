@@ -34,25 +34,20 @@ EventBus.on('file:deleted', ({ path }) => {
 EventBus.on('file:renamed', ({ oldPath, newPath }) => {
   syncCommands.onFileDeleted(oldPath).catch(() => {});
   syncCommands.onFileSaved(newPath).catch(() => {});
-  // Wikilink rename modifies multiple .md files via Rust fs::write (bypasses EventBus).
-  // Trigger full sync to catch all changed files.
-  setTimeout(() => syncCommands.syncNow().catch(() => {}), 2000);
 });
 
-// Folder events — use full sync instead of individual delete/create
-// to avoid losing folder contents on NAS
-EventBus.on('folder:created', () => {
-  setTimeout(() => syncCommands.syncNow().catch(() => {}), 2000);
+// Folder events — sync individual operations (not full sync which blocks runtime)
+EventBus.on('folder:created', ({ path }) => {
+  syncCommands.onFileSaved(path).catch(() => {});
 });
 
-EventBus.on('folder:deleted', () => {
-  setTimeout(() => syncCommands.syncNow().catch(() => {}), 2000);
+EventBus.on('folder:deleted', ({ path }) => {
+  syncCommands.onFileDeleted(path).catch(() => {});
 });
 
-EventBus.on('folder:renamed', () => {
-  // Folder rename is complex (all internal files move too)
-  // Use full sync to detect all changes safely
-  setTimeout(() => syncCommands.syncNow().catch(() => {}), 2000);
+EventBus.on('folder:renamed', ({ oldPath, newPath }) => {
+  syncCommands.onFileDeleted(oldPath).catch(() => {});
+  syncCommands.onFileSaved(newPath).catch(() => {});
 });
 
 // Attachment events
@@ -78,12 +73,13 @@ EventBus.on('config:saved', ({ path }) => {
 // 4. App lifecycle hooks + online recovery
 // ============================================================
 
-// Online recovery: auto flush queue when NAS becomes reachable
+// Online recovery: flush pending queue (not full sync — that blocks runtime)
 if (typeof document !== 'undefined') {
   import('@tauri-apps/api/event').then(({ listen }) => {
     listen('sync:online', () => {
-      console.log('[sync] Online recovered — triggering sync');
-      syncCommands.syncNow().catch(() => {});
+      console.log('[sync] Online recovered — flushing queue');
+      // onForeground does pull + flush without full recursive listing
+      syncCommands.onForeground().catch(() => {});
     });
   }).catch(() => {});
 }

@@ -299,13 +299,12 @@ export function NasVaultSelector({ onVaultSelected }: NasVaultSelectorProps) {
       console.warn('[VaultSelector] sync_connect failed:', e);
     });
 
-    // Open vault immediately — sync runs in background
+    // Open vault immediately
     onVaultSelected(vault.local_cache_path, vault.name);
 
-    // Background sync after vault opens
-    syncCommands.syncNow().catch((e) => {
-      console.warn('[VaultSelector] background sync failed:', e);
-    });
+    // Sync will happen via EventBus vault:opened → individual file saves
+    // Do NOT call syncNow() here — it blocks the Tauri async runtime
+    // and freezes the entire app (graph, search, etc.)
   }, [connectionId, url, username, password, onVaultSelected]);
 
   const handleOpenExistingVault = useCallback(async (selectedPath: string) => {

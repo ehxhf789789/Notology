@@ -201,7 +201,6 @@ pub async fn sync_now(
 
     match engine.full_sync().await {
         Ok(()) => {
-            // Update last_synced in connections history
             if let Some(config) = sync_state.inner.get_config() {
                 let conn_id = connections::make_connection_id(&config.url, &config.username);
                 let _ = connections::update_vault_sync_time(&conn_id, &config.remote_base);
