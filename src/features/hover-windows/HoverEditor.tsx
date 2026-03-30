@@ -390,6 +390,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     }
 
     try {
+      console.log('[SKETCH-DEBUG] saveFile writing:', { path: win.filePath, hasFm: !!fmString, fmPreview: fmString?.substring(0, 50), bodyPreview: bodyToSave?.substring(0, 50), canvas: fm?.canvas });
       await fileCommands.writeFile(win.filePath, fmString, bodyToSave);
       setFrontmatter(updatedFm);
       setIsDirty(false);
