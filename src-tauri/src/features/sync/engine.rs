@@ -375,6 +375,17 @@ impl SyncEngine {
         !matches!(ext.as_str(), "md" | "txt" | "json" | "yaml" | "yml" | "css" | "js" | "ts" | "html" | "xml" | "csv" | "toml")
     }
 
+    /// Internal config files that should auto-resolve conflicts (local wins, no UI).
+    fn is_auto_resolve(relative_path: &str) -> bool {
+        let name = Path::new(relative_path).file_name()
+            .map(|n| n.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        matches!(name.as_str(),
+            "vault-config.yaml" | "tag-ontology.yaml" | "content-cache.json" |
+            "sync-config.json" | "manifest.json"
+        ) || relative_path.starts_with(".notology")
+    }
+
     // ================================================================
     // File events → queue
     // ================================================================
@@ -382,6 +393,12 @@ impl SyncEngine {
     pub async fn on_file_saved(&self, local_path: &str) -> Result<(), String> {
         let remote_path = self.to_remote_path(local_path)?;
         let relative_path = self.to_relative_path(local_path)?;
+
+        // Skip .notology internal files — they are not synced
+        if relative_path.starts_with(".notology") {
+            return Ok(());
+        }
+
         let manifest = SyncManifest::load(&self.vault_path);
         let base_etag = manifest.get_entry(&relative_path).and_then(|e| e.etag.clone());
 
@@ -404,6 +421,11 @@ impl SyncEngine {
     pub async fn on_file_deleted(&self, local_path: &str) -> Result<(), String> {
         let remote_path = self.to_remote_path(local_path)?;
         let relative_path = self.to_relative_path(local_path)?;
+
+        if relative_path.starts_with(".notology") {
+            return Ok(());
+        }
+
         let manifest = SyncManifest::load(&self.vault_path);
         let base_etag = manifest.get_entry(&relative_path).and_then(|e| e.etag.clone());
 
@@ -573,6 +595,19 @@ impl SyncEngine {
                 Ok(()) => {
                     let new_etag = client.get_metadata(remote_path).await.ok().and_then(|m| m.etag);
                     let _ = manifest.save_base(&self.vault_path, relative_path, &local_content, new_etag, true);
+                    return UploadResult::Success;
+                }
+                Err(_) => return UploadResult::NetworkError,
+            }
+        }
+
+        // Config files: auto-resolve by uploading local version (no conflict UI)
+        if Self::is_auto_resolve(relative_path) {
+            log::info!("[sync] Auto-resolving config file conflict: {}", relative_path);
+            match client.put_file(remote_path, &local_content).await {
+                Ok(()) => {
+                    let new_etag = client.get_metadata(remote_path).await.ok().and_then(|m| m.etag);
+                    let _ = manifest.save_base(&self.vault_path, relative_path, &local_content, new_etag, false);
                     return UploadResult::Success;
                 }
                 Err(_) => return UploadResult::NetworkError,
