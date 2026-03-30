@@ -1,0 +1,171 @@
+/* ============================================================
+   Notology v4.0 — iOS Design Language Tokens
+   Single source of truth for all visual properties.
+   Desktop and Mobile share these tokens.
+   ============================================================ */
+
+:root {
+  /* ── iOS System Colors ── */
+  --c-blue:   #007AFF;
+  --c-green:  #34C759;
+  --c-red:    #FF3B30;
+  --c-orange: #FF9500;
+  --c-yellow: #FFCC00;
+  --c-purple: #AF52DE;
+  --c-teal:   #5AC8FA;
+  --c-indigo: #5856D6;
+  --c-pink:   #FF2D55;
+  --c-gray:   #8E8E93;
+
+  /* ── Note Type Colors (12 templates) ── */
+  --t-NOTE:    #007AFF;
+  --t-SKETCH:  #FFCC00;
+  --t-MTG:     #FF9500;
+  --t-SEM:     #5856D6;
+  --t-EVENT:   #30B0C7;
+  --t-OFA:     #636366;
+  --t-PAPER:   #AF52DE;
+  --t-LIT:     #FF6B35;
+  --t-DATA:    #5AC8FA;
+  --t-THEO:    #FF2D55;
+  --t-CONTACT: #34C759;
+  --t-SETUP:   #8E8E93;
+
+  /* ── Background Layers ── */
+  --bg-app:      #F2F2F7;
+  --bg-base:     #FFFFFF;
+  --bg-elevated: #FFFFFF;
+  --bg-input:    rgba(118,118,128,0.12);
+  --bg-hover:    rgba(0,0,0,0.04);
+  --bg-sel:      rgba(0,122,255,0.08);
+  --bg-pressed:  rgba(0,0,0,0.09);
+
+  /* ── Text — HIGH CONTRAST for readability ── */
+  --tx-1: rgba(0,0,0,0.92);   /* Primary text */
+  --tx-2: rgba(0,0,0,0.55);   /* Secondary text */
+  --tx-3: rgba(0,0,0,0.35);   /* Tertiary / placeholder */
+  --tx-4: rgba(0,0,0,0.20);   /* Disabled / decorative */
+  --tx-link: #007AFF;
+  --tx-danger: #FF3B30;
+
+  /* ── Separators ── */
+  --sep:   rgba(60,60,67,0.29);
+  --sep-l: rgba(60,60,67,0.16);
+  --sep-o: #C6C6C8;
+
+  /* ── Typography ── */
+  --font: -apple-system, 'SF Pro Text', 'Inter', 'Pretendard', system-ui, sans-serif;
+  --font-d: -apple-system, 'SF Pro Display', 'Inter', 'Pretendard', system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', 'Consolas', monospace;
+
+  --fs-34: 34px; --fs-28: 28px; --fs-26: 26px; --fs-22: 22px;
+  --fs-20: 20px; --fs-17: 17px; --fs-16: 16px;
+  --fs-15: 15px; --fs-13: 13px; --fs-12: 12px; --fs-11: 11px; --fs-10: 10px;
+
+  /* ── Spacing (8pt grid) ── */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
+  --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px;
+
+  /* ── Radius ── */
+  --r-4:4px; --r-6:6px; --r-8:8px; --r-10:10px;
+  --r-12:12px; --r-16:16px; --r-20:20px; --r-pill:999px;
+
+  /* ── Shadows ── */
+  --sh-sm: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.05);
+  --sh-md: 0 4px 16px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.05);
+  --sh-lg: 0 8px 32px rgba(0,0,0,0.14), 0 0 0 0.5px rgba(0,0,0,0.06);
+  --sh-hw: 0 0 0 0.5px rgba(0,0,0,0.07),
+           0 8px 32px rgba(0,0,0,0.11),
+           0 24px 64px rgba(0,0,0,0.07);
+
+  /* ── iOS Animations ── */
+  --ease-out:    cubic-bezier(0.0, 0.0, 0.2, 1.0);
+  --spring:      cubic-bezier(0.34, 1.56, 0.64, 1.0);
+  --ease-in-out: cubic-bezier(0.4, 0.0, 0.2, 1.0);
+  --dur-100: 100ms; --dur-150: 150ms; --dur-200: 200ms;
+  --dur-300: 300ms; --dur-400: 400ms; --dur-500: 500ms;
+
+  /* ── Layout Dimensions ── */
+  --h-titlebar:   36px;
+  --h-toolbar:    44px;
+  --h-statusbar:  26px;
+  --w-sidebar:    240px;
+  --w-notelist:   300px;
+  --h-mob-nav:    44px;
+  --h-mob-tab:    56px;
+}
+
+/* ============================================================
+   DARK MODE
+   Key principle: text must be clearly readable against dark bg.
+   All text colors use HIGH alpha values.
+   ============================================================ */
+[data-theme="dark"] {
+  --bg-app:      #000000;
+  --bg-base:     #1C1C1E;
+  --bg-elevated: #2C2C2E;
+  --bg-input:    rgba(118,118,128,0.24);
+  --bg-hover:    rgba(255,255,255,0.06);
+  --bg-sel:      rgba(0,122,255,0.18);
+  --bg-pressed:  rgba(255,255,255,0.10);
+
+  /* Text — HIGH contrast for dark backgrounds */
+  --tx-1: rgba(255,255,255,0.95);   /* Primary: bright white */
+  --tx-2: rgba(255,255,255,0.60);   /* Secondary: clearly visible */
+  --tx-3: rgba(255,255,255,0.38);   /* Tertiary: readable placeholder */
+  --tx-4: rgba(255,255,255,0.22);   /* Disabled */
+  --tx-link: #0A84FF;
+  --tx-danger: #FF453A;
+
+  /* Separators */
+  --sep:   rgba(84,84,88,0.65);
+  --sep-l: rgba(84,84,88,0.40);
+  --sep-o: #38383A;
+
+  /* Dark mode system colors (brighter for dark bg) */
+  --c-blue:   #0A84FF;
+  --c-green:  #32D74B;
+  --c-red:    #FF453A;
+  --c-orange: #FF9F0A;
+  --c-yellow: #FFD60A;
+  --c-purple: #BF5AF2;
+  --c-teal:   #64D2FF;
+  --c-indigo: #5E5CE6;
+  --c-pink:   #FF375F;
+
+  /* Shadows (slightly more visible on dark) */
+  --sh-sm: 0 1px 4px rgba(0,0,0,0.30), 0 0 0 0.5px rgba(255,255,255,0.06);
+  --sh-md: 0 4px 16px rgba(0,0,0,0.40), 0 0 0 0.5px rgba(255,255,255,0.06);
+  --sh-lg: 0 8px 32px rgba(0,0,0,0.50), 0 0 0 0.5px rgba(255,255,255,0.06);
+  --sh-hw: 0 0 0 0.5px rgba(255,255,255,0.08),
+           0 8px 32px rgba(0,0,0,0.40),
+           0 24px 64px rgba(0,0,0,0.30);
+}
+
+/* System dark mode auto-detect (when data-theme not explicitly set) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-app: #000000;
+    --bg-base: #1C1C1E;
+    --bg-elevated: #2C2C2E;
+    --bg-input: rgba(118,118,128,0.24);
+    --bg-hover: rgba(255,255,255,0.06);
+    --bg-sel: rgba(0,122,255,0.18);
+    --bg-pressed: rgba(255,255,255,0.10);
+    --tx-1: rgba(255,255,255,0.95);
+    --tx-2: rgba(255,255,255,0.60);
+    --tx-3: rgba(255,255,255,0.38);
+    --tx-4: rgba(255,255,255,0.22);
+    --tx-link: #0A84FF;
+    --tx-danger: #FF453A;
+    --sep: rgba(84,84,88,0.65);
+    --sep-l: rgba(84,84,88,0.40);
+    --sep-o: #38383A;
+    --c-blue: #0A84FF;
+    --c-green: #32D74B;
+    --c-red: #FF453A;
+    --c-orange: #FF9F0A;
+    --c-purple: #BF5AF2;
+    --c-teal: #64D2FF;
+  }
+}

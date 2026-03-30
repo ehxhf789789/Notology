@@ -1,0 +1,172 @@
+/* ============================================================
+   Notology v4.0 — iOS Animation System
+   All animations use GPU-accelerated properties only:
+   transform and opacity (no layout recalculation).
+   ============================================================ */
+
+/* ── Base utility ── */
+.animated {
+  will-change: transform, opacity;
+}
+
+/* ── Fade ── */
+.fade-in  { animation: fadeIn var(--dur-200) var(--ease-out) both; }
+.fade-out { animation: fadeOut var(--dur-200) var(--ease-out) both; }
+@keyframes fadeIn  { from { opacity: 0 } to { opacity: 1 } }
+@keyframes fadeOut { from { opacity: 1 } to { opacity: 0 } }
+
+/* ── iOS Stack Navigation (push/pop) ── */
+.slide-in-right  { animation: slideInR  var(--dur-300) var(--ease-out) both; }
+.slide-out-left  { animation: slideOutL var(--dur-300) var(--ease-out) both; }
+.slide-in-left   { animation: slideInL  var(--dur-300) var(--ease-out) both; }
+.slide-out-right { animation: slideOutR var(--dur-300) var(--ease-out) both; }
+@keyframes slideInR  { from { transform: translateX(100%) } to { transform: translateX(0) } }
+@keyframes slideOutL { from { transform: translateX(0) } to { transform: translateX(-30%) } }
+@keyframes slideInL  { from { transform: translateX(-30%) } to { transform: translateX(0) } }
+@keyframes slideOutR { from { transform: translateX(0) } to { transform: translateX(100%) } }
+
+/* ── Bottom Sheet ── */
+.sheet-up   { animation: sheetUp   var(--dur-400) var(--spring) both; }
+.sheet-down { animation: sheetDown var(--dur-300) var(--ease-in-out) both; }
+@keyframes sheetUp   { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes sheetDown { from { transform: translateY(0) } to { transform: translateY(100%) } }
+
+/* ── Scale Pop (modals, menus, hover windows) ── */
+.pop-in  { animation: popIn  var(--dur-300) var(--spring) both; }
+.pop-out { animation: popOut var(--dur-200) var(--ease-in-out) both; }
+@keyframes popIn  { from { transform: scale(0.92); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+@keyframes popOut { from { transform: scale(1); opacity: 1 } to { transform: scale(0.92); opacity: 0 } }
+
+/* ── Hover Window entrance ── */
+.hw-enter {
+  animation: hwEnter var(--dur-300) var(--spring) both;
+}
+@keyframes hwEnter {
+  from { transform: scale(0.95) translateY(8px); opacity: 0 }
+  to   { transform: scale(1) translateY(0); opacity: 1 }
+}
+
+/* ── Button press feedback ── */
+.press:active {
+  transform: scale(0.96);
+  transition: transform var(--dur-100);
+}
+
+/* ── Sync status pulse ── */
+@keyframes syncPulse {
+  0%, 100% { opacity: 1; transform: scale(1) }
+  50%      { opacity: 0.4; transform: scale(0.8) }
+}
+.sync-dot-active {
+  animation: syncPulse 1.4s ease-in-out infinite;
+}
+
+/* ── Accordion (settings, containers) ── */
+.accordion {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height var(--dur-300) var(--ease-out),
+              opacity var(--dur-200);
+}
+.accordion.open {
+  max-height: 600px;
+  opacity: 1;
+}
+
+/* ── Toggle switch thumb ── */
+.toggle-thumb {
+  transition: transform var(--dur-200) var(--spring);
+}
+
+/* ── Swipe delete (mobile) ── */
+.swipe-cell {
+  transform: translateX(0);
+  transition: transform var(--dur-200) var(--ease-out);
+}
+.swipe-cell.swiped {
+  transform: translateX(-60px);
+}
+
+/* ── Large Title fold (mobile scroll) ── */
+.large-title {
+  transition: font-size var(--dur-200) var(--ease-out),
+              opacity var(--dur-200),
+              height var(--dur-200) var(--ease-out);
+}
+
+/* ── Sidebar panel slide ── */
+.panel-slide-in {
+  animation: panelSlideIn var(--dur-300) var(--ease-out) both;
+}
+.panel-slide-out {
+  animation: panelSlideOut var(--dur-200) var(--ease-out) both;
+}
+@keyframes panelSlideIn  { from { transform: translateX(-100%); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+@keyframes panelSlideOut { from { transform: translateX(0); opacity: 1 } to { transform: translateX(-100%); opacity: 0 } }
+
+/* ── Calendar month transition ── */
+.cal-slide-left {
+  animation: calSlideL var(--dur-300) var(--ease-out) both;
+}
+.cal-slide-right {
+  animation: calSlideR var(--dur-300) var(--ease-out) both;
+}
+@keyframes calSlideL { from { transform: translateX(20px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+@keyframes calSlideR { from { transform: translateX(-20px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+
+/* ── Context menu / dropdown ── */
+.menu-enter {
+  animation: menuEnter var(--dur-150) var(--spring) both;
+}
+@keyframes menuEnter {
+  from { transform: scale(0.95); opacity: 0 }
+  to   { transform: scale(1); opacity: 1 }
+}
+
+/* ── Tooltip ── */
+.tooltip-enter {
+  animation: tooltipIn var(--dur-200) var(--ease-out) both;
+}
+@keyframes tooltipIn {
+  from { transform: translateY(4px); opacity: 0 }
+  to   { transform: translateY(0); opacity: 1 }
+}
+
+/* ── Frontmatter panel expand ── */
+.fm-panel {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height var(--dur-300) var(--ease-out),
+              opacity var(--dur-200) var(--ease-out);
+}
+.fm-panel.open {
+  max-height: 500px;
+  opacity: 1;
+}
+
+/* ── Heading fold/unfold chevron ── */
+.fold-chevron {
+  transition: transform var(--dur-200) var(--spring);
+}
+.fold-chevron.folded {
+  transform: rotate(0deg);
+}
+.fold-chevron.unfolded {
+  transform: rotate(90deg);
+}
+
+/* ── Graph node hover ── */
+.graph-node-hover {
+  transition: r var(--dur-200) var(--spring);
+}
+
+/* ── Status bar sync indicator ── */
+@keyframes statusPulse {
+  0%, 100% { opacity: 1 }
+  50%      { opacity: 0.4 }
+}
+.status-syncing {
+  animation: statusPulse 1.2s ease-in-out infinite;
+}
