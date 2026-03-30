@@ -282,13 +282,18 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         logTiming(`Editor acquired from pool (${(performance.now() - acquireStart).toFixed(1)}ms)`);
 
         if (pendingBodyRef.current !== null && !contentSetRef.current) {
-          const setContentStart = performance.now();
-          isLoadingRef.current = true;
-          pooledEditor.commands.setContent(preprocessWikiLinks(pendingBodyRef.current));
-          isLoadingRef.current = false;
-          contentSetRef.current = true;
+          // Skip TipTap content load for SKETCH notes — canvas JSON must NOT enter TipTap
+          const pending = pendingBodyRef.current;
+          const isSketchBody = pending.trimStart().startsWith('{"nodes":') || pending.trimStart().startsWith('{ "nodes":');
+          if (!isSketchBody) {
+            const setContentStart = performance.now();
+            isLoadingRef.current = true;
+            pooledEditor.commands.setContent(preprocessWikiLinks(pending));
+            isLoadingRef.current = false;
+            contentSetRef.current = true;
+            logTiming(`Editor setContent (deferred) (${(performance.now() - setContentStart).toFixed(1)}ms)`);
+          }
           pendingBodyRef.current = null;
-          logTiming(`Editor setContent (deferred) (${(performance.now() - setContentStart).toFixed(1)}ms)`);
         }
       }
     };
