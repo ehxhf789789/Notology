@@ -64,6 +64,15 @@ fn strip_markdown_formatting(text: &str) -> String {
     static RE_INLINE_CODE: Lazy<Regex> =
         Lazy::new(|| Regex::new(r"`([^`]+)`").unwrap());
 
+    // Math: strip delimiters but keep content for searchability
+    static RE_BLOCK_MATH: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"\$\$([\s\S]+?)\$\$").unwrap());
+    static RE_INLINE_MATH: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"\$([^$\n]+?)\$").unwrap());
+    // Clean up broken math tags from HTML fallback serialization
+    static RE_MATH_TAG: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"</?math(?:Inline|Block)[^>]*>").unwrap());
+
     let mut lines: Vec<String> = Vec::new();
     let mut in_code_block = false;
 
@@ -137,6 +146,15 @@ fn strip_markdown_formatting(text: &str) -> String {
 
         // Inline code: `code` → code
         processed = RE_INLINE_CODE.replace_all(&processed, "$1").to_string();
+
+        // Block math: $$formula$$ → formula
+        processed = RE_BLOCK_MATH.replace_all(&processed, "$1").to_string();
+
+        // Inline math: $formula$ → formula
+        processed = RE_INLINE_MATH.replace_all(&processed, "$1").to_string();
+
+        // Clean broken math tags: <mathInline></mathInline> → (remove)
+        processed = RE_MATH_TAG.replace_all(&processed, "").to_string();
 
         if !processed.trim().is_empty() {
             lines.push(processed);

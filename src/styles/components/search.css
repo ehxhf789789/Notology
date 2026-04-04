@@ -19,14 +19,14 @@
 
 .search-tab {
   padding: 6px 14px;
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--tx-3);
   cursor: pointer;
   white-space: nowrap;
-  transition: color var(--duration-fast), border-color var(--duration-fast);
+  transition: color var(--dur-150), border-color var(--dur-150);
 }
 
 .search-tab.active {
@@ -42,17 +42,17 @@
 .search-create-note-btn {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--sp-2);
   margin: 4px 10px 4px auto;
   padding: 5px 12px;
   background-color: transparent;
   border: 0.5px solid var(--sep);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   color: var(--tx-2);
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
 }
 
 .search-create-note-btn:hover {
@@ -80,24 +80,24 @@
   flex: 1;
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-3);
 }
 
 .search-input {
   flex: 1;
   padding: 5px 10px;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   color: var(--tx-1);
   outline: none;
-  transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
+  transition: border-color var(--dur-200), box-shadow var(--dur-200);
 }
 
 .search-input:focus {
   border-color: var(--c-blue);
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+  box-shadow: 0 0 0 2px var(--c-blue);
 }
 
 .search-input::placeholder {
@@ -111,14 +111,14 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  margin-left: var(--space-3);
+  margin-left: var(--sp-2);
   padding: 0;
   background: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-3);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
 }
 
 .search-filter-btn:hover {
@@ -136,7 +136,7 @@
 .search-date-filters {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--sp-2);
   padding: 8px 10px;
   background: var(--bg-app);
   border-bottom: 0.5px solid var(--sep-l);
@@ -145,13 +145,13 @@
 .search-date-filter-row {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--sp-2);
 }
 
 .search-date-filter-label {
   min-width: 70px;
   width: auto;
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
   flex-shrink: 0;
   white-space: nowrap;
@@ -159,10 +159,10 @@
 
 .search-date-input {
   padding: 4px 6px;
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-1);
   outline: none;
 }
@@ -172,7 +172,7 @@
 }
 
 .search-date-separator {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
 }
 
@@ -185,10 +185,10 @@
   padding: 0;
   background: transparent;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-3);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
 }
 
 .search-date-clear-btn:hover {
@@ -198,13 +198,13 @@
 
 .search-filter-toggle-btn {
   padding: 4px 12px;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: #888;
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
 }
 
 .search-filter-toggle-btn:hover {
@@ -220,7 +220,7 @@
 /* Batch action buttons */
 .search-batch-actions {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--sp-3);
   padding: 8px 16px;
   background: var(--bg-elevated);
   border-bottom: 0.5px solid var(--sep-l);
@@ -228,13 +228,13 @@
 
 .search-batch-btn {
   padding: 6px 12px;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   background: rgba(220, 38, 38, 0.15);
   border: 1px solid rgba(220, 38, 38, 0.3);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--c-red);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
 }
 
 .search-batch-btn:hover {
@@ -246,13 +246,13 @@
 .search-batch-delete-filter-btn {
   width: 100%;
   padding: 8px 12px;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   background: rgba(220, 38, 38, 0.15);
   border: 1px solid rgba(220, 38, 38, 0.3);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--c-red);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
   font-weight: 500;
 }
 
@@ -270,7 +270,7 @@
 }
 
 .search-count {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
 }
 
@@ -287,7 +287,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
 }
 
 /* CSS Grid layout for virtualized frontmatter rows */
@@ -354,7 +354,7 @@
 .search-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
 }
 
 .search-th {
@@ -379,7 +379,7 @@
 
 .search-row {
   cursor: pointer;
-  transition: background-color var(--duration-fast);
+  transition: background-color var(--dur-150);
 }
 
 .search-row:hover {
@@ -427,12 +427,12 @@
 }
 .conflict-badge {
   display: inline-block;
-  font-size: var(--font-xs);
+  font-size: var(--fs-10);
   font-weight: 600;
   color: #1a1a1a;
   background: #e8a838;
   padding: 1px 4px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   margin-right: 5px;
   vertical-align: middle;
   line-height: 1.2;
@@ -442,11 +442,11 @@
 .bulk-sync-banner {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-3);
   padding: 6px 12px;
   background: linear-gradient(90deg, rgba(232, 168, 56, 0.15), rgba(232, 168, 56, 0.05));
   border-bottom: 1px solid rgba(232, 168, 56, 0.3);
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: #e8a838;
   animation: pulse-subtle 2s ease-in-out infinite;
 }
@@ -507,12 +507,12 @@
 
 .search-type {
   color: var(--tx-3);
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
 }
 
 .search-tags {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--sp-2);
   flex-wrap: nowrap;
   align-items: center;
   overflow: hidden;
@@ -522,8 +522,8 @@
   padding: 1px 6px;
   background-color: #2d3748;
   border: 1px solid transparent; /* Normalize box model with category tags */
-  border-radius: var(--radius-sm);
-  font-size: var(--font-sm);
+  border-radius: var(--r-6);
+  font-size: var(--fs-11);
   line-height: 1;
   color: #a0aec0;
   font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif !important;
@@ -562,7 +562,7 @@
 
 .search-tag-empty {
   color: var(--tx-3);
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
 }
 
 /* Tag Category Dropdown */
@@ -573,26 +573,26 @@
   z-index: var(--z-dropdown);
   background: var(--bg-secondary, #1e1e2e);
   border: 1px solid var(--border-color, #333);
-  border-radius: var(--radius-md);
-  padding: var(--space-2);
+  border-radius: var(--r-8);
+  padding: var(--sp-2);
   min-width: 120px;
   box-shadow: var(--sh-md);
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--sp-1);
 }
 
 .tag-category-option {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--sp-2);
   padding: 5px 10px;
   border: none;
   background: transparent;
   color: var(--text-primary, #cdd6f4);
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   white-space: nowrap;
   text-align: left;
 }
@@ -609,7 +609,7 @@
 .tag-category-dot {
   width: 8px;
   height: 8px;
-  border-radius: var(--radius-full);
+  border-radius: var(--r-pill);
   flex-shrink: 0;
 }
 
@@ -631,7 +631,7 @@
 
 .search-date {
   color: var(--tx-3);
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   white-space: nowrap;
 }
 
@@ -657,7 +657,7 @@
   padding: var(--space-12);
   text-align: center;
   color: var(--tx-3);
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
 }
 
 .floating-words-container {
@@ -694,9 +694,9 @@
   padding: 8px 16px;
   cursor: pointer;
   border-bottom: 1px solid var(--bg-elevated);
-  transition: background-color var(--duration-fast);
-  border-radius: var(--radius-sm);
-  margin: 0 var(--space-2);
+  transition: background-color var(--dur-150);
+  border-radius: var(--r-6);
+  margin: 0 var(--sp-2);
 }
 
 .search-content-item:hover {
@@ -740,14 +740,14 @@
 }
 
 .search-content-title {
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   font-weight: 500;
   color: var(--tx-1);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--sp-2);
 }
 
 .search-content-snippet {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-2);
   line-height: 1.4;
   overflow: hidden;
@@ -757,9 +757,9 @@
 }
 
 .search-content-path {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
-  margin-top: var(--space-2);
+  margin-top: var(--sp-2);
 }
 
 .search-highlight {
@@ -773,16 +773,16 @@
 .search-details-filters {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-3);
   flex: 1;
 }
 
 .search-details-select {
   padding: 5px 10px;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-1);
   outline: none;
   cursor: pointer;
@@ -802,9 +802,9 @@
   padding: 10px 16px;
   cursor: pointer;
   border-bottom: 1px solid var(--bg-elevated);
-  transition: background-color var(--duration-fast) ease;
-  border-radius: var(--radius-sm);
-  margin: 0 var(--space-2);
+  transition: background-color var(--dur-150) ease;
+  border-radius: var(--r-6);
+  margin: 0 var(--sp-2);
 }
 
 .search-details-item:hover {
@@ -852,12 +852,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-2);
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-2);
 }
 
 .search-details-title {
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   font-weight: 500;
   color: var(--tx-1);
   flex: 1;
@@ -867,10 +867,10 @@
 }
 
 .search-details-type {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   padding: 2px 6px;
   background: rgba(100, 150, 255, 0.2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: #8ab4f8;
   flex-shrink: 0;
 }
@@ -879,25 +879,25 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-2);
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-2);
 }
 
 .search-details-container {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: #888;
 }
 
 .search-details-dates {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
 }
 
 .search-details-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
 }
 
 .search-details-tags .search-tag {
@@ -909,7 +909,38 @@
 }
 
 .search-details-comments {
-  margin-top: var(--space-2);
-  font-size: var(--font-sm);
+  margin-top: var(--sp-2);
+  font-size: var(--fs-11);
   color: var(--tx-3);
+}
+
+/* ── Light Mode Contrast ── */
+html[data-theme="light"] .search-tab {
+  color: var(--tx-2);
+}
+
+html[data-theme="light"] .search-tab:hover:not(.active) {
+  color: var(--tx-1);
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+html[data-theme="light"] .search-input {
+  background-color: var(--bg-app);
+  border: 1px solid var(--sep);
+}
+
+html[data-theme="light"] .search-filter-toggle-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: var(--sep);
+  color: var(--tx-2);
+}
+
+html[data-theme="light"] .search-filter-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="light"] .search-filter-toggle-btn.active {
+  background: rgba(0, 122, 255, 0.1);
+  border-color: rgba(0, 122, 255, 0.3);
+  color: var(--c-blue);
 }

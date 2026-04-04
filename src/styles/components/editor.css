@@ -7,7 +7,7 @@
   height: 100%;
   outline: none;
   color: var(--tx-1);
-  font-size: var(--font-lg);
+  font-size: var(--fs-15);
   line-height: 1.7;
   max-width: 800px;
   margin: 0 auto;
@@ -15,29 +15,29 @@
 }
 
 .tiptap-editor h1 {
-  font-size: var(--font-3xl);
+  font-size: var(--fs-28);
   font-weight: 700;
   margin: 18px 0 10px;
-  padding-left: var(--space-6);
-  border-left: 4px solid #7aa2f7;
+  padding-left: var(--sp-4);
+  border-left: 4px solid var(--c-blue);
   color: var(--tx-1);
 }
 
 .tiptap-editor h2 {
-  font-size: var(--font-2xl);
+  font-size: var(--fs-22);
   font-weight: 600;
   margin: 16px 0 8px;
-  padding-left: var(--space-5);
-  border-left: 3px solid #89b4fa;
+  padding-left: var(--sp-3);
+  border-left: 3px solid var(--c-teal);
   color: var(--tx-1);
 }
 
 .tiptap-editor h3 {
-  font-size: var(--font-xl);
+  font-size: var(--fs-17);
   font-weight: 600;
   margin: 14px 0 7px;
-  padding-left: var(--space-4);
-  border-left: 2px solid #94e2d5;
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--c-indigo);
   color: var(--tx-1);
 }
 
@@ -47,7 +47,7 @@
 
 .tiptap-editor ul,
 .tiptap-editor ol {
-  padding-left: var(--space-12);
+  padding-left: var(--sp-6);
   margin: 8px 0;
 }
 
@@ -79,15 +79,15 @@
 .tiptap-editor code {
   background-color: var(--bg-hover);
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  font-family: "Consolas", "Monaco", monospace;
-  font-size: var(--font-md);
+  border-radius: var(--r-6);
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
 }
 
 .tiptap-editor pre {
   background-color: var(--bg-elevated);
-  padding: var(--space-8);
-  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  border-radius: var(--r-8);
   margin: 12px 0;
   overflow-x: auto;
 }
@@ -95,13 +95,13 @@
 .tiptap-editor pre code {
   background: none;
   padding: 0;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   line-height: 1.5;
 }
 
 .tiptap-editor blockquote {
   border-left: 3px solid var(--c-blue);
-  padding-left: var(--space-8);
+  padding-left: var(--sp-4);
   margin: 12px 0;
   color: var(--tx-2);
 }
@@ -126,8 +126,8 @@
   padding: 12px 32px;
   background-color: var(--bg-elevated);
   border-bottom: 0.5px solid var(--sep-l);
-  font-family: "Consolas", "Monaco", monospace;
-  font-size: var(--font-base);
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
   max-width: 800px;
   margin: 0 auto;
   width: 100%;
@@ -136,43 +136,42 @@
 
 .frontmatter-field {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   padding: 1px 0;
 }
 
 .frontmatter-key {
-  color: #569cd6;
+  color: var(--c-blue);
   flex-shrink: 0;
 }
 
 .frontmatter-value {
-  color: #ce9178;
+  color: var(--c-orange);
   word-break: break-all;
 }
 
 /* Wiki Links */
 .wiki-link-inline {
-  color: #a78bfa;
+  color: var(--c-purple);
   cursor: pointer;
   text-decoration: none;
   font-weight: 500;
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  background-color: rgba(167, 139, 250, 0.1);
-  border: 1px solid rgba(167, 139, 250, 0.25);
-  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+  border-radius: var(--r-6);
+  background-color: color-mix(in srgb, var(--c-purple) 10%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--c-purple) 25%, transparent);
+  transition: all var(--dur-150) var(--ease-out);
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   vertical-align: baseline;
-  user-select: all; /* Allow selection for drag operations (e.g., tab indentation) */
-  /* Hide the [[...]] brackets by setting font-size to 0 (for decoration-based links) */
+  user-select: all;
   font-size: 0;
 }
 
 /* Wiki link atom nodes (rendered directly without brackets) */
 .wiki-link-inline.wiki-link-node {
-  font-size: var(--font-lg);
+  font-size: var(--fs-15);
 }
 
 /* Hide ::after for atom nodes since content is rendered directly */
@@ -183,34 +182,34 @@
 /* Show only the filename via ::after pseudo-element (for decoration-based links) */
 .wiki-link-inline::after {
   content: attr(data-wiki-link);
-  font-size: var(--font-lg);
+  font-size: var(--fs-15);
   font-weight: 500;
 }
 
 .wiki-link-inline:hover {
-  background-color: rgba(167, 139, 250, 0.2);
-  border-color: rgba(167, 139, 250, 0.4);
-  color: #c4b5fd;
+  background-color: color-mix(in srgb, var(--c-purple) 20%, transparent);
+  border-color: color-mix(in srgb, var(--c-purple) 40%, transparent);
+  color: var(--c-purple);
   box-shadow: var(--sh-sm);
 }
 
 .wiki-link-inline.unresolved {
-  color: #9ca3af;
+  color: var(--tx-3);
   text-decoration: underline;
   text-decoration-style: dashed;
-  text-decoration-color: #6b7280;
+  text-decoration-color: var(--sep);
   opacity: 0.8;
 }
 
 .wiki-link-inline.unresolved:hover {
-  background-color: rgba(156, 163, 175, 0.1);
-  color: #d1d5db;
+  background-color: color-mix(in srgb, var(--c-gray) 10%, transparent);
+  color: var(--tx-2);
 }
 
 .wiki-link-inline.attachment {
-  color: #00d4aa;
-  background-color: rgba(0, 212, 170, 0.08);
-  border-color: rgba(0, 212, 170, 0.3);
+  color: var(--c-green);
+  background-color: color-mix(in srgb, var(--c-green) 8%, transparent);
+  border-color: color-mix(in srgb, var(--c-green) 25%, transparent);
 }
 
 .wiki-link-inline.attachment::after {
@@ -222,7 +221,7 @@
   display: inline-block;
   width: 14px;
   height: 14px;
-  margin-right: var(--space-2);
+  margin-right: var(--sp-1);
   margin-left: 0;
   vertical-align: middle;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2300d4aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'%3E%3C/path%3E%3C/svg%3E");
@@ -231,11 +230,415 @@
 }
 
 .wiki-link-inline.attachment:hover {
-  background-color: rgba(0, 212, 170, 0.2);
-  border-color: rgba(0, 212, 170, 0.5);
-  color: #00ffcc;
+  background-color: color-mix(in srgb, var(--c-green) 20%, transparent);
+  border-color: color-mix(in srgb, var(--c-green) 40%, transparent);
+  color: var(--c-green);
 }
 
 .wiki-link-inline.attachment.unresolved {
-  color: #9ca3af;
+  color: var(--tx-3);
+}
+
+/* ── Atom Node Selection Highlight ──
+   Atom nodes (math, HR) rendered via NodeView don't get browser ::selection.
+   This class is added by MathCursorPlugin when they fall within a range selection.
+   Uses system highlight color for consistency with native text selection. */
+.atom-in-selection {
+  outline: 2px solid var(--c-blue);
+  outline-offset: 0px;
+  border-radius: var(--r-4);
+}
+
+/* ── Math (KaTeX) ── */
+.math-node {
+  position: relative;
+  cursor: pointer;
+  /* user-select:all makes the browser treat the entire node as one selectable unit.
+     This allows drag-selection to pass through and past math nodes,
+     even when they are the last element on a line. */
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+/* ── Inline math ── */
+.math-inline-node {
+  display: inline-block;
+  vertical-align: middle;
+  padding: 2px 6px;
+  border-radius: var(--r-4);
+  border: 1px solid color-mix(in srgb, var(--c-indigo) 25%, transparent);
+  background: color-mix(in srgb, var(--c-indigo) 8%, transparent);
+  transition: all var(--dur-150) var(--ease-out);
+  position: relative;
+  /* Prevent text-indent (e.g. hanging indent) from shifting the math node */
+  text-indent: 0;
+}
+
+.math-inline-node:hover {
+  background: color-mix(in srgb, var(--c-indigo) 14%, transparent);
+  border-color: color-mix(in srgb, var(--c-indigo) 40%, transparent);
+}
+
+.math-inline-node.ProseMirror-selectednode {
+  border-color: var(--c-blue);
+  background: color-mix(in srgb, var(--c-blue) 12%, transparent);
+}
+
+.math-inline-node.math-editing {
+  border-color: transparent;
+  background: transparent;
+}
+
+/* ── Block math — card layout ── */
+.math-block-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-4);
+  margin: var(--sp-2) 0;
+  border-radius: var(--r-6);
+  border: 1px solid color-mix(in srgb, var(--c-indigo) 18%, transparent);
+  background: color-mix(in srgb, var(--c-indigo) 4%, transparent);
+  transition: all var(--dur-150) var(--ease-out);
+  overflow: visible;
+}
+
+.math-block-node:hover {
+  background: color-mix(in srgb, var(--c-indigo) 8%, transparent);
+  border-color: color-mix(in srgb, var(--c-indigo) 30%, transparent);
+}
+
+.math-block-node.ProseMirror-selectednode {
+  border-color: var(--c-blue);
+  background: color-mix(in srgb, var(--c-blue) 8%, transparent);
+}
+
+.math-block-node.math-editing {
+  border-color: var(--c-blue);
+  background: color-mix(in srgb, var(--c-blue) 4%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-blue) 12%, transparent);
+}
+
+/* KaTeX rendered output — inline-block so its full height is included
+   in parent's box, preventing overflow clipping */
+.math-katex {
+  pointer-events: none;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+/* Override KaTeX default font size to match editor text */
+.math-inline-node .math-katex .katex {
+  font-size: 1em;
+}
+
+/* KaTeX inside block math — center and allow full width */
+.math-block-node .math-katex {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.math-block-node .math-katex .katex-display {
+  margin: 0;
+}
+
+.math-katex.math-placeholder {
+  color: var(--tx-3);
+  font-size: var(--fs-12);
+  font-style: italic;
+}
+
+/* Edit container — shared base */
+.math-edit-container,
+.math-edit-container-block {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* Inline: replaces KaTeX display in-place */
+.math-edit-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-base);
+  border: 1px solid var(--c-blue);
+  border-radius: var(--r-4);
+  padding: 2px 4px;
+}
+
+/* Block: stacked layout */
+.math-edit-container-block {
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 500px;
+}
+
+/* Delimiter ($) */
+.math-delimiter {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  font-weight: 700;
+  color: var(--c-blue);
+  user-select: none;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* Edit input — shared style for both $ and $$ */
+.math-edit-input {
+  padding: 2px 4px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  line-height: 1.4;
+  color: var(--tx-1);
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 10em;
+  max-width: 40vw;
+}
+
+/* Block input: has its own border */
+.math-edit-container-block .math-edit-input {
+  background: var(--bg-base);
+  border: 1px solid var(--sep);
+  border-radius: var(--r-6);
+  padding: 4px 10px;
+}
+
+.math-edit-container-block .math-edit-input:focus {
+  border-color: var(--c-blue);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-blue) 15%, transparent);
+}
+
+/* Block textarea */
+.math-edit-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 36px;
+  max-height: 160px;
+}
+
+.math-edit-input:focus {
+  border-color: var(--c-blue);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-blue) 15%, transparent);
+}
+
+/* Block math live preview */
+.math-edit-preview {
+  padding: var(--sp-2);
+  text-align: center;
+  color: var(--tx-2);
+}
+
+.math-edit-preview .katex {
+  font-size: 1.05em;
+}
+
+.math-render-error {
+  color: var(--c-red);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+}
+
+/* Error UI with fix suggestion */
+.math-error-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+
+.math-error-formula {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--c-red);
+  word-break: break-all;
+}
+
+.math-error-msg {
+  font-size: var(--fs-10);
+  color: var(--c-orange);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.math-error-fix-btn {
+  font-size: var(--fs-10);
+  padding: 1px 8px;
+  border: 1px solid var(--c-blue);
+  border-radius: var(--r-4);
+  background: color-mix(in srgb, var(--c-blue) 10%, transparent);
+  color: var(--c-blue);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all var(--dur-100);
+  pointer-events: auto;
+}
+
+.math-error-fix-btn:hover {
+  background: var(--c-blue);
+  color: #fff;
+}
+
+.math-block-node .math-error-container {
+  align-items: center;
+}
+
+/* ── Light Mode Contrast Overrides ── */
+html[data-theme="light"] .tiptap-editor h1 {
+  color: #111827;
+  border-left-color: #0055CC;
+}
+
+html[data-theme="light"] .tiptap-editor h2 {
+  color: #1f2937;
+  border-left-color: #0891b2;
+}
+
+html[data-theme="light"] .tiptap-editor h3 {
+  color: #1f2937;
+  border-left-color: #4338ca;
+}
+
+html[data-theme="light"] .tiptap-editor strong,
+html[data-theme="light"] .tiptap-editor b {
+  color: #111827;
+}
+
+html[data-theme="light"] .tiptap-editor blockquote {
+  background: color-mix(in srgb, var(--c-blue) 4%, transparent);
+}
+
+/* Math colors auto-adapt via color-mix + var(--c-indigo/--c-blue) tokens.
+   Only override where bg-base differs significantly between themes. */
+html[data-theme="light"] .math-edit-input {
+  background: var(--bg-base);
+}
+
+/* Wiki link colors auto-adapt via var(--c-purple) and var(--c-green) tokens.
+   No explicit light mode overrides needed. */
+
+/* ── Math Autocomplete Popup ── */
+.math-autocomplete-popup {
+  position: fixed;
+  z-index: 9999;
+  max-height: 280px;
+  max-width: 420px;
+  overflow-y: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--sep);
+  border-radius: var(--r-10);
+  box-shadow: var(--sh-lg);
+  padding: var(--sp-1) 0;
+  display: none;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.math-autocomplete-category {
+  padding: 6px 12px 3px;
+  font-size: var(--fs-10);
+  font-weight: 600;
+  color: var(--tx-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-top: 1px solid var(--sep-l);
+  margin-top: 2px;
+}
+
+.math-autocomplete-category:first-child {
+  border-top: none;
+  margin-top: 0;
+}
+
+.math-autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background var(--dur-100) ease;
+}
+
+.math-autocomplete-item:hover,
+.math-autocomplete-item.selected {
+  background: var(--bg-sel);
+}
+
+.math-autocomplete-item.selected {
+  background: var(--c-blue);
+  color: #fff;
+}
+
+.math-autocomplete-item.selected .math-autocomplete-cmd {
+  color: #fff;
+}
+
+.math-autocomplete-item.selected .math-autocomplete-label {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.math-autocomplete-item.selected .math-autocomplete-preview {
+  color: #fff;
+}
+
+.math-autocomplete-cmd {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--c-blue);
+  min-width: 90px;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.math-autocomplete-label {
+  font-size: var(--fs-12);
+  color: var(--tx-2);
+  flex: 1;
+  min-width: 50px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.math-autocomplete-preview {
+  font-size: var(--fs-15);
+  color: var(--tx-1);
+  flex-shrink: 0;
+  pointer-events: none;
+  min-width: 28px;
+  text-align: right;
+}
+
+/* Light mode popup */
+html[data-theme="light"] .math-autocomplete-popup {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: var(--sep);
+}
+
+html[data-theme="light"] .math-autocomplete-item.selected {
+  background: var(--c-blue);
+}
+
+/* (math-delimiter styles merged above with math-edit-label) */
+
+/* ── Math Gap Cursor ── */
+.math-gap-cursor {
+  display: inline-block;
+  width: 1px;
+  height: 1.2em;
+  cursor: text;
+  vertical-align: text-bottom;
+}
+
+.math-gap-cursor:hover {
+  background: var(--c-blue);
+  width: 2px;
 }

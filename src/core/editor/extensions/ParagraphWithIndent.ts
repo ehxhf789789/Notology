@@ -33,9 +33,31 @@ function inlineContentToHTML(node: any): string {
       html += text;
     } else if (child.type.name === 'hardBreak') {
       html += '<br>';
+    } else if (child.type.name === 'mathInline') {
+      // Math inline: preserve formula as $...$
+      const formula = child.attrs?.formula || '';
+      if (formula) html += `$${formula}$`;
+    } else if (child.type.name === 'mathBlock') {
+      const formula = child.attrs?.formula || '';
+      if (formula) html += `$$${formula}$$`;
+    } else if (child.type.name === 'wikiLink') {
+      // Wiki links: preserve as [[...]]
+      const fileName = child.attrs?.fileName || '';
+      const displayText = child.attrs?.displayText || '';
+      if (displayText && displayText !== fileName) {
+        html += `[[${fileName}|${displayText}]]`;
+      } else {
+        html += `[[${fileName}]]`;
+      }
     } else {
-      // For other inline nodes, try to get their HTML representation
-      html += `<${child.type.name}>${escapeHTML(child.textContent)}</${child.type.name}>`;
+      // Fallback for other inline nodes.
+      // WARNING: atom nodes (no textContent) will produce empty tags.
+      // If a new atom node type is added, handle it explicitly above.
+      const content = child.textContent || '';
+      if (content) {
+        html += escapeHTML(content);
+      }
+      // Silently skip empty unhandled nodes rather than creating broken tags
     }
   });
 

@@ -5,11 +5,11 @@
 .link-card {
   margin: 16px 0;
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-12);
   overflow: hidden;
   background-color: var(--bg-app);
   cursor: pointer;
-  transition: background-color var(--duration-normal), border-color var(--duration-normal);
+  transition: background-color var(--dur-200), border-color var(--dur-200);
   position: relative;
 }
 
@@ -48,17 +48,17 @@
 
 .link-card-body {
   flex: 1;
-  padding: var(--space-8);
+  padding: var(--sp-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   min-width: 0;
 }
 
 .link-card-header {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-2);
 }
 
 .link-card-favicon {
@@ -69,7 +69,7 @@
 
 .link-card-title {
   font-weight: 600;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   color: var(--tx-1);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -77,7 +77,7 @@
 }
 
 .link-card-description {
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   color: #999;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -87,7 +87,7 @@
 }
 
 .link-card-url {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: #666;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -96,16 +96,16 @@
 }
 
 .link-card-loading {
-  padding: var(--space-8);
+  padding: var(--sp-4);
   text-align: center;
   color: #999;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
 }
 
 .link-card-error {
   color: #dc3545;
-  font-size: var(--font-md);
-  margin-bottom: var(--space-4);
+  font-size: var(--fs-13);
+  margin-bottom: var(--sp-2);
 }
 
 .link-card-delete {
@@ -115,17 +115,17 @@
   width: 24px;
   height: 24px;
   border: none;
-  border-radius: var(--radius-full);
+  border-radius: var(--r-pill);
   background-color: rgba(0, 0, 0, 0.6);
   color: #fff;
-  font-size: var(--font-2xl);
+  font-size: var(--fs-20);
   line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity var(--duration-normal), background-color var(--duration-normal);
+  transition: opacity var(--dur-200), background-color var(--dur-200);
   z-index: 1;
 }
 
@@ -141,8 +141,8 @@
 .wiki-link-suggestion-list {
   background-color: #2d2d2d;
   border: 1px solid #3c3c3c;
-  border-radius: var(--radius-lg);
-  padding: var(--space-2);
+  border-radius: var(--r-12);
+  padding: var(--sp-1);
   max-height: 300px;
   overflow-y: auto;
   box-shadow: var(--sh-md);
@@ -153,14 +153,14 @@
   flex-direction: column;
   align-items: flex-start;
   padding: 8px 12px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   background: none;
   border: none;
   color: var(--tx-2);
   cursor: pointer;
   text-align: left;
   width: 100%;
-  transition: background-color var(--duration-normal);
+  transition: background-color var(--dur-200);
 }
 
 .wiki-link-suggestion-item:hover {
@@ -173,21 +173,21 @@
 }
 
 .wiki-link-suggestion-item-name {
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   font-weight: 500;
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--sp-1);
 }
 
 .wiki-link-suggestion-item-path {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   opacity: 0.7;
 }
 
 .wiki-link-suggestion-empty {
-  padding: var(--space-6);
+  padding: var(--sp-3);
   text-align: center;
   color: #888;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
 }
 
 /* Tippy tooltip styles for suggestion */
@@ -218,91 +218,80 @@
 
 /* Attachment (//) Suggestion List */
 .attachment-suggestion-list {
-  background-color: #1e1e2e;
-  border: 1px solid #3a3a4a;
-  border-radius: var(--radius-lg);
-  padding: var(--space-3);
-  max-height: 320px;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--sep);
+  border-radius: var(--r-10);
+  padding: var(--sp-1);
+  max-height: 280px;
   overflow-y: auto;
-  box-shadow: var(--sh-md);
-  color: #e0e0e0;
+  box-shadow: var(--sh-lg);
+  color: var(--tx-1);
   min-width: 200px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 html[data-theme="light"] .attachment-suggestion-list {
-  background-color: #ffffff;
-  border: 1px solid #ddd;
-  box-shadow: var(--sh-md);
-  color: #1a1a1a;
+  background-color: rgba(255, 255, 255, 0.95);
 }
 
 .attachment-suggestion-header {
   display: flex;
   align-items: center;
-  font-size: var(--font-sm);
+  gap: 6px;
+  font-size: var(--fs-10);
   font-weight: 600;
-  color: #888;
+  color: var(--tx-3);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 6px 10px 8px;
-  border-bottom: 1px solid #3a3a4a;
-  margin-bottom: var(--space-2);
+  padding: 6px 10px 6px;
+  border-bottom: 1px solid var(--sep-l);
+  margin-bottom: var(--sp-1);
 }
 
-html[data-theme="light"] .attachment-suggestion-header {
-  color: #555;
-  border-bottom-color: #ddd;
+.attachment-suggestion-empty {
+  padding: 12px 10px;
+  font-size: var(--fs-12);
+  color: var(--tx-3);
+  text-align: center;
 }
 
 .attachment-suggestion-item {
   display: flex;
   align-items: center;
-  gap: var(--space-5);
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
+  gap: var(--sp-2);
+  padding: 6px 10px;
+  border-radius: var(--r-6);
   background: none;
   border: none;
-  color: #e0e0e0;
+  color: var(--tx-1);
   cursor: pointer;
   text-align: left;
   width: 100%;
-  transition: background-color var(--duration-fast);
+  transition: background-color var(--dur-100);
   font-family: inherit;
-  font-size: var(--font-lg);
-}
-
-html[data-theme="light"] .attachment-suggestion-item {
-  color: #1a1a1a;
+  font-size: var(--fs-13);
 }
 
 .attachment-suggestion-item:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-}
-
-html[data-theme="light"] .attachment-suggestion-item:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--bg-hover);
 }
 
 .attachment-suggestion-item.selected {
-  background-color: #7aa2f7 !important;
+  background-color: var(--c-blue);
   color: #fff;
 }
 
 .attachment-suggestion-item-icon {
   width: 24px;
   height: 24px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   background-color: rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #7aa2f7;
-}
-
-html[data-theme="light"] .attachment-suggestion-item-icon {
-  background-color: rgba(0, 0, 0, 0.05);
-  color: #2563eb;
+  color: var(--c-blue);
 }
 
 .attachment-suggestion-item.selected .attachment-suggestion-item-icon {
@@ -310,37 +299,24 @@ html[data-theme="light"] .attachment-suggestion-item-icon {
   color: #fff;
 }
 
-.attachment-suggestion-item-info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-  flex: 1;
-  color: inherit;
-}
-
 .attachment-suggestion-item-name {
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #e0e0e0;
-}
-
-html[data-theme="light"] .attachment-suggestion-item-name {
-  color: #1a1a1a;
+  color: inherit;
 }
 
 .attachment-suggestion-item.selected .attachment-suggestion-item-name {
-  color: #fff !important;
+  color: #fff;
 }
 
 .attachment-suggestion-empty {
-  padding: var(--space-8);
+  padding: var(--sp-4);
   text-align: center;
   color: #888;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
 }
 
 html[data-theme="light"] .attachment-suggestion-empty {
@@ -365,8 +341,8 @@ html[data-theme="light"] .attachment-suggestion-empty {
 .image-embed-suggestion-list {
   background-color: #1e1e2e;
   border: 1px solid #3a3a4a;
-  border-radius: var(--radius-lg);
-  padding: var(--space-3);
+  border-radius: var(--r-12);
+  padding: var(--sp-2);
   max-height: 280px;
   overflow-y: auto;
   box-shadow: var(--sh-md);
@@ -381,14 +357,14 @@ html[data-theme="light"] .image-embed-suggestion-list {
 }
 
 .image-embed-suggestion-header {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   font-weight: 600;
   color: #888;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 6px 10px 8px;
   border-bottom: 1px solid #3a3a4a;
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--sp-1);
 }
 
 html[data-theme="light"] .image-embed-suggestion-header {
@@ -401,16 +377,16 @@ html[data-theme="light"] .image-embed-suggestion-header {
   align-items: center;
   gap: var(--space-5);
   padding: 8px 10px;
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   background: none;
   border: none;
   color: #e0e0e0;
   cursor: pointer;
   text-align: left;
   width: 100%;
-  transition: background-color var(--duration-fast);
+  transition: background-color var(--dur-150);
   font-family: inherit;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
 }
 
 html[data-theme="light"] .image-embed-suggestion-item {
@@ -433,12 +409,12 @@ html[data-theme="light"] .image-embed-suggestion-item:hover {
 .image-embed-suggestion-item-thumbnail {
   width: 48px;
   height: 48px;
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   background: rgba(255, 255, 255, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-2xl);
+  font-size: var(--fs-20);
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -465,12 +441,12 @@ html[data-theme="light"] .image-embed-suggestion-item-thumbnail {
 .image-embed-suggestion-item-icon {
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   background: linear-gradient(135deg, #a78bfa 0%, #f472b6 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-xl);
+  font-size: var(--fs-16);
   flex-shrink: 0;
 }
 
@@ -481,14 +457,14 @@ html[data-theme="light"] .image-embed-suggestion-item-thumbnail {
 .image-embed-suggestion-item-info {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--sp-1);
   min-width: 0;
   flex: 1;
   color: inherit;
 }
 
 .image-embed-suggestion-item-name {
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -505,10 +481,10 @@ html[data-theme="light"] .image-embed-suggestion-item-name {
 }
 
 .image-embed-suggestion-empty {
-  padding: var(--space-8);
+  padding: var(--sp-4);
   text-align: center;
   color: #888;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
 }
 
 html[data-theme="light"] .image-embed-suggestion-empty {

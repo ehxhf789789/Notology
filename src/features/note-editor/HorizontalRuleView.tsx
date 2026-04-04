@@ -2,14 +2,18 @@ import { NodeViewWrapper } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
 import { useCallback, useState } from 'react';
 
-function HorizontalRuleView({ editor, getPos, deleteNode }: NodeViewProps) {
+function HorizontalRuleView({ editor, getPos, deleteNode, selected }: NodeViewProps) {
   const [showActions, setShowActions] = useState(false);
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     deleteNode();
   }, [deleteNode]);
 
-  const handleInsertBefore = useCallback(() => {
+  const handleInsertBefore = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     const pos = getPos();
     if (pos !== undefined) {
       editor.chain()
@@ -19,7 +23,9 @@ function HorizontalRuleView({ editor, getPos, deleteNode }: NodeViewProps) {
     }
   }, [editor, getPos]);
 
-  const handleInsertAfter = useCallback(() => {
+  const handleInsertAfter = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     const pos = getPos();
     if (pos !== undefined) {
       editor.chain()
@@ -31,7 +37,7 @@ function HorizontalRuleView({ editor, getPos, deleteNode }: NodeViewProps) {
 
   return (
     <NodeViewWrapper
-      className="horizontal-rule-wrapper"
+      className={`horizontal-rule-wrapper${selected ? ' ProseMirror-selectednode' : ''}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >

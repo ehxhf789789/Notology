@@ -43,6 +43,9 @@ import ParagraphWithIndent from './extensions/ParagraphWithIndent';
 import CommentMarks from './extensions/CommentMarks';
 import HorizontalRuleNoGap from './extensions/HorizontalRuleNoGap';
 import LinkCard from './extensions/LinkCard';
+import { MathInline, MathBlock, MathTrigger } from './extensions/MathExtension';
+import { MathCursorPlugin } from './extensions/MathCursorPlugin';
+import 'katex/dist/katex.min.css';
 import WikiLinkSuggestion from './extensions/WikiLinkSuggestion';
 import AttachmentSuggestion from './extensions/AttachmentSuggestion';
 import { createWikiLinkSuggestion } from '../../features/suggestions/wikiLinkSuggestion';
@@ -218,7 +221,53 @@ class EditorPool {
       Superscript,
       TaskList,
       TaskItem.configure({ nested: true }),
-      Table.configure({ resizable: false }),
+      Table.extend({
+        addStorage() {
+          return {
+            markdown: {
+              serialize(state: any, node: any) {
+                let hasCellColor = false;
+                node.descendants?.((child: any) => {
+                  if ((child.type.name === 'tableCell' || child.type.name === 'tableHeader') && child.attrs.backgroundColor) {
+                    hasCellColor = true;
+                    return false;
+                  }
+                });
+
+                if (hasCellColor) {
+                  const { getHTMLFromFragment } = require('@tiptap/core');
+                  const { Fragment } = require('@tiptap/pm/model');
+                  const html = getHTMLFromFragment(Fragment.from(node), node.type.schema);
+                  state.write(html);
+                  state.closeBlock(node);
+                } else {
+                  state.inTable = true;
+                  node.forEach((row: any, _p: any, i: number) => {
+                    state.write('| ');
+                    row.forEach((col: any, _p2: any, j: number) => {
+                      if (j) state.write(' | ');
+                      const cellContent = col.firstChild;
+                      if (cellContent?.textContent?.trim()) {
+                        state.renderInline(cellContent);
+                      }
+                    });
+                    state.write(' |');
+                    state.ensureNewLine();
+                    if (!i) {
+                      const delimiterRow = Array.from({ length: row.childCount }).map(() => '---').join(' | ');
+                      state.write(`| ${delimiterRow} |`);
+                      state.ensureNewLine();
+                    }
+                  });
+                  state.closeBlock(node);
+                  state.inTable = false;
+                }
+              },
+              parse: {},
+            },
+          };
+        },
+      }).configure({ resizable: false }),
       TableRow,
       TableCellWithColor,
       TableHeaderWithColor,
@@ -249,6 +298,10 @@ class EditorPool {
       AttachmentSuggestion.configure({
         suggestion: createAttachmentSuggestion(() => callbacks.notePath),
       }),
+      MathInline,
+      MathBlock,
+      MathTrigger,
+      MathCursorPlugin,
       LinkCard,
       Markdown.configure({
         html: true,

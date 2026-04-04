@@ -72,45 +72,21 @@ export const AttachmentSuggestionList = forwardRef<
     },
   }));
 
-  // Detect theme from document
-  const isLightMode = typeof document !== 'undefined' &&
-    document.documentElement.getAttribute('data-theme') === 'light';
-
-  const listStyle = {
-    backgroundColor: isLightMode ? '#ffffff' : '#1e1e2e',
-    border: isLightMode ? '1px solid #ddd' : '1px solid #3a3a4a',
-    color: isLightMode ? '#1a1a1a' : '#e0e0e0',
-  };
-
-  const headerStyle = {
-    color: isLightMode ? '#555' : '#888',
-    borderBottomColor: isLightMode ? '#ddd' : '#3a3a4a',
-  };
-
-  const itemStyle = (selected: boolean) => ({
-    color: selected ? '#fff' : (isLightMode ? '#1a1a1a' : '#e0e0e0'),
-    backgroundColor: selected ? '#7aa2f7' : 'transparent',
-  });
-
-  const nameStyle = (selected: boolean) => ({
-    color: selected ? '#fff' : (isLightMode ? '#1a1a1a' : '#e0e0e0'),
-  });
-
   if (props.items.length === 0) {
     return (
-      <div className="attachment-suggestion-list" style={listStyle}>
-        <div className="attachment-suggestion-empty" style={{ color: isLightMode ? '#666' : '#888' }}>
-          No attachments found in att/ folder
+      <div className="attachment-suggestion-list">
+        <div className="attachment-suggestion-empty">
+          첨부파일이 없습니다
         </div>
       </div>
     );
   }
 
   return (
-    <div className="attachment-suggestion-list" style={listStyle}>
-      <div className="attachment-suggestion-header" style={headerStyle}>
-        <Paperclip size={12} style={{ marginRight: 6 }} />
-        Attachments (att/)
+    <div className="attachment-suggestion-list">
+      <div className="attachment-suggestion-header">
+        <Paperclip size={12} />
+        <span>Attachments (att/)</span>
       </div>
       {props.items.map((item, index) => {
         const selected = index === selectedIndex;
@@ -118,16 +94,13 @@ export const AttachmentSuggestionList = forwardRef<
           <button
             key={item.path}
             className={`attachment-suggestion-item${selected ? ' selected' : ''}`}
-            style={itemStyle(selected)}
             onClick={() => selectItem(index)}
           >
             <div className="attachment-suggestion-item-icon">
               {getFileIcon(item.fileName)}
             </div>
-            <div className="attachment-suggestion-item-info">
-              <div className="attachment-suggestion-item-name" style={nameStyle(selected)}>
-                {item.fileName}
-              </div>
+            <div className="attachment-suggestion-item-name">
+              {item.fileName}
             </div>
           </button>
         );

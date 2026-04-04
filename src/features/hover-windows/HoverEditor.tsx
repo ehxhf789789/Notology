@@ -87,7 +87,12 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   const [body, setBody] = useState('');
   const isCanvasNote = !!(frontmatter?.canvas || (!frontmatter && body.trimStart().startsWith('{') && body.includes('"nodes":')));
   const [isDirty, setIsDirty] = useState(false);
-  const mtimeOnLoadRef = useRef<number>(0);
+  const mtimeOnLoadRef = useRef<number>(0) as React.MutableRefObject<number> & { current: number; __lastUpdateAt?: number };
+  const lastSavedBodyRef = useRef<string | null>(null); // Tracks what WE last wrote/loaded from disk
+  // Initialize lastSavedBodyRef when content is loaded (isDirty becomes false)
+  useEffect(() => {
+    if (!isDirty && body) { lastSavedBodyRef.current = body; }
+  }, [isDirty, body]);
   const [editorMenuPos, setEditorMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [canvasData, setCanvasData] = useState<CanvasData>({ nodes: [], edges: [] });
   const [canvasSelection, setCanvasSelection] = useState<CanvasSelection | null>(null);
@@ -298,7 +303,12 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
           const fmString = serializeFrontmatter(updatedFm);
           // SKETCH: use bodyRef (canvas JSON), not TipTap markdown
           const content = fm.canvas ? bodyRef.current : (ed && !ed.isDestroyed ? (ed.storage as any).markdown.getMarkdown() : bodyRef.current);
-          fileCommands.writeFile(win.filePath, fmString, content).catch(() => {});
+          // Safety: never overwrite a file with empty body (prevents data loss on HMR/restart)
+          if (content && content.trim().length > 0) {
+            fileCommands.writeFile(win.filePath, fmString, content).catch(() => {});
+          } else {
+            console.warn('[HoverEditor] Unmount save SKIPPED: empty body would cause data loss');
+          }
         }
         if (ed && !ed.isDestroyed) {
           ed.off('update');
@@ -335,18 +345,12 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       return;
     }
 
-    if (mtimeOnLoadRef.current > 0) {
-      const currentMtime = await fileCommands.getFileMtime(win.filePath);
-      if (currentMtime > mtimeOnLoadRef.current) {
-        console.log('[saveFile] CONFLICT: mtime changed', { stored: mtimeOnLoadRef.current, current: currentMtime });
-        setConflictState({
-          myContent: bodyToSave,
-          myFrontmatter: { ...fm },
-          externalMtime: currentMtime,
-        });
-        return;
-      }
-    }
+    // Note: External change detection is handled by contentReloadTrigger (file watcher path).
+    // Pre-save mtime checks cause false conflicts because:
+    // 1. Sync engine changes mtime without changing content
+    // 2. Rust parser and TipTap markdown serialize differently (e.g. $math$)
+    // 3. Self-save atomic writes create brief mtime gaps
+    // So we just update mtime to current before saving — real conflicts are caught by the watcher.
 
     const updatedFm: NoteFrontmatter = { ...fm, modified: getCurrentTimestamp() };
     const fmString = serializeFrontmatter(updatedFm);
@@ -367,8 +371,15 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       noteTypeCacheActions.patchNoteType(noteFileName, updatedFm.type);
     }
 
+    // Guard: never write empty body over existing content (prevents data loss)
+    if (!isCanvas && (!bodyToSave || bodyToSave.trim().length === 0)) {
+      console.warn('[saveFile] BLOCKED: empty body would cause data loss', { filePath: win.filePath });
+      return;
+    }
+
     try {
       await fileCommands.writeFile(win.filePath, fmString, bodyToSave);
+      lastSavedBodyRef.current = bodyToSave; // Track what we wrote for conflict detection
       setFrontmatter(updatedFm);
       setIsDirty(false);
       markAsSelfSaved(win.filePath);
@@ -376,6 +387,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       const estimatedMtime = Date.now();
       contentCacheActions.updateContent(win.filePath, bodyToSave, updatedFm, estimatedMtime);
       mtimeOnLoadRef.current = estimatedMtime;
+      (mtimeOnLoadRef as any).__lastUpdateAt = Date.now();
 
       fileCommands.getFileMtime(win.filePath).then(realMtime => {
         mtimeOnLoadRef.current = realMtime;
@@ -414,7 +426,12 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         // SKETCH: use bodyRef (canvas JSON), not TipTap markdown
         const ed = editorRef.current;
         const content = fm.canvas ? bodyRef.current : (ed && !ed.isDestroyed ? (ed.storage as any).markdown.getMarkdown() : bodyRef.current);
-        fileCommands.writeFile(win.filePath, fmString, content).catch(() => {});
+        // Safety: never overwrite a file with empty body (prevents data loss on HMR/restart)
+        if (content && content.trim().length > 0) {
+          fileCommands.writeFile(win.filePath, fmString, content).catch(() => {});
+        } else {
+          console.warn('[HoverEditor] Emergency save SKIPPED: empty body would cause data loss');
+        }
       }
     });
     return () => unregisterEditorSave(win.id);

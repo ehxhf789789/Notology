@@ -33,6 +33,12 @@ pub fn read_attachment_folder(att_folder_path: String, query: String) -> Result<
                 continue;
             }
 
+            // Skip system files (not user attachments)
+            const SYSTEM_FILES: &[&str] = &["comments.json"];
+            if SYSTEM_FILES.contains(&file_name.as_str()) {
+                continue;
+            }
+
             if entry_path.is_dir() {
                 collect_files(&entry_path, base_path, query, image_exts, results)?;
             } else if entry_path.is_file() {

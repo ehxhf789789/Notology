@@ -23,7 +23,7 @@ const CALLOUT_TYPES: { type: CalloutType; label: string }[] = [
   { type: 'tip', label: 'Tip' },
 ];
 
-const CELL_COLOR_KEYS: { color: string; key: string }[] = [
+const CELL_COLORS_DARK: { color: string; key: string }[] = [
   { color: 'transparent', key: 'cellDefault' },
   { color: '#2d2d2d', key: 'cellDarkGray' },
   { color: '#3c3c3c', key: 'cellGray' },
@@ -33,6 +33,26 @@ const CELL_COLOR_KEYS: { color: string; key: string }[] = [
   { color: '#5f1e3a', key: 'cellPurple' },
   { color: '#4a2d2d', key: 'cellRed' },
 ];
+
+const CELL_COLORS_LIGHT: { color: string; key: string }[] = [
+  { color: 'transparent', key: 'cellDefault' },
+  { color: '#e5e5e5', key: 'cellDarkGray' },
+  { color: '#f0f0f0', key: 'cellGray' },
+  { color: '#dbeafe', key: 'cellBlue' },
+  { color: '#dcfce7', key: 'cellGreen' },
+  { color: '#fef3c7', key: 'cellBrown' },
+  { color: '#f3e8ff', key: 'cellPurple' },
+  { color: '#fee2e2', key: 'cellRed' },
+];
+
+function getCellColors(): { color: string; key: string }[] {
+  const theme = document.documentElement.getAttribute('data-theme');
+  if (theme === 'light') return CELL_COLORS_LIGHT;
+  if (theme === 'dark') return CELL_COLORS_DARK;
+  // System theme detection
+  if (window.matchMedia?.('(prefers-color-scheme: light)').matches) return CELL_COLORS_LIGHT;
+  return CELL_COLORS_DARK;
+}
 
 // Submenu component rendered as portal
 interface SubmenuPortalProps {
@@ -92,7 +112,7 @@ function EditorContextMenu({ editor, position, onClose, onAddMemo, onAddTask }: 
   const [showCellColorSubmenu, setShowCellColorSubmenu] = useState(false);
 
   const cellColors = useMemo(() =>
-    CELL_COLOR_KEYS.map(c => ({ color: c.color, label: t(c.key, language) })),
+    getCellColors().map(c => ({ color: c.color, label: t(c.key, language) })),
     [language]
   );
 

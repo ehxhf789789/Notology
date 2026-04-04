@@ -516,6 +516,10 @@ export const WikiLink = Node.create<WikiLinkOptions>({
               // Not a wiki link - show editor formatting context menu
               if (onEditorContextMenu) {
                 event.preventDefault();
+                // Force-flush the current selection state before opening the menu.
+                // This prevents table cell multi-selection from being cancelled
+                // when right-clicking immediately after drag-selecting cells.
+                view.focus();
                 onEditorContextMenu({ x: event.clientX, y: event.clientY });
                 return true;
               }

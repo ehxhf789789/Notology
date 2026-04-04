@@ -146,6 +146,42 @@ export function preprocessWikiLinks(markdown: string): string {
     result = result.replace(`\u0000IMG_EMBED_${index}\u0000`, `![[${content}]]`);
   });
 
+  // Step 5.5: Convert HTML-fallback math tags back to $...$ / $$...$$ format.
+  // tiptap-markdown's HTML fallback serializes math nodes as:
+  //   <span data-math-inline data-formula="...">$...$</span>  (with attributes)
+  //   <mathInline></mathInline>  (without attributes — data lost)
+  // We extract formula from data-formula attribute or inner text.
+
+  // Handle ANY tag with data-math-inline + data-formula (including empty/self-closing)
+  result = result.replace(/<[^>]*data-math-inline[^>]*data-formula="([^"]*)"[^>]*(?:\/>|>[^<]*<\/[^>]+>)/g,
+    (_m, formula) => formula ? `$${formula}$` : '');
+  result = result.replace(/<[^>]*data-formula="([^"]*)"[^>]*data-math-inline[^>]*(?:\/>|>[^<]*<\/[^>]+>)/g,
+    (_m, formula) => formula ? `$${formula}$` : '');
+
+  // Handle ANY tag with data-math-block + data-formula
+  result = result.replace(/<[^>]*data-math-block[^>]*data-formula="([^"]*)"[^>]*(?:\/>|>[^<]*<\/[^>]+>)/g,
+    (_m, formula) => formula ? `$$${formula}$$` : '');
+  result = result.replace(/<[^>]*data-formula="([^"]*)"[^>]*data-math-block[^>]*(?:\/>|>[^<]*<\/[^>]+>)/g,
+    (_m, formula) => formula ? `$$${formula}$$` : '');
+
+  // Handle bare <mathInline>...</mathInline> tags (no data-formula — truly lost)
+  result = result.replace(/<mathInline><\/mathInline>/g, '');
+  result = result.replace(/<mathBlock><\/mathBlock>/g, '');
+
+  // Step 6: Convert block math $$...$$ to HTML divs (before inline to avoid conflicts)
+  result = result.replace(/\$\$\n?([\s\S]+?)\n?\$\$/g, (_match, formula) => {
+    const trimmed = (formula as string).trim();
+    if (!trimmed) return _match;
+    return `<div data-math-block data-formula="${escapeHtml(trimmed)}">$$${escapeHtml(trimmed)}$$</div>`;
+  });
+
+  // Step 7: Convert inline math $...$ to HTML spans
+  result = result.replace(/(?<!\$)\$([^$\n]+?)\$(?!\$)/g, (_match, formula) => {
+    const trimmed = (formula as string).trim();
+    if (!trimmed) return _match;
+    return `<span data-math-inline data-formula="${escapeHtml(trimmed)}">$${escapeHtml(trimmed)}$</span>`;
+  });
+
   return result;
 }
 

@@ -40,6 +40,9 @@ import HeadingWithAlign from './extensions/HeadingWithAlign';
 import CommentMarks from './extensions/CommentMarks';
 import LinkCard from './extensions/LinkCard';
 import WikiLinkSuggestion from './extensions/WikiLinkSuggestion';
+import { MathInline, MathBlock, MathTrigger } from './extensions/MathExtension';
+import { MathCursorPlugin } from './extensions/MathCursorPlugin';
+import 'katex/dist/katex.min.css';
 import { createWikiLinkSuggestion } from '../../features/suggestions/wikiLinkSuggestion';
 import type { FileNode } from '../types';
 
@@ -114,7 +117,58 @@ export function getEditorExtensions(options: EditorConfigOptions) {
     Superscript,
     TaskList,
     TaskItem.configure({ nested: true }),
-    Table.configure({ resizable: false }),
+    Table.extend({
+      // Override table serialization: if any cell has a background color,
+      // serialize as HTML instead of markdown table (which loses cell colors).
+      addStorage() {
+        return {
+          markdown: {
+            serialize(state: any, node: any, parent: any) {
+              // Check if any cell has a background color
+              let hasCellColor = false;
+              node.descendants?.((child: any) => {
+                if ((child.type.name === 'tableCell' || child.type.name === 'tableHeader') && child.attrs.backgroundColor) {
+                  hasCellColor = true;
+                  return false; // stop iteration
+                }
+              });
+
+              if (hasCellColor) {
+                // Serialize as HTML to preserve cell background colors
+                const { getHTMLFromFragment } = require('@tiptap/core');
+                const { Fragment } = require('@tiptap/pm/model');
+                const html = getHTMLFromFragment(Fragment.from(node), node.type.schema);
+                state.write(html);
+                state.closeBlock(node);
+              } else {
+                // Standard markdown table serialization
+                state.inTable = true;
+                node.forEach((row: any, _p: any, i: number) => {
+                  state.write('| ');
+                  row.forEach((col: any, _p2: any, j: number) => {
+                    if (j) state.write(' | ');
+                    const cellContent = col.firstChild;
+                    if (cellContent?.textContent?.trim()) {
+                      state.renderInline(cellContent);
+                    }
+                  });
+                  state.write(' |');
+                  state.ensureNewLine();
+                  if (!i) {
+                    const delimiterRow = Array.from({ length: row.childCount }).map(() => '---').join(' | ');
+                    state.write(`| ${delimiterRow} |`);
+                    state.ensureNewLine();
+                  }
+                });
+                state.closeBlock(node);
+                state.inTable = false;
+              }
+            },
+            parse: {},
+          },
+        };
+      },
+    }).configure({ resizable: false }),
     TableRow,
     TableCellWithColor,
     TableHeaderWithColor,
@@ -141,6 +195,10 @@ export function getEditorExtensions(options: EditorConfigOptions) {
         suggestion: createWikiLinkSuggestion(options.getFileTree),
       }),
     ] : []),
+    MathInline,
+    MathBlock,
+    MathTrigger,
+    MathCursorPlugin,
     LinkCard, // Put LinkCard BEFORE Markdown for higher paste priority
     Markdown.configure({
       html: true, // Preserve HTML elements (including indent attributes)
