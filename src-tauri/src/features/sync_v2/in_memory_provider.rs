@@ -183,16 +183,21 @@ impl SyncProvider for InMemorySyncProvider {
         let md = self.md_files.lock().unwrap();
         let mut seen = std::collections::HashSet::new();
         let mut result = vec![];
-        for key in md.keys() {
+        for (key, val) in md.iter() {
             if let Some(rest) = key.strip_prefix(dir).and_then(|r| r.strip_prefix('/')) {
                 let name = rest.split('/').next().unwrap_or("");
                 if !name.is_empty() && seen.insert(name.to_string()) {
+                    let is_collection = rest.contains('/');
+                    // Track B Phase B-2 (2026-05-12): report real size for files
+                    // so chunked_upload resume logic can validate uploaded chunks.
+                    // Collections still report size=0 (matches WebDAV PROPFIND).
+                    let size = if is_collection { 0 } else { val.len() as u64 };
                     result.push(RemoteChild {
                         name: name.to_string(),
                         path: format!("{}/{}", dir, name),
-                        is_collection: rest.contains('/'),
+                        is_collection,
                         modified_at: chrono::Utc::now(),
-                        size: 0,
+                        size,
                     });
                 }
             }

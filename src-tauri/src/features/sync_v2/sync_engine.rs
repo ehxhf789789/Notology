@@ -238,9 +238,10 @@ impl SyncEngine {
     pub async fn start_3tier(self: &Arc<Self>) {
         use crate::features::sync_v2::dirty_queue::DirtyQueue;
         use crate::features::sync_v2::push_worker::PushWorker;
+        use crate::features::sync_v2::background_worker::BackgroundWorker;
         use crate::features::sync_v2::adaptive_poller::AdaptivePoller;
 
-        // Tier 1: PushWorker (uses existing dirty_queue)
+        // Tier 1a: PushWorker (Fast lane — notes, refs, small attachments)
         let push_worker = Arc::new(PushWorker::new(
             self.dirty_queue.clone(),
             self.cas.clone(),
@@ -253,6 +254,33 @@ impl SyncEngine {
         ));
         let pw = Arc::clone(&push_worker);
         tokio::spawn(async move { pw.run().await });
+
+        // Tier 1b: BackgroundWorker (Slow lane — large attachments ≥100 MB).
+        // Track B 2026-05-12: HanBin confirmed two-tier queue (§4.4 option 2).
+        let bg_worker = Arc::new(BackgroundWorker::new(
+            self.dirty_queue.clone(),
+            self.provider.clone(),
+            self.vault_path.clone(),
+            self.stop_signal.clone(),
+            self.online.clone(),
+            self.sync_enabled.clone(),
+        ));
+        let bw = Arc::clone(&bg_worker);
+        tokio::spawn(async move { bw.run().await });
+
+        // Track B Phase B-2 (2026-05-12 hotfix): on vault open, check for the
+        // legacy `{Note}_att/` layout and migrate forward. Forcible + lossless
+        // per `feedback_migration_strength.md`. Runs once, in the background,
+        // so vault open isn't blocked on a sha256-heavy scan of large files
+        // (one 614 MB video takes ~3 s to hash on NVMe). After migration
+        // succeeds, every newly-created AttachmentRef is enqueued so the push
+        // workers transport them to NAS without needing a manual `attachment_add`
+        // round-trip.
+        let vault_for_migration = self.vault_path.clone();
+        let dirty_queue_for_migration = self.dirty_queue.clone();
+        tokio::spawn(async move {
+            run_attachment_migration_if_needed(vault_for_migration, dirty_queue_for_migration).await;
+        });
 
         // Tier 2: AdaptivePoller
         let engine_for_reconcile = Arc::clone(self);
@@ -333,10 +361,23 @@ impl SyncEngine {
         });
     }
 
-    /// Enqueue a dirty operation for Tier 1 push.
+    /// Enqueue a dirty operation for Tier 1 push (Fast lane).
     pub fn enqueue_dirty(&self, op: crate::features::sync_v2::dirty_queue::DirtyOperation) {
         if let Err(e) = self.dirty_queue.enqueue(op) {
             log::warn!("[sync_engine] enqueue_dirty failed: {}", e);
+        }
+    }
+
+    /// Track B Phase B-2: enqueue with explicit lane choice. Used by the
+    /// attachment commands so a 1 GB video is routed to the Slow lane and a
+    /// 200 KB PDF stays in the Fast lane.
+    pub fn enqueue_dirty_with_lane(
+        &self,
+        op: crate::features::sync_v2::dirty_queue::DirtyOperation,
+        lane: crate::features::sync_v2::dirty_queue::Lane,
+    ) {
+        if let Err(e) = self.dirty_queue.enqueue_with_lane(op, lane) {
+            log::warn!("[sync_engine] enqueue_dirty_with_lane failed: {}", e);
         }
     }
 
@@ -882,6 +923,106 @@ fn find_device_for_hash(gs: &GlobalSyncState, note_id: &str, hash: &str) -> Opti
     gs.devices.iter()
         .find(|(_, s)| s.ref_hashes.get(note_id).is_some_and(|h| h == hash))
         .map(|(dev, _)| dev.clone())
+}
+
+/// Track B Phase B-2 hotfix (2026-05-12): on vault open, force-run the
+/// legacy attachment migration and enqueue every resulting `AttachmentRef`
+/// so the workers transport it to NAS.
+///
+/// Idempotent — bails immediately when the new layout is already in place.
+/// Failure is logged but does NOT panic the engine; the user can retry by
+/// reopening the vault. We deliberately do not propagate errors here because
+/// this runs in a background task spawned from `start_3tier` and there is
+/// no parent waiting on the result.
+async fn run_attachment_migration_if_needed(
+    vault_path: std::path::PathBuf,
+    dirty_queue: Arc<crate::features::sync_v2::dirty_queue::DirtyQueue>,
+) {
+    use crate::features::sync_v2::attachment_migration::AttachmentMigration;
+    use crate::features::sync_v2::attachment_store::AttachmentStore;
+    use crate::features::sync_v2::attachment_sync::lane_for_size;
+    use crate::features::sync_v2::dirty_queue::DirtyOperation;
+
+    let needs = {
+        let m = AttachmentMigration::new(vault_path.clone());
+        match m.needs_migration() {
+            Ok(v) => v,
+            Err(e) => {
+                log::warn!("[attachment_migration] needs_migration check failed: {}", e);
+                return;
+            }
+        }
+    };
+
+    if needs {
+        log::info!("[attachment_migration] legacy _att/ folders detected, running migration");
+        let mut m = AttachmentMigration::new(vault_path.clone());
+        // Migration is CPU/IO heavy (sha256 over potentially many GB). Run it
+        // off-thread to avoid blocking the tokio runtime.
+        let vault_for_blocking = vault_path.clone();
+        let report = match tokio::task::spawn_blocking(move || {
+            AttachmentMigration::new(vault_for_blocking).run()
+        })
+        .await
+        {
+            Ok(Ok(r)) => r,
+            Ok(Err(e)) => {
+                log::error!("[attachment_migration] failed: {}", e);
+                let _ = m; // silence unused warn
+                return;
+            }
+            Err(e) => {
+                log::error!("[attachment_migration] task panicked: {:?}", e);
+                return;
+            }
+        };
+        log::info!(
+            "[attachment_migration] complete: total={} migrated={} deduped={} collisions={} duration_ms={}",
+            report.total_files, report.migrated, report.deduped, report.collisions, report.duration_ms
+        );
+    }
+
+    // Whether we just migrated OR the new layout was already present from a
+    // prior run, enqueue every ref that hasn't been pushed yet (sync_etag is
+    // None). This catches:
+    //   - fresh migration output (all refs unsynced)
+    //   - refs added while offline and never enqueued
+    //   - refs from a crashed prior session where the dirty queue was lost
+    let store = match AttachmentStore::new(vault_path.clone()) {
+        Ok(s) => s,
+        Err(e) => {
+            log::warn!("[attachment_migration] post-migration store init failed: {}", e);
+            return;
+        }
+    };
+    let mut enqueued_fast = 0usize;
+    let mut enqueued_slow = 0usize;
+    for r in store.all_refs() {
+        if r.sync_etag.is_some() {
+            continue;
+        }
+        let lane = lane_for_size(r.size_bytes);
+        let relative = format!(".notology/attachments/refs/{}.json", r.attachment_id);
+        if let Err(e) =
+            dirty_queue.enqueue_with_lane(DirtyOperation::AttachmentUpsert { relative_path: relative }, lane)
+        {
+            log::warn!(
+                "[attachment_migration] enqueue {} failed: {}",
+                r.attachment_id, e
+            );
+            continue;
+        }
+        match lane {
+            crate::features::sync_v2::dirty_queue::Lane::Fast => enqueued_fast += 1,
+            crate::features::sync_v2::dirty_queue::Lane::Slow => enqueued_slow += 1,
+        }
+    }
+    if enqueued_fast + enqueued_slow > 0 {
+        log::info!(
+            "[attachment_migration] enqueued {} fast-lane + {} slow-lane attachments for push",
+            enqueued_fast, enqueued_slow
+        );
+    }
 }
 
 #[cfg(test)]

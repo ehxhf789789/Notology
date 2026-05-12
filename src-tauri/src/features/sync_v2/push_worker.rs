@@ -3,14 +3,16 @@
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::core::cas::CasStore;
 use crate::core::refs::RefStore;
 use crate::core::sync_provider::SyncProvider;
 use crate::core::version_dag::VersionDag;
-use crate::features::sync_v2::dirty_queue::{DirtyEntry, DirtyOperation, DirtyQueue};
+use crate::features::sync_v2::attachment_store::AttachmentStore;
+use crate::features::sync_v2::attachment_sync::AttachmentSync;
+use crate::features::sync_v2::dirty_queue::{DirtyEntry, DirtyOperation, DirtyQueue, Lane};
 
 const DEBOUNCE_MS: u64 = 1500;
 const POLL_IDLE_MS: u64 = 500;
@@ -30,6 +32,10 @@ pub struct PushWorker {
     /// PUTs are attempted. Resume triggers an immediate flush via the
     /// engine's `trigger_reconciliation_now`.
     sync_enabled: Arc<AtomicBool>,
+    /// Track B Phase B-2: lazy-initialized attachment store + sync. None until
+    /// the first AttachmentUpsert/Delete arrives — avoids paying load_from_disk
+    /// cost on vaults that never use attachments.
+    attachment_store: Mutex<Option<Arc<Mutex<AttachmentStore>>>>,
 }
 
 impl PushWorker {
@@ -43,7 +49,50 @@ impl PushWorker {
         online: Arc<AtomicBool>,
         sync_enabled: Arc<AtomicBool>,
     ) -> Self {
-        Self { queue, cas, ref_store, provider, vault_path, stop_signal, online, sync_enabled }
+        Self {
+            queue,
+            cas,
+            ref_store,
+            provider,
+            vault_path,
+            stop_signal,
+            online,
+            sync_enabled,
+            attachment_store: Mutex::new(None),
+        }
+    }
+
+    /// Lazy-init the attachment store and **reload it from disk on every
+    /// call**. The reload is critical: between worker batches, the user's
+    /// `attachment_add` calls write fresh ref JSONs to disk that the cached
+    /// in-memory map would otherwise miss, causing
+    /// `push_attachment("...") -> Err("attachment_id ... not found")` and
+    /// eventually a drop after max retries. The reload is `clear()` + read,
+    /// so it's safe to repeat. Disk read of a few hundred small JSONs is
+    /// negligible compared to a single chunk PUT.
+    fn ensure_attachment_store(&self) -> Result<Arc<Mutex<AttachmentStore>>, String> {
+        let mut g = self.attachment_store.lock().unwrap();
+        let arc = if let Some(s) = g.as_ref() {
+            Arc::clone(s)
+        } else {
+            let store = AttachmentStore::new(self.vault_path.clone())?;
+            let arc = Arc::new(Mutex::new(store));
+            *g = Some(Arc::clone(&arc));
+            arc
+        };
+        // Always reload — cheap, idempotent, prevents the cache-stale bug.
+        arc.lock()
+            .map_err(|e| format!("attachment_store reload lock: {}", e))?
+            .load_from_disk()?;
+        Ok(arc)
+    }
+
+    /// Resolve an `AttachmentUpsert.relative_path` to its `attachment_id`.
+    /// `relative_path` is the ref JSON path (e.g.
+    /// `.notology/attachments/refs/20260512123456.json`) — we strip dir + ext.
+    fn extract_attachment_id(relative_path: &str) -> Option<String> {
+        let p = std::path::Path::new(relative_path);
+        p.file_stem().and_then(|s| s.to_str()).map(|s| s.to_string())
     }
 
     /// Start the push worker loop. Call inside tokio::spawn.
@@ -69,7 +118,7 @@ impl PushWorker {
                 continue;
             }
 
-            let count = self.queue.count().unwrap_or(0);
+            let count = self.queue.count_lane(Lane::Fast).unwrap_or(0);
             if count == 0 {
                 tokio::time::sleep(Duration::from_millis(POLL_IDLE_MS)).await;
                 continue;
@@ -95,7 +144,10 @@ impl PushWorker {
     }
 
     async fn process_batch(&self) -> Result<usize, String> {
-        let entries = self.queue.list_pending()?;
+        // Track B 2026-05-12: PushWorker handles Fast lane only. Slow lane
+        // (large attachments ≥100 MB) is owned by BackgroundWorker so a 1 GB
+        // video upload doesn't block fast operations behind it.
+        let entries = self.queue.list_pending_lane(Lane::Fast)?;
         let mut success = 0;
         for entry in entries {
             if self.stop_signal.load(Ordering::Relaxed) { break; }
@@ -133,14 +185,12 @@ impl PushWorker {
             DirtyOperation::FolderDelete { relative_path } => {
                 self.execute_folder_delete(&relative_path).await
             }
-            // Stubs for future tracks (B, D1, D2)
+            // Track B Phase B-2 (2026-05-12): replaces the long-standing stubs.
             DirtyOperation::AttachmentUpsert { relative_path } => {
-                log::debug!("[push_worker] attachment upsert stub: {}", relative_path);
-                Ok(()) // Track B will implement
+                self.push_attachment_upsert(relative_path).await
             }
             DirtyOperation::AttachmentDelete { relative_path } => {
-                log::debug!("[push_worker] attachment delete stub: {}", relative_path);
-                Ok(())
+                self.push_attachment_delete(relative_path).await
             }
             DirtyOperation::YamlChange { relative_path } => {
                 log::debug!("[push_worker] yaml change stub: {}", relative_path);
@@ -260,6 +310,32 @@ impl PushWorker {
         // Folder creation on NAS happens automatically when push_single_note pushes the folder note
         // (put_md calls ensure_parents). So this is effectively a no-op.
         log::info!("[push_worker] folder create: {} (auto via note push)", normalized);
+        Ok(())
+    }
+
+    /// Track B Phase B-2 — push an attachment (CAS blob + ref JSON).
+    /// `relative_path` is the ref JSON path under the vault, e.g.
+    /// `.notology/attachments/refs/20260512123456.json`.
+    async fn push_attachment_upsert(&self, relative_path: &str) -> Result<(), String> {
+        let id = Self::extract_attachment_id(relative_path)
+            .ok_or_else(|| format!("cannot extract attachment_id from {}", relative_path))?;
+        let store = self.ensure_attachment_store()?;
+        let sync = AttachmentSync::new(self.provider.clone());
+        let outcome = sync.push_attachment(&store, &id).await?;
+        log::info!(
+            "[push_worker] attachment {} pushed (blob_uploaded={}, size={})",
+            id, outcome.blob_uploaded, outcome.size_bytes
+        );
+        Ok(())
+    }
+
+    async fn push_attachment_delete(&self, relative_path: &str) -> Result<(), String> {
+        let id = Self::extract_attachment_id(relative_path)
+            .ok_or_else(|| format!("cannot extract attachment_id from {}", relative_path))?;
+        let store = self.ensure_attachment_store()?;
+        let sync = AttachmentSync::new(self.provider.clone());
+        sync.push_deletion(&store, &id).await?;
+        log::info!("[push_worker] attachment {} deleted on NAS", id);
         Ok(())
     }
 

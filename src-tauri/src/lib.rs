@@ -774,6 +774,8 @@ pub fn run() {
             features::attachment::delete_multiple_files,
             features::attachment::delete_attachments_with_links,
             features::attachment::check_attachment_references,
+            // Track B Phase B-1 POC — drag-out probe (dev-only)
+            features::attachment_drag::attachment_drag_poc_prepare,
             // Tag commands
             features::tags::bulk_delete_tag,
             features::tags::bulk_rename_tag,
@@ -874,6 +876,14 @@ pub fn run() {
             features::sync_v2::commands::sync_v2_enqueue_attachment,
             features::sync_v2::commands::sync_v2_enqueue_folder_create,
             features::sync_v2::commands::sync_v2_enqueue_folder_delete,
+            // Track B Phase B-2 — attachment + migration commands
+            features::sync_v2::commands::attachment_add,
+            features::sync_v2::commands::attachment_delete,
+            features::sync_v2::commands::attachment_link_to_note,
+            features::sync_v2::commands::attachment_unlink_from_note,
+            features::sync_v2::commands::attachment_list_for_note,
+            features::sync_v2::commands::attachment_migration_status,
+            features::sync_v2::commands::attachment_migration_run,
             // WebDAV auth commands (M-4a)
             features::sync_v2::commands::webdav_test_connection,
             features::sync_v2::commands::webdav_login,

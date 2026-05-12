@@ -158,4 +158,57 @@ export const syncV2Commands = {
       keptIds: string[];
       errors: string[];
     }>('sync_v2_cleanup_stale_refs'),
+
+  // ── Track B Phase B-2 — Attachments ────────────────────────────────────
+  // Pass either `notePath` (absolute .md path — what drag-drop has) or
+  // `noteId` (14-digit frontmatter id). Backend accepts either.
+  attachmentAdd: (
+    sourcePath: string,
+    target: { notePath: string } | { noteId: string },
+  ) =>
+    invoke<AttachmentRefDto>('attachment_add', {
+      sourcePath,
+      notePath: 'notePath' in target ? target.notePath : undefined,
+      noteId: 'noteId' in target ? target.noteId : undefined,
+    }),
+
+  attachmentDelete: (attachmentId: string) =>
+    invoke<void>('attachment_delete', { attachmentId }),
+
+  attachmentLinkToNote: (attachmentId: string, noteId: string) =>
+    invoke<void>('attachment_link_to_note', { attachmentId, noteId }),
+
+  attachmentUnlinkFromNote: (attachmentId: string, noteId: string) =>
+    invoke<void>('attachment_unlink_from_note', { attachmentId, noteId }),
+
+  attachmentListForNote: (noteId: string) =>
+    invoke<AttachmentRefDto[]>('attachment_list_for_note', { noteId }),
+
+  attachmentMigrationStatus: () =>
+    invoke<{ needsMigration: boolean }>('attachment_migration_status'),
+
+  attachmentMigrationRun: () =>
+    invoke<AttachmentMigrationReport>('attachment_migration_run'),
+};
+
+// ── Track B Phase B-2 — DTO types ──────────────────────────────────────────
+export type AttachmentRefDto = {
+  attachmentId: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  sha256: string;
+  tier: 'image' | 'pdf' | 'document' | 'csv' | 'video' | 'audio' | 'other';
+  displayPath: string;
+  linkedNotes: string[];
+  syncEtag: string | null;
+};
+
+export type AttachmentMigrationReport = {
+  total_files: number;
+  migrated: number;
+  deduped: number;
+  collisions: number;
+  duration_ms: number;
+  legacy_backup_dir: string | null;
 };

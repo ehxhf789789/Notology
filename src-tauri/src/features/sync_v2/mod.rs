@@ -23,3 +23,23 @@ pub mod vault_migrator;
 pub mod reconciliation;
 pub mod bootstrap;
 pub mod commands;
+
+// Track B Phase B-1 skeleton — schema only, no logic yet.
+pub mod attachment_types;
+
+// Track B Phase B-2 — attachment storage layer (CAS blobs + ref metadata + index).
+pub mod attachment_store;
+
+// Track B Phase B-2 — attachment NAS sync (push/pull, dedup, two-tier lane routing).
+pub mod attachment_sync;
+
+// Track B Phase B-2 — Slow-lane background worker for large attachments.
+pub mod background_worker;
+
+// Track B Phase B-2 — legacy `{Note}_att/` → `.attachments/` + CAS migration.
+pub mod attachment_migration;
+
+// Track B Phase B-2 (Q2=C, §4.4-CL) — chunked blob upload layer.
+// Files ≥100 MB are split into 16 MB chunks with a commit-last manifest;
+// smaller files use a single PUT. Both layouts coexist on NAS.
+pub mod chunked_upload;

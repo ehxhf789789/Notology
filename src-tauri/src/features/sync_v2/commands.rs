@@ -498,6 +498,217 @@ pub fn sync_v2_enqueue_attachment(
     Ok(())
 }
 
+// ── Track B Phase B-2: Attachment commands ──────────────────────────────────
+
+/// DTO of `AttachmentRef` for frontend consumption (camelCase). Mirrors the
+/// Rust struct field-for-field; serde rename keeps the wire format ergonomic.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachmentRefDto {
+    pub attachment_id: String,
+    pub original_name: String,
+    pub mime_type: String,
+    pub size_bytes: u64,
+    pub sha256: String,
+    pub tier: String,
+    pub display_path: String,
+    pub linked_notes: Vec<String>,
+    pub sync_etag: Option<String>,
+}
+
+impl From<crate::features::sync_v2::attachment_types::AttachmentRef> for AttachmentRefDto {
+    fn from(r: crate::features::sync_v2::attachment_types::AttachmentRef) -> Self {
+        Self {
+            attachment_id: r.attachment_id,
+            original_name: r.original_name,
+            mime_type: r.mime_type,
+            size_bytes: r.size_bytes,
+            sha256: r.sha256,
+            tier: serde_json::to_string(&r.tier)
+                .unwrap_or_else(|_| "\"other\"".into())
+                .trim_matches('"')
+                .to_string(),
+            display_path: r.display_path,
+            linked_notes: r.linked_notes,
+            sync_etag: r.sync_etag,
+        }
+    }
+}
+
+fn require_vault(library_state: &LibraryState) -> Result<std::path::PathBuf, String> {
+    let guard = library_state.lock().unwrap_or_else(|e| e.into_inner());
+    let library = guard.as_ref().ok_or("Library not initialized")?;
+    Ok(library.vault_path().to_path_buf())
+}
+
+/// Import a file as an attachment for a note. Routes to Fast or Slow lane
+/// based on size (threshold = 100 MB per HanBin 2026-05-12).
+///
+/// Accepts either `notePath` (absolute path to the .md file — preferred for
+/// frontend callers since drag-drop already knows the path) **or** `noteId`
+/// (the 14-digit frontmatter id — preferred for backend callers). At least
+/// one must be supplied; `notePath` is read first to extract the id.
+#[tauri::command]
+pub async fn attachment_add(
+    source_path: String,
+    note_path: Option<String>,
+    note_id: Option<String>,
+    library_state: tauri::State<'_, LibraryState>,
+    sync_state: tauri::State<'_, SyncEngineState>,
+) -> Result<AttachmentRefDto, String> {
+    let vault = require_vault(&library_state)?;
+    let src = std::path::Path::new(&source_path);
+    let name = src
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| "invalid source file name".to_string())?
+        .to_string();
+
+    // Resolve note_id: caller may pass either directly, or supply notePath
+    // and we extract from frontmatter. Falls back to filename stem if the
+    // .md file has no id (matches extract_note_id_from_path semantics).
+    let resolved_note_id = match (note_id, note_path.as_deref()) {
+        (Some(id), _) => id,
+        (None, Some(path)) => extract_note_id_from_path(path, &library_state)?,
+        (None, None) => {
+            return Err("attachment_add requires note_path or note_id".to_string());
+        }
+    };
+
+    let mut store =
+        crate::features::sync_v2::attachment_store::AttachmentStore::new(vault)?;
+    let outcome = store.add_attachment(src, &name, &resolved_note_id)?;
+    let r = outcome.attachment_ref;
+
+    // Enqueue for sync. Lane chosen by size (Fast <100 MB, Slow ≥100 MB).
+    let lane = crate::features::sync_v2::attachment_sync::lane_for_size(r.size_bytes);
+    if let Some(engine) = sync_state.get() {
+        let relative = format!(".notology/attachments/refs/{}.json", r.attachment_id);
+        engine.enqueue_dirty_with_lane(
+            DirtyOperation::AttachmentUpsert { relative_path: relative },
+            lane,
+        );
+        log::info!(
+            "[attachment_add] enqueued {} ({} bytes, lane={:?})",
+            r.attachment_id, r.size_bytes, lane
+        );
+    } else {
+        log::warn!(
+            "[attachment_add] sync engine not active — attachment {} added locally but not enqueued",
+            r.attachment_id
+        );
+    }
+
+    Ok(r.into())
+}
+
+/// Delete an attachment by id. Removes ref + display + (orphan) blob locally
+/// and enqueues a NAS delete.
+#[tauri::command]
+pub async fn attachment_delete(
+    attachment_id: String,
+    library_state: tauri::State<'_, LibraryState>,
+    sync_state: tauri::State<'_, SyncEngineState>,
+) -> Result<(), String> {
+    let vault = require_vault(&library_state)?;
+    let mut store =
+        crate::features::sync_v2::attachment_store::AttachmentStore::new(vault)?;
+
+    // Snapshot size before delete so we can lane-route correctly.
+    let lane = store
+        .get_by_id(&attachment_id)
+        .map(|r| crate::features::sync_v2::attachment_sync::lane_for_size(r.size_bytes))
+        .unwrap_or(crate::features::sync_v2::dirty_queue::Lane::Fast);
+
+    store.delete_attachment(&attachment_id)?;
+
+    if let Some(engine) = sync_state.get() {
+        let relative = format!(".notology/attachments/refs/{}.json", attachment_id);
+        engine.enqueue_dirty_with_lane(
+            DirtyOperation::AttachmentDelete { relative_path: relative },
+            lane,
+        );
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn attachment_link_to_note(
+    attachment_id: String,
+    note_id: String,
+    library_state: tauri::State<'_, LibraryState>,
+    sync_state: tauri::State<'_, SyncEngineState>,
+) -> Result<(), String> {
+    let vault = require_vault(&library_state)?;
+    let mut store =
+        crate::features::sync_v2::attachment_store::AttachmentStore::new(vault)?;
+    store.link_to_note(&attachment_id, &note_id)?;
+    if let Some(engine) = sync_state.get() {
+        let relative = format!(".notology/attachments/refs/{}.json", attachment_id);
+        engine.enqueue_dirty(DirtyOperation::AttachmentUpsert { relative_path: relative });
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn attachment_unlink_from_note(
+    attachment_id: String,
+    note_id: String,
+    library_state: tauri::State<'_, LibraryState>,
+    sync_state: tauri::State<'_, SyncEngineState>,
+) -> Result<(), String> {
+    let vault = require_vault(&library_state)?;
+    let mut store =
+        crate::features::sync_v2::attachment_store::AttachmentStore::new(vault)?;
+    store.unlink_from_note(&attachment_id, &note_id)?;
+    if let Some(engine) = sync_state.get() {
+        let relative = format!(".notology/attachments/refs/{}.json", attachment_id);
+        engine.enqueue_dirty(DirtyOperation::AttachmentUpsert { relative_path: relative });
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn attachment_list_for_note(
+    note_id: String,
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<Vec<AttachmentRefDto>, String> {
+    let vault = require_vault(&library_state)?;
+    let store = crate::features::sync_v2::attachment_store::AttachmentStore::new(vault)?;
+    Ok(store
+        .list_for_note(&note_id)
+        .into_iter()
+        .cloned()
+        .map(Into::into)
+        .collect())
+}
+
+#[derive(serde::Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrationStatusDto {
+    pub needs_migration: bool,
+}
+
+#[tauri::command]
+pub async fn attachment_migration_status(
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<MigrationStatusDto, String> {
+    let vault = require_vault(&library_state)?;
+    let m = crate::features::sync_v2::attachment_migration::AttachmentMigration::new(vault);
+    Ok(MigrationStatusDto {
+        needs_migration: m.needs_migration()?,
+    })
+}
+
+#[tauri::command]
+pub async fn attachment_migration_run(
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<crate::features::sync_v2::attachment_migration::MigrationReport, String> {
+    let vault = require_vault(&library_state)?;
+    let mut m = crate::features::sync_v2::attachment_migration::AttachmentMigration::new(vault);
+    m.run()
+}
+
 #[tauri::command]
 pub fn sync_v2_enqueue_folder_create(
     path: String,

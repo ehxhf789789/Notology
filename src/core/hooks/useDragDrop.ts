@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { noteCommands } from '../services/tauriCommands';
+import { syncV2Commands } from '../../features/sync_v2/syncV2Commands';
 
 interface DropTarget {
   id: string;
@@ -41,13 +42,34 @@ async function initGlobalListener() {
         return;
       }
 
-      // Import each file as attachment (parallel processing for better performance)
-      const importPromises = paths.map(sourcePath =>
-        noteCommands.importAttachment(sourcePath, target.notePath).catch(err => {
-          console.error('Failed to import attachment:', err);
-          return null;
-        })
-      );
+      // Track B Phase B-2 (2026-05-12): route through `attachment_add` so the
+      // file is content-addressed into CAS, hardlinked into `.attachments/`,
+      // and enqueued for NAS sync (Fast or Slow lane by size). The legacy
+      // `importAttachment` path is kept available as a fallback for sync-
+      // disabled vaults — in that mode it still copies into `_att/` so the
+      // user can keep working locally and a later migration will move the
+      // files forward.
+      const importPromises = paths.map(async (sourcePath) => {
+        try {
+          const ref = await syncV2Commands.attachmentAdd(sourcePath, {
+            notePath: target.notePath,
+          });
+          // Return the vault-relative display path so the caller can insert
+          // a wikilink that resolves cleanly (e.g. `[[Report.pdf]]`).
+          return ref.displayPath.replace(/^\.attachments\//, '');
+        } catch (err) {
+          console.warn(
+            '[useDragDrop] attachmentAdd failed, falling back to importAttachment:',
+            err,
+          );
+          try {
+            return await noteCommands.importAttachment(sourcePath, target.notePath);
+          } catch (err2) {
+            console.error('[useDragDrop] both attachmentAdd and importAttachment failed:', err2);
+            return null;
+          }
+        }
+      });
 
       const results = await Promise.all(importPromises);
       const importedPaths = results.filter((path): path is string => path !== null);
