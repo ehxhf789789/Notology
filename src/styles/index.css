@@ -61,10 +61,11 @@
 @import './features/graph-view.css';
 @import './features/keyboard-shortcuts.css';
 @import './features/vault-selector.css';
-@import './features/canvas-editor.css';
+@import './features/sketch-editor.css';
 @import './features/calendar.css';
 @import './features/loading-screen.css';
 @import './features/sync.css';
+@import './features/sync-v2.css';
 
 /* ── Metadata ── */
 @import './metadata/yaml-editor.css';
@@ -85,5 +86,5 @@
 @import './modals/update-checker.css';
 @import './modals/hover-window-app.css';
 @import './modals/bulk-tag-modal.css';
-@import './modals/canvas-context-menu.css';
+@import './modals/sketch-context-menu.css';
 @import './modals/confirm-delete.css';

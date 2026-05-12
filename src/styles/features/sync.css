@@ -6,10 +6,10 @@
 .sync-input {
   width: 260px;
   padding: 6px 10px;
-  border: 1px solid var(--border-color, #444);
-  border-radius: 6px;
-  background: var(--input-bg, #2a2a2a);
-  color: var(--text-color, #e0e0e0);
+  border: 1px solid var(--sep-l);
+  border-radius: var(--r-6);
+  background: var(--bg-input);
+  color: var(--tx-1);
   font-size: 13px;
 }
 
@@ -19,7 +19,7 @@
 }
 
 .sync-input:focus {
-  border-color: var(--accent-color, #7aa2f7);
+  border-color: var(--c-blue);
   outline: none;
 }
 
@@ -27,9 +27,9 @@
 .sync-error {
   padding: 8px 12px;
   margin: 8px 0;
-  border-radius: 6px;
-  background: rgba(255, 80, 80, 0.12);
-  color: #ff5050;
+  border-radius: var(--r-6);
+  background: color-mix(in srgb, var(--c-red) 12%, transparent);
+  color: var(--c-red);
   font-size: 12px;
 }
 
@@ -42,25 +42,25 @@
 }
 
 .sync-actions .settings-action-btn.primary {
-  background: var(--accent-color, #7aa2f7);
+  background: var(--c-blue);
   color: #fff;
 }
 
 .sync-actions .settings-action-btn.danger {
-  background: rgba(255, 80, 80, 0.15);
-  color: #ff5050;
-  border-color: #ff5050;
+  background: color-mix(in srgb, var(--c-red) 15%, transparent);
+  color: var(--c-red);
+  border-color: var(--c-red);
 }
 
 /* Connection test result */
 .sync-test-ok {
-  color: #50fa7b;
+  color: var(--c-green);
   font-size: 13px;
   font-weight: 500;
 }
 
 .sync-test-fail {
-  color: #ff5050;
+  color: var(--c-red);
   font-size: 13px;
   font-weight: 500;
 }
@@ -75,46 +75,46 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 12px;
+  border-radius: var(--r-12);
   font-size: 12px;
   font-weight: 500;
 }
 
 .sync-badge-idle {
-  background: rgba(80, 250, 123, 0.12);
-  color: #50fa7b;
+  background: color-mix(in srgb, var(--c-green) 12%, transparent);
+  color: var(--c-green);
 }
 
 .sync-badge-syncing {
-  background: rgba(122, 162, 247, 0.12);
-  color: #7aa2f7;
+  background: color-mix(in srgb, var(--c-blue) 12%, transparent);
+  color: var(--c-blue);
 }
 
 .sync-badge-offline {
-  background: rgba(128, 128, 128, 0.12);
-  color: #888;
+  background: color-mix(in srgb, var(--tx-4) 12%, transparent);
+  color: var(--tx-3);
 }
 
 .sync-badge-conflict {
-  background: rgba(255, 80, 80, 0.12);
-  color: #ff5050;
+  background: color-mix(in srgb, var(--c-red) 12%, transparent);
+  color: var(--c-red);
 }
 
 .sync-badge-error {
-  background: rgba(255, 80, 80, 0.12);
-  color: #ff5050;
+  background: color-mix(in srgb, var(--c-red) 12%, transparent);
+  color: var(--c-red);
 }
 
 .sync-badge-disconnected {
-  background: rgba(128, 128, 128, 0.08);
-  color: #666;
+  background: color-mix(in srgb, var(--tx-4) 8%, transparent);
+  color: var(--tx-4);
 }
 
 .sync-last-time {
   display: block;
   margin-top: 4px;
   font-size: 11px;
-  color: var(--text-secondary, #888);
+  color: var(--tx-3);
 }
 
 /* ================================================
@@ -124,14 +124,15 @@
 .sync-status-indicator {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
+  gap: 4px;
+  padding: 2px 0;
   border: none;
   background: none;
   cursor: default;
-  font-size: 11px;
-  color: var(--text-secondary, #999);
-  border-radius: 4px;
+  font-size: var(--fs-10);
+  color: var(--tx-3);
+  border-radius: var(--r-6);
+  flex-shrink: 0;
 }
 
 .sync-status-indicator.clickable {
@@ -139,36 +140,36 @@
 }
 
 .sync-status-indicator.clickable:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--bg-hover);
 }
 
 .sync-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   display: inline-block;
   flex-shrink: 0;
 }
 
 .sync-dot-idle {
-  background: #50fa7b;
+  background: var(--c-green);
 }
 
 .sync-dot-syncing {
-  background: #7aa2f7;
+  background: var(--c-blue);
 }
 
 .sync-dot-offline {
-  background: #666;
+  background: var(--tx-4);
 }
 
 .sync-dot-conflict {
-  background: #ff5050;
+  background: var(--c-red);
   animation: conflict-pulse 1.5s ease-in-out infinite;
 }
 
 .sync-dot-error {
-  background: #ff5050;
+  background: var(--c-red);
 }
 
 .sync-dot.spinning {
@@ -189,21 +190,34 @@
   white-space: nowrap;
 }
 
+/* Connection quality indicator */
+.sync-quality-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+.sync-quality-fast { background: var(--c-green); }
+.sync-quality-slow { background: var(--c-yellow, #e5c07b); }
+.sync-quality-very-slow { background: var(--c-red); }
+
 /* Conflict overlay modal */
 .sync-conflict-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
-  z-index: 9999;
+  z-index: var(--z-toast);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .sync-conflict-modal {
-  background: var(--bg-primary, #1e1e1e);
-  border: 1px solid var(--border-color, #444);
-  border-radius: 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--sep-l);
+  border-radius: var(--r-12);
   width: 90%;
   max-width: 700px;
   max-height: 80vh;
@@ -220,7 +234,7 @@
 
 .nas-vault-selector {
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
 }
 
 .nas-section {
@@ -228,12 +242,15 @@
 }
 
 .nas-section-title {
-  font-size: 13px;
+  font-size: var(--fs-11);
   font-weight: 600;
-  color: var(--text-secondary, #999);
-  margin-bottom: 10px;
+  color: var(--tx-3);
+  margin-bottom: var(--sp-2);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .nas-connect-form {
@@ -243,55 +260,76 @@
 }
 
 .nas-input {
-  padding: 8px 12px;
-  border: 1px solid var(--border-color, #444);
-  border-radius: 6px;
-  background: var(--input-bg, #2a2a2a);
-  color: var(--text-color, #e0e0e0);
-  font-size: 13px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: var(--r-8);
+  background: var(--bg-input);
+  color: var(--tx-1);
+  font-size: var(--fs-13);
   width: 100%;
   box-sizing: border-box;
+  transition: box-shadow var(--dur-150) var(--ease-out);
 }
 
 .nas-input:focus {
-  border-color: var(--accent-color, #7aa2f7);
   outline: none;
+  box-shadow: 0 0 0 2px var(--c-blue);
 }
 
 .nas-btn {
   padding: 8px 16px;
-  border: 1px solid var(--border-color, #444);
-  border-radius: 6px;
-  background: none;
-  color: var(--text-color, #ccc);
-  font-size: 13px;
+  min-height: 34px;
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+  background: var(--bg-elevated);
+  color: var(--tx-1);
+  font-size: var(--fs-13);
   cursor: pointer;
+  transition: all var(--dur-150) var(--ease-out);
+}
+
+.nas-btn:hover {
+  background: var(--bg-hover);
 }
 
 .nas-btn.primary {
-  background: var(--accent-color, #7aa2f7);
+  background: var(--c-blue);
   color: #fff;
-  border-color: var(--accent-color, #7aa2f7);
+  border-color: var(--c-blue);
+}
+
+.nas-btn.primary:hover {
+  filter: brightness(1.1);
 }
 
 .nas-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .nas-btn-sm {
   padding: 4px 10px;
-  border: 1px solid var(--border-color, #444);
-  border-radius: 4px;
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-6);
   background: none;
-  color: var(--text-color, #ccc);
-  font-size: 11px;
+  color: var(--tx-2);
+  font-size: var(--fs-11);
   cursor: pointer;
+  transition: all var(--dur-150) var(--ease-out);
+}
+
+.nas-btn-sm:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
 }
 
 .nas-btn-sm.danger {
-  color: #ff5050;
-  border-color: rgba(255, 80, 80, 0.3);
+  color: var(--c-red);
+  border-color: color-mix(in srgb, var(--c-red) 30%, transparent);
+}
+
+.nas-btn-sm.danger:hover {
+  background: color-mix(in srgb, var(--c-red) 10%, transparent);
 }
 
 .nas-btn-row {
@@ -303,24 +341,24 @@
 
 .nas-error {
   padding: 8px 12px;
-  border-radius: 6px;
-  background: rgba(255, 80, 80, 0.1);
-  color: #ff5050;
-  font-size: 12px;
+  border-radius: var(--r-8);
+  background: color-mix(in srgb, var(--c-red) 10%, transparent);
+  color: var(--c-red);
+  font-size: var(--fs-12);
   margin: 8px 0;
 }
 
 .nas-empty {
-  color: var(--text-secondary, #888);
-  font-size: 13px;
+  color: var(--tx-3);
+  font-size: var(--fs-13);
   padding: 8px 0;
 }
 
 .nas-hint {
-  color: var(--text-secondary, #888);
-  font-size: 12px;
+  color: var(--tx-3);
+  font-size: var(--fs-12);
   margin-bottom: 8px;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 /* Connected bar */
@@ -329,16 +367,16 @@
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  border: 1px solid var(--border-color, #444);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+  background: var(--bg-elevated);
 }
 
 .nas-connected-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #50fa7b;
+  background: var(--c-green);
   flex-shrink: 0;
 }
 
@@ -347,12 +385,13 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 13px;
+  font-size: var(--fs-13);
+  color: var(--tx-1);
 }
 
 .nas-connected-user {
-  font-size: 11px;
-  color: var(--text-secondary, #888);
+  font-size: var(--fs-11);
+  color: var(--tx-3);
 }
 
 /* Vault list items */
@@ -361,16 +400,17 @@
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  border: 1px solid var(--border-color, #444);
-  border-radius: 8px;
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
   margin-bottom: 6px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  background: var(--bg-elevated);
+  transition: all var(--dur-150) var(--ease-out);
 }
 
 .nas-vault-item:hover {
-  background: rgba(122, 162, 247, 0.08);
-  border-color: var(--accent-color, #7aa2f7);
+  background: var(--bg-hover);
+  border-color: var(--c-blue);
 }
 
 .nas-vault-icon {
@@ -386,15 +426,15 @@
 }
 
 .nas-vault-name {
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 600;
-  color: var(--text-color, #e0e0e0);
+  color: var(--tx-1);
 }
 
 .nas-vault-path {
-  font-size: 11px;
-  color: var(--text-secondary, #888);
-  font-family: monospace;
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  font-family: var(--font-mono);
 }
 
 .nas-vault-meta {
@@ -406,8 +446,8 @@
 }
 
 .nas-vault-synced {
-  font-size: 11px;
-  color: var(--text-secondary, #888);
+  font-size: var(--fs-11);
+  color: var(--tx-3);
   white-space: nowrap;
 }
 
@@ -429,7 +469,7 @@
   background: none;
   cursor: pointer;
   font-size: 12px;
-  border-radius: 4px;
+  border-radius: var(--r-4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -437,11 +477,12 @@
 }
 
 .nas-vault-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-hover);
 }
 
 .nas-vault-action-btn.danger:hover {
-  background: rgba(255, 80, 80, 0.15);
+  background: color-mix(in srgb, var(--c-red) 15%, transparent);
+  color: var(--c-red);
 }
 
 .nas-vault-rename-form {
@@ -450,19 +491,20 @@
 
 .nas-vault-rename-input {
   padding: 2px 6px;
-  border: 1px solid var(--accent-color, #7aa2f7);
-  border-radius: 4px;
-  background: var(--input-bg, #2a2a2a);
-  color: var(--text-color, #e0e0e0);
-  font-size: 14px;
+  border: none;
+  border-radius: var(--r-6);
+  background: var(--bg-input);
+  color: var(--tx-1);
+  font-size: var(--fs-14);
   font-weight: 600;
   width: 100%;
   outline: none;
+  box-shadow: 0 0 0 2px var(--c-blue);
 }
 
 .nas-vault-item.current {
-  border-color: var(--accent-color, #7aa2f7);
-  background: rgba(122, 162, 247, 0.08);
+  border-color: var(--c-blue);
+  background: color-mix(in srgb, var(--c-blue) 8%, transparent);
   cursor: default;
 }
 
@@ -470,10 +512,10 @@
   display: inline-block;
   margin-left: 8px;
   padding: 1px 8px;
-  border-radius: 8px;
-  background: var(--accent-color, #7aa2f7);
+  border-radius: var(--r-pill);
+  background: var(--c-blue);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--fs-10);
   font-weight: 600;
   vertical-align: middle;
 }
@@ -491,18 +533,19 @@
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border: 1px solid var(--border-color, #444);
-  border-radius: 8px;
-  background: none;
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+  background: var(--bg-input);
   cursor: pointer;
   text-align: left;
-  color: var(--text-color, #ccc);
-  transition: background 0.15s, border-color 0.15s;
+  color: var(--tx-1);
+  transition: all var(--dur-150) var(--ease-out);
+  width: 100%;
 }
 
 .nas-action-card:hover {
-  background: rgba(122, 162, 247, 0.08);
-  border-color: var(--accent-color, #7aa2f7);
+  background: var(--bg-hover);
+  border-color: var(--c-blue);
 }
 
 .nas-action-icon {
@@ -519,12 +562,12 @@
 }
 
 .nas-action-text strong {
-  font-size: 13px;
+  font-size: var(--fs-13);
 }
 
 .nas-action-text span {
-  font-size: 11px;
-  color: var(--text-secondary, #888);
+  font-size: var(--fs-11);
+  color: var(--tx-3);
 }
 
 /* Download progress */
@@ -536,89 +579,92 @@
 }
 
 .nas-progress-bar {
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  height: 8px;
+  background: var(--bg-input);
+  border-radius: var(--r-pill);
   overflow: hidden;
 }
 
 .nas-progress-fill {
   height: 100%;
-  background: var(--accent-color, #7aa2f7);
-  border-radius: 3px;
-  transition: width 0.3s ease;
+  background: var(--c-blue);
+  border-radius: var(--r-pill);
+  transition: width var(--dur-300) var(--ease-out);
 }
 
 .nas-progress-text {
-  font-size: 12px;
-  color: var(--text-color, #ccc);
+  font-size: var(--fs-12);
+  color: var(--tx-1);
 }
 
 .nas-progress-file {
-  font-size: 11px;
-  color: var(--text-secondary, #888);
-  font-family: monospace;
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  font-family: var(--font-mono);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Light theme */
-[data-theme="light"] .nas-input {
-  background: #fff;
-  border-color: #ddd;
-  color: #333;
-}
-
-[data-theme="light"] .nas-vault-item:hover {
-  background: rgba(59, 130, 246, 0.06);
-}
-
 /* Loading */
 .nas-loading {
-  padding: 24px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-secondary, #888);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-10) var(--sp-4);
+  color: var(--tx-3);
+  font-size: var(--fs-13);
+}
+
+.nas-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--sep-l);
+  border-top-color: var(--c-blue);
+  border-radius: 50%;
+  animation: sync-spin 0.8s linear infinite;
 }
 
 /* Offline mode */
 .nas-offline-bar {
-  border-color: rgba(255, 180, 50, 0.3);
+  border-color: color-mix(in srgb, var(--c-orange) 30%, transparent);
 }
 
 .nas-dot-offline {
-  background: #888 !important;
+  background: var(--tx-3) !important;
 }
 
 .nas-offline-warning {
   padding: 10px 14px;
-  border-radius: 6px;
-  background: rgba(255, 180, 50, 0.1);
-  color: #ffb432;
-  font-size: 12px;
+  border-radius: var(--r-8);
+  background: color-mix(in srgb, var(--c-orange) 10%, transparent);
+  color: var(--c-orange);
+  font-size: var(--fs-12);
   margin-bottom: 12px;
   line-height: 1.5;
 }
 
 .nas-vault-offline {
-  border-color: rgba(255, 180, 50, 0.2);
+  border-color: color-mix(in srgb, var(--c-orange) 20%, transparent);
 }
 
 .nas-vault-offline:hover {
-  border-color: rgba(255, 180, 50, 0.4);
-  background: rgba(255, 180, 50, 0.06);
+  border-color: color-mix(in srgb, var(--c-orange) 40%, transparent);
+  background: color-mix(in srgb, var(--c-orange) 6%, transparent);
 }
 
 /* Port change notice */
 .nas-port-change-notice {
   padding: 14px;
-  border: 1px solid var(--border-color, #444);
-  border-radius: 8px;
-  background: rgba(122, 162, 247, 0.06);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+  background: color-mix(in srgb, var(--c-blue) 6%, transparent);
   margin-bottom: 12px;
-  font-size: 13px;
+  font-size: var(--fs-13);
   line-height: 1.6;
+  color: var(--tx-1);
 }
 
 .nas-port-change-notice p {
@@ -626,7 +672,7 @@
 }
 
 .nas-port-change-notice small {
-  color: var(--text-secondary, #888);
+  color: var(--tx-3);
 }
 
 .nas-port-change-vaults {
@@ -638,9 +684,13 @@
 
 .nas-port-change-vault-name {
   padding: 3px 10px;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 4px;
-  font-size: 12px;
+  background: var(--bg-input);
+  border-radius: var(--r-6);
+  font-size: var(--fs-12);
+  color: var(--tx-1);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* ================================================
@@ -706,27 +756,28 @@
 }
 
 .vault-selector-window-logo {
-  text-align: center;
-  padding: var(--sp-4) 0 var(--sp-6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0 var(--sp-4);
 }
 
 .vault-selector-logo-img {
-  width: 56px;
-  height: 56px;
-  margin-bottom: var(--sp-3);
+  width: 40px;
+  height: 40px;
   filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
 }
 
 .vault-selector-logo-text {
   display: flex;
   align-items: baseline;
-  justify-content: center;
   gap: var(--sp-2);
 }
 
 .vault-selector-logo-text h1 {
   font-family: var(--font-d);
-  font-size: var(--fs-28);
+  font-size: var(--fs-22);
   font-weight: 700;
   color: var(--tx-1);
   margin: 0;
@@ -741,39 +792,33 @@
   border-radius: var(--r-pill);
 }
 
-.vault-selector-subtitle {
-  font-size: var(--fs-13);
-  color: var(--tx-3);
-  margin: var(--sp-2) 0 0;
-}
-
 /* ================================================
    NAS Folder Browser
    ================================================ */
 
 .nas-browser {
   margin-top: 16px;
-  border: 1px solid var(--border-color, #444);
-  border-radius: 8px;
+  border: 1px solid var(--sep-l);
+  border-radius: var(--r-8);
   overflow: hidden;
 }
 
 .nas-browser-header {
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid var(--border-color, #444);
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--sep-l);
 }
 
 .nas-browser-header h4 {
   margin: 0 0 4px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-color, #e0e0e0);
+  color: var(--tx-1);
 }
 
 .nas-browser-hint {
   font-size: 11px;
-  color: var(--text-secondary, #888);
+  color: var(--tx-3);
 }
 
 .nas-browser-tree {
@@ -787,11 +832,11 @@
   padding: 24px;
   text-align: center;
   font-size: 13px;
-  color: var(--text-secondary, #888);
+  color: var(--tx-3);
 }
 
 .nas-browser-error {
-  color: #ff5050;
+  color: var(--c-red);
 }
 
 .nas-folder-item {
@@ -801,18 +846,18 @@
   padding: 5px 12px;
   cursor: pointer;
   font-size: 13px;
-  color: var(--text-color, #ccc);
+  color: var(--tx-2);
   border-radius: 0;
   transition: background 0.1s;
 }
 
 .nas-folder-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--bg-hover);
 }
 
 .nas-folder-item.selected {
-  background: rgba(122, 162, 247, 0.15);
-  color: var(--accent-color, #7aa2f7);
+  background: color-mix(in srgb, var(--c-blue) 15%, transparent);
+  color: var(--c-blue);
 }
 
 .nas-folder-item.is-vault {
@@ -827,7 +872,7 @@
   justify-content: center;
   border: none;
   background: none;
-  color: var(--text-secondary, #888);
+  color: var(--tx-3);
   cursor: pointer;
   font-size: 8px;
   flex-shrink: 0;
@@ -849,9 +894,9 @@
 .nas-vault-indicator {
   font-size: 10px;
   padding: 1px 6px;
-  border-radius: 8px;
-  background: rgba(80, 250, 123, 0.15);
-  color: #50fa7b;
+  border-radius: var(--r-8);
+  background: color-mix(in srgb, var(--c-green) 15%, transparent);
+  color: var(--c-green);
   flex-shrink: 0;
 }
 
@@ -863,8 +908,8 @@
 
 .nas-browser-footer {
   padding: 12px 16px;
-  border-top: 1px solid var(--border-color, #444);
-  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid var(--sep-l);
+  background: var(--bg-elevated);
 }
 
 .nas-browser-selection {
@@ -876,11 +921,11 @@
 
 .nas-browser-path {
   font-size: 12px;
-  color: var(--text-color, #ccc);
+  color: var(--tx-2);
   font-family: monospace;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-sunken);
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-4);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -890,9 +935,9 @@
 .nas-browser-vault-badge {
   font-size: 10px;
   padding: 2px 8px;
-  border-radius: 8px;
-  background: rgba(80, 250, 123, 0.15);
-  color: #50fa7b;
+  border-radius: var(--r-8);
+  background: color-mix(in srgb, var(--c-green) 15%, transparent);
+  color: var(--c-green);
   white-space: nowrap;
 }
 
@@ -905,7 +950,7 @@
 .sync-saving {
   padding: 8px 0;
   font-size: 12px;
-  color: var(--text-secondary, #888);
+  color: var(--tx-3);
 }
 
 /* ================================================
@@ -917,7 +962,7 @@
 }
 
 .conflict-empty {
-  color: var(--text-secondary, #888);
+  color: var(--tx-3);
   font-size: 13px;
   text-align: center;
   padding: 24px;
@@ -933,13 +978,13 @@
 .conflict-header h3 {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-color, #e0e0e0);
+  color: var(--tx-1);
   margin: 0;
 }
 
 .conflict-count {
   font-size: 12px;
-  color: var(--text-secondary, #888);
+  color: var(--tx-3);
 }
 
 .conflict-file-list {
@@ -951,18 +996,18 @@
 
 .conflict-file-btn {
   padding: 4px 10px;
-  border: 1px solid var(--border-color, #444);
-  border-radius: 4px;
+  border: 1px solid var(--sep-l);
+  border-radius: var(--r-4);
   background: none;
-  color: var(--text-color, #ccc);
+  color: var(--tx-2);
   font-size: 12px;
   cursor: pointer;
 }
 
 .conflict-file-btn.active {
-  background: var(--accent-color, #7aa2f7);
+  background: var(--c-blue);
   color: #fff;
-  border-color: var(--accent-color, #7aa2f7);
+  border-color: var(--c-blue);
 }
 
 .conflict-diff {
@@ -973,18 +1018,18 @@
 }
 
 .conflict-side {
-  border: 1px solid var(--border-color, #444);
-  border-radius: 8px;
+  border: 1px solid var(--sep-l);
+  border-radius: var(--r-8);
   overflow: hidden;
 }
 
 .conflict-side-header {
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--bg-hover);
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary, #999);
-  border-bottom: 1px solid var(--border-color, #444);
+  color: var(--tx-3);
+  border-bottom: 1px solid var(--sep-l);
 }
 
 .conflict-content {
@@ -996,7 +1041,7 @@
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
-  color: var(--text-color, #e0e0e0);
+  color: var(--tx-1);
 }
 
 .conflict-actions {
@@ -1009,81 +1054,93 @@
    Light theme overrides
    ================================================ */
 
-[data-theme="light"] .sync-input {
-  background: #fff;
-  border-color: #ddd;
-  color: #333;
-}
-
-[data-theme="light"] .sync-error {
-  background: rgba(220, 38, 38, 0.08);
-  color: #dc2626;
-}
-
-[data-theme="light"] .sync-badge-idle {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-}
-
-[data-theme="light"] .sync-badge-syncing {
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
-}
-
-[data-theme="light"] .sync-badge-conflict,
-[data-theme="light"] .sync-badge-error {
-  background: rgba(220, 38, 38, 0.08);
-  color: #dc2626;
-}
+/* Light theme: handled by design tokens */
 
 /* ================================================
    Vault Selector Layout Sections
    ================================================ */
 
-.nas-vault-section-header {
-  font-size: var(--font-sm, 12px);
-  font-weight: 600;
-  color: var(--text-secondary, #999);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border-color, #444);
-}
-
-/* Left-Right Split Layout for Vault List */
-.nas-vaults-layout {
-  display: flex;
-  gap: var(--sp-4);
-  min-height: 200px;
-}
-
-.nas-vaults-left {
-  flex: 1;
-  min-width: 0;
+/* Single-column vault section */
+.nas-vaults-section {
   display: flex;
   flex-direction: column;
+  gap: var(--sp-3);
 }
 
-.nas-vaults-right {
-  width: 200px;
-  flex-shrink: 0;
+.nas-vault-toolbar {
   display: flex;
-  flex-direction: column;
   gap: var(--sp-2);
-  padding-left: var(--sp-4);
-  border-left: 0.5px solid var(--sep-l);
+}
+
+.nas-vault-toolbar-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+  background: var(--bg-elevated);
+  color: var(--tx-2);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--dur-150) var(--ease-out);
+}
+
+.nas-vault-toolbar-btn:hover {
+  background: var(--bg-hover);
+  color: var(--c-blue);
+  border-color: var(--c-blue);
 }
 
 .nas-vault-list-section {
   flex: 1;
-  max-height: 300px;
   overflow-y: auto;
+}
+
+/* Empty state */
+.nas-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-8) var(--sp-4);
+  color: var(--tx-3);
+  text-align: center;
+}
+
+.nas-empty-state-icon {
+  color: var(--tx-4);
+}
+
+.nas-empty-state-text {
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+/* Phase transition animation */
+.nas-phase-enter {
+  animation: nas-fade-in var(--dur-200) var(--ease-out);
+}
+
+@keyframes nas-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Connect form card */
+.nas-connect-card {
+  background: var(--bg-elevated);
+  border-radius: var(--r-12);
+  padding: var(--sp-5);
+  box-shadow: var(--sh-sm);
 }
 
 .nas-action-card-icon {
   flex-shrink: 0;
-  color: var(--accent-color, #7aa2f7);
+  color: var(--c-blue);
 }
 
 .nas-action-card-text {
@@ -1093,12 +1150,533 @@
 }
 
 .nas-action-card-title {
-  font-size: 14px;
+  font-size: var(--fs-13);
   font-weight: 600;
-  color: var(--text-primary, #e0e0e0);
+  color: var(--tx-1);
 }
 
 .nas-action-card-desc {
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+}
+
+/* ================================================
+   Sync Conflict/Error Banner (editor-banner slot)
+   ================================================ */
+
+.sync-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
   font-size: 12px;
-  color: var(--text-muted, #888);
+  flex-shrink: 0;
+}
+
+.sync-banner-conflict {
+  background: color-mix(in srgb, var(--c-orange) 12%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--c-orange) 25%, transparent);
+  color: var(--c-orange);
+}
+
+.sync-banner-error {
+  background: color-mix(in srgb, var(--c-red) 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--c-red) 20%, transparent);
+  color: var(--c-red);
+}
+
+.sync-banner-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.sync-banner-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-banner-action {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: var(--r-4);
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.sync-banner-action:hover {
+  opacity: 1;
+  background: var(--bg-hover);
+}
+
+/* ================================================
+   Sync Error Popup (from SyncStatusIndicator)
+   ================================================ */
+
+.sync-error-popup {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 10px 12px;
+  border-radius: var(--r-8);
+  background: var(--bg-elevated);
+  border: 1px solid var(--sep-l);
+  box-shadow: var(--sh-popover);
+  z-index: 100;
+}
+
+.sync-error-popup-msg {
+  font-size: 12px;
+  color: var(--tx-2);
+  line-height: 1.4;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.sync-error-popup-retry {
+  padding: 4px 14px;
+  border-radius: var(--r-4);
+  border: none;
+  background: var(--c-blue);
+  color: #fff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sync-error-popup-retry:hover {
+  opacity: 0.9;
+}
+
+/* ================================================
+   Sync Activity Panel (from SyncStatusIndicator)
+   ================================================ */
+
+.sync-activity-panel {
+  /* position: fixed is set inline via JS to escape sidebar overflow:hidden */
+  width: 300px;
+  max-height: 420px;
+  border-radius: var(--r-10);
+  background: var(--bg-elevated);
+  border: 1px solid var(--sep-l);
+  box-shadow: var(--sh-popover);
+  z-index: var(--z-top);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sync-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 6px;
+}
+
+.sync-panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tx-1);
+}
+
+.sync-panel-retry {
+  padding: 3px 10px;
+  border-radius: var(--r-4);
+  border: none;
+  background: var(--c-blue);
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.sync-panel-retry:hover { opacity: 0.9; }
+
+/* Guardrail indicators */
+.sync-guardrails {
+  padding: 4px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sync-guard {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--tx-2);
+}
+
+.sync-guard.ok .sync-guard-icon { color: var(--c-green); }
+.sync-guard.active .sync-guard-icon { color: var(--c-blue); }
+.sync-guard.warn .sync-guard-icon { color: var(--c-orange); }
+
+.sync-panel-error {
+  margin: 0 12px 8px;
+  padding: 6px 8px;
+  border-radius: var(--r-4);
+  background: color-mix(in srgb, var(--c-red) 10%, transparent);
+  color: var(--c-red);
+  font-size: 11px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.sync-panel-divider {
+  height: 1px;
+  background: var(--sep-l);
+  margin: 0 12px;
+}
+
+.sync-panel-paused-banner {
+  margin: 8px 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--tx-2);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.sync-panel-toggle-btn {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 6px 12px;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--sep-l);
+  border-radius: 6px;
+  color: var(--tx-1);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+}
+.sync-panel-toggle-btn:hover {
+  background: var(--bg-hover);
+}
+
+.settings-btn-danger {
+  background: var(--tx-danger, #ff3b30);
+  color: #fff;
+  border: none;
+}
+.settings-btn-danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+.settings-btn-danger:disabled {
+  background: var(--bg-input);
+  color: var(--tx-3);
+  cursor: not-allowed;
+}
+
+.sync-panel-subtitle {
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--tx-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Activity list */
+.sync-activity-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 8px;
+  max-height: 240px;
+}
+
+.sync-activity-empty {
+  padding: 16px 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--tx-3);
+}
+
+.sync-activity-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-radius: var(--r-4);
+  font-size: 11px;
+}
+
+.sync-activity-item:hover {
+  background: var(--bg-hover);
+}
+
+.sync-activity-icon {
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.sync-activity-upload .sync-activity-icon { color: var(--c-blue); }
+.sync-activity-download .sync-activity-icon { color: var(--c-green); }
+.sync-activity-delete .sync-activity-icon { color: var(--c-gray); }
+.sync-activity-conflict .sync-activity-icon { color: var(--c-orange); }
+.sync-activity-error .sync-activity-icon { color: var(--c-red); }
+.sync-activity-merge .sync-activity-icon { color: var(--c-purple); }
+.sync-activity-queued .sync-activity-icon { color: var(--tx-4); }
+
+.sync-activity-file {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tx-1);
+}
+
+.sync-activity-detail {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--tx-3);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-activity-time {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--tx-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── NAS folder browser modal ─────────────────────────
+ * Uses real design-system tokens:
+ *   --bg-base      = solid modal surface
+ *   --bg-app       = subtle footer band
+ *   --bg-hover     = hover/active row tint
+ *   --sep-l        = soft borders
+ *   --tx-1..4      = text hierarchy
+ * Earlier draft used `--bg-1`, `--bg-2`, `--border` which DON'T exist in
+ * tokens.css → modal rendered fully transparent + no backdrop visible.
+ */
+.nas-browser-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal-backdrop, 9999);
+}
+.nas-browser-modal {
+  background: var(--bg-base);
+  border: 1px solid var(--sep-l);
+  border-radius: 12px;
+  width: min(640px, 90vw);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--sh-lg, 0 12px 40px rgba(0, 0, 0, 0.3));
+  z-index: calc(var(--z-modal-backdrop, 9999) + 1);
+  font-family: var(--font);
+  color: var(--tx-1);
+}
+.nas-browser-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--sep-l);
+  background: var(--bg-base);
+  border-radius: 12px 12px 0 0;
+}
+.nas-browser-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--tx-1);
+}
+.nas-browser-close {
+  background: none;
+  border: none;
+  color: var(--tx-3);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+}
+.nas-browser-close:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.nas-browser-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--sep-l);
+  background: var(--bg-base);
+  font-size: 12px;
+  color: var(--tx-3);
+}
+.nas-browser-crumb {
+  display: inline-flex;
+  align-items: center;
+}
+.nas-browser-crumb-sep {
+  color: var(--tx-4);
+  margin: 0 2px;
+}
+.nas-browser-crumb-btn {
+  background: none;
+  border: none;
+  color: var(--c-blue);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: inherit;
+}
+.nas-browser-crumb-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.nas-browser-crumb-btn:disabled {
+  color: var(--tx-1);
+  cursor: default;
+  font-weight: 600;
+}
+.nas-browser-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 8px;
+  min-height: 200px;
+  background: var(--bg-base);
+}
+.nas-browser-loading,
+.nas-browser-empty,
+.nas-browser-error {
+  padding: 24px;
+  text-align: center;
+  color: var(--tx-3);
+  font-size: 13px;
+}
+.nas-browser-error {
+  color: var(--tx-danger, #ff3b30);
+}
+.nas-browser-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.nas-browser-row:hover {
+  background: var(--bg-hover);
+}
+.nas-browser-row.is-vault {
+  background: var(--bg-sel);
+}
+.nas-browser-row-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  padding: 8px 6px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--tx-1);
+  font-size: 13px;
+  border-radius: 4px;
+  font-family: inherit;
+}
+.nas-browser-row-main:disabled {
+  cursor: default;
+  color: var(--tx-3);
+}
+.nas-browser-row-icon {
+  display: inline-flex;
+  align-items: center;
+  width: 18px;
+  color: var(--tx-2);
+}
+.nas-browser-row.is-vault .nas-browser-row-icon {
+  color: var(--c-blue);
+}
+.nas-browser-row-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nas-browser-row-tag {
+  font-size: 10px;
+  color: var(--c-blue);
+  background: var(--bg-sel);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+.nas-browser-row-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--c-blue);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.nas-browser-row-action:hover {
+  filter: brightness(1.1);
+}
+.nas-browser-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--sep-l);
+  background: var(--bg-app);
+  border-radius: 0 0 12px 12px;
+}
+.nas-browser-footer-label {
+  font-size: 12px;
+  color: var(--tx-3);
+  flex-shrink: 0;
+}
+.nas-browser-footer .nas-input {
+  flex: 1;
+}
+.nas-browser-footer .nas-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.nas-browser-pick-path {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--tx-1);
+  background: var(--bg-input);
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

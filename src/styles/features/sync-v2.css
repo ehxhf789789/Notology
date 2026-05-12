@@ -1,0 +1,326 @@
+/* ================================================
+   Sync V2 Feature Styles
+   ================================================ */
+
+/* Conflict badge on status indicator */
+.sync-v2-conflict-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 4px;
+  border-radius: var(--r-pill);
+  background: var(--c-red);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Conflict list modal */
+.sync-v2-conflict-modal {
+  width: 420px;
+  max-height: 70vh;
+  background: var(--bg-elevated);
+  border-radius: var(--r-12);
+  box-shadow: var(--sh-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sync-v2-conflict-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--sep);
+}
+
+.sync-v2-conflict-modal-header h3 {
+  margin: 0;
+  font-size: var(--fs-16);
+  font-weight: 600;
+  color: var(--tx-1);
+}
+
+.sync-v2-close-btn {
+  background: none;
+  border: none;
+  color: var(--tx-3);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+.sync-v2-close-btn:hover {
+  color: var(--tx-1);
+}
+
+.sync-v2-conflict-empty {
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--tx-3);
+  font-size: var(--fs-13);
+}
+
+.sync-v2-conflict-list {
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.sync-v2-conflict-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--r-8);
+  background: none;
+  color: var(--tx-1);
+  cursor: pointer;
+  text-align: left;
+  font-size: var(--fs-13);
+}
+.sync-v2-conflict-item:hover {
+  background: var(--bg-hover);
+}
+
+.sync-v2-conflict-note-id {
+  flex: 1;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-v2-conflict-branch-count {
+  color: var(--tx-3);
+  font-size: var(--fs-12);
+}
+
+.sync-v2-conflict-time {
+  color: var(--tx-4);
+  font-size: var(--fs-11);
+}
+
+/* Branch picker modal */
+.sync-v2-branch-picker {
+  width: 700px;
+  max-height: 80vh;
+  background: var(--bg-elevated);
+  border-radius: var(--r-12);
+  box-shadow: var(--sh-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sync-v2-branch-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--sep);
+}
+
+.sync-v2-branch-picker-header h3 {
+  margin: 0;
+  font-size: var(--fs-15);
+  font-weight: 600;
+  color: var(--tx-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-v2-branch-picker-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sync-v2-branch-list {
+  width: 220px;
+  border-right: 1px solid var(--sep);
+  overflow-y: auto;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.sync-v2-branch-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--r-8);
+  background: none;
+  color: var(--tx-1);
+  cursor: pointer;
+  text-align: left;
+}
+.sync-v2-branch-item:hover {
+  background: var(--bg-hover);
+}
+.sync-v2-branch-item.selected {
+  border-color: var(--c-blue);
+  background: color-mix(in srgb, var(--c-blue) 8%, transparent);
+}
+
+.sync-v2-branch-device {
+  font-size: var(--fs-13);
+  font-weight: 500;
+}
+
+.sync-v2-branch-hash {
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  font-family: monospace;
+}
+
+.sync-v2-branch-time {
+  font-size: var(--fs-11);
+  color: var(--tx-4);
+}
+
+.sync-v2-branch-preview-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  min-height: 200px;
+}
+
+.sync-v2-preview-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--tx-3);
+  font-size: var(--fs-13);
+}
+
+.sync-v2-preview-loading {
+  padding: 16px;
+  color: var(--tx-3);
+  font-size: var(--fs-13);
+}
+
+.sync-v2-preview-error {
+  padding: 16px;
+  color: var(--c-red);
+  font-size: var(--fs-13);
+}
+
+.sync-v2-preview {
+  font-size: var(--fs-14);
+  color: var(--tx-1);
+  line-height: 1.6;
+}
+
+.sync-v2-branch-picker-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--sep);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sync-v2-resolve-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--r-8);
+  background: var(--c-blue);
+  color: #fff;
+  font-size: var(--fs-13);
+  font-weight: 500;
+  cursor: pointer;
+}
+.sync-v2-resolve-btn:hover {
+  opacity: 0.9;
+}
+.sync-v2-resolve-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Resolve confirm dialog */
+.sync-v2-confirm-dialog {
+  width: 380px;
+  background: var(--bg-elevated);
+  border-radius: var(--r-12);
+  box-shadow: var(--sh-lg);
+  padding: 20px;
+}
+
+.sync-v2-confirm-title {
+  font-size: var(--fs-16);
+  font-weight: 600;
+  color: var(--tx-1);
+  margin-bottom: 12px;
+}
+
+.sync-v2-confirm-body p {
+  margin: 0 0 8px;
+  font-size: var(--fs-13);
+  color: var(--tx-2);
+  line-height: 1.5;
+}
+
+.sync-v2-confirm-warning {
+  color: var(--tx-3) !important;
+  font-size: var(--fs-12) !important;
+}
+
+.sync-v2-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.sync-v2-cancel-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--sep-l);
+  border-radius: var(--r-8);
+  background: none;
+  color: var(--tx-2);
+  font-size: var(--fs-13);
+  cursor: pointer;
+}
+.sync-v2-cancel-btn:hover {
+  background: var(--bg-hover);
+}
+
+.sync-v2-confirm-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--r-8);
+  background: var(--c-blue);
+  color: #fff;
+  font-size: var(--fs-13);
+  font-weight: 500;
+  cursor: pointer;
+}
+.sync-v2-confirm-btn:hover {
+  opacity: 0.9;
+}
+
+/* SyncReport in popover */
+.sync-v2-report {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  font-size: var(--fs-12);
+  color: var(--tx-2);
+}
+
+.sync-v2-report-conflict {
+  color: var(--c-orange);
+  font-weight: 500;
+}
