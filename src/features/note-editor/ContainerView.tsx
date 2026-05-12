@@ -19,6 +19,7 @@ import { useTemplateStore } from '../templates/stores/templateStore';
 import { useNoteTypeCacheStore } from '../content-cache/stores/noteTypeCacheStore';
 import { createNote, createFolder, createNoteWithTemplate, selectContainer } from '../../core/stores/appActions';
 import { useDropTarget } from '../../core/hooks/useDragDrop';
+import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import { getEditorExtensions } from '../../core/editor/editorConfig';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { t } from '../../core/utils/i18n';
@@ -154,8 +155,17 @@ function ContainerView() {
   // noteTypeCache refresh is handled globally by App.tsx → noteTypeCacheActions.refreshCache()
 
   const resolveLink = useCallback((fileName: string): boolean => {
-    // FIRST: Check the _att folder for ALL files (regardless of extension)
-    // This ensures .md attachments are found before searching globally
+    // Track B Phase B-3 (2026-05-12): consult the AttachmentRef index FIRST.
+    // Post-migration, attachments live in `.attachments/` (hidden in the file
+    // tree per single-surface principle), so the legacy `_att/` walk below
+    // can never find them. The store is hydrated on `vault:opened` and
+    // refreshed on `attachment:saved`/`attachment:deleted`.
+    const attRef = useAttachmentStore.getState().resolveByName(fileName);
+    if (attRef) return true;
+
+    // Legacy fallback: walk the `_att` folder of the current note. This stays
+    // for vaults that haven't been migrated yet (e.g. still loading) and for
+    // notes whose attachments haven't propagated through EventBus yet.
     if (folderNotePath) {
       const noteStem = folderNotePath.replace(/\.md$/i, '');
       const attFolderPath = noteStem + '_att';
@@ -209,6 +219,11 @@ function ContainerView() {
   // Check if a file is an attachment (exists in current note's _att folder)
   // This distinguishes .md attachments from vault notes
   const isAttachment = useCallback((fileName: string): boolean => {
+    // Track B Phase B-3: post-migration attachments live in `.attachments/`
+    // (hidden from the file tree per single-surface principle). Consult the
+    // AttachmentRef index FIRST — that's the canonical source.
+    if (useAttachmentStore.getState().resolveByName(fileName)) return true;
+
     if (!folderNotePath) return false;
 
     const noteStem = folderNotePath.replace(/\.md$/i, '');
@@ -382,6 +397,16 @@ function ContainerView() {
     return unsub;
   }, [editor]);
 
+  // Refresh decorations when fileTree changes (e.g., file deleted → links become unresolved)
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    try {
+      const { tr } = editor.state;
+      tr.setMeta('fileTreeChanged', true);
+      editor.view.dispatch(tr);
+    } catch { /* editor may be transitional */ }
+  }, [editor, fileTree]);
+
   const saveFile = useCallback(async (currentBody?: string) => {
     if (!folderNotePath || !frontmatter) return;
     const bodyToSave = currentBody !== undefined ? currentBody : body;
@@ -439,6 +464,16 @@ function ContainerView() {
       editor.view.dispatch(editor.state.tr);
     }
   }, [fileTree, editor]);
+
+  // Track B Phase B-3: also refresh when the AttachmentRef index changes, so
+  // chips re-color (resolved/unresolved) after vault open hydration or after
+  // any `attachment:saved`/`attachment:deleted` event.
+  const attachmentHydratedAt = useAttachmentStore((s) => s.hydratedAt);
+  useEffect(() => {
+    if (editor && editor.view && attachmentHydratedAt > 0) {
+      editor.view.dispatch(editor.state.tr);
+    }
+  }, [attachmentHydratedAt, editor]);
 
   // Save on unmount if dirty
   useEffect(() => {

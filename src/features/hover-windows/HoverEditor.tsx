@@ -4,12 +4,13 @@ import type { Editor } from '@tiptap/core';
 import { fileCommands, searchCommands, memoCommands } from '../../core/services/tauriCommands';
 import { editorPool } from '../../core/editor/editorPool';
 import { isHoverWindow } from '../../core/utils/multiWindow';
+import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import { Tags, MessageSquare, Minus, X } from 'lucide-react';
 import { SyncStatusIndicator, type SyncStatus } from '../shared/SyncStatusIndicator';
 import { useIsClosing, useIsMinimizing } from './stores/hoverStore';
 import { refreshActions } from '../../core/stores/refreshStore';
 import { t } from '../../core/utils/i18n';
-import type { NoteFrontmatter, NoteComment, CanvasData, CanvasSelection } from '../../core/types';
+import type { NoteFrontmatter, NoteComment, SketchData, SketchSelection } from '../../core/types';
 import { serializeFrontmatter, getCurrentTimestamp } from '../../core/utils/frontmatter';
 import { markAsSelfSaved } from '../../core/utils/selfSaveTracker';
 import { registerEditorSave, unregisterEditorSave } from '../../core/editor/editorSaveRegistry';
@@ -19,12 +20,13 @@ import EditorToolbar from '../note-editor/EditorToolbar';
 import EditorContextMenu from '../note-editor/EditorContextMenu';
 import CommentPanel from '../comments/CommentPanel';
 import Search from '../search/Search';
-import CanvasEditor from '../canvas/CanvasEditor';
+import SketchEditor from '../sketch/SketchEditor';
 import TagPanel from '../tags/TagPanel';
 import { hoverWindowPropsAreEqual, type HoverEditorWindowProps } from './hoverAnimationUtils';
 import { preprocessWikiLinks } from '../../core/utils/wikiLinkPreprocess';
 import { useDropTarget } from '../../core/hooks/useDragDrop';
 import { contentCacheActions } from '../content-cache/stores/contentCacheStore';
+import { useFileLookupStore } from '../../core/stores/fileLookupStore';
 
 // Extracted hooks
 import { useHoverEditorStores, useFileResolution } from './hooks/useHoverEditorState';
@@ -85,7 +87,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   // ========== CORE STATE & REFS ==========
   const [frontmatter, setFrontmatter] = useState<NoteFrontmatter | null>(null);
   const [body, setBody] = useState('');
-  const isCanvasNote = !!(frontmatter?.canvas || (!frontmatter && body.trimStart().startsWith('{') && body.includes('"nodes":')));
+  const isSketchNote = !!((frontmatter as any)?.sketch || (frontmatter as any)?.canvas || (!frontmatter && body.trimStart().startsWith('{') && body.includes('"nodes":')));
   const [isDirty, setIsDirty] = useState(false);
   const mtimeOnLoadRef = useRef<number>(0) as React.MutableRefObject<number> & { current: number; __lastUpdateAt?: number };
   const lastSavedBodyRef = useRef<string | null>(null); // Tracks what WE last wrote/loaded from disk
@@ -94,8 +96,8 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     if (!isDirty && body) { lastSavedBodyRef.current = body; }
   }, [isDirty, body]);
   const [editorMenuPos, setEditorMenuPos] = useState<{ x: number; y: number } | null>(null);
-  const [canvasData, setCanvasData] = useState<CanvasData>({ nodes: [], edges: [] });
-  const [canvasSelection, setCanvasSelection] = useState<CanvasSelection | null>(null);
+  const [sketchData, setSketchData] = useState<SketchData>({ nodes: [], edges: [] });
+  const [sketchSelection, setSketchSelection] = useState<SketchSelection | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const commentValidationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLoadingRef = useRef(false);
@@ -302,7 +304,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
           const updatedFm = { ...fm, modified: getCurrentTimestamp() };
           const fmString = serializeFrontmatter(updatedFm);
           // SKETCH: use bodyRef (canvas JSON), not TipTap markdown
-          const content = fm.canvas ? bodyRef.current : (ed && !ed.isDestroyed ? (ed.storage as any).markdown.getMarkdown() : bodyRef.current);
+          const content = ((fm as any)?.sketch || (fm as any)?.canvas) ? bodyRef.current : (ed && !ed.isDestroyed ? (ed.storage as any).markdown.getMarkdown() : bodyRef.current);
           // Safety: never overwrite a file with empty body (prevents data loss on HMR/restart)
           if (content && content.trim().length > 0) {
             fileCommands.writeFile(win.filePath, fmString, content).catch(() => {});
@@ -321,6 +323,16 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     };
   }, []); // Only run once on mount
 
+  // Force ProseMirror to re-run decorations when fileLookupStore changes (e.g., file deleted)
+  const fileLookupVersion = useFileLookupStore((s) => s.version);
+  useEffect(() => {
+    if (editorRef.current?.view) {
+      editorRef.current.view.dispatch(
+        editorRef.current.state.tr.setMeta('fileTreeChanged', true)
+      );
+    }
+  }, [fileLookupVersion]);
+
   useEffect(() => {
     if (editor) {
       editorPool.updateCallbacks(editor, {
@@ -336,8 +348,8 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   const saveFile = useCallback(async (currentBody?: string) => {
     const fm = frontmatterRef.current;
     const bodyToSave = currentBody !== undefined ? currentBody : bodyRef.current;
-    const isCanvas = bodyToSave ? (bodyToSave.trimStart().startsWith('{') && bodyToSave.includes('"nodes":')) : false;
-    console.log('[saveFile]', { hasFm: !!fm, isCanvas, bodyLen: bodyToSave?.length, isLoading: isLoadingRef.current, mtime: mtimeOnLoadRef.current });
+    const isSketch = bodyToSave ? (bodyToSave.trimStart().startsWith('{') && bodyToSave.includes('"nodes":')) : false;
+    console.log('[saveFile]', { hasFm: !!fm, isSketch, bodyLen: bodyToSave?.length, isLoading: isLoadingRef.current, mtime: mtimeOnLoadRef.current });
     if (!win.filePath || !fm) { console.log('[saveFile] SKIP: no path or fm'); return; }
 
     if (isLoadingRef.current) {
@@ -372,7 +384,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     }
 
     // Guard: never write empty body over existing content (prevents data loss)
-    if (!isCanvas && (!bodyToSave || bodyToSave.trim().length === 0)) {
+    if (!isSketch && (!bodyToSave || bodyToSave.trim().length === 0)) {
       console.warn('[saveFile] BLOCKED: empty body would cause data loss', { filePath: win.filePath });
       return;
     }
@@ -425,7 +437,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         const fmString = serializeFrontmatter(updatedFm);
         // SKETCH: use bodyRef (canvas JSON), not TipTap markdown
         const ed = editorRef.current;
-        const content = fm.canvas ? bodyRef.current : (ed && !ed.isDestroyed ? (ed.storage as any).markdown.getMarkdown() : bodyRef.current);
+        const content = ((fm as any)?.sketch || (fm as any)?.canvas) ? bodyRef.current : (ed && !ed.isDestroyed ? (ed.storage as any).markdown.getMarkdown() : bodyRef.current);
         // Safety: never overwrite a file with empty body (prevents data loss on HMR/restart)
         if (content && content.trim().length > 0) {
           fileCommands.writeFile(win.filePath, fmString, content).catch(() => {});
@@ -501,19 +513,19 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   commentHandlersRef.current = commentHandlers;
 
   // ========== CANVAS CHANGE ==========
-  const handleCanvasChange = useCallback((data: CanvasData) => {
+  const handleSketchChange = useCallback((data: SketchData) => {
     const jsonBody = JSON.stringify(data, null, 2);
-    setCanvasData(data);
+    setSketchData(data);
     setBody(jsonBody);
     setIsDirty(true);
 
     const currentComments = commentsRef.current;
     if (currentComments.length > 0) {
       const validComments = currentComments.filter(comment => {
-        if (!comment.canvasNodeId) return true;
-        const node = data.nodes.find(n => n.id === comment.canvasNodeId);
+        if (!comment.sketchNodeId) return true;
+        const node = data.nodes.find(n => n.id === comment.sketchNodeId);
         if (!node) return false;
-        const { from, to } = comment.canvasTextPosition || comment.position;
+        const { from, to } = comment.sketchTextPosition || comment.position;
         const nodeText = node.text || '';
         if (from < 0 || to > nodeText.length || from >= to) return false;
         return nodeText.substring(from, to) === comment.anchorText;
@@ -545,7 +557,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     setFrontmatter,
     setBody,
     setIsDirty,
-    setCanvasData,
+    setSketchData,
     setComments: commentHandlers.setComments,
     setConflictState,
     setExternalReloadNotice,
@@ -582,6 +594,16 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       }
     }
   }, [commentHandlers.comments, editor]);
+
+  // Track B Phase B-3: refresh wikilink decorations when attachmentStore
+  // hydrates or invalidates. Mirrors ContainerView's pattern so hover windows
+  // also re-color chips immediately after the attachment index updates.
+  const attachmentHydratedAt = useAttachmentStore((s) => s.hydratedAt);
+  useEffect(() => {
+    if (editor && editor.view && attachmentHydratedAt > 0) {
+      editor.view.dispatch(editor.state.tr);
+    }
+  }, [attachmentHydratedAt, editor]);
 
   // ========== DRAG/RESIZE (extracted hook) ==========
   const {
@@ -620,7 +642,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     hoverEditorRef,
     hoverZoomEnabled,
     hoverZoomLevel,
-    isCanvas: !!isCanvasNote,
+    isSketch: !!isSketchNote,
     setHoverZoomLevel: appStoreActionsRef.current.setHoverZoomLevel,
   });
 
@@ -639,7 +661,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   // ========== FILE DROP (extracted hook) ==========
   const { handleFileDrop } = useFileDrop({
     editor,
-    isCanvas: !!isCanvasNote,
+    isSketch: !!isSketchNote,
     saveFile,
     saveTimeoutRef,
     refreshHoverWindowsForFile,
@@ -697,7 +719,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     <div
       ref={(el) => {
         (hoverEditorRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
-        if (!isCanvasNote) {
+        if (!isSketchNote) {
           dropTargetRef(el);
         }
       }}
@@ -720,7 +742,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         ...(templateCustomColor ? { '--template-color': templateCustomColor } as React.CSSProperties : {}),
       }}
       onMouseDown={handleMouseDown}
-      data-drop-target={isCanvasNote ? undefined : `hover-editor-${win.id}`}
+      data-drop-target={isSketchNote ? undefined : `hover-editor-${win.id}`}
       data-hover-id={win.id}
     >
       <div className="hover-editor-header" onMouseDown={handleDragStart} onDoubleClick={handleDoubleClick}>
@@ -770,7 +792,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
           </button>
         </div>
       </div>
-      {!isCanvasNote && <EditorToolbar editor={editor} defaultCollapsed={toolbarDefaultCollapsed} />}
+      {!isSketchNote && <EditorToolbar editor={editor} defaultCollapsed={toolbarDefaultCollapsed} />}
       {conflictState && (
         <div className="hover-editor-conflict-bar">
           <span className="conflict-bar-message">{t('conflictDetected', language)}</span>
@@ -818,9 +840,9 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         <div
           ref={editorBodyRef}
           className={`hover-editor-body${frontmatter?.cssclasses ? ' ' + frontmatter.cssclasses.join(' ') : ''}`}
-          style={isCanvasNote ? undefined : { zoom: hoverZoomLevel / 100 }}
+          style={isSketchNote ? undefined : { zoom: hoverZoomLevel / 100 }}
         >
-          {(isContentLoading || (!editor && !isCanvasNote)) ? (
+          {(isContentLoading || (!editor && !isSketchNote)) ? (
             <div className="hover-editor-skeleton">
               <div className="skeleton-line skeleton-title" />
               <div className="skeleton-line skeleton-full" />
@@ -829,13 +851,13 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
               <div className="skeleton-line skeleton-full" />
               <div className="skeleton-line skeleton-medium" />
             </div>
-          ) : isCanvasNote ? (
-            <CanvasEditor
-              data={canvasData}
-              onChange={handleCanvasChange}
+          ) : isSketchNote ? (
+            <SketchEditor
+              data={sketchData}
+              onChange={handleSketchChange}
               readOnly={false}
               notePath={win.filePath}
-              onSelectionChange={setCanvasSelection}
+              onSelectionChange={setSketchSelection}
             />
           ) : editor ? (
             <EditorContent editor={editor} />
@@ -853,17 +875,17 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
               commentHandlers.setPendingTaskMode(false);
             }}
             selectedText={
-              isCanvasNote
-                ? (canvasSelection?.text || '')
+              isSketchNote
+                ? (sketchSelection?.text || '')
                 : (commentHandlers.preservedSelection?.text || '')
             }
             selectionRange={
-              isCanvasNote
-                ? (canvasSelection ? { from: canvasSelection.from, to: canvasSelection.to } : null)
+              isSketchNote
+                ? (sketchSelection ? { from: sketchSelection.from, to: sketchSelection.to } : null)
                 : (commentHandlers.preservedSelection?.range || null)
             }
             activeCommentId={commentHandlers.activeCommentId}
-            canvasSelection={isCanvasNote ? canvasSelection : undefined}
+            sketchSelection={isSketchNote ? sketchSelection : undefined}
             initialTaskMode={commentHandlers.pendingTaskMode}
           />
         )}

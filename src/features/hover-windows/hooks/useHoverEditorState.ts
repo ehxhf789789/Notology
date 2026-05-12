@@ -8,6 +8,7 @@ import { modalActions } from '../../modals/stores/modalStore';
 import { noteTypeCacheActions } from '../../content-cache/stores/noteTypeCacheStore';
 import { useSearchRefreshTrigger } from '../../../core/stores/refreshStore';
 import { fileLookupActions } from '../../../core/stores/fileLookupStore';
+import { useAttachmentStore } from '../../sync_v2/stores/attachmentStore';
 import { createNote, createNoteWithTemplate, createFolder, deleteNote, deleteFolder } from '../../../core/stores/appActions';
 import { utilCommands } from '../../../core/services/tauriCommands';
 // Conditional logging - only in development
@@ -87,7 +88,16 @@ export function useFileResolution(
 ) {
   // OPTIMIZED: O(1) hash lookup instead of O(n) tree traversal
   const resolveLink = useCallback((fileName: string): boolean => {
-    // First, try to resolve in current note's _att folder (O(1) lookup)
+    // Track B Phase B-3 (2026-05-12): consult the AttachmentRef index FIRST.
+    // Post-migration, attachments live under `.attachments/` (hidden in the
+    // file tree per single-surface principle), so the legacy lookups below
+    // never find them. Done via getState() — no React subscription here
+    // (this callback is invoked from a ProseMirror plugin), and the editor's
+    // mount component handles re-decoration on hydrate changes.
+    const attRef = useAttachmentStore.getState().resolveByName(fileName);
+    if (attRef) return true;
+
+    // Legacy fallback chain (covers pre-migration and notes still warming up):
     if (effectiveAttStem) {
       if (fileLookupActions.isInAttFolder(fileName, effectiveAttStem)) return true;
       const attPath = fileLookupActions.resolveAttachmentPath(fileName, winFilePath);
@@ -110,13 +120,28 @@ export function useFileResolution(
 
   // OPTIMIZED: O(1) check if file is an attachment in current note's _att folder
   const isAttachment = useCallback((fileName: string): boolean => {
+    // Track B Phase B-3: AttachmentRef index is canonical for new-schema vaults.
+    if (useAttachmentStore.getState().resolveByName(fileName)) return true;
     if (!effectiveAttStem) return false;
     return fileLookupActions.isInAttFolder(fileName, effectiveAttStem);
   }, [effectiveAttStem]);
 
   // OPTIMIZED: O(1) resolve fileName to full path
   const resolveFilePathImpl = useCallback((fileName: string): string | null => {
-    // First, check if the file is an attachment (exists in current note's _att folder)
+    // Track B Phase B-3: prefer the new AttachmentRef index. We return the
+    // absolute vault path to `.attachments/<display>` — the file there is a
+    // hardlink to the CAS blob, so any viewer that does `convertFileSrc`
+    // gets the same bytes the user expects.
+    const attRef = useAttachmentStore.getState().resolveByName(fileName);
+    if (attRef) {
+      const vaultPath = useFileTreeStore.getState().vaultPath;
+      if (vaultPath) {
+        const sep = vaultPath.includes('\\') ? '\\' : '/';
+        return vaultPath + sep + attRef.displayPath.replace(/\//g, sep);
+      }
+    }
+
+    // Legacy fallback chain.
     if (effectiveAttStem) {
       const attPath = fileLookupActions.resolveInAttFolder(fileName, effectiveAttStem);
       if (attPath) return attPath;

@@ -683,6 +683,62 @@ pub async fn attachment_list_for_note(
         .collect())
 }
 
+/// Track B Phase B-3: return every AttachmentRef in the vault so the frontend
+/// can build a name→id index (wikilink resolver) and power the redesigned
+/// Attachments tab (no more `_att/` folder walking).
+#[tauri::command]
+pub async fn attachment_list_all(
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<Vec<AttachmentRefDto>, String> {
+    let vault = require_vault(&library_state)?;
+    let store = crate::features::sync_v2::attachment_store::AttachmentStore::new(vault)?;
+    Ok(store.all_refs().cloned().map(Into::into).collect())
+}
+
+/// Track B Phase B-3: resolve an attachment_id to a user-droppable absolute
+/// path for `startDrag`.
+///
+/// Returns `vault/.attachments/<display_name>` when present — that hardlink
+/// preserves the original filename and extension, so when the user drops
+/// onto Explorer / KakaoTalk / etc. the OS copies the file under a
+/// meaningful name (`Report.pdf`, not the sha256 `7da354a9....`).
+///
+/// Falls back to the raw CAS blob path only when the display hardlink is
+/// missing (rare — happens for a pull-only state where the local
+/// `.attachments/` rebuild hasn't run yet). The OS still copies the bytes
+/// correctly; only the destination filename is degraded in that edge case.
+#[tauri::command]
+pub async fn attachment_local_path(
+    attachment_id: String,
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<String, String> {
+    let vault = require_vault(&library_state)?;
+    let store = crate::features::sync_v2::attachment_store::AttachmentStore::new(vault.clone())?;
+    let r = store
+        .get_by_id(&attachment_id)
+        .ok_or_else(|| format!("attachment_id {} not found", attachment_id))?;
+
+    // Preferred: `.attachments/<display>` (hardlink → CAS blob, but with
+    // user-friendly filename + extension).
+    let display_abs = vault.join(&r.display_path);
+    if display_abs.is_file() {
+        return Ok(display_abs.to_string_lossy().to_string());
+    }
+
+    // Fallback: raw CAS blob (sha256-named — produces "7da354a9..." on drop).
+    let blob = store
+        .find_by_sha(&r.sha256)
+        .ok_or_else(|| format!("blob for sha {} missing", r.sha256))?;
+    if !blob.local_path.is_file() {
+        return Err(format!("blob file does not exist locally: {:?}", blob.local_path));
+    }
+    log::warn!(
+        "[attachment_local_path] display hardlink missing for {}, falling back to CAS blob (name will be sha256)",
+        attachment_id
+    );
+    Ok(blob.local_path.to_string_lossy().to_string())
+}
+
 #[derive(serde::Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MigrationStatusDto {

@@ -1,11 +1,12 @@
 import { Node, mergeAttributes } from '@tiptap/core';
-import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Plugin, PluginKey, NodeSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { InputRule } from '@tiptap/core';
 import { preloadHoverContent } from '../../../features/hover-windows/stores/hoverStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { t } from '../../utils/i18n';
 import { getAttachmentCategory } from '../../../features/suggestions/attachmentCategory';
+import { startAttachmentDrag } from '../../../features/sync_v2/attachmentDragOut';
 
 export interface WikiLinkOptions {
   onClickLink: (fileName: string) => void;
@@ -32,7 +33,6 @@ declare module '@tiptap/core' {
 
 // Non-greedy matching to support ] in filenames (e.g., [[디자인여백플러스] 파일.pdf]])
 // Use Unicode flag for proper handling of Korean characters
-const WIKI_LINK_REGEX = /\[\[(.+?)\]\]/gu;
 const IMAGE_EMBED_REGEX = /!\[\[(.+?)\]\]/gu;
 
 // Helper to parse wiki link content: "fileName" or "fileName|displayText"
@@ -65,6 +65,12 @@ export const WikiLink = Node.create<WikiLinkOptions>({
   group: 'inline',
   inline: true,
   atom: true,
+  // Track B Phase B-3 (2026-05-12): mark as draggable so ProseMirror sets
+  // `draggable="true"` on the rendered chip span and routes drag events
+  // through NodeSelection. Without this, the browser fires dragstart on the
+  // surrounding contenteditable instead of the chip, our handleDOMEvents
+  // misses it, and the user sees a text drag (the bug HanBin hit).
+  draggable: true,
 
   addOptions() {
     return {
@@ -297,7 +303,6 @@ export const WikiLink = Node.create<WikiLinkOptions>({
               if (!node.isText || !node.text) return;
 
               const text = node.text;
-              const processedRanges: Array<{start: number, end: number}> = [];
 
               // First, handle image embeds ![[...]]
               // Reset lastIndex instead of creating new RegExp (performance)
@@ -313,8 +318,6 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                 // Call getNotePath() dynamically to get current note path
                 const currentNotePath = getNotePath?.() || '';
                 if (isImage && currentNotePath) {
-                  processedRanges.push({ start: imageMatch.index, end: imageMatch.index + imageMatch[0].length });
-
                   // Capture fileName for delete callback
                   const capturedFileName = fileName;
 
@@ -391,52 +394,6 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                 }
               }
 
-              // Then handle regular wiki links [[...]]
-              // Reset lastIndex instead of creating new RegExp (performance)
-              WIKI_LINK_REGEX.lastIndex = 0;
-              let match;
-
-              while ((match = WIKI_LINK_REGEX.exec(text)) !== null) {
-                const matchStart = match.index;
-                const matchEnd = matchStart + match[0].length;
-
-                // Skip if this overlaps with a processed range (image embed)
-                const overlaps = processedRanges.some(range =>
-                  (matchStart >= range.start && matchStart < range.end) ||
-                  (matchEnd > range.start && matchEnd <= range.end)
-                );
-                if (overlaps) continue;
-
-                const start = pos + matchStart;
-                const end = pos + matchEnd;
-                const parsed = parseWikiLinkContent(match[1]);
-                const fileName = parsed.fileName;
-                const displayText = parsed.displayText;
-                const isResolved = resolveLink(fileName);
-
-                // Check if this is an attachment
-                const hasExtension = /\.[a-zA-Z0-9]+$/.test(fileName);
-                const isMarkdown = fileName.endsWith('.md');
-
-                // Use isAttachment callback if available, otherwise fall back to extension-based check
-                const isAttachment = isAttachmentCallback
-                  ? isAttachmentCallback(fileName)
-                  : (hasExtension && !isMarkdown);
-
-                // Use getNoteType callback if available, otherwise fall back to inferring from filename
-                // If displayText starts with "@", treat as contact type (@ mentions are always contacts)
-                const isMention = displayText && displayText.startsWith('@');
-                const noteType = isAttachment ? '' :
-                  isMention ? 'contact' :
-                  (getNoteType ? (getNoteType(fileName) || '').toLowerCase() : inferNoteType(fileName));
-
-                decorations.push(
-                  Decoration.inline(start, end, {
-                    class: `wiki-link-inline ${isAttachment ? `attachment att-${getAttachmentCategory(fileName)}` : ''} ${noteType ? `note-type-${noteType}` : ''} ${isResolved ? '' : 'unresolved'}`,
-                    'data-wiki-link': fileName,
-                  })
-                );
-              }
             });
 
             return DecorationSet.create(doc, decorations);
@@ -539,6 +496,71 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                 }
               }
               return false;
+            },
+            // Track B Phase B-3 (2026-05-12): native OS drag-out via
+            // tauri-plugin-drag. Intercept the dragstart so it never falls
+            // through to TipTap's default text drag — that emits plain text
+            // payload which WebView2 cannot promote to a file promise.
+            //
+            // Detection strategy (two paths — atom nodes can route either way):
+            //   1. ProseMirror NodeSelection of a wikiLink → preferred, fires
+            //      even when event.target is the editor container (.ProseMirror)
+            //      rather than the chip span.
+            //   2. DOM closest('[data-wiki-link]') → fallback for cases where
+            //      the chip was the actual dragstart target.
+            dragstart(view, event) {
+              let fileName: string | null = null;
+              let isAttachmentChip = false;
+
+              // Path 1: NodeSelection (typical for atom-node drag)
+              const sel = view.state.selection;
+              if (sel instanceof NodeSelection && sel.node.type.name === 'wikiLink') {
+                fileName = sel.node.attrs.fileName ?? null;
+                isAttachmentChip =
+                  sel.node.attrs.isAttachmentAttr === true
+                  || (!!fileName && isAttachmentCallback?.(fileName) === true);
+              }
+
+              // Path 2: DOM target (cases where the chip itself fires).
+              // Guard with `instanceof Element` — drag events can fire with
+              // event.target being a Text node, Document, or window, none of
+              // which have `closest()`. Hit during initial B-3 testing.
+              if (!fileName) {
+                const evTarget = event.target;
+                const el = evTarget instanceof Element
+                  ? evTarget
+                  : (evTarget as Node | null)?.parentElement;
+                const target = el?.closest('[data-wiki-link]') ?? null;
+                if (target) {
+                  fileName = target.getAttribute('data-wiki-link');
+                  isAttachmentChip = target.classList.contains('attachment');
+                }
+              }
+
+              if (!fileName) return false;
+              if (!isAttachmentChip) {
+                console.log('[WikiLink dragstart] ignored — not an attachment:', fileName);
+                return false;
+              }
+
+              event.preventDefault();
+              event.stopPropagation();
+              if (event.dataTransfer) {
+                // Clear what TipTap would have written so the OS doesn't
+                // race a partial DataTransfer setup with our native drag.
+                event.dataTransfer.effectAllowed = 'none';
+              }
+              const noteId = getNotePath?.()
+                ?.replace(/\\/g, '/')
+                .split('/')
+                .pop()
+                ?.replace(/\.md$/i, '');
+              console.log('[WikiLink dragstart] intercepting attachment:', fileName);
+              // Fire-and-forget — the plugin uses the native OS drag API
+              // (IDataObject on Windows) which captures the mouse-down
+              // state synchronously inside its initiation call.
+              void startAttachmentDrag(fileName, noteId);
+              return true;
             },
           },
         },

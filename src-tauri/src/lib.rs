@@ -485,6 +485,9 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
+        // Track B Phase B-3: native drag-out (file-promise / IDataObject).
+        // Powers `attachmentStartDrag` for single + multi-chip drag-out.
+        .plugin(tauri_plugin_drag::init())
         .manage(Mutex::new(SearchState {
             index: None,
             #[cfg(desktop)]
@@ -882,6 +885,8 @@ pub fn run() {
             features::sync_v2::commands::attachment_link_to_note,
             features::sync_v2::commands::attachment_unlink_from_note,
             features::sync_v2::commands::attachment_list_for_note,
+            features::sync_v2::commands::attachment_list_all,
+            features::sync_v2::commands::attachment_local_path,
             features::sync_v2::commands::attachment_migration_status,
             features::sync_v2::commands::attachment_migration_run,
             // WebDAV auth commands (M-4a)

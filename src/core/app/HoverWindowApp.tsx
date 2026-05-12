@@ -22,6 +22,7 @@ import { useTheme, settingsActions } from '../stores/zustand';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useFileTreeStore } from '../stores/fileTreeStore';
 import { useDragDropListener } from '../hooks/useDragDrop';
+import { initAttachmentStoreSubscriptions } from '../../features/sync_v2/stores/attachmentStore';
 import type { HoverWindow } from '../types';
 import type { ThemeSetting } from '../stores/settingsStore';
 import '../../styles/index.css';
@@ -71,6 +72,15 @@ function HoverWindowApp() {
 
   // Initialize drag-drop listener for this window
   useDragDropListener();
+
+  // Track B Phase B-3: hover windows are a separate React entrypoint
+  // (HoverWindowApp), so the attachment store subscription wired in App.tsx
+  // never runs here. Without this, wikilink chips in hover windows render
+  // as unresolved (gray) because the store stays empty.
+  useEffect(() => {
+    const unsubscribe = initAttachmentStoreSubscriptions();
+    return unsubscribe;
+  }, []);
 
   // Animated close function
   const handleAnimatedClose = useCallback(async () => {

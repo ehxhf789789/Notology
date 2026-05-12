@@ -1,6 +1,7 @@
 // Tauri command wrappers for sync_v2 backend.
 
 import { invoke } from '@tauri-apps/api/core';
+import { EventBus } from '../../core/infrastructure/eventBus';
 import type { SyncReport, SyncState, NoteWithConflicts } from '../../core/types/sync';
 
 export type SyncV2Config = {
@@ -162,27 +163,48 @@ export const syncV2Commands = {
   // ── Track B Phase B-2 — Attachments ────────────────────────────────────
   // Pass either `notePath` (absolute .md path — what drag-drop has) or
   // `noteId` (14-digit frontmatter id). Backend accepts either.
-  attachmentAdd: (
+  //
+  // All mutating wrappers emit EventBus `attachment:saved` / `attachment:deleted`
+  // on success so the frontend attachmentStore refreshes its index. Without
+  // this, wikilink chips would render gray (unresolved) until the next
+  // explicit hydrate.
+  attachmentAdd: async (
     sourcePath: string,
     target: { notePath: string } | { noteId: string },
-  ) =>
-    invoke<AttachmentRefDto>('attachment_add', {
+  ): Promise<AttachmentRefDto> => {
+    const ref = await invoke<AttachmentRefDto>('attachment_add', {
       sourcePath,
       notePath: 'notePath' in target ? target.notePath : undefined,
       noteId: 'noteId' in target ? target.noteId : undefined,
-    }),
+    });
+    EventBus.emit('attachment:saved', { path: ref.displayPath });
+    return ref;
+  },
 
-  attachmentDelete: (attachmentId: string) =>
-    invoke<void>('attachment_delete', { attachmentId }),
+  attachmentDelete: async (attachmentId: string): Promise<void> => {
+    await invoke<void>('attachment_delete', { attachmentId });
+    EventBus.emit('attachment:deleted', { path: attachmentId });
+  },
 
-  attachmentLinkToNote: (attachmentId: string, noteId: string) =>
-    invoke<void>('attachment_link_to_note', { attachmentId, noteId }),
+  attachmentLinkToNote: async (attachmentId: string, noteId: string): Promise<void> => {
+    await invoke<void>('attachment_link_to_note', { attachmentId, noteId });
+    EventBus.emit('attachment:saved', { path: attachmentId });
+  },
 
-  attachmentUnlinkFromNote: (attachmentId: string, noteId: string) =>
-    invoke<void>('attachment_unlink_from_note', { attachmentId, noteId }),
+  attachmentUnlinkFromNote: async (attachmentId: string, noteId: string): Promise<void> => {
+    await invoke<void>('attachment_unlink_from_note', { attachmentId, noteId });
+    EventBus.emit('attachment:saved', { path: attachmentId });
+  },
 
   attachmentListForNote: (noteId: string) =>
     invoke<AttachmentRefDto[]>('attachment_list_for_note', { noteId }),
+
+  /** Track B Phase B-3: full index for the redesigned Attachments tab + resolver. */
+  attachmentListAll: () => invoke<AttachmentRefDto[]>('attachment_list_all'),
+
+  /** Resolve attachment_id → absolute local CAS blob path (for startDrag). */
+  attachmentLocalPath: (attachmentId: string) =>
+    invoke<string>('attachment_local_path', { attachmentId }),
 
   attachmentMigrationStatus: () =>
     invoke<{ needsMigration: boolean }>('attachment_migration_status'),

@@ -26,19 +26,24 @@ tauri-plugin-log = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-store = "2"
-tauri-plugin-single-instance = "2"
-tauri-plugin-updater = "2"
+tauri-plugin-single-instance = { version = "2", optional = true }
+tauri-plugin-updater = { version = "2", optional = true }
 tauri-plugin-process = "2"
+tauri-plugin-opener = "2"
+# Track B Phase B-3 (2026-05-12): native OS drag-out (IDataObject on Windows,
+# NSPasteboard on macOS, GTK targets on Linux). HTML5 setData fails on
+# WebView2 — POC confirmed in B-1. crabnebula's plugin is the standard.
+tauri-plugin-drag = "2"
 chrono = { version = "0.4", features = ["serde"] }
 hostname = "0.4"
 once_cell = "1.19"
 regex = "1"
 tantivy = "0.22"
 serde_yaml = "0.9"
-notify = "7"
+notify = { version = "7", optional = true }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
-opener = "0.7"
-reqwest = { version = "0.12", features = ["blocking", "rustls-tls"] }
+opener = { version = "0.7", optional = true }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 async-trait = "0.1"
 quick-xml = "0.37"
 rusqlite = { version = "0.31", features = ["bundled"] }
@@ -47,15 +52,29 @@ url = "2.5"
 jsonschema = "0.22"
 lazy_static = "1.4"
 walkdir = "2.4"
+dirs = "5"
 rayon = "1.10"
+futures = "0.3"
+futures-util = "0.3"
+sha2 = "0.10"
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 
-# HWP rendering
-hwpers = "0.3"
+# HWP rendering (desktop-only)
+hwpers = { version = "0.3", optional = true }
 
 [features]
-default = ["devtools"]
+default = ["desktop", "devtools"]
+desktop = [
+    "dep:tauri-plugin-single-instance",
+    "dep:tauri-plugin-updater",
+    "dep:notify",
+    "dep:opener",
+    "dep:hwpers",
+]
 devtools = ["tauri/devtools"]
 
 [dev-dependencies]
 tempfile = "3"
+uuid = { version = "1", features = ["v4"] }
+tokio = { version = "1", features = ["test-util"] }

@@ -11,8 +11,10 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@crabnebula/tauri-plugin-drag": "^2.1.0",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-os": "^2.3.2",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-store": "^2.4.2",
     "@tauri-apps/plugin-updater": "^2.10.0",
@@ -36,6 +38,7 @@
     "force-graph": "^1.51.1",
     "highlight.js": "^11.11.1",
     "jszip": "^3.10.1",
+    "katex": "^0.16.44",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
