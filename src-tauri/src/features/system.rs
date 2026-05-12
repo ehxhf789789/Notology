@@ -250,7 +250,7 @@ pub async fn create_hover_window(
         Color(0, 0, 0, 255)        // #000000 — v4 --bg-app dark
     };
 
-    let mut builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
+    let builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
         .title(&title)
         .inner_size(width as f64, height as f64)
         .position(x as f64, y as f64)
@@ -261,15 +261,21 @@ pub async fn create_hover_window(
         .min_inner_size(400.0, 300.0)
         .background_color(bg);
 
-    // Parent the hover to the main window so Windows treats it as an
-    // owned window: closing main automatically closes the hover, and
-    // minimize/restore on main propagates. If main isn't ready yet
-    // (cold start race), fall back to an unparented hover — the rest
-    // of the lifecycle code still works, just without the OS-level
-    // chain-close guarantee.
-    if let Some(main) = app.get_webview_window("main") {
-        builder = builder.parent(&main).map_err(|e| e.to_string())?;
-    }
+    // INTENTIONALLY NO parent_label here:
+    // Earlier we set parent("main") for OS-level chain-close. Side
+    // effects on Windows turned out to break native window UX:
+    //   - owned windows are always-on-top of owner (z-order locked,
+    //     can't focus main without closing hover)
+    //   - owned windows skip the taskbar by default, forcing the
+    //     custom CollapsedHoverBar as the only "minimize" surface
+    //
+    // Lifecycle binding (main close -> hover close) is preserved
+    // explicitly via App.tsx onCloseRequested -> closeAllHoverWindows()
+    // and the lib.rs MainCloseRequested handler. So we get the same
+    // chain-close behavior without the OS-level z-order trap.
+    // Multi-platform note: native taskbar handles minimize natively;
+    // CollapsedHoverBar can stay as an in-app secondary surface, but
+    // it's no longer mandatory.
 
     builder.build().map_err(|e| e.to_string())?;
 

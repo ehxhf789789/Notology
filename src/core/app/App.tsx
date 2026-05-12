@@ -29,7 +29,6 @@ import ContainerView from '../../features/note-editor/ContainerView';
 import Search from '../../features/search/Search';
 import HoverEditorLayer from '../../features/hover-windows/HoverEditorLayer';
 import RightPanel from '../layout/RightPanel';
-import CollapsedHoverBar from '../../features/hover-windows/CollapsedHoverBar';
 import ContextMenu from '../../features/context-menu/ContextMenu';
 import { Slot } from '../infrastructure/slotRegistry';
 const MoveNoteModal = lazy(() => import('../../features/modals/MoveNoteModal'));
@@ -48,6 +47,7 @@ import { ConnectionVaultSelector } from '../../features/connection/components/Co
 import UpdateChecker from '../../features/shared/UpdateChecker';
 import LoadingScreen from '../../features/shared/LoadingScreen';
 import { useDragDropListener } from '../hooks/useDragDrop';
+import { initAttachmentStoreSubscriptions } from '../../features/sync_v2/stores/attachmentStore';
 import { useAppKeyboardShortcuts } from '../hooks/useAppKeyboardShortcuts';
 import { t } from '../utils/i18n';
 import { initializeSnippets, loadSnippets, clearSnippets } from '../utils/snippetLoader';
@@ -169,6 +169,14 @@ function AppLayout() {
   const isResizing = useRef(false);
 
   useDragDropListener();
+
+  // Track B Phase B-3: hydrate attachment index on vault open + invalidate
+  // on attachment events. Wikilink chips depend on this for proper coloring,
+  // and the Attachments tab reads from it instead of walking `_att/` folders.
+  useEffect(() => {
+    const unsubscribe = initAttachmentStoreSubscriptions();
+    return unsubscribe;
+  }, []);
 
   const startResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -339,11 +347,14 @@ function AppLayout() {
         </div>
         {/* Right Panel with slide animation */}
         <div className={`hover-panel-wrapper ${showHoverPanel ? 'open' : 'closed'} ${hoverPanelAnimState}`} style={{ width: showHoverPanel || hoverPanelAnimState === 'closing' ? HOVER_PANEL_WIDTH : undefined }}>
-          {showHoverPanel || hoverPanelAnimState === 'closing' ? (
+          {(showHoverPanel || hoverPanelAnimState === 'closing') && (
             <RightPanel width={HOVER_PANEL_WIDTH} />
-          ) : (
-            <CollapsedHoverBar />
           )}
+          {/* Right panel collapsed state: render nothing.
+              CollapsedHoverBar removed — native OS taskbar handles
+              minimized hovers; hover lifecycle stays bound to main via
+              explicit chain-close (App.tsx onCloseRequested + lib.rs
+              MainCloseRequested handler). */}
         </div>
       </div>
       <HoverEditorLayer />

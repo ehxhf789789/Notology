@@ -1,15 +1,50 @@
-# Window Lifecycle — 50 Verification Cases
+# Window Lifecycle — Strict Hierarchy + 50 Verification Cases
 
-Strict hide/show policy for Notology's three window kinds. Target platforms:
-**Windows + Android only** (macOS is out of scope).
+Strict hide/show + lifecycle policy for Notology's three window kinds.
+Target platforms: **Windows + Android only** (macOS is out of scope).
 
 ## Window kinds
 
 - **M** — Main window (label `"main"`). The editor / content shell.
+  Singleton. App entry point when a vault is open.
 - **S** — Vault selector window (label `"vault-selector"`). Entry-time
-  vault picker, also used for "보관소 변경".
+  vault picker, also used for "보관소 변경". Singleton, transient.
 - **H** — Hover window (label `"hover-{hash}-{counter}"`). File preview
-  spawned from M; parented to M via `parent_label`.
+  spawned from M. Independent OS window (own taskbar entry, free
+  z-order). 0..n instances.
+
+## Strict hierarchy rules
+
+These rules are the contract. Code (`state.rs` transitions, lib.rs
+window event handlers, App.tsx cleanup) enforces them.
+
+1. **M ↔ S 동시 표시 금지**.
+   - 시작 시 M 또는 S 중 정확히 하나가 visible
+   - "보관소 변경" 시: M hide → S show (atomic via dispatcher)
+   - vault 선택 시: M show → S close (atomic via dispatcher)
+
+2. **H 는 M 종속, 단 OS 레벨로는 독립**.
+   - 독립이라는 의미: 별개 OS 윈도우, 별개 taskbar entry, 자유 z-order,
+     다중 모니터 자유 이동, 자유 minimize/restore
+   - 종속이라는 의미: M close 시 모든 H 강제 close (orphan H 금지)
+   - 구현: OS 레벨 `parent_label` 사용하지 않음 (z-order 잠김 부작용).
+     대신 명시적 chain-close (App.tsx onCloseRequested →
+     closeAllHoverWindows + lib.rs MainCloseRequested 핸들러)
+
+3. **H + S 동시 표시 금지**.
+   - "보관소 변경" 발동 시 state.rs SwitchVaultRequested 전이가
+     모든 H 에 대해 CloseHover effect 발행
+   - S 가 visible 인 상태에서는 새 H 생성 불가 (state.rs HoverOpenRequested
+     transition 이 MainOnly 가 아니면 no-op)
+
+4. **앱 종료 = 모든 윈도우 종료**.
+   - M close 또는 S close (return_to=None) 시 `app.exit(0)`
+   - 잔존 H 는 explicit close 후 OS 가 프로세스 종료로 정리
+
+5. **Minimize = OS native**.
+   - H 의 커스텀 `_` 버튼은 `getCurrentWindow().minimize()` 호출
+   - taskbar / Alt-Tab / 가상 데스크탑 등 OS 기능에 위임
+   - 커스텀 in-app overview UI 없음 (CollapsedHoverBar 폐기됨)
 
 ## States (see `src-tauri/src/features/window_lifecycle/state.rs`)
 
