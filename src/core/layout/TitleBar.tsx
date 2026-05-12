@@ -3,7 +3,6 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import logoWhite from '../../assets/logo-white.png';
 import logoBlack from '../../assets/logo-black.png';
 import { useSettingsStore } from '../stores/settingsStore';
-import { Slot } from '../infrastructure/slotRegistry';
 
 const appWindow = getCurrentWindow();
 
@@ -93,14 +92,16 @@ function TitleBar() {
   const handleClose = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    // Strict B policy (window_lifecycle/state.rs): main close = app
+    // fully terminates. The Rust `CloseRequested` handler runs
+    // flush + heartbeat stop + logout + explicit `app.exit(0)`.
+    // Vault switching is a separate flow via "보관소 변경" trigger,
+    // not via the main X. Previous design routed X back to the
+    // selector — that broke the user's mental model ("close = exit").
     try {
-      // Hide main window instead of closing — reopen VaultSelector
-      await appWindow.hide();
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('sync_open_vault_selector');
-    } catch (err) {
-      // Fallback: actually close
       await appWindow.close();
+    } catch (err) {
+      console.error('[TitleBar] close failed:', err);
     }
   };
 
@@ -110,7 +111,6 @@ function TitleBar() {
         <img src={logo} alt="" className="titlebar-icon" />
         <span className="titlebar-title">Notology</span>
       </div>
-      <Slot name="titlebar-status" />
       <div className="titlebar-controls">
         <button
           className="titlebar-btn"
