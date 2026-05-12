@@ -73,9 +73,16 @@ pub fn fetch_url_metadata(url: String) -> Result<UrlMetadata, String> {
     })
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 pub fn open_url_in_browser(url: String) -> Result<(), String> {
     opener::open(url).map_err(|e| format!("Failed to open URL: {}", e))
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+pub fn open_url_in_browser(_url: String) -> Result<(), String> {
+    Err("Not available on mobile".into())
 }
 
 #[tauri::command]
@@ -174,6 +181,7 @@ pub fn cleanup_old_backups(vault_path: String) -> Result<usize, String> {
     Ok(removed)
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 pub fn set_window_icon(app: tauri::AppHandle, window_label: String, note_type: String) -> Result<(), String> {
     use tauri::Manager;
@@ -214,6 +222,13 @@ pub fn set_window_icon(app: tauri::AppHandle, window_label: String, note_type: S
     Ok(())
 }
 
+#[cfg(not(desktop))]
+#[tauri::command]
+pub fn set_window_icon(_app: tauri::AppHandle, _window_label: String, _note_type: String) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn create_hover_window(
     app: tauri::AppHandle,
@@ -226,16 +241,16 @@ pub async fn create_hover_window(
     height: u32,
 ) -> Result<(), String> {
     use tauri::webview::{WebviewWindowBuilder, Color};
-    use tauri::WebviewUrl;
+    use tauri::{Manager, WebviewUrl};
 
     let is_light = url.contains("theme=light");
     let bg = if is_light {
-        Color(245, 245, 245, 255)
+        Color(242, 242, 247, 255)  // #F2F2F7 — v4 --bg-app light
     } else {
-        Color(30, 30, 30, 255)
+        Color(0, 0, 0, 255)        // #000000 — v4 --bg-app dark
     };
 
-    WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
+    let mut builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
         .title(&title)
         .inner_size(width as f64, height as f64)
         .position(x as f64, y as f64)
@@ -244,10 +259,53 @@ pub async fn create_hover_window(
         .focused(true)
         .visible(false)
         .min_inner_size(400.0, 300.0)
-        .background_color(bg)
-        .build()
-        .map_err(|e| e.to_string())?;
+        .background_color(bg);
 
+    // Parent the hover to the main window so Windows treats it as an
+    // owned window: closing main automatically closes the hover, and
+    // minimize/restore on main propagates. If main isn't ready yet
+    // (cold start race), fall back to an unparented hover — the rest
+    // of the lifecycle code still works, just without the OS-level
+    // chain-close guarantee.
+    if let Some(main) = app.get_webview_window("main") {
+        builder = builder.parent(&main).map_err(|e| e.to_string())?;
+    }
+
+    builder.build().map_err(|e| e.to_string())?;
+
+    // Sync dispatcher state: track this hover in the canonical mode.
+    // The transition is a no-op if mode != MainOnly (e.g., race during
+    // vault switch). The CreateHoverWithParent side-effect in dispatcher
+    // is a no-op since the window already exists.
+    if let Some(dispatcher) = app
+        .try_state::<crate::features::window_lifecycle::WindowDispatcherState>()
+    {
+        let d = (*dispatcher.inner()).clone();
+        let label_clone = label.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = d
+                .dispatch(crate::features::window_lifecycle::Event::HoverOpenRequested {
+                    label: label_clone,
+                })
+                .await;
+        });
+    }
+
+    Ok(())
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+pub async fn create_hover_window(
+    _app: tauri::AppHandle,
+    _label: String,
+    _url: String,
+    _title: String,
+    _x: i32,
+    _y: i32,
+    _width: u32,
+    _height: u32,
+) -> Result<(), String> {
     Ok(())
 }
 
@@ -287,6 +345,68 @@ pub fn toggle_devtools(webview_window: tauri::WebviewWindow) {
 #[tauri::command]
 pub fn toggle_devtools() {
     // DevTools disabled in production build
+}
+
+/// DEV ONLY: Open a mobile-sized test window for previewing mobile UI on desktop.
+/// Uses `?mobile=true` query param which main.tsx checks only in DEV mode.
+#[cfg(all(debug_assertions, desktop))]
+#[tauri::command]
+pub async fn open_mobile_test_window(
+    app: tauri::AppHandle,
+    vault_path: Option<String>,
+    device: Option<String>,
+) -> Result<(), String> {
+    use tauri::webview::{WebviewWindowBuilder, Color};
+    use tauri::WebviewUrl;
+
+    // Device presets
+    let (width, height, label) = match device.as_deref() {
+        Some("tablet") => (800.0, 1280.0, "Galaxy Tab S11"),
+        Some("tablet-landscape") => (1280.0, 800.0, "Galaxy Tab S11 Landscape"),
+        _ => (380.0, 820.0, "Galaxy S23"),
+    };
+
+    // Close existing mobile-test window if open
+    if let Some(win) = tauri::Manager::get_webview_window(&app, "mobile-test") {
+        let _ = win.close();
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    }
+
+    // Build URL with vault path
+    let mut url = String::from("index.html?mobile=true");
+    if let Some(ref vp) = vault_path {
+        let encoded = url::form_urlencoded::byte_serialize(vp.as_bytes()).collect::<String>();
+        url.push_str(&format!("&vault={}", encoded));
+    }
+
+    WebviewWindowBuilder::new(
+        &app,
+        "mobile-test",
+        WebviewUrl::App(url.into()),
+    )
+    .title(&format!("Notology Mobile — {} (Dev)", label))
+    .inner_size(width, height)
+    .min_inner_size(320.0, 568.0)
+    .resizable(true)
+    .decorations(true)
+    .focused(true)
+    .background_color(Color(30, 30, 30, 255))
+    .build()
+    .map_err(|e| format!("Failed to open mobile test window: {}", e))?;
+
+    Ok(())
+}
+
+#[cfg(all(not(debug_assertions), desktop))]
+#[tauri::command]
+pub async fn open_mobile_test_window() -> Result<(), String> {
+    Err("Mobile test window is only available in dev builds".into())
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+pub async fn open_mobile_test_window() -> Result<(), String> {
+    Err("Mobile test window is not available on mobile".into())
 }
 
 /// GPU compatibility: Read gpu-config.json and set WebView2 browser args before Tauri init.

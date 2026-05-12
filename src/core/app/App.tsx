@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import { PanelLeftOpen } from 'lucide-react';
 import { AppInitializer } from '../stores/appStore';
+import { ToastContainer } from '../../features/shared/Toast';
+import { NasDeletionsBanner } from '../../features/sync_v2/components/NasDeletionsBanner';
+import { TrashPanel } from '../../features/sync_v2/components/TrashPanel';
 import {
   useVaultPath,
   useSelectedContainer,
@@ -28,6 +31,7 @@ import HoverEditorLayer from '../../features/hover-windows/HoverEditorLayer';
 import RightPanel from '../layout/RightPanel';
 import CollapsedHoverBar from '../../features/hover-windows/CollapsedHoverBar';
 import ContextMenu from '../../features/context-menu/ContextMenu';
+import { Slot } from '../infrastructure/slotRegistry';
 const MoveNoteModal = lazy(() => import('../../features/modals/MoveNoteModal'));
 import TemplateSelector from '../../features/templates/TemplateSelector';
 const ContactInputModal = lazy(() => import('../../features/modals/ContactInputModal'));
@@ -40,7 +44,7 @@ import ConfirmDeleteModal from '../../features/modals/ConfirmDeleteModal';
 import AlertModal from '../../features/modals/AlertModal';
 const VaultLockModal = lazy(() => import('../../features/vault-config/VaultLockModal'));
 import RenameDialog from '../../features/modals/RenameDialog';
-import VaultSelector from '../../features/vault-config/VaultSelector';
+import { ConnectionVaultSelector } from '../../features/connection/components/ConnectionVaultSelector';
 import UpdateChecker from '../../features/shared/UpdateChecker';
 import LoadingScreen from '../../features/shared/LoadingScreen';
 import { useDragDropListener } from '../hooks/useDragDrop';
@@ -75,12 +79,68 @@ function AppLayout() {
 
   const language = useLanguage();
 
+  // ========== OPEN VAULT SELECTOR ON DEMAND (from Sidebar etc.) ==========
+  // Stage A: dispatch through the backend WindowDispatcher so the strict
+  // B-policy ordering (flush → close hovers → hide main → show selector)
+  // is authoritative and atomic. See state.rs / docs/window_lifecycle_cases.md.
+  useEffect(() => {
+    if (!showVaultSelectorModal) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { dispatchWindowEvent } = await import('../../features/window-lifecycle/windowLifecycle');
+        if (cancelled) return;
+        await dispatchWindowEvent({ type: 'switch_vault_requested' });
+      } catch (e) {
+        console.warn('[App] dispatch switch_vault_requested failed:', e);
+      } finally {
+        modalActions.setShowVaultSelectorModal(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showVaultSelectorModal]);
+
+  // ========== FLUSH-SAVES LISTENER ==========
+  // The dispatcher emits 'flush-saves' before any window hide/close so
+  // dirty editor content gets persisted. We respond by calling the same
+  // flush mechanism the existing onCloseRequested handler uses.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    import('@tauri-apps/api/event').then(({ listen }) => {
+      listen('flush-saves', async () => {
+        try {
+          flushAllEditorSaves();
+          // Also signal hover windows (they have their own editor pools).
+          const { emit } = await import('@tauri-apps/api/event');
+          await emit('hover:flush-saves');
+        } catch (e) {
+          console.warn('[App] flush-saves handler failed:', e);
+        }
+      }).then(fn => { unlisten = fn; });
+    });
+    return () => { unlisten?.(); };
+  }, []);
+
   // ========== SAVE & CLOSE HOVER WINDOWS ON MAIN WINDOW CLOSE / REFRESH ==========
   useEffect(() => {
     // Tauri close handler: save all dirty editors, then close hover windows
     const mainWindow = getCurrentWindow();
     const unlistenPromise = mainWindow.onCloseRequested(async () => {
       flushAllEditorSaves();
+      // Persist current theme to global store so VaultSelector opens with correct theme
+      try {
+        const { getGlobalStore } = await import('../stores/persistenceUtils');
+        const { useSettingsStore } = await import('../stores/settingsStore');
+        const globalStore = await getGlobalStore();
+        await globalStore.set('last_theme', useSettingsStore.getState().theme);
+      } catch {}
+      // Signal hover windows to flush saves before closing them
+      try {
+        const { emit } = await import('@tauri-apps/api/event');
+        await emit('hover:flush-saves');
+        // Brief wait for hover windows to process the flush
+        await new Promise(r => setTimeout(r, 50));
+      } catch {}
       await closeAllHoverWindows();
     });
 
@@ -178,43 +238,73 @@ function AppLayout() {
     return () => unlisten?.();
   }, []);
 
-  // Main window is hidden until vault is selected (via Rust setup).
-  // If vaultPath is null, try reopening VaultSelector (handles HMR recovery)
+  // No vault selected — show inline vault selector in main window.
+  // initializeApp() will show the main window when no saved vault is found.
   if (!vaultPath) {
-    // Auto-reopen vault selector if main window is visible (HMR recovery)
-    import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-      getCurrentWindow().isVisible().then(visible => {
-        if (visible) {
-          import('@tauri-apps/api/core').then(({ invoke }) => {
-            invoke('sync_open_vault_selector').catch(() => {});
-          });
-        }
-      });
-    }).catch(() => {});
-    return <LoadingScreen isLoading={true} />;
+    return (
+      <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        {/* Custom titlebar for decorations:false window — drag + close */}
+        <div
+          style={{
+            height: 36,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            padding: '0 4px',
+            // @ts-ignore — WebKit-specific CSS property
+            WebkitAppRegion: 'drag',
+            flexShrink: 0,
+          }}
+        >
+          <button
+            onClick={() => import('@tauri-apps/api/window').then(m => m.getCurrentWindow().close())}
+            style={{
+              // @ts-ignore
+              WebkitAppRegion: 'no-drag',
+              background: 'none',
+              border: 'none',
+              color: 'var(--tx-2)',
+              fontSize: 18,
+              cursor: 'pointer',
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 6,
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+          >
+            ×
+          </button>
+        </div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ConnectionVaultSelector onVaultSelected={(localPath, vaultName) => {
+            import('../stores/appActions').then(m => m.openVault(localPath));
+            import('@tauri-apps/api/event').then(({ emit }) => {
+              emit('vault-selected', { localPath, vaultName });
+            });
+          }} />
+        </div>
+      </div>
+    );
   }
 
-  // Open vault selector window when manually triggered (e.g. from sidebar)
-  if (showVaultSelectorModal) {
-    import('@tauri-apps/api/core').then(({ invoke }) => {
-      invoke('sync_open_vault_selector').catch(console.warn);
-    });
-    modalActions.setShowVaultSelectorModal(false);
-  }
+  // (Render-body side effect removed — was firing async hide+open in the
+  // render path which is racy; moved to a useEffect below.)
 
-  // Guard: keep VaultSelector import for type compatibility
-  if (false as boolean) {
-    return <VaultSelector />;
-  }
-
-  // Show loading screen while initializing vault and search index
-  if (!searchReady) {
-    return <LoadingScreen isLoading={true} />;
-  }
+  // Search index initializes in background — app is usable immediately
+  // searchReady=false only means search/graph results may be stale temporarily
 
   return (
     <div className="app-container">
+      <ToastContainer />
       <TitleBar />
+      {/* Track H bulk-delete banner. Self-hides when count is 0. */}
+      <NasDeletionsBanner />
+      {/* Trash panel — opens via store flag (toast button / settings / etc.). */}
+      <TrashPanel />
       <div className="app-layout">
         {/* Left Sidebar with slide animation */}
         <div className={`sidebar-wrapper ${showSidebar ? 'open' : 'closed'} ${sidebarAnimState}`} style={{ width: showSidebar || sidebarAnimState === 'closing' ? sidebarWidth : undefined }}>
@@ -236,6 +326,7 @@ function AppLayout() {
           )}
         </div>
         <div className="editor-area">
+          <Slot name="editor-banner" />
           {showSearch ? (
             <Search refreshTrigger={searchRefreshTrigger} />
           ) : selectedContainer ? (
