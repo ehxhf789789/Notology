@@ -23,6 +23,7 @@ import { syncV2Commands, type AttachmentRefDto } from '../sync_v2/syncV2Commands
 import { modalActions } from '../modals/stores/modalStore';
 import { getAttachmentCategory } from '../suggestions/attachmentCategory';
 import { requestAttachmentDelete } from '../sync_v2/attachmentDelete';
+import { startAttachmentDrag, startMultiAttachmentDrag } from '../sync_v2/attachmentDragOut';
 import { t } from '../../core/utils/i18n';
 
 interface AttachmentsTabProps {
@@ -198,6 +199,38 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
     });
   }, []);
 
+  // ── Drag-out (Session 2.5, HanBin 2026-05-13) ─────────────────────────────
+  // Same native OS drag-out infrastructure the editor chips use: route
+  // through `attachmentDragOut.ts` → `tauri-plugin-drag`. Two paths:
+  //   • dragstart on a row inside the current selection (size > 1)
+  //     → drag every selected ref at once (`startMultiAttachmentDrag`)
+  //   • dragstart anywhere else → single ref drag for that row
+  // The row itself carries `draggable={true}`; preventDefault on dragstart
+  // is required so the browser doesn't fall back to its own text-drag
+  // payload (which WebView2 can't promote to a file promise — confirmed
+  // in PART 5 POC).
+  const handleRowDragStart = useCallback((row: AttachmentRow, e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'none';
+
+    const id = row.ref.attachmentId;
+    if (selectedIds.size > 1 && selectedIds.has(id)) {
+      // Multi-drag: every currently selected ref.
+      const refs = rows.filter((r) => selectedIds.has(r.ref.attachmentId)).map((r) => r.ref);
+      void startMultiAttachmentDrag(refs).catch((err) => {
+        console.error('[AttachmentsTab] multi drag-out failed:', err);
+      });
+      return;
+    }
+    // Single-row drag — pass the first linked note (if any) so the
+    // attachment store's resolver can disambiguate name collisions.
+    const noteId = row.ref.linkedNotes[0];
+    void startAttachmentDrag(row.ref.originalName, noteId).catch((err) => {
+      console.error('[AttachmentsTab] drag-out failed:', err);
+    });
+  }, [rows, selectedIds]);
+
   // ── Right-click context menu ──────────────────────────────────────────────
   // Reuses the shared ContextMenu surface so the menu items + styling
   // match what the editor chip already shows. The deleteCallback routes
@@ -282,6 +315,7 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
               selected={selectedIds.has(row.ref.attachmentId)}
               onClick={handleRowClick}
               onContextMenu={handleRowContextMenu}
+              onDragStart={handleRowDragStart}
               onRetry={handleRetryStuck}
               onDeleteOrphan={handleDeleteOrphan}
             />
@@ -357,6 +391,7 @@ interface RowProps {
   selected: boolean;
   onClick: (row: AttachmentRow, e: React.MouseEvent) => void;
   onContextMenu: (row: AttachmentRow, e: React.MouseEvent) => void;
+  onDragStart: (row: AttachmentRow, e: React.DragEvent) => void;
   onRetry: (row: AttachmentRow, e: React.MouseEvent) => void;
   onDeleteOrphan: (row: AttachmentRow, e: React.MouseEvent) => void;
 }
@@ -367,6 +402,7 @@ function AttachmentRow({
   selected,
   onClick,
   onContextMenu,
+  onDragStart,
   onRetry,
   onDeleteOrphan,
 }: RowProps) {
@@ -377,6 +413,8 @@ function AttachmentRow({
       className={`search-row att-row-${tier}${selected ? ' selected' : ''}`}
       onClick={(e) => onClick(row, e)}
       onContextMenu={(e) => onContextMenu(row, e)}
+      draggable
+      onDragStart={(e) => onDragStart(row, e)}
     >
       <td className="search-td search-title">{ref.originalName}</td>
       <td className="search-td">
