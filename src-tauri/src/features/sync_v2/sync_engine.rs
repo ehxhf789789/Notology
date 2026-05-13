@@ -282,6 +282,54 @@ impl SyncEngine {
             run_attachment_migration_if_needed(vault_for_migration, dirty_queue_for_migration).await;
         });
 
+        // PART 6 hardening (HanBin 2026-05-13 "원천 방지"): orphan sweep.
+        // Walk CAS blobs + `.attachments/` display files at vault open and
+        // remove anything not referenced by any AttachmentRef. Catches:
+        //   - Blobs left behind when hard-delete hit a Windows file lock
+        //     (the `let _ = remove_file(...)` swallow path in
+        //     `delete_attachment`).
+        //   - Display files left behind for the same reason — they cause
+        //     `_1.ext` collision suffixes on subsequent re-adds.
+        //   - Blobs written by an aborted `attachment_add` (atomic_write
+        //     succeeded then the persist_ref step failed).
+        // Idempotent: blobs/files still in use (locked) are skipped with a
+        // warning and tried again on the next vault open / periodic tick.
+        let vault_for_sweep = self.vault_path.clone();
+        let stop_for_sweep = self.stop_signal.clone();
+        tokio::spawn(async move {
+            // Run once at startup, then every 6 hours while the engine is up.
+            // 6 h chosen as a compromise: short enough that disk leaks from
+            // a transient lock get reclaimed within a working day; long
+            // enough that the periodic I/O cost is negligible.
+            loop {
+                if stop_for_sweep.load(std::sync::atomic::Ordering::Relaxed) {
+                    break;
+                }
+                match crate::features::sync_v2::attachment_store::AttachmentStore::new(
+                    vault_for_sweep.clone(),
+                ) {
+                    Ok(store) => {
+                        let (blobs, displays) = store.sweep_orphans();
+                        if blobs + displays == 0 {
+                            log::debug!("[attachment_sweep] no orphans");
+                        }
+                    }
+                    Err(e) => log::warn!("[attachment_sweep] store init failed: {}", e),
+                }
+                // Wake every 60 s to honor stop_signal promptly, but only
+                // actually sweep every 6 h.
+                let mut waited = 0u64;
+                const SWEEP_INTERVAL_SECS: u64 = 6 * 3600;
+                while waited < SWEEP_INTERVAL_SECS {
+                    if stop_for_sweep.load(std::sync::atomic::Ordering::Relaxed) {
+                        return;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                    waited += 60;
+                }
+            }
+        });
+
         // Tier 2: AdaptivePoller
         let engine_for_reconcile = Arc::clone(self);
         let poller = Arc::new(AdaptivePoller::new(

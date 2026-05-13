@@ -154,18 +154,32 @@ async function initGlobalListener() {
               error: String(bothFailedError),
             });
           }
-          // Sanity check: even after a successful add path, if nothing has
-          // appeared in the attachment store after 8 s, something is wrong
-          // (engine offline + local-only write, or backend misroute). Emit a
-          // diagnostic log to help the user surface the bug.
+          // Sanity check (HanBin 2026-05-13 "원천 방지"): even if the add
+          // path reported success, if no AttachmentRef has appeared in the
+          // store after 8 s the chip is effectively orphaned. Two causes
+          // observed:
+          //   - sync engine was restarting during the call → ref written
+          //     locally but never enqueued and lost on the next sweep
+          //   - smart-dedup misfire returning an existing ref under a
+          //     different `original_name` (now fixed, but defense-in-depth)
+          // Don't just log: trigger the same orphan-removal pipeline so
+          // the chip cannot accumulate as a "dummy" in the user's note.
           if (attachmentAddSucceeded && basename) {
             setTimeout(() => {
               const ref = useAttachmentStore.getState().resolveByName(basename);
               if (!ref) {
                 console.warn(
-                  '[useDragDrop] attachment_add reported success but no ref appeared after 8 s:',
+                  '[useDragDrop] attachment_add reported success but no ref appeared after 8 s — treating as orphan:',
                   basename,
                 );
+                try {
+                  addPersistentFailedAdd(target.notePath, basename);
+                } catch {}
+                EventBus.emit('attachment:addFailed', {
+                  fileName: basename,
+                  notePath: target.notePath,
+                  error: 'no-ref-after-success',
+                });
               }
             }, 8000);
           }

@@ -284,6 +284,20 @@ impl AttachmentSync {
         let r: AttachmentRef =
             serde_json::from_slice(&ref_bytes).map_err(|e| format!("parse ref: {}", e))?;
 
+        // PART 6 hardening (HanBin 2026-05-13 "원천 방지"): refuse to import
+        // refs with empty `linked_notes`. Such refs would land as orphans
+        // on this device — same shape as a locally-failed add — and
+        // accumulate over time as cross-device sync deletes propagate.
+        // Once the original device removes the last link, the remote ref
+        // disappears too; we don't need to mirror its zombie window.
+        if r.linked_notes.is_empty() {
+            log::warn!(
+                "[attachment_sync] skipping import of orphan remote ref {} (linked_notes empty)",
+                attachment_id
+            );
+            return Ok(());
+        }
+
         // CAS blob — pull if not present locally.
         let blob_local = vault_root
             .join(".notology/cas/blobs")

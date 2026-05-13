@@ -434,6 +434,129 @@ impl AttachmentStore {
         self.refs_by_id.values()
     }
 
+    /// PART 6 hardening (HanBin 2026-05-13 "원천 방지"): sweep orphan
+    /// CAS blobs and orphan display hardlinks that accumulated from
+    /// failed deletes (NTFS file locks, antivirus, etc.) or aborted
+    /// `attachment_add` calls (blob written, ref persist failed).
+    ///
+    /// "Orphan" here means a file under `.notology/cas/blobs/` or
+    /// `.attachments/` whose sha (for blobs) or display path (for
+    /// display files) does not correspond to ANY entry in `refs_by_id`.
+    ///
+    /// Returns `(blobs_removed, display_files_removed)`. Non-fatal on
+    /// individual file errors — they are logged and skipped so a
+    /// single locked file does not abort the sweep.
+    pub fn sweep_orphans(&self) -> (usize, usize) {
+        let valid_shas: std::collections::HashSet<&str> =
+            self.refs_by_id.values().map(|r| r.sha256.as_str()).collect();
+        let valid_displays: std::collections::HashSet<String> = self
+            .refs_by_id
+            .values()
+            .filter_map(|r| {
+                // `display_path` is vault-relative `.attachments/<name>`.
+                // Extract just the basename for the comparison set.
+                r.display_path
+                    .rsplit('/')
+                    .next()
+                    .map(|s| s.to_string())
+            })
+            .collect();
+
+        let mut blobs_removed = 0usize;
+        let mut displays_removed = 0usize;
+
+        // Walk `.notology/cas/blobs/{xx}/{yy}/{sha}` — the two-level shard.
+        let blob_root = self.vault_root.join(".notology/cas/blobs");
+        if blob_root.is_dir() {
+            if let Ok(level1) = std::fs::read_dir(&blob_root) {
+                for l1 in level1.flatten() {
+                    let l1_path = l1.path();
+                    if !l1_path.is_dir() {
+                        continue;
+                    }
+                    if let Ok(level2) = std::fs::read_dir(&l1_path) {
+                        for l2 in level2.flatten() {
+                            let l2_path = l2.path();
+                            if !l2_path.is_dir() {
+                                continue;
+                            }
+                            if let Ok(files) = std::fs::read_dir(&l2_path) {
+                                for f in files.flatten() {
+                                    let fp = f.path();
+                                    if !fp.is_file() {
+                                        continue;
+                                    }
+                                    let sha = fp
+                                        .file_name()
+                                        .and_then(|s| s.to_str())
+                                        .unwrap_or("");
+                                    if sha.is_empty() {
+                                        continue;
+                                    }
+                                    if !valid_shas.contains(sha) {
+                                        match std::fs::remove_file(&fp) {
+                                            Ok(()) => {
+                                                blobs_removed += 1;
+                                                log::info!(
+                                                    "[attachment_store::sweep_orphans] removed orphan blob {}",
+                                                    sha
+                                                );
+                                            }
+                                            Err(e) => log::warn!(
+                                                "[attachment_store::sweep_orphans] could not remove blob {}: {} (likely file lock; will retry next sweep)",
+                                                sha, e
+                                            ),
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Walk `.attachments/` — flat directory, one file per display path.
+        let display_root = self.display_dir();
+        if display_root.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&display_root) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if !p.is_file() {
+                        continue;
+                    }
+                    let name = p.file_name().and_then(|s| s.to_str()).unwrap_or("");
+                    if name.is_empty() {
+                        continue;
+                    }
+                    if !valid_displays.contains(name) {
+                        match std::fs::remove_file(&p) {
+                            Ok(()) => {
+                                displays_removed += 1;
+                                log::info!(
+                                    "[attachment_store::sweep_orphans] removed orphan display {}",
+                                    name
+                                );
+                            }
+                            Err(e) => log::warn!(
+                                "[attachment_store::sweep_orphans] could not remove display {}: {} (likely file lock; will retry next sweep)",
+                                name, e
+                            ),
+                        }
+                    }
+                }
+            }
+        }
+
+        if blobs_removed + displays_removed > 0 {
+            log::info!(
+                "[attachment_store::sweep_orphans] swept {} blobs + {} displays",
+                blobs_removed, displays_removed
+            );
+        }
+        (blobs_removed, displays_removed)
+    }
+
     /// Update sync metadata after a successful push. Called by `attachment_sync`.
     pub fn record_sync_etag(
         &mut self,
@@ -709,6 +832,37 @@ mod tests {
         // Both display hardlinks exist with distinct paths.
         assert!(tmp.path().join(".attachments/Video 24.m4a").exists());
         assert!(tmp.path().join(".attachments/Video 24_copy.m4a").exists());
+    }
+
+    /// PART 6 hardening (HanBin 2026-05-13): orphan-blob + orphan-display
+    /// sweep. Files left behind by a Windows-locked delete must get
+    /// reclaimed by the next vault-open / periodic sweep.
+    #[test]
+    fn sweep_orphans_removes_unreferenced_blob_and_display() {
+        let (tmp, mut store) = mk_store();
+        // Plant an unreferenced CAS blob.
+        let orphan_sha = "deadbeef".repeat(8);
+        let blob_path = store.cas_path(&orphan_sha);
+        std::fs::create_dir_all(blob_path.parent().unwrap()).unwrap();
+        std::fs::write(&blob_path, b"junk").unwrap();
+        // Plant an unreferenced display file.
+        std::fs::create_dir_all(store.display_dir()).unwrap();
+        let stray_display = store.display_dir().join("stray.bin");
+        std::fs::write(&stray_display, b"junk").unwrap();
+        // Plant a legitimate attachment so we can assert it survives.
+        let src = write_source(tmp.path(), "keep.pdf", b"keep me");
+        let out = store.add_attachment(&src, "keep.pdf", "n1").unwrap();
+        let kept_blob = store.cas_path(&out.attachment_ref.sha256);
+
+        let (blobs, displays) = store.sweep_orphans();
+        assert_eq!(blobs, 1);
+        assert_eq!(displays, 1);
+        // Orphans gone.
+        assert!(!blob_path.exists());
+        assert!(!stray_display.exists());
+        // Legitimate ones survived.
+        assert!(kept_blob.is_file());
+        assert!(tmp.path().join(".attachments/keep.pdf").exists());
     }
 
     /// Re-drop of the EXACT same (sha, name, note) tuple is a no-op:
