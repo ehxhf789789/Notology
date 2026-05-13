@@ -4,6 +4,7 @@
 //! Before init, commands return "Sync engine not initialized" error.
 
 use std::sync::{Arc, Mutex};
+use tauri::Emitter;
 use crate::features::sync_v2::sync_engine::{SyncEngine, SyncState, SyncReport};
 use crate::features::sync_v2::branch_manager::NoteWithConflicts;
 use crate::features::sync_v2::config::SyncV2Config;
@@ -550,6 +551,7 @@ fn require_vault(library_state: &LibraryState) -> Result<std::path::PathBuf, Str
 /// one must be supplied; `notePath` is read first to extract the id.
 #[tauri::command]
 pub async fn attachment_add(
+    app: tauri::AppHandle,
     source_path: String,
     note_path: Option<String>,
     note_id: Option<String>,
@@ -599,13 +601,22 @@ pub async fn attachment_add(
         );
     }
 
-    Ok(r.into())
+    let dto: AttachmentRefDto = r.into();
+    // Track B Phase B-3 hotfix (2026-05-13): emit a *global* Tauri event so
+    // every open webview (main + hover windows) can refresh its
+    // attachmentStore. The frontend wrapper's `EventBus.emit` only fires
+    // in the JS context that initiated the drop — if the user closed that
+    // window before `attachment_add` resolved, no other webview ever heard
+    // about the new ref, and chip in a freshly-opened hover stayed gray.
+    let _ = app.emit("attachment:saved", &dto);
+    Ok(dto)
 }
 
 /// Delete an attachment by id. Removes ref + display + (orphan) blob locally
 /// and enqueues a NAS delete.
 #[tauri::command]
 pub async fn attachment_delete(
+    app: tauri::AppHandle,
     attachment_id: String,
     library_state: tauri::State<'_, LibraryState>,
     sync_state: tauri::State<'_, SyncEngineState>,
@@ -629,6 +640,7 @@ pub async fn attachment_delete(
             lane,
         );
     }
+    let _ = app.emit("attachment:deleted", &attachment_id);
     Ok(())
 }
 

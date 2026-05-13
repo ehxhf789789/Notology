@@ -17,6 +17,7 @@
 
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { syncV2Commands, type AttachmentRefDto } from '../syncV2Commands';
 import { EventBus } from '../../../core/infrastructure/eventBus';
 import { useFileTreeStore } from '../../../core/stores/fileTreeStore';
@@ -261,12 +262,35 @@ export function initAttachmentStoreSubscriptions(): () => void {
     },
   );
 
+  // Track B Phase B-3 hotfix (2026-05-13): cross-webview Tauri events.
+  // Backend `attachment_add` / `attachment_delete` commands emit the
+  // canonical events; the frontend EventBus.emit in the wrapper is only
+  // visible to the JS context that issued the invoke. Without these
+  // listeners, a hover window that wasn't open during the drop never
+  // hears about the new ref and renders its chip as gray indefinitely.
+  let tauriOffSaved: UnlistenFn | null = null;
+  let tauriOffDeleted: UnlistenFn | null = null;
+  void (async () => {
+    try {
+      tauriOffSaved = await listen<AttachmentRefDto>('attachment:saved', () => {
+        void useAttachmentStore.getState().refresh();
+      });
+      tauriOffDeleted = await listen<string>('attachment:deleted', () => {
+        void useAttachmentStore.getState().refresh();
+      });
+    } catch (e) {
+      console.warn('[attachmentStore] tauri event listen failed:', e);
+    }
+  })();
+
   return () => {
     off1();
     off2();
     off3();
     off4();
     off5();
+    if (tauriOffSaved) tauriOffSaved();
+    if (tauriOffDeleted) tauriOffDeleted();
   };
 }
 
