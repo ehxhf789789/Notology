@@ -107,6 +107,7 @@ export const useAttachmentStore = create<AttachmentState>()(
           loading: false,
         });
         console.log(`[attachmentStore] hydrated ${refs.length} refs`);
+        maybeStartUploadPolling();
       } catch (err) {
         set({ loading: false, error: String(err) });
         console.error('[attachmentStore] hydrate failed:', err);
@@ -125,6 +126,7 @@ export const useAttachmentStore = create<AttachmentState>()(
           loading: false,
         });
         console.log(`[attachmentStore] refreshed → ${refs.length} refs`);
+        maybeStartUploadPolling();
       } catch (err) {
         set({ loading: false, error: String(err) });
         console.warn('[attachmentStore] refresh failed:', err);
@@ -234,3 +236,38 @@ export const useAttachmentResolver = () =>
   useAttachmentStore((s) => s.resolveByName);
 
 export const useAttachmentList = () => useAttachmentStore((s) => s.all());
+
+// ── Upload-status polling ──────────────────────────────────────────────────
+// While any ref has `syncEtag === null` we are mid-push to NAS. The backend
+// owns the actual sync_etag write — there's no Tauri event for "this single
+// attachment's push finished" yet, so the frontend polls the store every
+// few seconds to detect the transition. As soon as every ref has an etag,
+// polling stops. Cheap (one Tauri command per tick) and bounded by the
+// user actually having pending uploads.
+const UPLOAD_POLL_INTERVAL_MS = 4000;
+let uploadPollTimer: ReturnType<typeof setInterval> | null = null;
+
+function hasUploadingRef(): boolean {
+  for (const r of useAttachmentStore.getState().index.byId.values()) {
+    if (!r.syncEtag) return true;
+  }
+  return false;
+}
+
+function maybeStartUploadPolling() {
+  if (uploadPollTimer !== null) return;
+  if (!hasUploadingRef()) return;
+  uploadPollTimer = setInterval(() => {
+    if (!hasUploadingRef()) {
+      // Nothing left in flight — stop polling. A future drag-in or NAS
+      // pull triggers refresh()/hydrate() which will restart polling if
+      // new uploading refs appear.
+      if (uploadPollTimer !== null) {
+        clearInterval(uploadPollTimer);
+        uploadPollTimer = null;
+      }
+      return;
+    }
+    void useAttachmentStore.getState().refresh();
+  }, UPLOAD_POLL_INTERVAL_MS);
+}

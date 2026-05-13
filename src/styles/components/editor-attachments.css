@@ -529,3 +529,52 @@ html[data-theme="light"] .wiki-image-embed-delete {
   background-color: color-mix(in srgb, var(--c-blue, #3b82f6) 12%, transparent);
   z-index: 2147483646;
 }
+
+/* ===== Track B Phase B-3 stabilization: sync status indicators =====
+   Three transitional states layered on top of every tier color:
+     .wiki-link-uploading  → NAS push in flight (ref exists, no sync_etag)
+     .wiki-link-synced     → fully pushed (sync_etag set) — no extra paint,
+                              the tier color already says "done"
+     .unresolved (existing)→ attachment_add still running (no ref yet)
+*/
+
+@keyframes wiki-link-upload-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-amber, #f59e0b) 60%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-amber, #f59e0b) 0%, transparent);
+  }
+}
+
+.wiki-link-inline.wiki-link-uploading {
+  position: relative;
+  border-color: color-mix(in srgb, var(--c-amber, #f59e0b) 60%, transparent) !important;
+  animation: wiki-link-upload-pulse 1.8s ease-in-out infinite;
+}
+
+/* Tiny spinning glyph on the trailing edge so the indicator is readable
+   even when the user's theme suppresses the box-shadow pulse. */
+.wiki-link-inline.wiki-link-uploading::after {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 4px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--c-amber, #f59e0b) 70%, transparent);
+  border-top-color: transparent;
+  animation: wiki-link-spinner 0.8s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes wiki-link-spinner {
+  to { transform: rotate(360deg); }
+}
+
+/* Unresolved (still mid attachment_add) — make the gray pulse so users
+   can tell "processing" from "broken link". */
+.wiki-link-inline.unresolved.attachment {
+  animation: wiki-link-upload-pulse 1.8s ease-in-out infinite;
+  opacity: 0.85;
+}

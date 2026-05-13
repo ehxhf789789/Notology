@@ -518,9 +518,27 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                 const noteType = isAttachment ? '' :
                   (getNoteType ? (getNoteType(fileName) || '').toLowerCase() : inferNoteType(fileName));
 
+                // Track B Phase B-3 stabilization: surface sync status on
+                // the chip so a 600 MB upload doesn't look like the drop
+                // failed. Three states:
+                //   - unresolved (no ref yet)         : `attachment_add` in
+                //     flight, still computing sha / writing CAS.
+                //   - uploading (ref exists, no etag) : NAS push in flight
+                //     (chunked or single PUT).
+                //   - resolved (etag present)         : fully synced.
+                let attachmentSyncClass = '';
+                if (isAttachment) {
+                  const attRef = useAttachmentStore.getState().resolveByName(fileName);
+                  if (attRef && !attRef.syncEtag) {
+                    attachmentSyncClass = 'wiki-link-uploading';
+                  } else if (attRef) {
+                    attachmentSyncClass = 'wiki-link-synced';
+                  }
+                }
+
                 decorations.push(
                   Decoration.node(pos, pos + node.nodeSize, {
-                    class: `wiki-link-decoration ${isAttachment ? `attachment att-${getAttachmentCategory(fileName)}` : ''} ${noteType ? `note-type-${noteType}` : ''} ${isResolved ? 'resolved' : 'unresolved'}`,
+                    class: `wiki-link-decoration ${isAttachment ? `attachment att-${getAttachmentCategory(fileName)}` : ''} ${noteType ? `note-type-${noteType}` : ''} ${isResolved ? 'resolved' : 'unresolved'} ${attachmentSyncClass}`,
                   })
                 );
                 return false; // Don't descend into atom node
