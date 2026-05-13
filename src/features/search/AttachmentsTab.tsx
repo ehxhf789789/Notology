@@ -1,25 +1,26 @@
 /**
- * Track B Phase B-3 PART 6 — Attachments tab redesign (HanBin 2026-05-13).
+ * Track B Phase B-3 PART 6 — Attachments tab (HanBin 2026-05-13).
  *
- * Replaces the legacy filesystem-walk based attachments tab with a view
- * driven entirely by the `AttachmentRef` index. The single source of
- * truth is `useAttachmentStore` — no more reconciling `_att/` folders
- * with refs in the new schema.
+ * Driven by `useAttachmentStore` (the AttachmentRef index). To stay
+ * visually consistent with the other Search tabs (노트, 본문, 상세) it
+ * piggy-backs on the existing `.search-table` / `.search-row` /
+ * `.search-th` / `.search-td` classes — no bespoke layout system. Tier
+ * is shown the same way the legacy tab showed it: via the colored
+ * `.att-row-{category}` left border, NOT inline icons.
  *
- * SESSION 1 SCOPE: foundation. Columns, basic click handlers, sync-state
- * badges. Filters / bulk actions / context menu are placeholder-only and
- * land in session 2.
+ * Session 1 scope: index-driven listing + inline retry/discard for the
+ * stuck/orphan rows. Bulk multi-select (Ctrl/Shift+click), filter pills,
+ * and right-click context menu land in session 2.
  */
 
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import { useVaultPath } from '../../core/stores/fileTreeStore';
 import { hoverActions } from '../hover-windows/stores/hoverStore';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { syncV2Commands, type AttachmentRefDto } from '../sync_v2/syncV2Commands';
-import { utilCommands } from '../../core/services/tauriCommands';
 import { getAttachmentCategory } from '../suggestions/attachmentCategory';
-import { t, tf } from '../../core/utils/i18n';
+import { t } from '../../core/utils/i18n';
 
 interface AttachmentsTabProps {
   /** Optional filter: when set, only show refs linked to this folder. */
@@ -79,17 +80,11 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
   // store refresh (hydrate / EventBus / polling).
   const byId = useAttachmentStore((s) => s.index.byId);
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
   const rows: AttachmentRow[] = useMemo(() => {
     const out: AttachmentRow[] = [];
     const q = query.trim().toLowerCase();
-    const containerNormalized = containerPath
-      ? containerPath.replace(/\\/g, '/').toLowerCase()
-      : null;
 
     for (const ref of byId.values()) {
-      // Text query: match originalName OR displayPath basename.
       if (q) {
         const dispBase = (ref.displayPath.split('/').pop() ?? '').toLowerCase();
         if (
@@ -97,15 +92,7 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
           && !dispBase.includes(q)
         ) continue;
       }
-
-      // Container filter: keep refs whose ANY linked note path starts with
-      // the container path. We only have note_ids here, not paths; for the
-      // first cut we skip this filter when containerPath is set (rare —
-      // user can still text-filter). Full implementation needs a note_id
-      // → note_path resolver, which arrives in session 2.
-      if (containerNormalized) {
-        // No-op for now (session 2 wires note_path lookup).
-      }
+      // containerPath filter requires note_id→path resolver; arrives in session 2.
 
       const localPath = vaultPath
         ? (vaultPath + '/' + ref.displayPath).replace(/\\/g, '/')
@@ -118,174 +105,99 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
       });
     }
 
-    // Default sort: newest first (by attachment_id timestamp).
     out.sort((a, b) => b.ref.attachmentId.localeCompare(a.ref.attachmentId));
     return out;
-  }, [byId, query, containerPath, vaultPath]);
+  }, [byId, query, vaultPath, containerPath]);
 
   const handleRowClick = useCallback((row: AttachmentRow) => {
     if (!row.localPath) return;
     void hoverActions.open(row.localPath);
   }, []);
 
-  const handleRevealInExplorer = useCallback((row: AttachmentRow) => {
-    if (!row.localPath) return;
-    void utilCommands.revealInExplorer(row.localPath).catch((e) => {
-      console.error('[AttachmentsTab] revealInExplorer failed:', e);
+  const handleRetryStuck = useCallback((row: AttachmentRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    void syncV2Commands.attachmentRetry(row.ref.attachmentId).catch((err) => {
+      console.error('[AttachmentsTab] retry failed:', err);
     });
   }, []);
 
-  const handleRetryStuck = useCallback((row: AttachmentRow) => {
-    void syncV2Commands.attachmentRetry(row.ref.attachmentId).catch((e) => {
-      console.error('[AttachmentsTab] retry failed:', e);
+  const handleDeleteOrphan = useCallback((row: AttachmentRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Orphan ref (linked_notes empty) → safe to hard-delete; nothing to unlink.
+    // Bypasses the Option C confirmation modal since the user explicitly
+    // clicked ✕ on a known-broken entry.
+    void syncV2Commands.attachmentDelete(row.ref.attachmentId).catch((err) => {
+      console.error('[AttachmentsTab] orphan delete failed:', err);
     });
   }, []);
 
-  const handleDeleteOrphan = useCallback((row: AttachmentRow) => {
-    // Orphan ref (linked_notes empty) → safe to hard-delete with no
-    // wikilink cleanup needed. Bypass the Option C confirmation modal
-    // since the user explicitly clicked Delete on a known-broken entry.
-    void syncV2Commands.attachmentDelete(row.ref.attachmentId).catch((e) => {
-      console.error('[AttachmentsTab] orphan delete failed:', e);
-    });
-  }, []);
-
-  // Manual reconcile UI was removed (HanBin 2026-05-13): metadata
-  // discrepancies are auto-corrected by the backend at every vault open
-  // (`sync_engine::start` → `reconcile_apply_auto`), and what survives
-  // surfaces naturally in this tab as orphan rows (✕ button) plus the
-  // editor's ✕ chip visual. A separate "Verify" button only added
-  // surface area without paying for itself.
-
-  const toggleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  // Auto-reconcile runs at vault open in `sync_engine::start`; there is no
+  // manual "Verify links" surface. What survives surfaces as orphan rows
+  // below + the editor's ✕ chip visual.
 
   return (
-    <div className="attachments-tab-v2">
-      <table className="search-table">
-        <thead>
+    <table className="search-table">
+      <thead>
+        <tr>
+          <th className="search-th">{t('fileName', language)}</th>
+          <th className="search-th">{t('attachmentLinkedNotes', language)}</th>
+          <th className="search-th">{t('attachmentSyncState', language)}</th>
+          <th className="search-th">{t('attachmentSize', language)}</th>
+          <th className="search-th">{t('attachmentCreated', language)}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <AttachmentRow
+            key={row.ref.attachmentId}
+            row={row}
+            language={language}
+            onClick={handleRowClick}
+            onRetry={handleRetryStuck}
+            onDeleteOrphan={handleDeleteOrphan}
+          />
+        ))}
+        {rows.length === 0 && (
           <tr>
-            <th className="search-th" style={{ width: 32 }}>
-              <input
-                type="checkbox"
-                checked={selectedIds.size > 0 && selectedIds.size === rows.length}
-                onChange={(e) => {
-                  if (e.target.checked) setSelectedIds(new Set(rows.map((r) => r.ref.attachmentId)));
-                  else setSelectedIds(new Set());
-                }}
-              />
-            </th>
-            <th className="search-th">{t('fileName', language)}</th>
-            <th className="search-th" style={{ width: 90 }}>{t('attachmentSize', language)}</th>
-            <th className="search-th">{t('attachmentLinkedNotes', language)}</th>
-            <th className="search-th" style={{ width: 110 }}>{t('attachmentSyncState', language)}</th>
-            <th className="search-th" style={{ width: 110 }}>{t('attachmentCreated', language)}</th>
+            <td className="search-td search-empty" colSpan={5}>
+              {t('noAttachments', language)}
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <AttachmentRow
-              key={row.ref.attachmentId}
-              row={row}
-              selected={selectedIds.has(row.ref.attachmentId)}
-              language={language}
-              onToggleSelect={toggleSelect}
-              onClick={handleRowClick}
-              onReveal={handleRevealInExplorer}
-              onRetry={handleRetryStuck}
-              onDeleteOrphan={handleDeleteOrphan}
-            />
-          ))}
-          {rows.length === 0 && (
-            <tr>
-              <td className="search-td search-empty" colSpan={6}>
-                {t('noAttachments', language)}
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-      <div className="attachments-tab-v2-footer">
-        <span className="search-count">{tf('attachmentsCountLabel', language, { count: rows.length })}</span>
-        {selectedIds.size > 0 && (
-          <span className="attachments-tab-v2-selected">
-            {tf('selectedCount', language, { count: selectedIds.size })}
-          </span>
         )}
-      </div>
-    </div>
+      </tbody>
+    </table>
   );
 }
 
 interface RowProps {
   row: AttachmentRow;
-  selected: boolean;
   language: ReturnType<typeof useSettingsStore.getState>['language'];
-  onToggleSelect: (id: string) => void;
   onClick: (row: AttachmentRow) => void;
-  onReveal: (row: AttachmentRow) => void;
-  onRetry: (row: AttachmentRow) => void;
-  onDeleteOrphan: (row: AttachmentRow) => void;
+  onRetry: (row: AttachmentRow, e: React.MouseEvent) => void;
+  onDeleteOrphan: (row: AttachmentRow, e: React.MouseEvent) => void;
 }
 
-function AttachmentRow({
-  row,
-  selected,
-  language,
-  onToggleSelect,
-  onClick,
-  onReveal,
-  onRetry,
-  onDeleteOrphan,
-}: RowProps) {
+function AttachmentRow({ row, language, onClick, onRetry, onDeleteOrphan }: RowProps) {
   const { ref, syncState } = row;
   const category = getAttachmentCategory(ref.originalName);
 
-  const stateBadgeClass = `attachments-tab-v2-badge attachments-tab-v2-badge-${syncState}`;
-  const stateLabel =
-    syncState === 'synced' ? t('attachmentSynced', language)
-    : syncState === 'uploading' ? t('attachmentUploading', language)
-    : syncState === 'stuck' ? t('attachmentStuck', language)
-    : t('attachmentOrphan', language);
-
   return (
     <tr
-      className={`attachments-tab-v2-row ${selected ? 'selected' : ''}`}
+      className={`search-row att-row-${category}`}
+      onClick={() => onClick(row)}
     >
-      <td className="search-td" onClick={(e) => e.stopPropagation()}>
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={() => onToggleSelect(ref.attachmentId)}
-        />
-      </td>
-      <td className="search-td" onClick={() => onClick(row)}>
-        <span className={`attachments-tab-v2-name att-${category}`}>
-          {ref.originalName}
-        </span>
-      </td>
-      <td className="search-td">{formatSize(ref.sizeBytes)}</td>
+      <td className="search-td search-title">{ref.originalName}</td>
       <td className="search-td">
-        {ref.linkedNotes.length === 0 ? (
-          <span className="attachments-tab-v2-empty-links">—</span>
-        ) : (
-          <span className="attachments-tab-v2-link-count">
-            {tf('attachmentLinkedNotesCount', language, { count: ref.linkedNotes.length })}
-          </span>
-        )}
+        {ref.linkedNotes.length === 0
+          ? <span className="attachments-tab-v2-muted">—</span>
+          : <span>{ref.linkedNotes.length}</span>}
       </td>
       <td className="search-td">
-        <span className={stateBadgeClass}>{stateLabel}</span>
+        <SyncStateBadge state={syncState} language={language} />
         {syncState === 'stuck' && (
           <button
             className="attachments-tab-v2-mini-btn"
-            onClick={() => onRetry(row)}
+            onClick={(e) => onRetry(row, e)}
             title={t('attachmentStuckRetry', language)}
           >
             ↻
@@ -294,14 +206,34 @@ function AttachmentRow({
         {syncState === 'orphan' && (
           <button
             className="attachments-tab-v2-mini-btn attachments-tab-v2-mini-btn-danger"
-            onClick={() => onDeleteOrphan(row)}
+            onClick={(e) => onDeleteOrphan(row, e)}
             title={t('attachmentStuckDiscard', language)}
           >
             ✕
           </button>
         )}
       </td>
+      <td className="search-td">{formatSize(ref.sizeBytes)}</td>
       <td className="search-td">{formatCreated(ref.attachmentId)}</td>
     </tr>
+  );
+}
+
+function SyncStateBadge({
+  state,
+  language,
+}: {
+  state: SyncState;
+  language: ReturnType<typeof useSettingsStore.getState>['language'];
+}) {
+  const label =
+    state === 'synced' ? t('attachmentSynced', language)
+    : state === 'uploading' ? t('attachmentUploading', language)
+    : state === 'stuck' ? t('attachmentStuck', language)
+    : t('attachmentOrphan', language);
+  return (
+    <span className={`attachments-tab-v2-badge attachments-tab-v2-badge-${state}`}>
+      {label}
+    </span>
   );
 }

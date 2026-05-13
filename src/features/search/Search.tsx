@@ -14,6 +14,7 @@ import { useTemplateStore } from '../templates/stores/templateStore';
 import { useIsNasSynced, useIsBulkSyncing } from '../vault-config/stores/vaultConfigStore';
 import { selectContainer, refreshHoverWindowsForFile } from '../../core/stores/appActions';
 import { contentCacheActions } from '../content-cache/stores/contentCacheStore';
+import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import type { NoteFilter, NoteMetadata, SearchResult, SearchMode, AttachmentInfo } from '../../core/types';
 import { t, tf } from '../../core/utils/i18n';
 import { getTemplateCustomColor as getTemplateColor } from '../content-cache/noteTypeHelpers';
@@ -39,6 +40,11 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   const searchReady = useSearchReady();
   const searchIndexing = useSearchIndexing();
   const vaultPath = useVaultPath();
+  // PART 6 (HanBin 2026-05-13): attachments tab count flows through the
+  // shared `.search-status-bar` like every other tab. AttachmentsTab no
+  // longer renders its own footer — that broke layout parity with 노트 /
+  // 본문 / 상세.
+  const attachmentRefCount = useAttachmentStore((s) => s.index.byId.size);
   const noteTemplates = useTemplateStore(s => s.noteTemplates);
   const language = useSettingsStore(s => s.language);
   const isBulkSyncing = useIsBulkSyncing();
@@ -1415,17 +1421,15 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
         </Suspense>
       ) : null}
 
-      {/* Track B Phase B-3 PART 6: hide the outer status bar in attachments
-          mode — the new AttachmentsTab renders its own footer with a count
-          driven by the AttachmentRef index. Showing both produced
-          "14개 / 0개" double-count (HanBin 2026-05-13). */}
-      {mode !== 'graph' && mode !== 'attachments' && <div className="search-status-bar">
+      {mode !== 'graph' && <div className="search-status-bar">
         <span className="search-count">
           {mode === 'frontmatter'
             ? tf('notesCountLabel', language, { count: filteredNotes.length })
             : mode === 'contents'
               ? tf('resultsCountLabel', language, { count: filteredContentResults.length })
-              : tf('notesCountLabel', language, { count: filteredDetailsNotes.length })}
+              : mode === 'attachments'
+                ? tf('attachmentsCountLabel', language, { count: attachmentRefCount })
+                : tf('notesCountLabel', language, { count: filteredDetailsNotes.length })}
         </span>
       </div>}
 
