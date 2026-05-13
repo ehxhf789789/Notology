@@ -120,6 +120,24 @@
   color: color-mix(in srgb, var(--c-teal) 70%, white);
 }
 
+/* `att-other` fallback (HanBin 2026-05-13): generic file glyph for any
+   extension not in the CATEGORY_MAP. Without this, e.g. a `.iso` or
+   `.exe` chip lost the leading icon while keeping the rest of the
+   attachment styling. */
+.wiki-link-inline.attachment.att-other {
+  color: var(--c-gray);
+  background-color: color-mix(in srgb, var(--c-gray) 8%, transparent);
+  border-color: color-mix(in srgb, var(--c-gray) 30%, transparent);
+}
+.wiki-link-inline.attachment.att-other::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z'%3E%3C/path%3E%3Cpolyline points='13 2 13 9 20 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+.wiki-link-inline.attachment.att-other:hover {
+  background-color: color-mix(in srgb, var(--c-gray) 20%, transparent);
+  border-color: color-mix(in srgb, var(--c-gray) 50%, transparent);
+  color: color-mix(in srgb, var(--c-gray) 70%, white);
+}
+
 /* Decoration-based resolved class overrides node's unresolved class */
 /* This allows dynamic updates when fileTree changes */
 /* Color is inherited from note-type-* classes, not set here */

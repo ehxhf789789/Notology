@@ -4,7 +4,9 @@
 
 const CATEGORY_MAP: Record<string, string[]> = {
   image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'tiff', 'tif'],
-  document: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'pages', 'key', 'hwp', 'hwpx', 'rtf', 'odt', 'odp'],
+  // `txt` / `log` / `rtf` are plain-text documents — share the document icon
+  // so the tab row + editor chip render consistently (HanBin 2026-05-13).
+  document: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'pages', 'key', 'hwp', 'hwpx', 'rtf', 'odt', 'odp', 'txt', 'log'],
   data: ['xlsx', 'xls', 'csv', 'json', 'xml', 'yaml', 'yml', 'toml'],
   code: ['py', 'js', 'ts', 'jsx', 'tsx', 'rs', 'go', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'rb', 'php', 'sh', 'bash', 'sql', 'lua', 'r', 'swift', 'kt', 'scala', 'html', 'css'],
   contact: ['vcf', 'vcard'],
