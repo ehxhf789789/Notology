@@ -97,3 +97,108 @@
   color: var(--text-secondary, #94a3b8);
   font-style: italic;
 }
+
+/* ── Session 2 — filter pill bar ────────────────────────────────────────── */
+
+.attachments-tab-v2-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  outline: none;
+}
+
+.attachments-tab-v2-root .search-table {
+  flex: 1 1 auto;
+}
+
+.attachments-tab-v2-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2, 6px);
+  padding: var(--sp-2, 6px) var(--sp-3, 12px);
+  border-bottom: 0.5px solid var(--sep-l, color-mix(in srgb, var(--text-primary) 8%, transparent));
+  flex: 0 0 auto;
+}
+
+.attachments-tab-v2-filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1, 4px);
+  flex-wrap: wrap;
+}
+
+.attachments-tab-v2-filter-label {
+  font-size: var(--fs-11, 11px);
+  color: var(--tx-3, #94a3b8);
+  margin-right: var(--sp-2, 6px);
+  min-width: 32px;
+}
+
+.attachments-tab-v2-filter-pill {
+  padding: 2px 10px;
+  border: 1px solid var(--border-subtle, color-mix(in srgb, var(--text-primary) 12%, transparent));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tx-2, #d1d5db);
+  cursor: pointer;
+  font-size: var(--fs-11, 11px);
+  line-height: 1.5;
+  transition: background-color var(--dur-150, 150ms), border-color var(--dur-150, 150ms);
+}
+
+.attachments-tab-v2-filter-pill:hover {
+  background-color: color-mix(in srgb, var(--c-blue, #3b82f6) 8%, transparent);
+}
+
+.attachments-tab-v2-filter-pill.active {
+  background-color: color-mix(in srgb, var(--c-blue, #3b82f6) 18%, transparent);
+  border-color: var(--c-blue, #3b82f6);
+  color: var(--tx-1, #f3f4f6);
+}
+
+/* Tier-specific active accent: when a tier pill is active, paint the
+   border + text in that tier's color so the user instantly maps the
+   pill back to the row's left-border color. */
+.attachments-tab-v2-filter-pill.att-image.active {
+  background-color: color-mix(in srgb, var(--c-green, #22c55e) 16%, transparent);
+  border-color: var(--c-green, #22c55e);
+}
+.attachments-tab-v2-filter-pill.att-document.active {
+  background-color: color-mix(in srgb, var(--c-orange, #fb923c) 16%, transparent);
+  border-color: var(--c-orange, #fb923c);
+}
+.attachments-tab-v2-filter-pill.att-media.active {
+  background-color: color-mix(in srgb, var(--c-purple, #c084fc) 16%, transparent);
+  border-color: var(--c-purple, #c084fc);
+}
+.attachments-tab-v2-filter-pill.att-data.active {
+  background-color: color-mix(in srgb, var(--c-yellow, #fbbf24) 16%, transparent);
+  border-color: var(--c-yellow, #fbbf24);
+}
+.attachments-tab-v2-filter-pill.att-code.active {
+  background-color: color-mix(in srgb, var(--c-teal, #22d3ee) 16%, transparent);
+  border-color: var(--c-teal, #22d3ee);
+}
+.attachments-tab-v2-filter-pill.att-archive.active,
+.attachments-tab-v2-filter-pill.att-other.active {
+  background-color: color-mix(in srgb, var(--c-gray, #9ca3af) 16%, transparent);
+  border-color: var(--c-gray, #9ca3af);
+}
+
+/* Sync-state pill colors when active mirror the row badges. */
+.attachments-tab-v2-filter-pill-synced.active {
+  background-color: color-mix(in srgb, var(--c-green, #22c55e) 16%, transparent);
+  border-color: var(--c-green, #22c55e);
+}
+.attachments-tab-v2-filter-pill-uploading.active {
+  background-color: color-mix(in srgb, var(--c-amber, #f59e0b) 16%, transparent);
+  border-color: var(--c-amber, #f59e0b);
+}
+.attachments-tab-v2-filter-pill-stuck.active {
+  background-color: color-mix(in srgb, var(--c-red, #ef4444) 16%, transparent);
+  border-color: var(--c-red, #ef4444);
+}
+.attachments-tab-v2-filter-pill-orphan.active {
+  background-color: color-mix(in srgb, var(--c-gray, #9ca3af) 16%, transparent);
+  border-color: var(--c-gray, #9ca3af);
+}
