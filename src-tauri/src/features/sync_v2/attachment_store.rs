@@ -94,7 +94,7 @@ impl AttachmentStore {
         self.vault_root.join(".notology/attachments").join(INDEX_FILE)
     }
 
-    fn cas_path(&self, sha: &str) -> PathBuf {
+    pub(crate) fn cas_path(&self, sha: &str) -> PathBuf {
         self.vault_root
             .join(".notology/cas/blobs")
             .join(&sha[0..2])

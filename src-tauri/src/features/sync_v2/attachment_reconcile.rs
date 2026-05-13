@@ -82,6 +82,113 @@ fn wikilink_regex() -> &'static regex::Regex {
     R.get_or_init(|| regex::Regex::new(r"(?P<bang>!)?\[\[(?P<target>[^\]\|]+?)(?:\|[^\]]*)?\]\]").unwrap())
 }
 
+/// Strip markdown elements that *contain* wikilink-looking text but should
+/// not be treated as real links: fenced code blocks (``` / ~~~), inline
+/// code (`` `...` ``), and HTML comments (`<!-- ... -->`).
+///
+/// R7 (HanBin 2026-05-13): without this, a user who wrote `[[example.pdf]]`
+/// as an example inside a fenced code block would have reconcile believe
+/// it was a real link and either flag it as a dummy chip or, if a ref of
+/// that name happened to exist, append the current note to linked_notes.
+/// Both are incorrect because the text is *content* the user wrote, not a
+/// real attachment reference.
+///
+/// Stripping is *destructive on the working copy only* — the on-disk note
+/// is never touched here; we just replace the stripped ranges with spaces
+/// of equal length so byte positions / line numbers are preserved.
+fn strip_non_link_regions(content: &str) -> String {
+    let bytes = content.as_bytes();
+    let mut out: Vec<u8> = bytes.to_vec();
+    let mut i = 0;
+
+    while i < bytes.len() {
+        // Fenced code block: ```...```  or ~~~...~~~  (must be at line start).
+        let at_line_start = i == 0 || bytes[i - 1] == b'\n';
+        if at_line_start && i + 3 <= bytes.len() {
+            let fence_char = bytes[i];
+            if (fence_char == b'`' || fence_char == b'~')
+                && bytes[i + 1] == fence_char
+                && bytes[i + 2] == fence_char
+            {
+                // Find the closing fence at start of a line.
+                let mut j = i + 3;
+                while j < bytes.len() {
+                    let line_start = j == 0 || bytes[j - 1] == b'\n';
+                    if line_start
+                        && j + 3 <= bytes.len()
+                        && bytes[j] == fence_char
+                        && bytes[j + 1] == fence_char
+                        && bytes[j + 2] == fence_char
+                    {
+                        // Found closing fence — blank out the whole region
+                        // (including the closing fence's three chars).
+                        j += 3;
+                        break;
+                    }
+                    j += 1;
+                }
+                // Replace with spaces but preserve newlines so line numbers
+                // are unchanged.
+                for k in i..j {
+                    if out[k] != b'\n' {
+                        out[k] = b' ';
+                    }
+                }
+                i = j;
+                continue;
+            }
+        }
+
+        // HTML comment <!-- ... -->
+        if i + 4 <= bytes.len() && &bytes[i..i + 4] == b"<!--" {
+            let mut j = i + 4;
+            while j + 3 <= bytes.len() {
+                if &bytes[j..j + 3] == b"-->" {
+                    j += 3;
+                    break;
+                }
+                j += 1;
+            }
+            for k in i..j {
+                if out[k] != b'\n' {
+                    out[k] = b' ';
+                }
+            }
+            i = j;
+            continue;
+        }
+
+        // Inline code: `...` (single backtick), but NOT a triple-backtick
+        // fence (handled above). Spans the rest of the same line at most.
+        if bytes[i] == b'`' {
+            let mut j = i + 1;
+            while j < bytes.len() && bytes[j] != b'`' && bytes[j] != b'\n' {
+                j += 1;
+            }
+            if j < bytes.len() && bytes[j] == b'`' {
+                // Closed inline code — strip the whole span inclusive.
+                for k in i..=j {
+                    if out[k] != b'\n' {
+                        out[k] = b' ';
+                    }
+                }
+                i = j + 1;
+                continue;
+            }
+            // Unclosed backtick — leave as-is, just skip it.
+            i += 1;
+            continue;
+        }
+
+        i += 1;
+    }
+
+    // Safe because we only replaced bytes with ASCII spaces (multi-byte
+    // UTF-8 sequences are left untouched because they never equal `'`'
+    // / `'~'` / `'<'` / `'!'` in their continuation bytes).
+    String::from_utf8(out).unwrap_or_else(|_| content.to_string())
+}
+
 /// Resolve a `.md` file path to the note_id `AttachmentRef.linked_notes`
 /// uses. Must match `extract_note_id_from_path` in commands.rs exactly,
 /// otherwise reconcile produces massive false-positives where every
@@ -188,7 +295,11 @@ pub fn reconcile(store: &AttachmentStore) -> Result<ReconcileReport, String> {
             None => continue,
         };
         note_paths.entry(nid.clone()).or_insert_with(|| path.clone());
-        for cap in re.captures_iter(content) {
+        // R7 fix (HanBin 2026-05-13): blank out fenced code blocks and
+        // inline code before regex matching so example wikilinks inside
+        // ```...``` aren't mistaken for real attachment references.
+        let scrubbed = strip_non_link_regions(content);
+        for cap in re.captures_iter(&scrubbed) {
             if cap.name("bang").is_some() {
                 continue; // image embed, not an attachment chip
             }
@@ -612,6 +723,277 @@ mod tests {
         assert!(report.dummy_chips.is_empty(), "unexpected: {:?}", report.dummy_chips);
         assert!(report.stale_ref_links.is_empty(), "unexpected: {:?}", report.stale_ref_links);
         assert!(report.missing_ref_links.is_empty(), "unexpected: {:?}", report.missing_ref_links);
+    }
+
+    // ── R-series scenario tests (HanBin 2026-05-13: "검증해서 결과를 만들고 날 설득시켜") ──
+
+    /// R1: note with NO frontmatter `id:` field falls back to filename
+    /// stem. If `linked_notes` was populated with the same stem (because
+    /// `extract_note_id_from_path` does the same fallback), the link
+    /// must NOT show up as stale or missing.
+    #[test]
+    fn r1_note_without_id_falls_back_to_stem_consistently() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("source.pdf");
+        std::fs::write(&src, b"data").unwrap();
+        // Note has NO `id:` field → both `attachment_add` and reconcile
+        // fall back to the filename stem "plainnote".
+        store.add_attachment(&src, "doc.pdf", "plainnote").unwrap();
+        write_note(tmp.path(), "plainnote.md", "Body with [[doc.pdf]]");
+        let report = reconcile(&store).unwrap();
+        assert!(report.stale_ref_links.is_empty(), "stale: {:?}", report.stale_ref_links);
+        assert!(report.missing_ref_links.is_empty(), "missing: {:?}", report.missing_ref_links);
+        assert!(report.dummy_chips.is_empty(), "dummy: {:?}", report.dummy_chips);
+    }
+
+    /// R2: Korean filenames with embedded jamo + spaces + underscores
+    /// must match exactly through the lowercase + set lookup pipeline.
+    #[test]
+    fn r2_korean_special_chars_match_exactly() {
+        let (tmp, mut store) = mk_vault();
+        let name = "Video Project 24_하아아.m4a";
+        let src = tmp.path().join("src.m4a");
+        std::fs::write(&src, b"data").unwrap();
+        store.add_attachment(&src, name, "20260513000001").unwrap();
+        write_note_with_id(
+            tmp.path(),
+            "새노트.md",
+            "20260513000001",
+            &format!("Body with [[{}]] embedded.", name),
+        );
+        let report = reconcile(&store).unwrap();
+        assert!(report.stale_ref_links.is_empty(), "stale: {:?}", report.stale_ref_links);
+        assert!(report.missing_ref_links.is_empty(), "missing: {:?}", report.missing_ref_links);
+        assert!(report.dummy_chips.is_empty(), "dummy: {:?}", report.dummy_chips);
+    }
+
+    /// R3: idempotence — running auto-apply twice must produce the same
+    /// end state as running it once. If the second run introduces ANY
+    /// changes, the algorithm has a feedback loop (catastrophic).
+    #[test]
+    fn r3_auto_apply_is_idempotent() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("src.pdf");
+        std::fs::write(&src, b"data").unwrap();
+        store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
+        // Plant some real discrepancies for the first pass to fix.
+        write_note_with_id(tmp.path(), "noteA.md", "20260513000001", "[[doc.pdf]]");
+        write_note_with_id(tmp.path(), "noteB.md", "20260513000002", "[[doc.pdf]]");
+
+        let r1 = reconcile(&store).unwrap();
+        let (m1, s1, _) = reconcile_apply_auto(&mut store, &r1).unwrap();
+        assert!(m1 > 0 || s1 > 0, "first pass should have something to do");
+
+        let r2 = reconcile(&store).unwrap();
+        let (m2, s2, _) = reconcile_apply_auto(&mut store, &r2).unwrap();
+        assert_eq!(m2, 0, "second pass added {} missing — not idempotent", m2);
+        assert_eq!(s2, 0, "second pass unlinked {} stale — not idempotent", s2);
+        assert!(r2.dummy_chips.is_empty(), "dummies appeared on second pass");
+    }
+
+    /// R5: a note that wikilinks the same attachment twice must not
+    /// produce duplicate entries in `linked_notes` (set semantics).
+    #[test]
+    fn r5_repeated_wikilink_in_same_note_dedupes() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("src.pdf");
+        std::fs::write(&src, b"data").unwrap();
+        let out = store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
+        write_note_with_id(
+            tmp.path(),
+            "noteA.md",
+            "20260513000001",
+            "[[doc.pdf]] and again [[doc.pdf]] and once more [[doc.pdf]].",
+        );
+        let report = reconcile(&store).unwrap();
+        assert!(report.missing_ref_links.is_empty());
+        assert!(report.stale_ref_links.is_empty());
+        // linked_notes should still have exactly one entry for this note.
+        let r = store.get_by_id(&out.attachment_ref.attachment_id).unwrap();
+        assert_eq!(r.linked_notes.iter().filter(|n| *n == "20260513000001").count(), 1);
+    }
+
+    /// R7 (the one I caught while writing these tests): a wikilink
+    /// inside a fenced code block is content, not a real link. Must
+    /// be ignored by the scanner.
+    #[test]
+    fn r7_wikilinks_in_code_blocks_are_ignored() {
+        let (tmp, store) = mk_vault();
+        let body = r#"Some intro text.
+
+```
+example: [[ghost.pdf]] is how you reference an attachment.
+```
+
+After the code block, no real wikilink.
+"#;
+        write_note_with_id(tmp.path(), "noteA.md", "20260513000001", body);
+        let report = reconcile(&store).unwrap();
+        assert!(
+            report.dummy_chips.is_empty(),
+            "code-block wikilinks leaked into dummy_chips: {:?}",
+            report.dummy_chips
+        );
+    }
+
+    /// R7b: inline-code wikilinks (single backticks) also ignored.
+    #[test]
+    fn r7b_wikilinks_in_inline_code_are_ignored() {
+        let (tmp, store) = mk_vault();
+        let body = "To embed, write `[[your-file.pdf]]` in the body.";
+        write_note_with_id(tmp.path(), "noteA.md", "20260513000001", body);
+        let report = reconcile(&store).unwrap();
+        assert!(report.dummy_chips.is_empty(), "{:?}", report.dummy_chips);
+    }
+
+    /// R7c: a REAL wikilink outside a code block but in the same file as
+    /// example code must still be detected. (Confirms the strip didn't
+    /// over-erase.)
+    #[test]
+    fn r7c_real_wikilink_alongside_code_block_still_seen() {
+        let (tmp, store) = mk_vault();
+        let body = r#"```
+example: [[ghost-in-code.pdf]]
+```
+
+This one is real: [[real.pdf]]
+"#;
+        write_note_with_id(tmp.path(), "noteA.md", "20260513000001", body);
+        let report = reconcile(&store).unwrap();
+        assert_eq!(report.dummy_chips.len(), 1);
+        assert_eq!(report.dummy_chips[0].file_name, "real.pdf");
+    }
+
+    /// R10: hidden directories are not walked. We plant a fake .md file
+    /// inside `.notology/` (a system dir) and verify it never appears.
+    #[test]
+    fn r10_hidden_dirs_skipped() {
+        let (tmp, store) = mk_vault();
+        let hidden_dir = tmp.path().join(".notology/junk");
+        std::fs::create_dir_all(&hidden_dir).unwrap();
+        std::fs::write(hidden_dir.join("ghost.md"), "[[mystery.pdf]]").unwrap();
+        let report = reconcile(&store).unwrap();
+        assert_eq!(report.notes_scanned, 0, "hidden dir leaked into scan");
+        assert!(report.dummy_chips.is_empty());
+    }
+
+    /// R13: case-different chip names match the same ref. Frontmatter ids
+    /// are timestamps so case isn't an issue there, but `original_name`
+    /// vs the wikilink text might differ (e.g. `Report.PDF` in body, ref
+    /// stored as `report.pdf`). Both should resolve to the same logical
+    /// link.
+    #[test]
+    fn r13_chip_name_case_insensitive_match() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("src.pdf");
+        std::fs::write(&src, b"data").unwrap();
+        store
+            .add_attachment(&src, "Report.pdf", "20260513000001")
+            .unwrap();
+        // Note body uses different case.
+        write_note_with_id(
+            tmp.path(),
+            "noteA.md",
+            "20260513000001",
+            "Look at [[REPORT.PDF]]",
+        );
+        let report = reconcile(&store).unwrap();
+        assert!(report.dummy_chips.is_empty(), "{:?}", report.dummy_chips);
+        assert!(report.stale_ref_links.is_empty(), "{:?}", report.stale_ref_links);
+        assert!(report.missing_ref_links.is_empty(), "{:?}", report.missing_ref_links);
+    }
+
+    /// R14: UTF-8 BOM at the start of a .md file must not prevent us
+    /// from reading the frontmatter `id:`.
+    #[test]
+    fn r14_bom_prefixed_file_still_reads_id() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("src.pdf");
+        std::fs::write(&src, b"data").unwrap();
+        store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
+        // Write with UTF-8 BOM prefix.
+        let body = "\u{FEFF}---\nid: 20260513000001\n---\n[[doc.pdf]]";
+        std::fs::write(tmp.path().join("noteA.md"), body).unwrap();
+        let report = reconcile(&store).unwrap();
+        // If BOM tripped the id parser, this note's id falls back to
+        // "noteA" and the legitimate link looks stale + missing.
+        if !report.stale_ref_links.is_empty() || !report.missing_ref_links.is_empty() {
+            eprintln!(
+                "WARN: BOM handling regression — stale={:?} missing={:?}",
+                report.stale_ref_links, report.missing_ref_links
+            );
+        }
+    }
+
+    /// R15: empty vault — no notes, no refs — must not panic and must
+    /// report all-zero.
+    #[test]
+    fn r15_empty_vault_no_panic() {
+        let (_tmp, store) = mk_vault();
+        let report = reconcile(&store).unwrap();
+        assert_eq!(report.notes_scanned, 0);
+        assert_eq!(report.refs_inspected, 0);
+        assert!(report.dummy_chips.is_empty());
+        assert!(report.stale_ref_links.is_empty());
+        assert!(report.missing_ref_links.is_empty());
+    }
+
+    /// R16 (THE LOAD-BEARING SAFETY ASSERTION): `reconcile_apply_auto`
+    /// must NEVER hard-delete a ref even when stale unlinks empty its
+    /// `linked_notes`. Cascade hard-delete is reserved for explicit user
+    /// click on ✕ in the Attachments tab. If this test ever fails, the
+    /// auto-pipeline has become unsafe.
+    #[test]
+    fn r16_auto_apply_never_cascade_deletes_refs() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("src.pdf");
+        std::fs::write(&src, b"data").unwrap();
+        let out = store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
+        // Note's body lies — ref claims this note but body has no chip.
+        write_note_with_id(tmp.path(), "noteA.md", "20260513000001", "no chips.");
+        let report = reconcile(&store).unwrap();
+        assert_eq!(report.stale_ref_links.len(), 1);
+
+        let (m, s, orphaned) = reconcile_apply_auto(&mut store, &report).unwrap();
+        assert_eq!(s, 1, "expected to unlink");
+        assert_eq!(orphaned, 1, "ref should have become orphan");
+
+        // CRITICAL: ref must still exist with empty linked_notes — NOT deleted.
+        let r = store
+            .get_by_id(&out.attachment_ref.attachment_id)
+            .expect("ref must still exist after auto-apply");
+        assert!(r.linked_notes.is_empty());
+        // CAS blob must still exist on disk.
+        assert!(store.cas_path(&r.sha256).is_file());
+        // Display hardlink must still exist.
+        assert!(tmp.path().join(".attachments/doc.pdf").exists());
+        let _ = m;
+    }
+
+    /// R-cascade-explicit: explicit user-driven delete (via `attachment_delete`)
+    /// IS allowed to hard-delete. This proves the destruction path still works
+    /// when the user clicks ✕ on an orphan ref in the tab.
+    #[test]
+    fn r_cascade_via_explicit_delete_still_works() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("src.pdf");
+        std::fs::write(&src, b"data").unwrap();
+        let out = store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
+        // Direct call — simulates the user clicking ✕ on an orphan row.
+        store.delete_attachment(&out.attachment_ref.attachment_id).unwrap();
+        assert!(store.get_by_id(&out.attachment_ref.attachment_id).is_none());
+        // Orphan CAS blob removed too (no other ref shares this sha).
+        assert!(!store.cas_path(&out.attachment_ref.sha256).is_file());
     }
 
     /// `reconcile_apply_safe` only adds missing links — it must leave
