@@ -21,10 +21,18 @@ import { hoverActions } from '../hover-windows/stores/hoverStore';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { syncV2Commands, type AttachmentRefDto } from '../sync_v2/syncV2Commands';
 import { modalActions } from '../modals/stores/modalStore';
+import { utilCommands } from '../../core/services/tauriCommands';
 import { getAttachmentCategory } from '../suggestions/attachmentCategory';
 import { requestAttachmentDelete } from '../sync_v2/attachmentDelete';
 import { startAttachmentDrag, startMultiAttachmentDrag } from '../sync_v2/attachmentDragOut';
 import { t } from '../../core/utils/i18n';
+
+/** Extensions that the hover-window viewer system knows how to render
+ *  inline. Anything else (e.g. m4a / mp4 / mp3) opens via the OS default
+ *  application. Must stay in sync with the same regex in
+ *  `useHoverEditorState.ts handleLinkClick` — that's the canonical list,
+ *  this is its tab-side mirror. */
+const PREVIEWABLE_RE = /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i;
 
 interface AttachmentsTabProps {
   /** Optional filter: when set, only show refs linked to this folder. */
@@ -175,7 +183,20 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
     // visual doesn't lie about a stale anchor.
     if (selectedIds.size > 0) setSelectedIds(new Set());
     lastSelectedRef.current = id;
-    if (row.localPath) void hoverActions.open(row.localPath);
+    if (!row.localPath) return;
+    // Route by extension exactly like the editor's wikilink click handler
+    // (`useHoverEditorState.ts handleLinkClick`): previewable formats open
+    // in a hover viewer; everything else (m4a / mp4 / zip / …) hands off
+    // to the OS default application. HanBin 2026-05-13 hit this — clicking
+    // a `.m4a` row was opening the hover-note text editor on the binary
+    // and showing a blank "내용을 입력하세요..." placeholder.
+    if (PREVIEWABLE_RE.test(row.localPath)) {
+      void hoverActions.open(row.localPath);
+    } else {
+      void utilCommands.openInDefaultApp(row.localPath).catch((err) => {
+        console.error('[AttachmentsTab] openInDefaultApp failed:', err);
+      });
+    }
   }, [rows, selectedIds]);
 
   // Esc clears selection — same as the editor's wikilink selection plugin.
