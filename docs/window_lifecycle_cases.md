@@ -41,7 +41,14 @@ window event handlers, App.tsx cleanup) enforces them.
    - M close 또는 S close (return_to=None) 시 `app.exit(0)`
    - 잔존 H 는 explicit close 후 OS 가 프로세스 종료로 정리
 
-5. **Minimize = OS native**.
+5. **M reload / HMR / F5 = 모든 H 종료**.
+   - dev 모드 hot reload 도 사용자 시점에서는 "M 이 새로 뜸". 그 때
+     이전 M 의 hover 들이 살아남으면 stale ghost → 강한 종속 위반
+   - 구현: App.tsx `handleBeforeUnload` 가 `main:reloading` event
+     emit + `closeAllHoverWindows()` fire-and-forget. 각 H 의
+     HoverWindowApp 이 이벤트 listener 에서 self-close
+
+6. **Minimize = OS native**.
    - H 의 커스텀 `_` 버튼은 `getCurrentWindow().minimize()` 호출
    - taskbar / Alt-Tab / 가상 데스크탑 등 OS 기능에 위임
    - 커스텀 in-app overview UI 없음 (CollapsedHoverBar 폐기됨)

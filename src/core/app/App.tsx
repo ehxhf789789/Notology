@@ -144,9 +144,26 @@ function AppLayout() {
       await closeAllHoverWindows();
     });
 
-    // Page refresh/navigation handler: flush all pending saves before unload
+    // Page refresh/navigation handler: flush all pending saves AND
+    // close every hover window. The latter enforces the strict
+    // hierarchy rule (H subordinate to M) even on dev-mode HMR / F5
+    // refresh — without this, the hovers survive while main's React
+    // state resets, leaving stale ghosts. Two layers of insurance:
+    //   1. emit `main:reloading` — each hover listens (HoverWindowApp)
+    //      and self-closes. Robust against openWindows cache going
+    //      stale.
+    //   2. fire-and-forget closeAllHoverWindows — closes via the
+    //      frontend cache. Tauri queues the close IPCs immediately;
+    //      they reach the runtime before the page actually unloads.
     const handleBeforeUnload = () => {
       flushAllEditorSaves();
+      void (async () => {
+        try {
+          const { emit } = await import('@tauri-apps/api/event');
+          await emit('main:reloading', null);
+        } catch {}
+      })();
+      void closeAllHoverWindows();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 

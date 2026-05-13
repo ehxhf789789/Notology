@@ -213,6 +213,20 @@ function HoverWindowApp() {
     return () => { if (unlisten) unlisten(); };
   }, []);
 
+  // Strict hierarchy: hover is subordinate to main. If main reloads
+  // (HMR / F5 / dev refresh / page navigation), this hover must
+  // self-terminate. main close is already covered by the explicit
+  // closeAllHoverWindows() in App.tsx onCloseRequested handler, but
+  // beforeunload doesn't trigger that — main emits this event from
+  // its handleBeforeUnload so we can react.
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    listen('main:reloading', () => {
+      getCurrentWindow().close().catch(() => undefined);
+    }).then(fn => { unlisten = fn; });
+    return () => { if (unlisten) unlisten(); };
+  }, []);
+
   // Handle close with Ctrl/Cmd+W (animated)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
