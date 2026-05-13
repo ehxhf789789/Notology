@@ -181,22 +181,54 @@ impl AttachmentStore {
         let tier = AttachmentTier::from_extension(&ext);
         let mime_type = AttachmentTier::mime_for_extension(&ext).to_string();
 
-        // Track B Phase B-3 PART 6 hotfix (HanBin 2026-05-13): smart dedup
-        // must include `original_name`. The previous (sha, note_id)-only
-        // match returned the existing ref when the user dropped a renamed
-        // copy of an already-attached file (same content, different name),
-        // but the optimistic chip carried the NEW name → wikilink lookup
-        // by name found nothing → chip rendered as orphan ✕ for a fully
-        // valid drop. Including `original_name` means renamed-copy drops
-        // get their own ref (sharing the CAS blob via `blobs_by_sha`)
-        // while truly-identical re-drops still dedupe.
-        if let Some(existing) = self.refs_by_id.values().find(|r| {
-            r.sha256 == sha
-                && r.original_name == original_name
-                && r.linked_notes.iter().any(|n| n == note_id)
-        }) {
+        // Track B Phase B-3 PART 6 — dedup matrix (HanBin 2026-05-13):
+        //
+        //   | sha   | original_name | note_id | action                       |
+        //   |-------|---------------|---------|------------------------------|
+        //   | match | match         | match   | no-op, return existing       |
+        //   | match | match         | ≠       | append note_id to ref's      |
+        //   |       |               |         | linked_notes, return same    |
+        //   |       |               |         | ref (cross-note dedup)       |
+        //   | match | ≠             | (any)   | fresh ref, share CAS blob    |
+        //   |       |               |         | (renamed copy)               |
+        //   | ≠     | (any)         | (any)   | fresh ref + fresh CAS blob   |
+        //
+        // Rationale: the wikilink resolver looks up refs by `original_name`,
+        // so renamed copies MUST get separate refs or the chip stays orphan.
+        // But a popular file referenced from N notes should not produce N
+        // refs — they all share the same logical attachment, so we collapse
+        // them via `linked_notes`. Hard-delete unlinks one note at a time,
+        // so cross-note dedup is correctness-preserving.
+        let cross_note_match_id: Option<String> = {
+            let mut hit: Option<&AttachmentRef> = None;
+            for r in self.refs_by_id.values() {
+                if r.sha256 != sha || r.original_name != original_name {
+                    continue;
+                }
+                if r.linked_notes.iter().any(|n| n == note_id) {
+                    // Same sha + same name + already linked → no-op return.
+                    return Ok(AddOutcome {
+                        attachment_ref: r.clone(),
+                        was_deduped: true,
+                        link_method: LinkMethod::Hardlink,
+                    });
+                }
+                hit = Some(r);
+            }
+            hit.map(|r| r.attachment_id.clone())
+        };
+
+        if let Some(id) = cross_note_match_id {
+            // Same sha + same name in another note. Append this note to the
+            // existing ref's linked_notes instead of creating a duplicate.
+            self.link_to_note(&id, note_id)?;
+            let updated = self
+                .refs_by_id
+                .get(&id)
+                .cloned()
+                .ok_or_else(|| format!("attachment {} vanished mid-link", id))?;
             return Ok(AddOutcome {
-                attachment_ref: existing.clone(),
+                attachment_ref: updated,
                 was_deduped: true,
                 link_method: LinkMethod::Hardlink,
             });
@@ -623,6 +655,74 @@ mod tests {
         // One CAS blob
         let cas_path = store.cas_path(&out1.attachment_ref.sha256);
         assert!(cas_path.is_file());
+    }
+
+    /// PART 6 stabilization (HanBin 2026-05-13): cross-note dedup.
+    /// Same content + same name dropped to a SECOND note must reuse the
+    /// existing ref and just append the new note_id to `linked_notes`,
+    /// instead of producing a duplicate ref.
+    #[test]
+    fn add_same_content_same_name_different_note_appends_linked_note() {
+        let (tmp, mut store) = mk_store();
+        let src = write_source(tmp.path(), "logo.png", b"\x89PNG fake");
+        let out1 = store.add_attachment(&src, "logo.png", "noteA").unwrap();
+        assert!(!out1.was_deduped);
+        let out2 = store.add_attachment(&src, "logo.png", "noteB").unwrap();
+        assert!(out2.was_deduped);
+        // Same ref id, different linked_notes.
+        assert_eq!(out1.attachment_ref.attachment_id, out2.attachment_ref.attachment_id);
+        let r = store.get_by_id(&out1.attachment_ref.attachment_id).unwrap();
+        assert!(r.linked_notes.contains(&"noteA".to_string()));
+        assert!(r.linked_notes.contains(&"noteB".to_string()));
+        assert_eq!(r.linked_notes.len(), 2);
+        // One CAS blob, one display hardlink — no duplication anywhere.
+        let cas_path = store.cas_path(&r.sha256);
+        assert!(cas_path.is_file());
+        assert!(tmp.path().join(".attachments/logo.png").exists());
+        assert!(!tmp.path().join(".attachments/logo_1.png").exists());
+    }
+
+    /// PART 6 stabilization (HanBin 2026-05-13): renamed-copy regression.
+    /// Same content with a DIFFERENT name dropped to the same note must
+    /// produce a fresh ref so the optimistic wikilink chip (which carries
+    /// the new name) resolves. Previously smart-dedup matched on
+    /// (sha, note_id) only and returned the old-name ref → chip orphan ✕.
+    #[test]
+    fn add_same_content_different_name_same_note_creates_fresh_ref() {
+        let (tmp, mut store) = mk_store();
+        let src1 = write_source(tmp.path(), "Video 24.m4a", b"identical bytes");
+        let out1 = store.add_attachment(&src1, "Video 24.m4a", "noteA").unwrap();
+        let src2 = write_source(tmp.path(), "Video 24_copy.m4a", b"identical bytes");
+        let out2 = store
+            .add_attachment(&src2, "Video 24_copy.m4a", "noteA")
+            .unwrap();
+        // Two distinct refs — wikilink lookup by name MUST find each.
+        assert_ne!(
+            out1.attachment_ref.attachment_id,
+            out2.attachment_ref.attachment_id
+        );
+        assert_eq!(out1.attachment_ref.original_name, "Video 24.m4a");
+        assert_eq!(out2.attachment_ref.original_name, "Video 24_copy.m4a");
+        // CAS blob is shared (one physical file).
+        assert_eq!(out1.attachment_ref.sha256, out2.attachment_ref.sha256);
+        assert!(out2.was_deduped); // blob dedup, not ref dedup
+        // Both display hardlinks exist with distinct paths.
+        assert!(tmp.path().join(".attachments/Video 24.m4a").exists());
+        assert!(tmp.path().join(".attachments/Video 24_copy.m4a").exists());
+    }
+
+    /// Re-drop of the EXACT same (sha, name, note) tuple is a no-op:
+    /// returns the existing ref without touching `linked_notes`.
+    #[test]
+    fn add_identical_redrop_returns_existing_ref_unchanged() {
+        let (tmp, mut store) = mk_store();
+        let src = write_source(tmp.path(), "doc.pdf", b"data");
+        let out1 = store.add_attachment(&src, "doc.pdf", "noteA").unwrap();
+        let out2 = store.add_attachment(&src, "doc.pdf", "noteA").unwrap();
+        assert_eq!(out1.attachment_ref.attachment_id, out2.attachment_ref.attachment_id);
+        assert!(out2.was_deduped);
+        let r = store.get_by_id(&out1.attachment_ref.attachment_id).unwrap();
+        assert_eq!(r.linked_notes, vec!["noteA".to_string()]); // not duplicated
     }
 
     #[test]
