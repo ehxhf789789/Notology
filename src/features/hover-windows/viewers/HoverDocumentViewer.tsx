@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { convertFileSrc } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Minus, X, ExternalLink, RefreshCw, FileWarning } from 'lucide-react';
 import { utilCommands, previewCommands } from '../../../core/services/tauriCommands';
@@ -13,6 +12,7 @@ import { XlsxViewer } from './XlsxViewer';
 import { PptxViewer } from './pptx';
 import { HwpxViewer } from './hwpx';
 import { HwpViewer } from './HwpViewer';
+import PdfJsViewer from './PdfJsViewer';
 
 const DEV = import.meta.env.DEV;
 const log = DEV ? console.log.bind(console) : () => {};
@@ -333,13 +333,6 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
 
   const fileName = win.filePath.split(/[/\\]/).pop() || '';
   const displayFileName = fileName.replace(/_/g, ' ');
-  // HanBin 2026-05-13 round 5: same `#toolbar=0` fix as HoverPdfViewer.
-  // The beforeunload navguard does not actually cancel the chrome://
-  // navigation in Tauri's webview, so the only safe option is to make
-  // the toolbar (and its ⋮ menu) unreachable. Future: migrate to PDF.js.
-  const pdfSrc = pdfPath
-    ? `${convertFileSrc(pdfPath)}#toolbar=0&navpanes=0&statusbar=0`
-    : '';
 
   const inMultiWindowMode = isHoverWindow();
 
@@ -428,16 +421,10 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
       case 'pdf':
         return (
           <div className="hover-editor-body pdf-viewer-body">
-            {/* No sandbox — see HoverPdfViewer.tsx: sandboxing also blocks
-                the WebView2 chrome-extension PDF handler. Navigation
-                hardening lives in the global BlockChromeNavGuard. */}
-            <iframe
-              src={pdfSrc}
-              referrerPolicy="no-referrer"
-              width="100%"
-              height="100%"
-              style={{ border: 'none' }}
-            />
+            {/* HanBin 2026-05-13 round 6: same bundled PDF.js viewer as
+                HoverPdfViewer. LibreOffice-converted PDF lands on disk
+                at `pdfPath`; pass it through directly. */}
+            {pdfPath && <PdfJsViewer filePath={pdfPath} />}
           </div>
         );
     }
