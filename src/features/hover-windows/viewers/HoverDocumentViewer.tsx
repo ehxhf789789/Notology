@@ -333,12 +333,13 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
 
   const fileName = win.filePath.split(/[/\\]/).pop() || '';
   const displayFileName = fileName.replace(/_/g, ' ');
-  // `#toolbar=0&navpanes=0&statusbar=0` hides the embedded PDF viewer's
-  // toolbar so its "Settings" overflow item — which navigates to
-  // chrome://settings and black-screens Notology — is unreachable.
-  // Mirror of the same fix in HoverPdfViewer.tsx (HanBin 2026-05-13).
+  // Keep the PDF top toolbar (page number / zoom — primary nav) but
+  // hide the side thumbnail panel since this is a compact hover view.
+  // The chrome://settings navigation risk from the toolbar's overflow
+  // menu is handled by App.tsx's `beforeunload` navguard. HanBin
+  // 2026-05-13 round 4.
   const pdfSrc = pdfPath
-    ? `${convertFileSrc(pdfPath)}#toolbar=0&navpanes=0&statusbar=0`
+    ? `${convertFileSrc(pdfPath)}#navpanes=0`
     : '';
 
   const inMultiWindowMode = isHoverWindow();

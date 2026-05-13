@@ -322,20 +322,19 @@ const HoverPdfViewer = memo(function HoverPdfViewer({ window: win }: HoverEditor
         </div>
       </div>
       <div className="hover-editor-body pdf-viewer-body" style={{ flex: 1, overflow: 'hidden' }}>
-        {/* Hide the WebView2 PDF viewer's bottom toolbar with URL Open
-            Parameters (HanBin 2026-05-13 round 3). The toolbar's overflow
-            menu had a "Settings" item that navigated the TOP frame to
-            chrome://settings/... and black-screened the app. With
-            `#toolbar=0`, the toolbar (and its menu) doesn't render at
-            all — the bug is unreachable. Users can still zoom with
-            Ctrl+wheel and scroll/keyboard-navigate; full control is
-            available via "Open in default app" in the header.
+        {/* HanBin 2026-05-13 round 4: keep the top toolbar (page number,
+            zoom, fit controls) — that's primary navigation for a PDF
+            preview. Only hide the side thumbnail panel (`navpanes=0`)
+            since this is a compact hover window. The settings-button
+            navigation risk is handled by the App-level `beforeunload`
+            navguard in App.tsx, which cancels any chrome:// / edge:// /
+            about: navigation before the webview commits.
 
-            Iframe deliberately NOT sandboxed: the PDF viewer is itself
-            served from `chrome-extension://...mhjfbmdgcfjbbpaeojofohoefgiehjai/`
-            and sandboxing also blocks THAT URL → broken render. */}
+            Iframe deliberately NOT sandboxed: WebView2's PDF viewer is
+            itself served from chrome-extension:// and sandboxing also
+            blocks THAT URL → broken render. */}
         <iframe
-          src={`${convertFileSrc(win.filePath)}#toolbar=0&navpanes=0&statusbar=0`}
+          src={`${convertFileSrc(win.filePath)}#navpanes=0`}
           referrerPolicy="no-referrer"
           style={{ width: '100%', height: '100%', border: 'none' }}
           title={fileName}
