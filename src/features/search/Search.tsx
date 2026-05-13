@@ -1415,15 +1415,17 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
         </Suspense>
       ) : null}
 
-      {mode !== 'graph' && <div className="search-status-bar">
+      {/* Track B Phase B-3 PART 6: hide the outer status bar in attachments
+          mode — the new AttachmentsTab renders its own footer with a count
+          driven by the AttachmentRef index. Showing both produced
+          "14개 / 0개" double-count (HanBin 2026-05-13). */}
+      {mode !== 'graph' && mode !== 'attachments' && <div className="search-status-bar">
         <span className="search-count">
           {mode === 'frontmatter'
             ? tf('notesCountLabel', language, { count: filteredNotes.length })
             : mode === 'contents'
               ? tf('resultsCountLabel', language, { count: filteredContentResults.length })
-              : mode === 'attachments'
-                ? tf('attachmentsCountLabel', language, { count: filteredAttachments.length })
-                : tf('notesCountLabel', language, { count: filteredDetailsNotes.length })}
+              : tf('notesCountLabel', language, { count: filteredDetailsNotes.length })}
         </span>
       </div>}
 

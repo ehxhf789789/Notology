@@ -79,7 +79,19 @@ pub struct ReconcileApplyOutcome {
 fn wikilink_regex() -> &'static regex::Regex {
     use std::sync::OnceLock;
     static R: OnceLock<regex::Regex> = OnceLock::new();
-    R.get_or_init(|| regex::Regex::new(r"(?P<bang>!)?\[\[(?P<target>[^\]\|]+?)(?:\|[^\]]*)?\]\]").unwrap())
+    // Match `[[...]]` and `![[...]]` lazily. The inner `(.+?)` deliberately
+    // allows `]` inside the target because real filenames can include `]`
+    // (e.g. `[UST - 생성형 AI 실무 활용] 01주차(03_04) ...mp4`). The
+    // previous `[^\]\|]+?` aborted matching at the first single `]`, which
+    // silently dropped any wikilink whose filename contained one — HanBin
+    // 2026-05-13: "연결된 노트가 없다고 했는데, 링크가 있는데?". The
+    // matching frontend regex in WikiLink.ts already uses `.+?` for the
+    // same reason, so the two now agree.
+    //
+    // Alias `[[name|display]]` is handled by splitting on the first `|`
+    // inside the loop, not by the regex. This keeps the regex simple and
+    // mirrors the JS `parseWikiLinkContent` helper.
+    R.get_or_init(|| regex::Regex::new(r"(?P<bang>!)?\[\[(?P<inner>.+?)\]\]").unwrap())
 }
 
 /// Strip markdown elements that *contain* wikilink-looking text but should
@@ -303,7 +315,11 @@ pub fn reconcile(store: &AttachmentStore) -> Result<ReconcileReport, String> {
             if cap.name("bang").is_some() {
                 continue; // image embed, not an attachment chip
             }
-            let target = cap.name("target").map(|m| m.as_str()).unwrap_or("");
+            let inner = cap.name("inner").map(|m| m.as_str()).unwrap_or("");
+            // Alias support: `[[fileName|displayText]]` — only the
+            // fileName side is the link target. Mirrors WikiLink.ts's
+            // `parseWikiLinkContent`.
+            let target = inner.split('|').next().unwrap_or("").trim();
             if target.is_empty() {
                 continue;
             }
@@ -413,7 +429,8 @@ pub fn reconcile_apply(
                 // Image embed — keep.
                 return caps.get(0).unwrap().as_str().to_string();
             }
-            let target = caps.name("target").map(|m| m.as_str()).unwrap_or("");
+            let inner = caps.name("inner").map(|m| m.as_str()).unwrap_or("");
+            let target = inner.split('|').next().unwrap_or("").trim();
             if dummies.contains(&target.to_lowercase()) {
                 outcome.dummy_chips_removed += 1;
                 String::new() // strip the chip
@@ -976,6 +993,54 @@ This one is real: [[real.pdf]]
         // Display hardlink must still exist.
         assert!(tmp.path().join(".attachments/doc.pdf").exists());
         let _ = m;
+    }
+
+    /// Bracket-in-filename regression (HanBin 2026-05-13): file
+    /// `[UST - 생성형 AI 실무 활용] 01주차(03_04) 강의 안내 ...mp4` shown as
+    /// "연결 없음" in tab. Cause: the old regex's target class `[^\]\|]+?`
+    /// rejected `]` inside the target, so any wikilink whose filename
+    /// contained `]` was invisible to reconcile → never added to
+    /// `linked_notes`. Fixed by switching to `.+?` and splitting alias
+    /// inline.
+    #[test]
+    fn r_bracket_in_filename_matches() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("source.mp4");
+        std::fs::write(&src, b"data").unwrap();
+        let name = "[UST - 생성형 AI 실무 활용] 01주차(03_04) 강의 안내 2026-03-04 19-01-29.mp4";
+        store.add_attachment(&src, name, "20260513081234").unwrap();
+        write_note_with_id(
+            tmp.path(),
+            "새노트.md",
+            "20260513081234",
+            &format!("body with [[{}]] embedded.", name),
+        );
+        let report = reconcile(&store).unwrap();
+        assert!(report.stale_ref_links.is_empty(), "stale: {:?}", report.stale_ref_links);
+        assert!(report.missing_ref_links.is_empty(), "missing: {:?}", report.missing_ref_links);
+        assert!(report.dummy_chips.is_empty(), "dummy: {:?}", report.dummy_chips);
+    }
+
+    /// Alias form `[[name|display]]` — only the `name` side is the link
+    /// target. Mirrors WikiLink.ts `parseWikiLinkContent`.
+    #[test]
+    fn r_alias_link_target_parsed_correctly() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("source.pdf");
+        std::fs::write(&src, b"data").unwrap();
+        store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
+        write_note_with_id(
+            tmp.path(),
+            "noteA.md",
+            "20260513000001",
+            "Reference: [[doc.pdf|see the report]] here.",
+        );
+        let report = reconcile(&store).unwrap();
+        assert!(report.dummy_chips.is_empty(), "alias resolved: {:?}", report.dummy_chips);
+        assert!(report.missing_ref_links.is_empty());
+        assert!(report.stale_ref_links.is_empty());
     }
 
     /// R-cascade-explicit: explicit user-driven delete (via `attachment_delete`)
