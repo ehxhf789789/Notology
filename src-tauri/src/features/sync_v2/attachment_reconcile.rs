@@ -82,11 +82,22 @@ fn wikilink_regex() -> &'static regex::Regex {
     R.get_or_init(|| regex::Regex::new(r"(?P<bang>!)?\[\[(?P<target>[^\]\|]+?)(?:\|[^\]]*)?\]\]").unwrap())
 }
 
-/// Extract the note_id (filename stem, lowercased) from a `.md` file path.
-fn note_id_for(path: &Path) -> Option<String> {
-    path.file_stem()
-        .and_then(|s| s.to_str())
-        .map(|s| s.to_lowercase())
+/// Resolve a `.md` file path to the note_id `AttachmentRef.linked_notes`
+/// uses. Must match `extract_note_id_from_path` in commands.rs exactly,
+/// otherwise reconcile produces massive false-positives where every
+/// legitimate linked_notes entry shows up as "stale" and every chip in
+/// every note shows up as "missing" — applying that report would wipe
+/// every attachment in the vault (Option C hard-delete on empty
+/// linked_notes). HanBin 2026-05-13 caught this empirically.
+///
+/// Order matches commands.rs:
+///   1. Read `id:` from the .md's YAML frontmatter (14-digit timestamp).
+///   2. Fallback: filename stem (when the file has no `id` field).
+fn note_id_for(path: &Path, content: &str) -> Option<String> {
+    if let Some(id) = crate::core::note_id::read_id_from_content(content) {
+        return Some(id);
+    }
+    path.file_stem().and_then(|s| s.to_str()).map(|s| s.to_string())
 }
 
 /// Walk every `.md` file under `root`, skipping hidden directories.
@@ -142,16 +153,16 @@ pub fn reconcile(store: &AttachmentStore) -> Result<ReconcileReport, String> {
     let vault = store.vault_root();
 
     // 1. Build the ref-side index: original_name (lowercased) → (attachment_id,
-    //    linked_notes set). We use lowercase comparison throughout because
-    //    Windows + macOS filesystems are case-insensitive, and the wikilink
-    //    text and the ref's `original_name` may differ in case.
+    //    original_name, linked_notes set). We lowercase the chip-name keys
+    //    so case-insensitive filesystems (NTFS / APFS) match correctly.
+    //    `linked_notes` entries are frontmatter ids (14-digit timestamps),
+    //    so they are kept as-is.
     type RefByName = HashMap<String, (String, String, HashSet<String>)>;
     let mut refs_by_name: RefByName = HashMap::new();
     for r in store.all_refs() {
         report.refs_inspected += 1;
         let key = r.original_name.to_lowercase();
-        let linked: HashSet<String> =
-            r.linked_notes.iter().map(|s| s.to_lowercase()).collect();
+        let linked: HashSet<String> = r.linked_notes.iter().cloned().collect();
         refs_by_name.insert(
             key,
             (r.attachment_id.clone(), r.original_name.clone(), linked),
@@ -159,7 +170,9 @@ pub fn reconcile(store: &AttachmentStore) -> Result<ReconcileReport, String> {
     }
 
     // 2. Walk note bodies. For each wikilink chip that looks like an
-    //    attachment, record (note_id, fileName).
+    //    attachment, record (note_id, fileName). `note_id` is the
+    //    frontmatter `id:` value (matching commands.rs::extract_note_id_from_path)
+    //    so it lines up with what `linked_notes` actually stores.
     let notes = walk_notes(vault);
     report.notes_scanned = notes.len();
     let re = wikilink_regex();
@@ -170,7 +183,7 @@ pub fn reconcile(store: &AttachmentStore) -> Result<ReconcileReport, String> {
     let mut note_paths: HashMap<String, std::path::PathBuf> = HashMap::new();
 
     for (path, content) in &notes {
-        let nid = match note_id_for(path) {
+        let nid = match note_id_for(path, content) {
             Some(n) => n,
             None => continue,
         };
@@ -354,6 +367,28 @@ pub fn reconcile_apply(
     Ok(outcome)
 }
 
+/// Apply only the *safe* (non-destructive) subset of a reconcile report:
+/// the missing_ref_links bucket. Adding a note_id to an existing ref's
+/// `linked_notes` cannot harm user data — at worst it records a link
+/// the system was already aware of. This is the subset suitable for
+/// silent auto-apply at vault open.
+///
+/// Returns the count added. Dummy chips and stale ref links are NEVER
+/// touched here; the user must explicitly confirm those via the full
+/// `reconcile_apply` path.
+pub fn reconcile_apply_safe(
+    store: &mut AttachmentStore,
+    report: &ReconcileReport,
+) -> Result<usize, String> {
+    let mut added = 0usize;
+    for m in &report.missing_ref_links {
+        if store.link_to_note(&m.attachment_id, &m.note_id).is_ok() {
+            added += 1;
+        }
+    }
+    Ok(added)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -372,14 +407,29 @@ mod tests {
         path
     }
 
+    /// Helper: write a `.md` file with a YAML frontmatter `id:` so the
+    /// note_id matches what `attachment_add` would store. Mirrors the
+    /// real-vault format.
+    fn write_note_with_id(root: &std::path::Path, name: &str, id: &str, body: &str) -> PathBuf {
+        let full = format!("---\nid: {}\n---\n{}", id, body);
+        let path = root.join(name);
+        std::fs::write(&path, full).unwrap();
+        path
+    }
+
     #[test]
     fn reconcile_finds_dummy_chip() {
         let (tmp, store) = mk_vault();
         // Note references an attachment that has no ref.
-        write_note(tmp.path(), "noteA.md", "Body text [[ghost.pdf]] more text.");
+        write_note_with_id(
+            tmp.path(),
+            "noteA.md",
+            "20260513000001",
+            "Body text [[ghost.pdf]] more text.",
+        );
         let report = reconcile(&store).unwrap();
         assert_eq!(report.dummy_chips.len(), 1);
-        assert_eq!(report.dummy_chips[0].note_id, "notea");
+        assert_eq!(report.dummy_chips[0].note_id, "20260513000001");
         assert_eq!(report.dummy_chips[0].file_name, "ghost.pdf");
     }
 
@@ -403,15 +453,18 @@ mod tests {
     #[test]
     fn reconcile_finds_stale_ref_link() {
         let (tmp, mut store) = mk_vault();
-        // Ref claims to be linked to noteA, but noteA's body doesn't have the chip.
+        // Ref claims to be linked to note id "20260513000001", but that note's
+        // body doesn't have the chip.
         let src = tmp.path().join("source.pdf");
         std::fs::write(&src, b"pdf data").unwrap();
-        let out = store.add_attachment(&src, "doc.pdf", "notea").unwrap();
-        write_note(tmp.path(), "noteA.md", "No attachments here.");
+        let out = store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
+        write_note_with_id(tmp.path(), "noteA.md", "20260513000001", "No attachments here.");
         let report = reconcile(&store).unwrap();
         assert_eq!(report.stale_ref_links.len(), 1);
         assert_eq!(report.stale_ref_links[0].attachment_id, out.attachment_ref.attachment_id);
-        assert_eq!(report.stale_ref_links[0].note_id, "notea");
+        assert_eq!(report.stale_ref_links[0].note_id, "20260513000001");
     }
 
     #[test]
@@ -419,21 +472,24 @@ mod tests {
         let (tmp, mut store) = mk_vault();
         let src = tmp.path().join("source.pdf");
         std::fs::write(&src, b"pdf data").unwrap();
-        store.add_attachment(&src, "doc.pdf", "notea").unwrap();
+        store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
         // Note B also references the attachment but ref doesn't know.
-        write_note(tmp.path(), "noteA.md", "Has [[doc.pdf]]");
-        write_note(tmp.path(), "noteB.md", "Also [[doc.pdf]]");
+        write_note_with_id(tmp.path(), "noteA.md", "20260513000001", "Has [[doc.pdf]]");
+        write_note_with_id(tmp.path(), "noteB.md", "20260513000002", "Also [[doc.pdf]]");
         let report = reconcile(&store).unwrap();
         assert_eq!(report.missing_ref_links.len(), 1);
-        assert_eq!(report.missing_ref_links[0].note_id, "noteb");
+        assert_eq!(report.missing_ref_links[0].note_id, "20260513000002");
     }
 
     #[test]
     fn reconcile_apply_strips_dummy_chip() {
         let (tmp, mut store) = mk_vault();
-        let note = write_note(
+        let note = write_note_with_id(
             tmp.path(),
             "noteA.md",
+            "20260513000001",
             "Before [[ghost.pdf]] after.",
         );
         let report = reconcile(&store).unwrap();
@@ -451,14 +507,14 @@ mod tests {
         let (tmp, mut store) = mk_vault();
         let src = tmp.path().join("source.pdf");
         std::fs::write(&src, b"data").unwrap();
-        let out = store.add_attachment(&src, "doc.pdf", "notea").unwrap();
-        // Note A doesn't actually contain the chip → stale.
-        write_note(tmp.path(), "noteA.md", "Nothing here.");
+        let out = store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
+        write_note_with_id(tmp.path(), "noteA.md", "20260513000001", "Nothing here.");
         let report = reconcile(&store).unwrap();
         let outcome = reconcile_apply(&mut store, &report).unwrap();
         assert_eq!(outcome.stale_links_fixed, 1);
         assert_eq!(outcome.refs_hard_deleted, 1);
-        // Ref gone.
         assert!(store.get_by_id(&out.attachment_ref.attachment_id).is_none());
     }
 
@@ -467,13 +523,67 @@ mod tests {
         let (tmp, mut store) = mk_vault();
         let src = tmp.path().join("source.pdf");
         std::fs::write(&src, b"data").unwrap();
-        let out = store.add_attachment(&src, "doc.pdf", "notea").unwrap();
-        write_note(tmp.path(), "noteA.md", "[[doc.pdf]]");
-        write_note(tmp.path(), "noteB.md", "[[doc.pdf]]");
+        let out = store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
+        write_note_with_id(tmp.path(), "noteA.md", "20260513000001", "[[doc.pdf]]");
+        write_note_with_id(tmp.path(), "noteB.md", "20260513000002", "[[doc.pdf]]");
         let report = reconcile(&store).unwrap();
         let outcome = reconcile_apply(&mut store, &report).unwrap();
         assert_eq!(outcome.missing_links_added, 1);
         let r = store.get_by_id(&out.attachment_ref.attachment_id).unwrap();
-        assert!(r.linked_notes.contains(&"noteb".to_string()));
+        assert!(r.linked_notes.contains(&"20260513000002".to_string()));
+    }
+
+    /// Regression: ref claims a real frontmatter id and the note body has
+    /// the chip — must NOT show up as stale or missing. (The bug HanBin
+    /// caught: 11 stale + 10 missing on a fully-correct vault because the
+    /// previous note_id_for used filename stem instead of frontmatter id.)
+    #[test]
+    fn reconcile_clean_vault_returns_no_discrepancies() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("source.pdf");
+        std::fs::write(&src, b"data").unwrap();
+        store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
+        write_note_with_id(
+            tmp.path(),
+            "새노트.md",
+            "20260513000001",
+            "Body with [[doc.pdf]]",
+        );
+        let report = reconcile(&store).unwrap();
+        assert!(report.dummy_chips.is_empty(), "unexpected: {:?}", report.dummy_chips);
+        assert!(report.stale_ref_links.is_empty(), "unexpected: {:?}", report.stale_ref_links);
+        assert!(report.missing_ref_links.is_empty(), "unexpected: {:?}", report.missing_ref_links);
+    }
+
+    /// `reconcile_apply_safe` only adds missing links — it must leave
+    /// stale_ref_links untouched (no hard delete, no body rewrite).
+    #[test]
+    fn reconcile_apply_safe_skips_destructive_buckets() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("source.pdf");
+        std::fs::write(&src, b"data").unwrap();
+        let out = store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
+        // Stale ref link — note exists but body doesn't have the chip.
+        write_note_with_id(tmp.path(), "noteA.md", "20260513000001", "Nothing here.");
+        // Dummy chip — body has [[ghost.pdf]] with no backing ref.
+        let note_b = write_note_with_id(tmp.path(), "noteB.md", "20260513000002", "[[ghost.pdf]]");
+        let report = reconcile(&store).unwrap();
+        assert_eq!(report.stale_ref_links.len(), 1);
+        assert_eq!(report.dummy_chips.len(), 1);
+
+        let added = reconcile_apply_safe(&mut store, &report).unwrap();
+        assert_eq!(added, 0);
+        // Stale ref still claims the link.
+        let r = store.get_by_id(&out.attachment_ref.attachment_id).unwrap();
+        assert!(r.linked_notes.contains(&"20260513000001".to_string()));
+        // Dummy chip still in the body.
+        let body = std::fs::read_to_string(&note_b).unwrap();
+        assert!(body.contains("[[ghost.pdf]]"));
     }
 }

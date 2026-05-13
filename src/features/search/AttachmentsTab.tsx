@@ -153,11 +153,19 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
     });
   }, []);
 
-  // Bidirectional reconcile (HanBin 2026-05-13). Walks every .md file and
-  // compares wikilinks to AttachmentRef.linked_notes. Two-stage UX:
-  //   1. Scan: read-only, populates `verifyReport`.
-  //   2. Apply: confirmation modal lists counts, user accepts → backend
-  //      rewrites note bodies + fixes refs.
+  // Bidirectional reconcile (HanBin 2026-05-13). The non-destructive
+  // bucket (`missing_ref_links`) is silently auto-applied by the backend
+  // at every vault open — see `sync_engine::start`. This manual flow
+  // exists ONLY for the two destructive buckets:
+  //   - dummy_chips     : wikilink in a note body that points at no ref.
+  //                       Apply = strip the `[[name]]` text from the .md.
+  //   - stale_ref_links : ref's linked_notes claims a note, but that
+  //                       note's body has no matching wikilink. Apply =
+  //                       unlink → if linked_notes empties, hard-delete
+  //                       the ref + CAS blob + NAS copy (Option C).
+  // Both require explicit user consent because the result is irreversible
+  // and the heuristic can occasionally false-positive (e.g. note's
+  // frontmatter id was rewritten externally between scan and apply).
   const handleVerify = useCallback(async () => {
     setVerifying(true);
     try {
@@ -172,36 +180,63 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
 
   const handleApplyVerify = useCallback(() => {
     if (!verifyReport) return;
-    const total =
-      verifyReport.dummyChips.length
-      + verifyReport.staleRefLinks.length
-      + verifyReport.missingRefLinks.length;
-    if (total === 0) {
+    // Only the destructive subset is presented for user confirmation —
+    // missing_ref_links is auto-applied by the backend at vault open.
+    const destructiveTotal =
+      verifyReport.dummyChips.length + verifyReport.staleRefLinks.length;
+    if (destructiveTotal === 0) {
       setVerifyReport(null);
       return;
     }
-    const summary = `${verifyReport.dummyChips.length} dummy / ${verifyReport.staleRefLinks.length} stale / ${verifyReport.missingRefLinks.length} missing`;
+
+    // Build a concrete preview: up to 3 sample items per bucket so the
+    // user sees exactly what is about to change, not just abstract counts.
+    const preview: string[] = [];
+    if (verifyReport.dummyChips.length > 0) {
+      const samples = verifyReport.dummyChips
+        .slice(0, 3)
+        .map((d) => `  • [[${d.fileName}]] in ${d.notePath.split('/').pop()}`)
+        .join('\n');
+      preview.push(
+        `${tf('attachmentReconcileDummyHeader', language, { count: verifyReport.dummyChips.length })}\n${samples}` +
+          (verifyReport.dummyChips.length > 3 ? `\n  • +${verifyReport.dummyChips.length - 3} more` : ''),
+      );
+    }
+    if (verifyReport.staleRefLinks.length > 0) {
+      const samples = verifyReport.staleRefLinks
+        .slice(0, 3)
+        .map((s) => `  • ${s.originalName} ↛ ${s.noteId}`)
+        .join('\n');
+      preview.push(
+        `${tf('attachmentReconcileStaleHeader', language, { count: verifyReport.staleRefLinks.length })}\n${samples}` +
+          (verifyReport.staleRefLinks.length > 3 ? `\n  • +${verifyReport.staleRefLinks.length - 3} more` : ''),
+      );
+    }
+
     modalActions.showConfirmDelete(
-      summary,
+      tf('attachmentReconcileApplyTitle', language, { count: destructiveTotal }),
       'file',
       async () => {
         try {
           const outcome = await syncV2Commands.attachmentReconcileApply(verifyReport);
           console.log('[AttachmentsTab] reconcile applied:', outcome);
           setVerifyReport(null);
-          if (outcome.errors.length > 0) {
-            modalActions.showAlertModal(
-              t('attachmentReconcileTitle', language),
-              `Done with ${outcome.errors.length} error(s). See console for details.`,
-            );
-          }
+          modalActions.showAlertModal(
+            t('attachmentReconcileTitle', language),
+            tf('attachmentReconcileDoneMsg', language, {
+              dummy: outcome.dummyChipsRemoved,
+              stale: outcome.staleLinksFixed,
+              deleted: outcome.refsHardDeleted,
+              errors: outcome.errors.length,
+            }),
+          );
         } catch (e) {
           console.error('[AttachmentsTab] apply failed:', e);
         }
       },
-      total,
+      destructiveTotal,
       {
-        warningOverride: t('attachmentReconcileWarning', language),
+        warningOverride: `${t('attachmentReconcileWarning', language)}\n\n${preview.join('\n\n')}`,
       },
     );
   }, [verifyReport, language]);
@@ -226,31 +261,47 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
         >
           {verifying ? t('attachmentReconcileScanning', language) : t('attachmentReconcileVerify', language)}
         </button>
-        {verifyReport && (
-          <div className="attachments-tab-v2-verify-summary">
-            <span>
-              {tf('attachmentReconcileResult', language, {
-                dummy: verifyReport.dummyChips.length,
-                stale: verifyReport.staleRefLinks.length,
-                missing: verifyReport.missingRefLinks.length,
-              })}
-            </span>
-            {(verifyReport.dummyChips.length + verifyReport.staleRefLinks.length + verifyReport.missingRefLinks.length) > 0 && (
+        {verifyReport && (() => {
+          const destructive = verifyReport.dummyChips.length + verifyReport.staleRefLinks.length;
+          const allClean = destructive === 0 && verifyReport.missingRefLinks.length === 0;
+          return (
+            <div className="attachments-tab-v2-verify-summary">
+              {allClean ? (
+                <span>{t('attachmentReconcileAllClean', language)}</span>
+              ) : (
+                <>
+                  <span>
+                    {tf('attachmentReconcileResultV2', language, {
+                      dummy: verifyReport.dummyChips.length,
+                      stale: verifyReport.staleRefLinks.length,
+                    })}
+                  </span>
+                  {verifyReport.missingRefLinks.length > 0 && (
+                    <span className="attachments-tab-v2-verify-note">
+                      {tf('attachmentReconcileAutoApplied', language, {
+                        missing: verifyReport.missingRefLinks.length,
+                      })}
+                    </span>
+                  )}
+                  {destructive > 0 && (
+                    <button
+                      className="attachments-tab-v2-action-btn attachments-tab-v2-action-btn-primary"
+                      onClick={handleApplyVerify}
+                    >
+                      {t('attachmentReconcileReview', language)}
+                    </button>
+                  )}
+                </>
+              )}
               <button
-                className="attachments-tab-v2-action-btn attachments-tab-v2-action-btn-primary"
-                onClick={handleApplyVerify}
+                className="attachments-tab-v2-action-btn-link"
+                onClick={() => setVerifyReport(null)}
               >
-                {t('attachmentReconcileApply', language)}
+                {t('cancel', language)}
               </button>
-            )}
-            <button
-              className="attachments-tab-v2-action-btn-link"
-              onClick={() => setVerifyReport(null)}
-            >
-              {t('cancel', language)}
-            </button>
-          </div>
-        )}
+            </div>
+          );
+        })()}
       </div>
       <table className="search-table">
         <thead>

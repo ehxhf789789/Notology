@@ -294,6 +294,58 @@ impl SyncEngine {
         //     succeeded then the persist_ref step failed).
         // Idempotent: blobs/files still in use (locked) are skipped with a
         // warning and tried again on the next vault open / periodic tick.
+        // PART 6 hardening (HanBin 2026-05-13): bidirectional reconcile —
+        // safe pass only. Runs once at vault open. Walks every .md file,
+        // compares wikilinks against `AttachmentRef.linked_notes`, and
+        // silently applies the non-destructive subset (missing_ref_links:
+        // chip in body but linked_notes doesn't record it). Destructive
+        // buckets (dummy_chips, stale_ref_links) are deliberately left for
+        // the manual "Verify links" flow in the Attachments tab because
+        // they cannot be auto-fixed without risk of data loss.
+        let vault_for_reconcile = self.vault_path.clone();
+        tokio::spawn(async move {
+            // Tiny delay so the rest of bootstrap finishes first.
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            let mut store = match crate::features::sync_v2::attachment_store::AttachmentStore::new(
+                vault_for_reconcile,
+            ) {
+                Ok(s) => s,
+                Err(e) => {
+                    log::warn!("[attachment_reconcile auto] store init failed: {}", e);
+                    return;
+                }
+            };
+            let report = match crate::features::sync_v2::attachment_reconcile::reconcile(&store) {
+                Ok(r) => r,
+                Err(e) => {
+                    log::warn!("[attachment_reconcile auto] scan failed: {}", e);
+                    return;
+                }
+            };
+            log::info!(
+                "[attachment_reconcile auto] scanned {} notes, inspected {} refs → {} dummy / {} stale / {} missing",
+                report.notes_scanned,
+                report.refs_inspected,
+                report.dummy_chips.len(),
+                report.stale_ref_links.len(),
+                report.missing_ref_links.len()
+            );
+            // Apply only the safe subset.
+            match crate::features::sync_v2::attachment_reconcile::reconcile_apply_safe(
+                &mut store, &report,
+            ) {
+                Ok(added) => {
+                    if added > 0 {
+                        log::info!(
+                            "[attachment_reconcile auto] silently added {} missing linked_notes entries",
+                            added
+                        );
+                    }
+                }
+                Err(e) => log::warn!("[attachment_reconcile auto] apply_safe failed: {}", e),
+            }
+        });
+
         let vault_for_sweep = self.vault_path.clone();
         let stop_for_sweep = self.stop_signal.clone();
         tokio::spawn(async move {

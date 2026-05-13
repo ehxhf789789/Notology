@@ -197,4 +197,11 @@
   align-items: center;
   gap: var(--sp-3, 8px);
   color: var(--text-primary, #e5e7eb);
+  flex-wrap: wrap;
+}
+
+.attachments-tab-v2-verify-note {
+  color: var(--text-secondary, #94a3b8);
+  font-size: var(--fs-11, 11px);
+  font-style: italic;
 }
