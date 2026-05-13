@@ -121,7 +121,11 @@ export function useFileResolution(
   // OPTIMIZED: O(1) check if file is an attachment in current note's _att folder
   const isAttachment = useCallback((fileName: string): boolean => {
     // Track B Phase B-3: AttachmentRef index is canonical for new-schema vaults.
-    if (useAttachmentStore.getState().resolveByName(fileName)) return true;
+    // Also honor the cross-context pending map for chips whose drop is still
+    // in flight (especially after this hover window was reopened).
+    const store = useAttachmentStore.getState();
+    if (store.resolveByName(fileName)) return true;
+    if (store.isPending(fileName)) return true;
     if (!effectiveAttStem) return false;
     return fileLookupActions.isInAttFolder(fileName, effectiveAttStem);
   }, [effectiveAttStem]);

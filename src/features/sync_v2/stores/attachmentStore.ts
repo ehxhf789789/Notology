@@ -119,6 +119,9 @@ export const useAttachmentStore = create<AttachmentState>()(
         next.add(key);
         return { ...s, pendingNames: next };
       });
+      // Persist with timestamp so other webviews (and the same webview after
+      // close+reopen) can see it. Auto-expires after PENDING_TTL_MS.
+      writePersistentPending(key, Date.now());
     },
 
     unmarkPending(fileName) {
@@ -129,10 +132,15 @@ export const useAttachmentStore = create<AttachmentState>()(
         next.delete(key);
         return { ...s, pendingNames: next };
       });
+      removePersistentPending(key);
     },
 
     isPending(fileName) {
-      return get().pendingNames.has(fileName.toLowerCase());
+      const key = fileName.toLowerCase();
+      // In-memory first (this context's own drops).
+      if (get().pendingNames.has(key)) return true;
+      // Then the cross-context persistent map.
+      return readPersistentPending(key);
     },
 
     async hydrate() {
@@ -306,6 +314,59 @@ export const useAttachmentResolver = () =>
   useAttachmentStore((s) => s.resolveByName);
 
 export const useAttachmentList = () => useAttachmentStore((s) => s.all());
+
+// ── Persistent pending map ─────────────────────────────────────────────────
+// Survives a single webview's lifecycle (localStorage is shared across all
+// Tauri windows of the same app origin) and auto-expires entries after
+// PENDING_TTL_MS so a backend that died mid-`attachment_add` doesn't leave
+// a chip spinning forever.
+//
+// Stored shape: `{ [basenameLowercase]: timestampMs }`.
+const PENDING_KEY = 'notology.attachment.pending';
+const PENDING_TTL_MS = 5 * 60 * 1000; // 5 min — generous for slow sha on huge files
+
+function readPendingMap(): Record<string, number> {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(PENDING_KEY) : null;
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writePendingMap(map: Record<string, number>) {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(PENDING_KEY, JSON.stringify(map));
+  } catch {}
+}
+
+function writePersistentPending(key: string, ts: number) {
+  const map = readPendingMap();
+  map[key] = ts;
+  writePendingMap(map);
+}
+
+function removePersistentPending(key: string) {
+  const map = readPendingMap();
+  if (!(key in map)) return;
+  delete map[key];
+  writePendingMap(map);
+}
+
+function readPersistentPending(key: string): boolean {
+  const map = readPendingMap();
+  const ts = map[key];
+  if (!ts) return false;
+  if (Date.now() - ts > PENDING_TTL_MS) {
+    // Clean up stale entry as a side-effect of the read.
+    removePersistentPending(key);
+    return false;
+  }
+  return true;
+}
 
 // ── Polling timers ─────────────────────────────────────────────────────────
 //

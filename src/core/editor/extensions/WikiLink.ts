@@ -250,23 +250,23 @@ export const WikiLink = Node.create<WikiLinkOptions>({
     const isMarkdown = fileName.endsWith('.md');
     const storedIsAttachment = node.attrs.isAttachmentAttr;
 
-    // Determine if this is an attachment. Five layered cues (most-trusted first):
-    // 1. Backend callback says yes → ref is in the store, definitely attachment.
-    // 2. Pending drop → optimistic insert, treat as attachment for the spinner.
-    // 3. Stored attribute (node carries isAttachmentAttr=true from insert time).
-    // 4. Has a non-.md extension → optimistic visual fallback. Catches the
-    //    cross-window race where this webview re-opened before the original
-    //    drop's AttachmentRef reached its store, and neither pendingNames
-    //    nor storedIsAttachment (both per-context) carry the signal.
-    //    Side-effect: a typo'd wikilink (`[[wrongfile.pdf]]`) shows as
-    //    attachment-unresolved until the user notices and fixes it — we
-    //    accept that over keeping the new-drop case visibly broken.
+    // Determine if this is an attachment. Trusted-first cues:
+    //   1. Backend callback says yes → ref in store.
+    //   2. Pending drop (in-memory or persisted in localStorage) → optimistic.
+    //      The persistent layer survives close+reopen across webviews and
+    //      auto-expires after 5 minutes — long enough for any reasonable
+    //      sha256 + CAS write, short enough that a backend that died mid-
+    //      `attachment_add` falls back to plain "unresolved" gray instead
+    //      of spinning forever (HanBin's infinite-spinner report).
+    //   3. Stored attribute (node was inserted as attachment in this doc).
+    //
+    // Extension-only fallback was deliberately removed: it made every
+    // broken `[[wrongfile.pdf]]` look like "uploading" indefinitely.
     const callbackResult = this.options.isAttachment ? this.options.isAttachment(fileName) : null;
     const isPendingInsert = useAttachmentStore.getState().isPending(fileName);
     const isAttachment = callbackResult === true
       || isPendingInsert
-      || storedIsAttachment
-      || (hasExtension && !isMarkdown);
+      || storedIsAttachment;
 
     const isResolved = this.options.resolveLink(fileName);
 
@@ -515,18 +515,15 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                 const isMarkdown = fileName.endsWith('.md');
                 const storedIsAttachment = node.attrs.isAttachmentAttr;
 
-                // Track B Phase B-3 stabilization: see renderHTML's matching
-                // comment block. Five layered cues — backend callback, this
-                // context's pendingNames, the node's stored attribute,
-                // extension match (always-on optimism), and the legacy
-                // fallback. Extension match covers the cross-window reopen
-                // race that left chips gray after spinner-mid close.
+                // See renderHTML's matching comment. Same three cues:
+                // backend callback, persistent-pending (localStorage-aware
+                // so it survives close+reopen + auto-expires after 5 min),
+                // and stored node attribute.
                 const callbackResult = isAttachmentCallback ? isAttachmentCallback(fileName) : null;
                 const isPending = useAttachmentStore.getState().isPending(fileName);
                 const isAttachment = callbackResult === true
                   || isPending
-                  || storedIsAttachment
-                  || (hasExtension && !isMarkdown);
+                  || storedIsAttachment;
 
                 const noteType = isAttachment ? '' :
                   (getNoteType ? (getNoteType(fileName) || '').toLowerCase() : inferNoteType(fileName));

@@ -221,8 +221,11 @@ function ContainerView() {
   const isAttachment = useCallback((fileName: string): boolean => {
     // Track B Phase B-3: post-migration attachments live in `.attachments/`
     // (hidden from the file tree per single-surface principle). Consult the
-    // AttachmentRef index FIRST — that's the canonical source.
-    if (useAttachmentStore.getState().resolveByName(fileName)) return true;
+    // AttachmentRef index FIRST, then the cross-context pending map (so a
+    // drop that's still in flight in another webview also resolves true).
+    const store = useAttachmentStore.getState();
+    if (store.resolveByName(fileName)) return true;
+    if (store.isPending(fileName)) return true;
 
     if (!folderNotePath) return false;
 
