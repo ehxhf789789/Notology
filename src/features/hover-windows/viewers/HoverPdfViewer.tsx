@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import PdfJsViewer from './PdfJsViewer';
 import { Minus, X, ExternalLink } from 'lucide-react';
 import { utilCommands } from '../../../core/services/tauriCommands';
 import { useHoverStore, hoverActions, useIsClosing, useIsMinimizing, HOVER_ANIMATION } from '../stores/hoverStore';
@@ -321,12 +321,31 @@ const HoverPdfViewer = memo(function HoverPdfViewer({ window: win }: HoverEditor
           </button>
         </div>
       </div>
-      <div className="hover-editor-body pdf-viewer-body" style={{ flex: 1, overflow: 'hidden' }}>
-        {/* HanBin 2026-05-13 round 6: bundled PDF.js — we own the toolbar
-            end-to-end, so the chrome://settings navigation that the
-            WebView2 PDF viewer's ⋮ menu was triggering is structurally
-            impossible. No iframe, no Chromium PDF handler. */}
-        <PdfJsViewer filePath={win.filePath} />
+      <div className="hover-editor-body pdf-viewer-body" style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        {/* HanBin 2026-05-13 round 10: back to WebView2's native PDF
+            viewer (GPU-accelerated, ~10× faster first-paint than PDF.js)
+            with a click-blocking overlay positioned over the top-right
+            corner of the toolbar — exactly where the ⋮ overflow menu
+            lives. Clicks in that ~70 × 48 px region are absorbed by the
+            transparent `<div>` below the iframe in z-order, so the
+            Settings menu item that navigated to chrome://settings is
+            unreachable. Page nav, zoom, and fit controls live on the
+            left/center of the toolbar and stay fully usable.
+            PdfJsViewer is kept around for the future webview-pool / DOM
+            overlay alternatives but isn't on the hot path. */}
+        <iframe
+          src={convertFileSrc(win.filePath)}
+          referrerPolicy="no-referrer"
+          style={{ width: '100%', height: '100%', border: 'none' }}
+          title={fileName}
+        />
+        <div
+          className="pdf-overflow-blocker"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          aria-hidden="true"
+          title=""
+        />
       </div>
       {!inMultiWindowMode && <div className="hover-editor-resize" onMouseDown={handleResizeStart} />}
     </div>

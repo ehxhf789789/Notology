@@ -12,7 +12,7 @@ import { XlsxViewer } from './XlsxViewer';
 import { PptxViewer } from './pptx';
 import { HwpxViewer } from './hwpx';
 import { HwpViewer } from './HwpViewer';
-import PdfJsViewer from './PdfJsViewer';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 const DEV = import.meta.env.DEV;
 const log = DEV ? console.log.bind(console) : () => {};
@@ -420,11 +420,24 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
 
       case 'pdf':
         return (
-          <div className="hover-editor-body pdf-viewer-body">
-            {/* HanBin 2026-05-13 round 6: same bundled PDF.js viewer as
-                HoverPdfViewer. LibreOffice-converted PDF lands on disk
-                at `pdfPath`; pass it through directly. */}
-            {pdfPath && <PdfJsViewer filePath={pdfPath} />}
+          <div className="hover-editor-body pdf-viewer-body" style={{ position: 'relative' }}>
+            {/* HanBin 2026-05-13 round 10: native WebView2 PDF + ⋮-menu
+                click blocker overlay. See HoverPdfViewer.tsx for the
+                rationale. */}
+            {pdfPath && <iframe
+              src={convertFileSrc(pdfPath)}
+              referrerPolicy="no-referrer"
+              width="100%"
+              height="100%"
+              style={{ border: 'none' }}
+            />}
+            <div
+              className="pdf-overflow-blocker"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              aria-hidden="true"
+              title=""
+            />
           </div>
         );
     }
