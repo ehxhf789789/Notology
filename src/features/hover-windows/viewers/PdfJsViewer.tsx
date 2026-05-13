@@ -19,10 +19,10 @@
  */
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { previewCommands } from '../../../core/services/tauriCommands';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, RotateCw } from 'lucide-react';
 
 // Wire the worker exactly once, module-load time. Subsequent component
@@ -47,7 +47,23 @@ export default function PdfJsViewer({ filePath }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  // ── Load + parse PDF ────────────────────────────────────────────────────
+  // ── Load + parse PDF (HanBin 2026-05-13: optimized) ─────────────────────
+  // Previous implementation read the entire PDF via Tauri's
+  // `read_binary_file` command — for a 1 GB scan, that's >10 s of IPC
+  // serializing a `number[]` of a billion entries before PDF.js even
+  // starts parsing. Now we hand PDF.js the asset:// URL directly and let
+  // it stream:
+  //   • `disableAutoFetch: true` + range support → only the bytes for
+  //     the pages currently being rendered get fetched. Tauri's asset
+  //     protocol supports HTTP range requests.
+  //   • `disableStream: false` (default) → response body is consumed
+  //     incrementally, so the header + page 1 are usable while later
+  //     bytes are still in flight.
+  //   • `useSystemFonts: true` → don't ship embedded fonts when the OS
+  //     has them. Big win for Korean/CJK PDFs.
+  //   • Page 1 is `getPage(1)`-prefetched the moment metadata lands so
+  //     it can start rasterizing in parallel with whatever the
+  //     IntersectionObserver decides to render next.
   useEffect(() => {
     let cancelled = false;
     let loadingTask: ReturnType<typeof pdfjsLib.getDocument> | null = null;
@@ -56,10 +72,15 @@ export default function PdfJsViewer({ filePath }: Props) {
       setLoading(true);
       setError(null);
       try {
-        const bytes = await previewCommands.readBinaryFile(filePath);
-        if (cancelled) return;
-        const data = new Uint8Array(bytes);
-        loadingTask = pdfjsLib.getDocument({ data });
+        const url = convertFileSrc(filePath);
+        loadingTask = pdfjsLib.getDocument({
+          url,
+          disableAutoFetch: true,
+          disableStream: false,
+          useSystemFonts: true,
+          // Reduce verbose console noise from PDF.js during normal load.
+          verbosity: 0,
+        });
         const doc = await loadingTask.promise;
         if (cancelled) {
           doc.destroy();
@@ -69,6 +90,10 @@ export default function PdfJsViewer({ filePath }: Props) {
         setTotalPages(doc.numPages);
         setCurrentPage(1);
         setLoading(false);
+        // Prefetch page 1 — it's almost certainly the first to render,
+        // and getting its data into PDF.js's internal cache shaves
+        // visible-paint latency by ~one full network round-trip.
+        doc.getPage(1).catch(() => { /* non-fatal */ });
       } catch (e) {
         if (!cancelled) {
           setError(String(e));
@@ -244,7 +269,11 @@ export default function PdfJsViewer({ filePath }: Props) {
         {error && <div className="pdfjs-status pdfjs-status-error">로딩 실패: {error}</div>}
         {pdf && Array.from({ length: totalPages }, (_, i) => (
           <PdfPage
-            key={`${filePath}-${i}-${rotation}`}
+            // Keying on filePath only — rotation/scale/fitWidth flow in as
+            // props so the page component's render-effect re-runs without
+            // tearing down the canvas + IntersectionObserver. Re-keying on
+            // every rotation change was forcing N page remounts per click.
+            key={`${filePath}-${i}`}
             pdf={pdf}
             pageNum={i + 1}
             scale={scale}
@@ -289,24 +318,45 @@ function PdfPage({
 }: PdfPageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pageRef = useRef<PDFPageProxy | null>(null);
   const [pageMeta, setPageMeta] = useState<{ width: number; height: number } | null>(null);
   const [visible, setVisible] = useState(false);
 
-  // Resolve the page's natural size once so we can reserve scroll space
-  // even before the page paints.
+  // Resolve the page proxy ONCE per (pdf, pageNum). Cached on pageRef so
+  // the rendering effect below doesn't refetch on every scale change.
+  // Dimensions use scale=1.0 + rotation so rotation re-fetches viewport
+  // metadata without re-fetching the page itself.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const page = await pdf.getPage(pageNum);
-      if (cancelled) return;
+      if (cancelled) {
+        page.cleanup();
+        return;
+      }
+      pageRef.current = page;
       const viewport = page.getViewport({ scale: 1.0, rotation });
       setPageMeta({ width: viewport.width, height: viewport.height });
-      page.cleanup();
     })();
-    return () => { cancelled = true; };
-  }, [pdf, pageNum, rotation]);
+    return () => {
+      cancelled = true;
+      pageRef.current?.cleanup();
+      pageRef.current = null;
+    };
+  }, [pdf, pageNum]);
+
+  // Re-measure on rotation alone (page proxy stays in cache).
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const viewport = page.getViewport({ scale: 1.0, rotation });
+    setPageMeta({ width: viewport.width, height: viewport.height });
+  }, [rotation]);
 
   // Visibility tracking — only paint when in (or near) the viewport.
+  // 1200 px buffer in both directions gives ~one full page of headroom
+  // when scrolling at typical wheel speed, so the next page is already
+  // rasterized by the time it scrolls into actual view.
   useEffect(() => {
     const el = containerRef.current;
     if (!el || !scrollContainer) return;
@@ -316,7 +366,7 @@ function PdfPage({
           if (entry.isIntersecting) setVisible(true);
         }
       },
-      { root: scrollContainer, rootMargin: '600px 0px' },
+      { root: scrollContainer, rootMargin: '1200px 0px' },
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -331,19 +381,26 @@ function PdfPage({
   }, [fitWidth, scale, scrollContainer, pageMeta]);
 
   // Render to canvas whenever (visibility, scale, rotation) changes.
+  // Uses the cached page proxy from the effect above — avoids a second
+  // `pdf.getPage()` round-trip per zoom/rotate.
   useEffect(() => {
     if (!visible || !canvasRef.current) return;
     let cancelled = false;
     let renderTask: ReturnType<PDFPageProxy['render']> | null = null;
-    (async () => {
-      const page = await pdf.getPage(pageNum);
-      if (cancelled) {
-        page.cleanup();
-        return;
+
+    const start = async () => {
+      // Wait briefly for the page proxy to land if it hasn't yet.
+      let attempts = 0;
+      while (!pageRef.current && attempts < 50 && !cancelled) {
+        await new Promise((r) => setTimeout(r, 20));
+        attempts++;
       }
+      const page = pageRef.current;
+      if (cancelled || !page || !canvasRef.current) return;
+
       const viewport = page.getViewport({ scale: effectiveScale, rotation });
       const dpr = window.devicePixelRatio || 1;
-      const canvas = canvasRef.current!;
+      const canvas = canvasRef.current;
       canvas.width = Math.floor(viewport.width * dpr);
       canvas.height = Math.floor(viewport.height * dpr);
       canvas.style.width = `${viewport.width}px`;
@@ -355,19 +412,20 @@ function PdfPage({
       try {
         await renderTask.promise;
       } catch (e: any) {
-        // A new render started before this finished — that's fine.
+        // RenderingCancelledException fires when a newer render (e.g.
+        // user zoomed mid-paint) supersedes this one. Expected, silent.
         if (e?.name !== 'RenderingCancelledException') {
           console.warn(`[PdfJsViewer] page ${pageNum} render failed:`, e);
         }
-      } finally {
-        page.cleanup();
       }
-    })();
+    };
+    void start();
+
     return () => {
       cancelled = true;
       if (renderTask) renderTask.cancel();
     };
-  }, [visible, effectiveScale, rotation, pageNum, pdf]);
+  }, [visible, effectiveScale, rotation, pageNum]);
 
   // Use the page's natural dimensions (or 850x1100 fallback) to reserve
   // scroll space so the page-number tracker has stable offsets.
