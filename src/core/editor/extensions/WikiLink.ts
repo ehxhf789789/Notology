@@ -250,17 +250,23 @@ export const WikiLink = Node.create<WikiLinkOptions>({
     const isMarkdown = fileName.endsWith('.md');
     const storedIsAttachment = node.attrs.isAttachmentAttr;
 
-    // Determine if this is an attachment:
-    // 1. Backend callback says yes → attachment
-    // 2. Optimistic-pending drop (basename in attachmentStore.pendingNames) → attachment
-    // 3. Else if previously marked as attachment (stored attr) → still attachment
-    // 4. Else fall back to extension-based check
+    // Determine if this is an attachment. Five layered cues (most-trusted first):
+    // 1. Backend callback says yes → ref is in the store, definitely attachment.
+    // 2. Pending drop → optimistic insert, treat as attachment for the spinner.
+    // 3. Stored attribute (node carries isAttachmentAttr=true from insert time).
+    // 4. Has a non-.md extension → optimistic visual fallback. Catches the
+    //    cross-window race where this webview re-opened before the original
+    //    drop's AttachmentRef reached its store, and neither pendingNames
+    //    nor storedIsAttachment (both per-context) carry the signal.
+    //    Side-effect: a typo'd wikilink (`[[wrongfile.pdf]]`) shows as
+    //    attachment-unresolved until the user notices and fixes it — we
+    //    accept that over keeping the new-drop case visibly broken.
     const callbackResult = this.options.isAttachment ? this.options.isAttachment(fileName) : null;
     const isPendingInsert = useAttachmentStore.getState().isPending(fileName);
     const isAttachment = callbackResult === true
       || isPendingInsert
-      || (callbackResult === null && storedIsAttachment)
-      || (callbackResult === null && !storedIsAttachment && hasExtension && !isMarkdown);
+      || storedIsAttachment
+      || (hasExtension && !isMarkdown);
 
     const isResolved = this.options.resolveLink(fileName);
 
@@ -509,25 +515,18 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                 const isMarkdown = fileName.endsWith('.md');
                 const storedIsAttachment = node.attrs.isAttachmentAttr;
 
-                // Track B Phase B-3 stabilization: optimistic insert phase
-                // (between drop and AttachmentRef landing in the store)
-                // tracks the basename in `pendingNames`. We treat anything
-                // pending as an attachment so the chip gets the .attachment
-                // class and the amber "processing" paint kicks in immediately
-                // — without this, the chip stays gray for the entire
-                // attachment_add latency window.
-                const isPending = useAttachmentStore.getState().isPending(fileName);
-
-                // Determine if this is an attachment:
-                // 1. Backend callback says yes (post-add, ref present) → attachment
-                // 2. Optimistic-pending (drop in flight) → attachment
-                // 3. Else if previously marked as attachment (stored attr) → still attachment
-                // 4. Else fall back to extension-based check
+                // Track B Phase B-3 stabilization: see renderHTML's matching
+                // comment block. Five layered cues — backend callback, this
+                // context's pendingNames, the node's stored attribute,
+                // extension match (always-on optimism), and the legacy
+                // fallback. Extension match covers the cross-window reopen
+                // race that left chips gray after spinner-mid close.
                 const callbackResult = isAttachmentCallback ? isAttachmentCallback(fileName) : null;
+                const isPending = useAttachmentStore.getState().isPending(fileName);
                 const isAttachment = callbackResult === true
                   || isPending
-                  || (callbackResult === null && storedIsAttachment)
-                  || (callbackResult === null && !storedIsAttachment && hasExtension && !isMarkdown);
+                  || storedIsAttachment
+                  || (hasExtension && !isMarkdown);
 
                 const noteType = isAttachment ? '' :
                   (getNoteType ? (getNoteType(fileName) || '').toLowerCase() : inferNoteType(fileName));

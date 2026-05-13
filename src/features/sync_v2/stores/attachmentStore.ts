@@ -231,9 +231,12 @@ export const useAttachmentStore = create<AttachmentState>()(
 export function initAttachmentStoreSubscriptions(): () => void {
   const off1 = EventBus.on('vault:opened', () => {
     void useAttachmentStore.getState().hydrate();
+    startAmbientPolling();
   });
   const off2 = EventBus.on('vault:closed', () => {
     useAttachmentStore.getState().clear();
+    stopAmbientPolling();
+    stopUploadPolling();
   });
   const off3 = EventBus.on('attachment:saved', () => {
     void useAttachmentStore.getState().refresh();
@@ -248,6 +251,7 @@ export function initAttachmentStoreSubscriptions(): () => void {
   const initialVault = useFileTreeStore.getState().vaultPath;
   if (initialVault) {
     void useAttachmentStore.getState().hydrate();
+    startAmbientPolling();
   }
   // Watch subsequent vaultPath changes — covers any bootstrap path that sets
   // the vault without going through the EventBus emit site.
@@ -256,8 +260,11 @@ export function initAttachmentStoreSubscriptions(): () => void {
     (vault, prevVault) => {
       if (vault && vault !== prevVault) {
         void useAttachmentStore.getState().hydrate();
+        startAmbientPolling();
       } else if (!vault && prevVault) {
         useAttachmentStore.getState().clear();
+        stopAmbientPolling();
+        stopUploadPolling();
       }
     },
   );
@@ -300,14 +307,29 @@ export const useAttachmentResolver = () =>
 
 export const useAttachmentList = () => useAttachmentStore((s) => s.all());
 
-// ── Upload-status polling ──────────────────────────────────────────────────
-// While any ref has `syncEtag === null` we are mid-push to NAS. The backend
-// owns the actual sync_etag write — there's no Tauri event for "this single
-// attachment's push finished" yet, so the frontend polls the store every
-// few seconds to detect the transition. As soon as every ref has an etag,
-// polling stops. Cheap (one Tauri command per tick) and bounded by the
-// user actually having pending uploads.
-const UPLOAD_POLL_INTERVAL_MS = 4000;
+// ── Polling timers ─────────────────────────────────────────────────────────
+//
+// Two layers cover three failure modes:
+//
+//   1. Ambient polling (always on while vault is open, low frequency).
+//      Catches the cases where neither the EventBus emit (frontend wrapper)
+//      nor the Tauri global event (backend emit) reaches us — most often
+//      because a hover window was reopened after the prior drop's JS
+//      context died, and the Tauri listener registered too late to catch
+//      the `attachment:saved` event. Without ambient polling those chips
+//      stayed gray forever.
+//
+//   2. Upload-accelerator polling (3 s while any ref has `syncEtag === null`).
+//      Tightens the `uploading` → `synced` transition during active push.
+//      `push_worker` / `background_worker` don't have an `AppHandle` to
+//      emit Tauri events from, so the frontend has to look at disk state
+//      to notice the etag landing.
+//
+// Both timers stop on `vault:closed`. Cost while idle is ~0.1 req/s; the
+// command is a cheap directory scan of `.notology/attachments/refs/`.
+const AMBIENT_POLL_INTERVAL_MS = 10_000;
+const UPLOAD_POLL_INTERVAL_MS = 3_000;
+let ambientPollTimer: ReturnType<typeof setInterval> | null = null;
 let uploadPollTimer: ReturnType<typeof setInterval> | null = null;
 
 function hasUploadingRef(): boolean {
@@ -317,14 +339,25 @@ function hasUploadingRef(): boolean {
   return false;
 }
 
+function startAmbientPolling() {
+  if (ambientPollTimer !== null) return;
+  ambientPollTimer = setInterval(() => {
+    void useAttachmentStore.getState().refresh();
+  }, AMBIENT_POLL_INTERVAL_MS);
+}
+
+function stopAmbientPolling() {
+  if (ambientPollTimer !== null) {
+    clearInterval(ambientPollTimer);
+    ambientPollTimer = null;
+  }
+}
+
 function maybeStartUploadPolling() {
   if (uploadPollTimer !== null) return;
   if (!hasUploadingRef()) return;
   uploadPollTimer = setInterval(() => {
     if (!hasUploadingRef()) {
-      // Nothing left in flight — stop polling. A future drag-in or NAS
-      // pull triggers refresh()/hydrate() which will restart polling if
-      // new uploading refs appear.
       if (uploadPollTimer !== null) {
         clearInterval(uploadPollTimer);
         uploadPollTimer = null;
@@ -333,4 +366,11 @@ function maybeStartUploadPolling() {
     }
     void useAttachmentStore.getState().refresh();
   }, UPLOAD_POLL_INTERVAL_MS);
+}
+
+function stopUploadPolling() {
+  if (uploadPollTimer !== null) {
+    clearInterval(uploadPollTimer);
+    uploadPollTimer = null;
+  }
 }
