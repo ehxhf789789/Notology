@@ -422,7 +422,18 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
       case 'pdf':
         return (
           <div className="hover-editor-body pdf-viewer-body">
-            <iframe src={pdfSrc} width="100%" height="100%" style={{ border: 'none' }} />
+            {/* Sandbox the embedded PDF viewer so its overflow-menu items
+                (Settings / Properties / …) cannot navigate the TOP frame
+                to a chrome:// URL and black-screen Notology — HanBin
+                2026-05-13. Mirror of the fix in HoverPdfViewer.tsx. */}
+            <iframe
+              src={pdfSrc}
+              sandbox="allow-scripts allow-same-origin allow-downloads"
+              referrerPolicy="no-referrer"
+              width="100%"
+              height="100%"
+              style={{ border: 'none' }}
+            />
           </div>
         );
     }

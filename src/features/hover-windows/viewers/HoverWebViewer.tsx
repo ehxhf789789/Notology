@@ -290,7 +290,17 @@ const HoverWebViewer = memo(function HoverWebViewer({ window: win }: HoverEditor
         </div>
       </div>
       <div className="hover-editor-body web-viewer-body">
-        <iframe src={url} title="Web Viewer" style={{ width: '100%', height: '100%', border: 'none' }} />
+        {/* Same sandbox shape as the PDF viewers so a hostile / buggy
+            page can't escape to the TOP frame and black-screen Notology.
+            Web pages legitimately need scripts + popup support; top-frame
+            navigation is deliberately not permitted. */}
+        <iframe
+          src={url}
+          title="Web Viewer"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
+          referrerPolicy="no-referrer-when-downgrade"
+          style={{ width: '100%', height: '100%', border: 'none' }}
+        />
       </div>
       {!inMultiWindowMode && <div className="hover-editor-resize" onMouseDown={handleResizeStart} />}
     </div>

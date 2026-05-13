@@ -266,8 +266,6 @@ const HoverPdfViewer = memo(function HoverPdfViewer({ window: win }: HoverEditor
 
   const fileName = win.filePath.split(/[/\\]/).pop() || '';
   const displayFileName = fileName.replace(/_/g, ' ');
-  const pdfSrc = convertFileSrc(win.filePath);
-
   // Detect multi-window mode (separate OS window vs DOM overlay)
   const inMultiWindowMode = isHoverWindow();
 
@@ -323,8 +321,28 @@ const HoverPdfViewer = memo(function HoverPdfViewer({ window: win }: HoverEditor
           </button>
         </div>
       </div>
-      <div className="hover-editor-body pdf-viewer-body">
-        <iframe src={pdfSrc} width="100%" height="100%" style={{ border: 'none' }} />
+      <div className="hover-editor-body pdf-viewer-body" style={{ flex: 1, overflow: 'hidden' }}>
+        <iframe
+          // HanBin 2026-05-13: clicking the "settings" item in the embedded
+          // PDF viewer's overflow menu was breaking the whole app. The
+          // built-in WebView2/Chromium PDF viewer attempts to navigate to
+          // an internal `chrome://` / `edge://` URL when the user picks
+          // certain menu options (Settings, Properties, etc.). Without a
+          // sandbox, that navigation runs on the TOP frame (Notology's
+          // webview), which can't load chrome-internal URLs → blank black
+          // screen. The sandbox attribute below traps navigation inside
+          // the iframe:
+          //   • allow-scripts        — PDF.js needs JS to render
+          //   • allow-same-origin    — needed for the asset:// protocol
+          //   • allow-downloads      — preserves "Save as…" from the menu
+          //   • (deliberately NO allow-top-navigation*) so any chrome://
+          //     navigation attempt is silently blocked, not propagated.
+          src={convertFileSrc(win.filePath)}
+          sandbox="allow-scripts allow-same-origin allow-downloads"
+          referrerPolicy="no-referrer"
+          style={{ width: '100%', height: '100%', border: 'none' }}
+          title={fileName}
+        />
       </div>
       {!inMultiWindowMode && <div className="hover-editor-resize" onMouseDown={handleResizeStart} />}
     </div>
