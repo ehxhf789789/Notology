@@ -140,3 +140,61 @@
   color: var(--c-blue, #3b82f6);
   font-weight: 500;
 }
+
+/* Reconcile toolbar */
+.attachments-tab-v2-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3, 8px);
+  padding: var(--sp-2, 6px) var(--sp-3, 8px);
+  border-bottom: 1px solid var(--border-subtle, color-mix(in srgb, var(--text-primary) 10%, transparent));
+  font-size: var(--fs-12, 12px);
+}
+
+.attachments-tab-v2-action-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--border-subtle, color-mix(in srgb, var(--text-primary) 14%, transparent));
+  border-radius: var(--r-4, 4px);
+  background: transparent;
+  color: var(--text-primary, #e5e7eb);
+  cursor: pointer;
+  font-size: var(--fs-12, 12px);
+  transition: background-color var(--dur-150, 150ms);
+}
+
+.attachments-tab-v2-action-btn:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--c-blue, #3b82f6) 10%, transparent);
+}
+
+.attachments-tab-v2-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.attachments-tab-v2-action-btn-primary {
+  background-color: var(--c-blue, #3b82f6);
+  color: white;
+  border-color: var(--c-blue, #3b82f6);
+}
+
+.attachments-tab-v2-action-btn-primary:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--c-blue, #3b82f6) 85%, black);
+}
+
+.attachments-tab-v2-action-btn-link {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  font-size: var(--fs-12, 12px);
+  text-decoration: underline;
+  padding: 0;
+}
+
+.attachments-tab-v2-verify-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3, 8px);
+  color: var(--text-primary, #e5e7eb);
+}

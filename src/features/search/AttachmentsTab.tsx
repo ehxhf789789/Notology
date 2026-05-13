@@ -16,7 +16,8 @@ import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import { useVaultPath } from '../../core/stores/fileTreeStore';
 import { hoverActions } from '../hover-windows/stores/hoverStore';
 import { useSettingsStore } from '../../core/stores/settingsStore';
-import { syncV2Commands, type AttachmentRefDto } from '../sync_v2/syncV2Commands';
+import { syncV2Commands, type AttachmentRefDto, type AttachmentReconcileReport } from '../sync_v2/syncV2Commands';
+import { modalActions } from '../modals/stores/modalStore';
 import { utilCommands } from '../../core/services/tauriCommands';
 import { getAttachmentCategory } from '../suggestions/attachmentCategory';
 import { t, tf } from '../../core/utils/i18n';
@@ -80,6 +81,8 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
   const byId = useAttachmentStore((s) => s.index.byId);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [verifyReport, setVerifyReport] = useState<AttachmentReconcileReport | null>(null);
+  const [verifying, setVerifying] = useState(false);
 
   const rows: AttachmentRow[] = useMemo(() => {
     const out: AttachmentRow[] = [];
@@ -150,6 +153,59 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
     });
   }, []);
 
+  // Bidirectional reconcile (HanBin 2026-05-13). Walks every .md file and
+  // compares wikilinks to AttachmentRef.linked_notes. Two-stage UX:
+  //   1. Scan: read-only, populates `verifyReport`.
+  //   2. Apply: confirmation modal lists counts, user accepts → backend
+  //      rewrites note bodies + fixes refs.
+  const handleVerify = useCallback(async () => {
+    setVerifying(true);
+    try {
+      const report = await syncV2Commands.attachmentReconcile();
+      setVerifyReport(report);
+    } catch (e) {
+      console.error('[AttachmentsTab] reconcile failed:', e);
+    } finally {
+      setVerifying(false);
+    }
+  }, []);
+
+  const handleApplyVerify = useCallback(() => {
+    if (!verifyReport) return;
+    const total =
+      verifyReport.dummyChips.length
+      + verifyReport.staleRefLinks.length
+      + verifyReport.missingRefLinks.length;
+    if (total === 0) {
+      setVerifyReport(null);
+      return;
+    }
+    const summary = `${verifyReport.dummyChips.length} dummy / ${verifyReport.staleRefLinks.length} stale / ${verifyReport.missingRefLinks.length} missing`;
+    modalActions.showConfirmDelete(
+      summary,
+      'file',
+      async () => {
+        try {
+          const outcome = await syncV2Commands.attachmentReconcileApply(verifyReport);
+          console.log('[AttachmentsTab] reconcile applied:', outcome);
+          setVerifyReport(null);
+          if (outcome.errors.length > 0) {
+            modalActions.showAlertModal(
+              t('attachmentReconcileTitle', language),
+              `Done with ${outcome.errors.length} error(s). See console for details.`,
+            );
+          }
+        } catch (e) {
+          console.error('[AttachmentsTab] apply failed:', e);
+        }
+      },
+      total,
+      {
+        warningOverride: t('attachmentReconcileWarning', language),
+      },
+    );
+  }, [verifyReport, language]);
+
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -161,6 +217,41 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
 
   return (
     <div className="attachments-tab-v2">
+      <div className="attachments-tab-v2-toolbar">
+        <button
+          className="attachments-tab-v2-action-btn"
+          onClick={handleVerify}
+          disabled={verifying}
+          title={t('attachmentReconcileTooltip', language)}
+        >
+          {verifying ? t('attachmentReconcileScanning', language) : t('attachmentReconcileVerify', language)}
+        </button>
+        {verifyReport && (
+          <div className="attachments-tab-v2-verify-summary">
+            <span>
+              {tf('attachmentReconcileResult', language, {
+                dummy: verifyReport.dummyChips.length,
+                stale: verifyReport.staleRefLinks.length,
+                missing: verifyReport.missingRefLinks.length,
+              })}
+            </span>
+            {(verifyReport.dummyChips.length + verifyReport.staleRefLinks.length + verifyReport.missingRefLinks.length) > 0 && (
+              <button
+                className="attachments-tab-v2-action-btn attachments-tab-v2-action-btn-primary"
+                onClick={handleApplyVerify}
+              >
+                {t('attachmentReconcileApply', language)}
+              </button>
+            )}
+            <button
+              className="attachments-tab-v2-action-btn-link"
+              onClick={() => setVerifyReport(null)}
+            >
+              {t('cancel', language)}
+            </button>
+          </div>
+        )}
+      </div>
       <table className="search-table">
         <thead>
           <tr>

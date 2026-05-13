@@ -221,6 +221,18 @@ export const syncV2Commands = {
   attachmentRetry: (attachmentId: string): Promise<void> =>
     invoke<void>('sync_v2_retry_attachment', { attachmentId }),
 
+  /**
+   * Track B Phase B-3 PART 6 — bidirectional reconcile (HanBin 2026-05-13).
+   * Returns the report of three discrepancy buckets; caller is expected
+   * to show it to the user before calling `attachmentReconcileApply`.
+   */
+  attachmentReconcile: (): Promise<AttachmentReconcileReport> =>
+    invoke<AttachmentReconcileReport>('attachment_reconcile'),
+
+  /** Apply fixes from a prior reconcile report. */
+  attachmentReconcileApply: (report: AttachmentReconcileReport): Promise<AttachmentReconcileApplyOutcome> =>
+    invoke<AttachmentReconcileApplyOutcome>('attachment_reconcile_apply', { report }),
+
   /** Track B Phase B-3: full index for the redesigned Attachments tab + resolver. */
   attachmentListAll: () => invoke<AttachmentRefDto[]>('attachment_list_all'),
 
@@ -246,6 +258,35 @@ export type AttachmentRefDto = {
   displayPath: string;
   linkedNotes: string[];
   syncEtag: string | null;
+};
+
+// ── Track B Phase B-3 PART 6 — reconcile DTOs ──────────────────────────────
+export type AttachmentDummyChip = {
+  notePath: string;
+  noteId: string;
+  fileName: string;
+};
+
+export type AttachmentLinkDiscrepancy = {
+  attachmentId: string;
+  originalName: string;
+  noteId: string;
+};
+
+export type AttachmentReconcileReport = {
+  dummyChips: AttachmentDummyChip[];
+  staleRefLinks: AttachmentLinkDiscrepancy[];
+  missingRefLinks: AttachmentLinkDiscrepancy[];
+  notesScanned: number;
+  refsInspected: number;
+};
+
+export type AttachmentReconcileApplyOutcome = {
+  dummyChipsRemoved: number;
+  staleLinksFixed: number;
+  missingLinksAdded: number;
+  refsHardDeleted: number;
+  errors: string[];
 };
 
 export type AttachmentMigrationReport = {

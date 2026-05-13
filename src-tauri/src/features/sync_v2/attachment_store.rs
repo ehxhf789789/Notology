@@ -59,6 +59,12 @@ pub struct AttachmentStore {
 }
 
 impl AttachmentStore {
+    /// Vault root path. Exposed for sibling modules (e.g.
+    /// `attachment_reconcile`) that need to walk note bodies.
+    pub fn vault_root(&self) -> &std::path::Path {
+        &self.vault_root
+    }
+
     pub fn new(vault_root: PathBuf) -> Result<Self, String> {
         let mut s = Self {
             vault_root,

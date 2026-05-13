@@ -886,6 +886,8 @@ pub fn run() {
             features::sync_v2::commands::attachment_link_to_note,
             features::sync_v2::commands::attachment_unlink_from_note,
             features::sync_v2::commands::attachment_unlink_or_delete,
+            features::sync_v2::commands::attachment_reconcile,
+            features::sync_v2::commands::attachment_reconcile_apply,
             features::sync_v2::commands::attachment_list_for_note,
             features::sync_v2::commands::attachment_list_all,
             features::sync_v2::commands::attachment_local_path,

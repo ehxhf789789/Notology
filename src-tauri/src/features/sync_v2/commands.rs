@@ -790,6 +790,53 @@ pub async fn attachment_list_for_note(
         .collect())
 }
 
+/// Track B Phase B-3 PART 6 (HanBin 2026-05-13): bidirectional reconcile.
+/// Read-only scan of every `.md` file in the vault against the AttachmentRef
+/// index. Returns three discrepancy lists so the user can review before
+/// applying fixes via `attachment_reconcile_apply`.
+#[tauri::command]
+pub async fn attachment_reconcile(
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<crate::features::sync_v2::attachment_reconcile::ReconcileReport, String> {
+    let vault = require_vault(&library_state)?;
+    let store = crate::features::sync_v2::attachment_store::AttachmentStore::new(vault)?;
+    crate::features::sync_v2::attachment_reconcile::reconcile(&store)
+}
+
+/// Apply the fixes from a prior `attachment_reconcile` pass. The caller is
+/// expected to have already shown the report to the user and gotten consent.
+/// Three buckets are processed (independently, partial-failure tolerant):
+///   - dummy_chips removed from note bodies (.md rewritten)
+///   - stale_ref_links unlinked → ref hard-deleted if `linked_notes` empties
+///   - missing_ref_links appended to ref's `linked_notes`
+#[tauri::command]
+pub async fn attachment_reconcile_apply(
+    app: tauri::AppHandle,
+    report: crate::features::sync_v2::attachment_reconcile::ReconcileReport,
+    library_state: tauri::State<'_, LibraryState>,
+    sync_state: tauri::State<'_, SyncEngineState>,
+) -> Result<crate::features::sync_v2::attachment_reconcile::ReconcileApplyOutcome, String> {
+    let vault = require_vault(&library_state)?;
+    let mut store = crate::features::sync_v2::attachment_store::AttachmentStore::new(vault)?;
+    let outcome = crate::features::sync_v2::attachment_reconcile::reconcile_apply(
+        &mut store, &report,
+    )?;
+
+    // Enqueue ref-side changes so NAS picks them up. We don't enumerate the
+    // exact ids that mutated — the bootstrap auto-enqueue + adaptive poller
+    // already covers any ref whose sync_etag falls out of sync after a
+    // mutation. Just trigger a reconciliation pass.
+    if outcome.dummy_chips_removed + outcome.stale_links_fixed + outcome.missing_links_added > 0 {
+        // Emit a deletion event for each hard-deleted ref so live editors
+        // refresh their attachment store and decoration.
+        // (Stale-link processing may have hard-deleted refs; we don't track
+        // ids here, but a global refresh is cheap.)
+        let _ = app.emit("attachment:saved", &serde_json::json!({}));
+    }
+    let _ = sync_state; // engine will pick up on next poll
+    Ok(outcome)
+}
+
 /// Track B Phase B-3: return every AttachmentRef in the vault so the frontend
 /// can build a name→id index (wikilink resolver) and power the redesigned
 /// Attachments tab (no more `_att/` folder walking).

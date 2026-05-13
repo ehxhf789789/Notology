@@ -43,3 +43,11 @@ pub mod attachment_migration;
 // Files ≥100 MB are split into 16 MB chunks with a commit-last manifest;
 // smaller files use a single PUT. Both layouts coexist on NAS.
 pub mod chunked_upload;
+
+// Track B Phase B-3 PART 6 (HanBin 2026-05-13) — bidirectional reconcile
+// between AttachmentRef.linked_notes and the actual wikilinks present in
+// every note's body. Detects + repairs:
+//   - dummy chips: wikilink in a note with no backing ref
+//   - stale ref links: ref claims a link that the note body does not have
+//   - missing ref links: chip in note body that ref doesn't yet record
+pub mod attachment_reconcile;
