@@ -178,6 +178,35 @@ function AppLayout() {
     return unsubscribe;
   }, []);
 
+  // Black-screen guard (HanBin 2026-05-13): the WebView2-embedded PDF
+  // viewer has an overflow-menu item that navigates to `chrome://settings`
+  // / `edge://...`. The top-frame can't load those URLs and the whole
+  // Notology webview goes blank. We can't sandbox the PDF iframe (it
+  // breaks PDF rendering — the viewer is itself served from
+  // `chrome-extension://`), so we intercept the navigation at the window
+  // level: any beforeunload triggered by a chrome:// / edge:// nav is
+  // cancelled before the webview commits to it.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Read the pending location if possible. document.activeElement
+      // sometimes still references the iframe at this point, and
+      // `location.href` at the moment of beforeunload is the
+      // destination, not the current page. We can sniff for the
+      // chrome:// / edge:// / about: prefixes that the PDF viewer
+      // attempts to navigate to.
+      const next = window.location.href;
+      if (/^(chrome|edge|about):/i.test(next)) {
+        e.preventDefault();
+        e.returnValue = '';
+        console.warn('[NavGuard] blocked navigation to', next);
+        return '';
+      }
+      return undefined;
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, []);
+
   const startResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     isResizing.current = true;

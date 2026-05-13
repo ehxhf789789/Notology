@@ -322,23 +322,20 @@ const HoverPdfViewer = memo(function HoverPdfViewer({ window: win }: HoverEditor
         </div>
       </div>
       <div className="hover-editor-body pdf-viewer-body" style={{ flex: 1, overflow: 'hidden' }}>
+        {/* Hide the WebView2 PDF viewer's bottom toolbar with URL Open
+            Parameters (HanBin 2026-05-13 round 3). The toolbar's overflow
+            menu had a "Settings" item that navigated the TOP frame to
+            chrome://settings/... and black-screened the app. With
+            `#toolbar=0`, the toolbar (and its menu) doesn't render at
+            all — the bug is unreachable. Users can still zoom with
+            Ctrl+wheel and scroll/keyboard-navigate; full control is
+            available via "Open in default app" in the header.
+
+            Iframe deliberately NOT sandboxed: the PDF viewer is itself
+            served from `chrome-extension://...mhjfbmdgcfjbbpaeojofohoefgiehjai/`
+            and sandboxing also blocks THAT URL → broken render. */}
         <iframe
-          // HanBin 2026-05-13: clicking the "settings" item in the embedded
-          // PDF viewer's overflow menu was breaking the whole app. The
-          // built-in WebView2/Chromium PDF viewer attempts to navigate to
-          // an internal `chrome://` / `edge://` URL when the user picks
-          // certain menu options (Settings, Properties, etc.). Without a
-          // sandbox, that navigation runs on the TOP frame (Notology's
-          // webview), which can't load chrome-internal URLs → blank black
-          // screen. The sandbox attribute below traps navigation inside
-          // the iframe:
-          //   • allow-scripts        — PDF.js needs JS to render
-          //   • allow-same-origin    — needed for the asset:// protocol
-          //   • allow-downloads      — preserves "Save as…" from the menu
-          //   • (deliberately NO allow-top-navigation*) so any chrome://
-          //     navigation attempt is silently blocked, not propagated.
-          src={convertFileSrc(win.filePath)}
-          sandbox="allow-scripts allow-same-origin allow-downloads"
+          src={`${convertFileSrc(win.filePath)}#toolbar=0&navpanes=0&statusbar=0`}
           referrerPolicy="no-referrer"
           style={{ width: '100%', height: '100%', border: 'none' }}
           title={fileName}

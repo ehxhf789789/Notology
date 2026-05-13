@@ -333,7 +333,13 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
 
   const fileName = win.filePath.split(/[/\\]/).pop() || '';
   const displayFileName = fileName.replace(/_/g, ' ');
-  const pdfSrc = pdfPath ? convertFileSrc(pdfPath) : '';
+  // `#toolbar=0&navpanes=0&statusbar=0` hides the embedded PDF viewer's
+  // toolbar so its "Settings" overflow item — which navigates to
+  // chrome://settings and black-screens Notology — is unreachable.
+  // Mirror of the same fix in HoverPdfViewer.tsx (HanBin 2026-05-13).
+  const pdfSrc = pdfPath
+    ? `${convertFileSrc(pdfPath)}#toolbar=0&navpanes=0&statusbar=0`
+    : '';
 
   const inMultiWindowMode = isHoverWindow();
 
@@ -422,13 +428,11 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
       case 'pdf':
         return (
           <div className="hover-editor-body pdf-viewer-body">
-            {/* Sandbox the embedded PDF viewer so its overflow-menu items
-                (Settings / Properties / …) cannot navigate the TOP frame
-                to a chrome:// URL and black-screen Notology — HanBin
-                2026-05-13. Mirror of the fix in HoverPdfViewer.tsx. */}
+            {/* No sandbox — see HoverPdfViewer.tsx: sandboxing also blocks
+                the WebView2 chrome-extension PDF handler. Navigation
+                hardening lives in the global BlockChromeNavGuard. */}
             <iframe
               src={pdfSrc}
-              sandbox="allow-scripts allow-same-origin allow-downloads"
               referrerPolicy="no-referrer"
               width="100%"
               height="100%"
