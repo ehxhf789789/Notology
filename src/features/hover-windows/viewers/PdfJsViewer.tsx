@@ -423,57 +423,19 @@ function PdfPage({
     return available / pageMeta.width;
   }, [fitWidth, scale, scrollContainer, pageMeta]);
 
-  // Progressive render (HanBin 2026-05-13 round 8). Two-pass rasterizer:
+  // Single-pass render (HanBin 2026-05-13 round 9). The progressive
+  // 2-pass approach was reverted because the brief blurry frame
+  // perceptually felt SLOWER than just waiting for the sharp one. The
+  // user's read: "흐리게 보이니까 더 느려보여."
   //
-  //   Pass 1 (fast): render at scale × 0.5 with dpr 1. Tiny canvas,
-  //                  ~25-50 ms per page on a typical PDF. The result
-  //                  is upscaled by CSS to the target visual size, so
-  //                  the user sees the page IMMEDIATELY — slightly
-  //                  fuzzy, but legible.
-  //   Pass 2 (sharp): re-render at scale × dpr-cap. Fires from
-  //                   `requestIdleCallback` so it doesn't block any
-  //                   user input. Replaces the fuzzy bitmap with the
-  //                   crisp one as soon as it's ready.
-  //
-  // For the most-common case (open PDF → look at page 1 → maybe scroll
-  // through a few pages) this collapses time-to-first-visible from
-  // ~150-300 ms to ~30-60 ms.
+  // Now: render once at full quality with a tightened DPR cap of 1.5.
+  // Going from dpr=2.0 → 1.5 reduces canvas surface area by ~45 % with
+  // only a small loss in sharpness on HiDPI; on regular 1.0-1.25 dpr
+  // screens it's a no-op.
   useEffect(() => {
     if (!visible || !canvasRef.current) return;
     let cancelled = false;
     let renderTask: ReturnType<PDFPageProxy['render']> | null = null;
-    let idleHandle = 0;
-
-    const renderAt = async (scaleMul: number, dpr: number, label: string) => {
-      const page = pageRef.current;
-      if (cancelled || !page || !canvasRef.current) return false;
-      const viewport = page.getViewport({ scale: effectiveScale * scaleMul, rotation });
-      const canvas = canvasRef.current;
-      canvas.width = Math.floor(viewport.width * dpr);
-      canvas.height = Math.floor(viewport.height * dpr);
-      // The CSS size is always the full target — pass 1's small bitmap
-      // gets upscaled by the browser as a temporary stand-in.
-      const cssViewport = page.getViewport({ scale: effectiveScale, rotation });
-      canvas.style.width = `${cssViewport.width}px`;
-      canvas.style.height = `${cssViewport.height}px`;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return false;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const tStart = performance.now();
-      renderTask = page.render({ canvas, canvasContext: ctx, viewport });
-      try {
-        await renderTask.promise;
-        if (DEV && pageNum <= 3) {
-          log(`page ${pageNum} ${label} in ${(performance.now() - tStart).toFixed(0)} ms`);
-        }
-        return true;
-      } catch (e: any) {
-        if (e?.name !== 'RenderingCancelledException') {
-          console.warn(`[PdfJsViewer] page ${pageNum} ${label} failed:`, e);
-        }
-        return false;
-      }
-    };
 
     const start = async () => {
       // Wait briefly for the page proxy to land if it hasn't yet.
@@ -482,23 +444,30 @@ function PdfPage({
         await new Promise((r) => setTimeout(r, 20));
         attempts++;
       }
-      if (cancelled || !pageRef.current) return;
+      const page = pageRef.current;
+      if (cancelled || !page || !canvasRef.current) return;
 
-      // Pass 1 — fast, blurry.
-      const pass1ok = await renderAt(0.5, 1, 'fast-paint');
-      if (cancelled || !pass1ok) return;
-
-      // Pass 2 — sharp, scheduled on idle so it doesn't fight scroll.
-      const dprCap = Math.min(window.devicePixelRatio || 1, 2);
-      const sharpen = () => {
-        if (cancelled) return;
-        void renderAt(1.0, dprCap, 'sharpen');
-      };
-      // requestIdleCallback isn't on all platforms — fall back to RAF.
-      if ('requestIdleCallback' in window) {
-        idleHandle = (window as any).requestIdleCallback(sharpen, { timeout: 500 });
-      } else {
-        idleHandle = requestAnimationFrame(sharpen);
+      const tStart = performance.now();
+      const viewport = page.getViewport({ scale: effectiveScale, rotation });
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const canvas = canvasRef.current;
+      canvas.width = Math.floor(viewport.width * dpr);
+      canvas.height = Math.floor(viewport.height * dpr);
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      renderTask = page.render({ canvas, canvasContext: ctx, viewport });
+      try {
+        await renderTask.promise;
+        if (DEV && pageNum <= 3) {
+          log(`page ${pageNum} rendered in ${(performance.now() - tStart).toFixed(0)} ms`);
+        }
+      } catch (e: any) {
+        if (e?.name !== 'RenderingCancelledException') {
+          console.warn(`[PdfJsViewer] page ${pageNum} render failed:`, e);
+        }
       }
     };
     void start();
@@ -506,13 +475,6 @@ function PdfPage({
     return () => {
       cancelled = true;
       if (renderTask) renderTask.cancel();
-      if (idleHandle) {
-        if ('cancelIdleCallback' in window) {
-          (window as any).cancelIdleCallback(idleHandle);
-        } else {
-          cancelAnimationFrame(idleHandle);
-        }
-      }
     };
   }, [visible, effectiveScale, rotation, pageNum]);
 
