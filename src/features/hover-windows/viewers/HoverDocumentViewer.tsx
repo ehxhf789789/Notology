@@ -333,13 +333,12 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
 
   const fileName = win.filePath.split(/[/\\]/).pop() || '';
   const displayFileName = fileName.replace(/_/g, ' ');
-  // Keep the PDF top toolbar (page number / zoom — primary nav) but
-  // hide the side thumbnail panel since this is a compact hover view.
-  // The chrome://settings navigation risk from the toolbar's overflow
-  // menu is handled by App.tsx's `beforeunload` navguard. HanBin
-  // 2026-05-13 round 4.
+  // HanBin 2026-05-13 round 5: same `#toolbar=0` fix as HoverPdfViewer.
+  // The beforeunload navguard does not actually cancel the chrome://
+  // navigation in Tauri's webview, so the only safe option is to make
+  // the toolbar (and its ⋮ menu) unreachable. Future: migrate to PDF.js.
   const pdfSrc = pdfPath
-    ? `${convertFileSrc(pdfPath)}#navpanes=0`
+    ? `${convertFileSrc(pdfPath)}#toolbar=0&navpanes=0&statusbar=0`
     : '';
 
   const inMultiWindowMode = isHoverWindow();

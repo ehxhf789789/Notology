@@ -322,19 +322,22 @@ const HoverPdfViewer = memo(function HoverPdfViewer({ window: win }: HoverEditor
         </div>
       </div>
       <div className="hover-editor-body pdf-viewer-body" style={{ flex: 1, overflow: 'hidden' }}>
-        {/* HanBin 2026-05-13 round 4: keep the top toolbar (page number,
-            zoom, fit controls) — that's primary navigation for a PDF
-            preview. Only hide the side thumbnail panel (`navpanes=0`)
-            since this is a compact hover window. The settings-button
-            navigation risk is handled by the App-level `beforeunload`
-            navguard in App.tsx, which cancels any chrome:// / edge:// /
-            about: navigation before the webview commits.
-
-            Iframe deliberately NOT sandboxed: WebView2's PDF viewer is
-            itself served from chrome-extension:// and sandboxing also
-            blocks THAT URL → broken render. */}
+        {/* HanBin 2026-05-13 round 5: forced back to `#toolbar=0` after
+            confirming that the `beforeunload` navguard does NOT prevent
+            the chrome://settings navigation that the toolbar's ⋮ menu
+            triggers. Tauri's webview has no confirm-dialog UI, so the
+            browser proceeds with navigation regardless of the JS guard.
+            Sandboxing the iframe doesn't work either (breaks rendering),
+            and Tauri builder-level navigation hooks are per-window and
+            can't attach to a config-created window.
+            The proper fix is either (a) migrate to bundled PDF.js so we
+            own the toolbar end-to-end, or (b) recreate the main window
+            via WebviewWindowBuilder in setup() so we can attach
+            on_navigation. Until then, hide the toolbar — page nav GUI
+            is lost but the crash is unreachable. Zoom: Ctrl + wheel.
+            Full PDF control: hover-window header → "Open in default app". */}
         <iframe
-          src={`${convertFileSrc(win.filePath)}#navpanes=0`}
+          src={`${convertFileSrc(win.filePath)}#toolbar=0&navpanes=0&statusbar=0`}
           referrerPolicy="no-referrer"
           style={{ width: '100%', height: '100%', border: 'none' }}
           title={fileName}
