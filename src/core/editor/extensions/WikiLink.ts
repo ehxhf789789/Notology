@@ -251,11 +251,14 @@ export const WikiLink = Node.create<WikiLinkOptions>({
     const storedIsAttachment = node.attrs.isAttachmentAttr;
 
     // Determine if this is an attachment:
-    // 1. If file exists in _att folder (callback returns true) → attachment
-    // 2. Else if previously marked as attachment (stored attr) → still attachment
-    // 3. Else fall back to extension-based check
+    // 1. Backend callback says yes → attachment
+    // 2. Optimistic-pending drop (basename in attachmentStore.pendingNames) → attachment
+    // 3. Else if previously marked as attachment (stored attr) → still attachment
+    // 4. Else fall back to extension-based check
     const callbackResult = this.options.isAttachment ? this.options.isAttachment(fileName) : null;
+    const isPendingInsert = useAttachmentStore.getState().isPending(fileName);
     const isAttachment = callbackResult === true
+      || isPendingInsert
       || (callbackResult === null && storedIsAttachment)
       || (callbackResult === null && !storedIsAttachment && hasExtension && !isMarkdown);
 
@@ -506,12 +509,23 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                 const isMarkdown = fileName.endsWith('.md');
                 const storedIsAttachment = node.attrs.isAttachmentAttr;
 
+                // Track B Phase B-3 stabilization: optimistic insert phase
+                // (between drop and AttachmentRef landing in the store)
+                // tracks the basename in `pendingNames`. We treat anything
+                // pending as an attachment so the chip gets the .attachment
+                // class and the amber "processing" paint kicks in immediately
+                // — without this, the chip stays gray for the entire
+                // attachment_add latency window.
+                const isPending = useAttachmentStore.getState().isPending(fileName);
+
                 // Determine if this is an attachment:
-                // 1. If file exists in _att folder (callback returns true) → attachment
-                // 2. Else if previously marked as attachment (stored attr) → still attachment
-                // 3. Else fall back to extension-based check
+                // 1. Backend callback says yes (post-add, ref present) → attachment
+                // 2. Optimistic-pending (drop in flight) → attachment
+                // 3. Else if previously marked as attachment (stored attr) → still attachment
+                // 4. Else fall back to extension-based check
                 const callbackResult = isAttachmentCallback ? isAttachmentCallback(fileName) : null;
                 const isAttachment = callbackResult === true
+                  || isPending
                   || (callbackResult === null && storedIsAttachment)
                   || (callbackResult === null && !storedIsAttachment && hasExtension && !isMarkdown);
 
@@ -521,13 +535,13 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                 // Track B Phase B-3 stabilization: surface sync status on
                 // the chip so a 600 MB upload doesn't look like the drop
                 // failed. Three states:
-                //   - unresolved (no ref yet)         : `attachment_add` in
-                //     flight, still computing sha / writing CAS.
-                //   - uploading (ref exists, no etag) : NAS push in flight
-                //     (chunked or single PUT).
-                //   - resolved (etag present)         : fully synced.
+                //   - pending / unresolved (no ref yet) : `attachment_add`
+                //     in flight (sha + CAS write). Paint via the
+                //     `.unresolved.attachment` CSS rule.
+                //   - uploading (ref exists, no etag)   : NAS push in flight.
+                //   - resolved (etag present)           : fully synced.
                 let attachmentSyncClass = '';
-                if (isAttachment) {
+                if (isAttachment && !isPending) {
                   const attRef = useAttachmentStore.getState().resolveByName(fileName);
                   if (attRef && !attRef.syncEtag) {
                     attachmentSyncClass = 'wiki-link-uploading';

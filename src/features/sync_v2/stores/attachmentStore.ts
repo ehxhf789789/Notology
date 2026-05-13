@@ -39,9 +39,23 @@ interface AttachmentState {
   loading: boolean;
   error: string | null;
 
+  /**
+   * Lowercased file basenames currently in flight for `attachment_add`.
+   * Used by WikiLink to paint a chip's amber "processing" state from the
+   * moment of drop, instead of waiting for the AttachmentRef to land in the
+   * store. Bridges the visual gap during sha256 + CAS write (~30 s for a
+   * 600 MB file).
+   */
+  pendingNames: Set<string>;
+
   hydrate: () => Promise<void>;
   refresh: () => Promise<void>;
   clear: () => void;
+
+  /** Mark a basename as being processed; safe to call repeatedly. */
+  markPending: (fileName: string) => void;
+  unmarkPending: (fileName: string) => void;
+  isPending: (fileName: string) => boolean;
 
   /** Sync lookups (read-side hot path) */
   resolveByName: (fileName: string, noteId?: string) => AttachmentRefDto | null;
@@ -94,6 +108,31 @@ export const useAttachmentStore = create<AttachmentState>()(
     hydratedAt: 0,
     loading: false,
     error: null,
+    pendingNames: new Set<string>(),
+
+    markPending(fileName) {
+      const key = fileName.toLowerCase();
+      set((s) => {
+        if (s.pendingNames.has(key)) return s;
+        const next = new Set(s.pendingNames);
+        next.add(key);
+        return { ...s, pendingNames: next };
+      });
+    },
+
+    unmarkPending(fileName) {
+      const key = fileName.toLowerCase();
+      set((s) => {
+        if (!s.pendingNames.has(key)) return s;
+        const next = new Set(s.pendingNames);
+        next.delete(key);
+        return { ...s, pendingNames: next };
+      });
+    },
+
+    isPending(fileName) {
+      return get().pendingNames.has(fileName.toLowerCase());
+    },
 
     async hydrate() {
       if (get().loading) return;

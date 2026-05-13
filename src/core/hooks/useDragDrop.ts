@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { noteCommands } from '../services/tauriCommands';
 import { syncV2Commands } from '../../features/sync_v2/syncV2Commands';
+import { useAttachmentStore } from '../../features/sync_v2/stores/attachmentStore';
 
 interface DropTarget {
   id: string;
@@ -70,7 +71,12 @@ async function initGlobalListener() {
       target.onDrop(sourceBasenames, position);
 
       // Background processing — never blocks the editor.
-      paths.forEach((sourcePath) => {
+      // Mark each basename as "pending" so the WikiLink decoration paints
+      // the chip in the amber "processing" state from drop until the
+      // AttachmentRef lands in the store (instead of flashing gray first).
+      paths.forEach((sourcePath, idx) => {
+        const basename = sourceBasenames[idx];
+        if (basename) useAttachmentStore.getState().markPending(basename);
         void (async () => {
           try {
             await syncV2Commands.attachmentAdd(sourcePath, {
@@ -89,6 +95,8 @@ async function initGlobalListener() {
                 err2,
               );
             }
+          } finally {
+            if (basename) useAttachmentStore.getState().unmarkPending(basename);
           }
         })();
       });
