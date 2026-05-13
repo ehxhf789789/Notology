@@ -16,8 +16,7 @@ import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import { useVaultPath } from '../../core/stores/fileTreeStore';
 import { hoverActions } from '../hover-windows/stores/hoverStore';
 import { useSettingsStore } from '../../core/stores/settingsStore';
-import { syncV2Commands, type AttachmentRefDto, type AttachmentReconcileReport } from '../sync_v2/syncV2Commands';
-import { modalActions } from '../modals/stores/modalStore';
+import { syncV2Commands, type AttachmentRefDto } from '../sync_v2/syncV2Commands';
 import { utilCommands } from '../../core/services/tauriCommands';
 import { getAttachmentCategory } from '../suggestions/attachmentCategory';
 import { t, tf } from '../../core/utils/i18n';
@@ -81,8 +80,6 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
   const byId = useAttachmentStore((s) => s.index.byId);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [verifyReport, setVerifyReport] = useState<AttachmentReconcileReport | null>(null);
-  const [verifying, setVerifying] = useState(false);
 
   const rows: AttachmentRow[] = useMemo(() => {
     const out: AttachmentRow[] = [];
@@ -153,93 +150,12 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
     });
   }, []);
 
-  // Bidirectional reconcile (HanBin 2026-05-13). The non-destructive
-  // bucket (`missing_ref_links`) is silently auto-applied by the backend
-  // at every vault open — see `sync_engine::start`. This manual flow
-  // exists ONLY for the two destructive buckets:
-  //   - dummy_chips     : wikilink in a note body that points at no ref.
-  //                       Apply = strip the `[[name]]` text from the .md.
-  //   - stale_ref_links : ref's linked_notes claims a note, but that
-  //                       note's body has no matching wikilink. Apply =
-  //                       unlink → if linked_notes empties, hard-delete
-  //                       the ref + CAS blob + NAS copy (Option C).
-  // Both require explicit user consent because the result is irreversible
-  // and the heuristic can occasionally false-positive (e.g. note's
-  // frontmatter id was rewritten externally between scan and apply).
-  const handleVerify = useCallback(async () => {
-    setVerifying(true);
-    try {
-      const report = await syncV2Commands.attachmentReconcile();
-      setVerifyReport(report);
-    } catch (e) {
-      console.error('[AttachmentsTab] reconcile failed:', e);
-    } finally {
-      setVerifying(false);
-    }
-  }, []);
-
-  const handleApplyVerify = useCallback(() => {
-    if (!verifyReport) return;
-    // Only the destructive subset is presented for user confirmation —
-    // missing_ref_links is auto-applied by the backend at vault open.
-    const destructiveTotal =
-      verifyReport.dummyChips.length + verifyReport.staleRefLinks.length;
-    if (destructiveTotal === 0) {
-      setVerifyReport(null);
-      return;
-    }
-
-    // Build a concrete preview: up to 3 sample items per bucket so the
-    // user sees exactly what is about to change, not just abstract counts.
-    const preview: string[] = [];
-    if (verifyReport.dummyChips.length > 0) {
-      const samples = verifyReport.dummyChips
-        .slice(0, 3)
-        .map((d) => `  • [[${d.fileName}]] in ${d.notePath.split('/').pop()}`)
-        .join('\n');
-      preview.push(
-        `${tf('attachmentReconcileDummyHeader', language, { count: verifyReport.dummyChips.length })}\n${samples}` +
-          (verifyReport.dummyChips.length > 3 ? `\n  • +${verifyReport.dummyChips.length - 3} more` : ''),
-      );
-    }
-    if (verifyReport.staleRefLinks.length > 0) {
-      const samples = verifyReport.staleRefLinks
-        .slice(0, 3)
-        .map((s) => `  • ${s.originalName} ↛ ${s.noteId}`)
-        .join('\n');
-      preview.push(
-        `${tf('attachmentReconcileStaleHeader', language, { count: verifyReport.staleRefLinks.length })}\n${samples}` +
-          (verifyReport.staleRefLinks.length > 3 ? `\n  • +${verifyReport.staleRefLinks.length - 3} more` : ''),
-      );
-    }
-
-    modalActions.showConfirmDelete(
-      tf('attachmentReconcileApplyTitle', language, { count: destructiveTotal }),
-      'file',
-      async () => {
-        try {
-          const outcome = await syncV2Commands.attachmentReconcileApply(verifyReport);
-          console.log('[AttachmentsTab] reconcile applied:', outcome);
-          setVerifyReport(null);
-          modalActions.showAlertModal(
-            t('attachmentReconcileTitle', language),
-            tf('attachmentReconcileDoneMsg', language, {
-              dummy: outcome.dummyChipsRemoved,
-              stale: outcome.staleLinksFixed,
-              deleted: outcome.refsHardDeleted,
-              errors: outcome.errors.length,
-            }),
-          );
-        } catch (e) {
-          console.error('[AttachmentsTab] apply failed:', e);
-        }
-      },
-      destructiveTotal,
-      {
-        warningOverride: `${t('attachmentReconcileWarning', language)}\n\n${preview.join('\n\n')}`,
-      },
-    );
-  }, [verifyReport, language]);
+  // Manual reconcile UI was removed (HanBin 2026-05-13): metadata
+  // discrepancies are auto-corrected by the backend at every vault open
+  // (`sync_engine::start` → `reconcile_apply_auto`), and what survives
+  // surfaces naturally in this tab as orphan rows (✕ button) plus the
+  // editor's ✕ chip visual. A separate "Verify" button only added
+  // surface area without paying for itself.
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -252,57 +168,6 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
 
   return (
     <div className="attachments-tab-v2">
-      <div className="attachments-tab-v2-toolbar">
-        <button
-          className="attachments-tab-v2-action-btn"
-          onClick={handleVerify}
-          disabled={verifying}
-          title={t('attachmentReconcileTooltip', language)}
-        >
-          {verifying ? t('attachmentReconcileScanning', language) : t('attachmentReconcileVerify', language)}
-        </button>
-        {verifyReport && (() => {
-          const destructive = verifyReport.dummyChips.length + verifyReport.staleRefLinks.length;
-          const allClean = destructive === 0 && verifyReport.missingRefLinks.length === 0;
-          return (
-            <div className="attachments-tab-v2-verify-summary">
-              {allClean ? (
-                <span>{t('attachmentReconcileAllClean', language)}</span>
-              ) : (
-                <>
-                  <span>
-                    {tf('attachmentReconcileResultV2', language, {
-                      dummy: verifyReport.dummyChips.length,
-                      stale: verifyReport.staleRefLinks.length,
-                    })}
-                  </span>
-                  {verifyReport.missingRefLinks.length > 0 && (
-                    <span className="attachments-tab-v2-verify-note">
-                      {tf('attachmentReconcileAutoApplied', language, {
-                        missing: verifyReport.missingRefLinks.length,
-                      })}
-                    </span>
-                  )}
-                  {destructive > 0 && (
-                    <button
-                      className="attachments-tab-v2-action-btn attachments-tab-v2-action-btn-primary"
-                      onClick={handleApplyVerify}
-                    >
-                      {t('attachmentReconcileReview', language)}
-                    </button>
-                  )}
-                </>
-              )}
-              <button
-                className="attachments-tab-v2-action-btn-link"
-                onClick={() => setVerifyReport(null)}
-              >
-                {t('cancel', language)}
-              </button>
-            </div>
-          );
-        })()}
-      </div>
       <table className="search-table">
         <thead>
           <tr>

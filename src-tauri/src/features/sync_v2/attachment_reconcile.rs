@@ -367,15 +367,70 @@ pub fn reconcile_apply(
     Ok(outcome)
 }
 
-/// Apply only the *safe* (non-destructive) subset of a reconcile report:
-/// the missing_ref_links bucket. Adding a note_id to an existing ref's
-/// `linked_notes` cannot harm user data — at worst it records a link
-/// the system was already aware of. This is the subset suitable for
-/// silent auto-apply at vault open.
+/// Auto-applied subset of a reconcile report — the parts where the
+/// worst-case outcome is harmless metadata churn.
 ///
-/// Returns the count added. Dummy chips and stale ref links are NEVER
-/// touched here; the user must explicitly confirm those via the full
-/// `reconcile_apply` path.
+/// Applied on every vault open from `sync_engine::start`:
+///   - missing_ref_links: append note_id to ref's `linked_notes`.
+///     Cannot harm user data; at worst records a link already implied.
+///   - stale_ref_links: remove note_id from ref's `linked_notes`.
+///     The note's body genuinely has no chip pointing here, so the
+///     metadata is wrong and the user expects the unlink. **The
+///     resulting orphan ref (if linked_notes becomes empty) is NOT
+///     cascade-deleted** — it stays visible in the Attachments tab as
+///     an orphan row, and the user must explicitly click ✕ to commit
+///     the cascade. Auto-cascading would be irreversible and a single
+///     misclassification could wipe the whole vault (HanBin 2026-05-13).
+///
+/// Returns (missing_added, stale_unlinked, orphaned_refs). Dummy chips
+/// are never auto-modified because rewriting note bodies without user
+/// consent is intrusive (and the orphan ✕ chip visual already informs
+/// the user; manual Backspace resolves it).
+pub fn reconcile_apply_auto(
+    store: &mut AttachmentStore,
+    report: &ReconcileReport,
+) -> Result<(usize, usize, usize), String> {
+    let mut missing_added = 0usize;
+    let mut stale_unlinked = 0usize;
+    let mut orphaned_refs = 0usize;
+
+    for m in &report.missing_ref_links {
+        if store.link_to_note(&m.attachment_id, &m.note_id).is_ok() {
+            missing_added += 1;
+        }
+    }
+
+    // Group stale by ref to count "this ref became orphan" exactly once.
+    let mut stale_by_ref: HashMap<String, Vec<String>> = HashMap::new();
+    for s in &report.stale_ref_links {
+        stale_by_ref
+            .entry(s.attachment_id.clone())
+            .or_default()
+            .push(s.note_id.clone());
+    }
+    for (att_id, note_ids) in stale_by_ref {
+        for note_id in &note_ids {
+            if store.unlink_from_note(&att_id, note_id).is_ok() {
+                stale_unlinked += 1;
+            }
+        }
+        let now_empty = store
+            .get_by_id(&att_id)
+            .map(|r| r.linked_notes.is_empty())
+            .unwrap_or(false);
+        if now_empty {
+            // NO cascade delete here — the orphan ref surfaces in the
+            // Attachments tab with an ✕ button; user decides.
+            orphaned_refs += 1;
+        }
+    }
+
+    Ok((missing_added, stale_unlinked, orphaned_refs))
+}
+
+/// Back-compat alias for the previous narrower auto-apply that only
+/// touched missing_ref_links. Kept so existing tests still build; new
+/// callers should prefer `reconcile_apply_auto`.
 pub fn reconcile_apply_safe(
     store: &mut AttachmentStore,
     report: &ReconcileReport,

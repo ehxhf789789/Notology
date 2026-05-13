@@ -330,19 +330,21 @@ impl SyncEngine {
                 report.stale_ref_links.len(),
                 report.missing_ref_links.len()
             );
-            // Apply only the safe subset.
-            match crate::features::sync_v2::attachment_reconcile::reconcile_apply_safe(
+            // Apply both missing AND stale (unlink-only, no cascade
+            // delete). Cascade hard-deletion only happens on explicit
+            // user click of ✕ in the Attachments tab.
+            match crate::features::sync_v2::attachment_reconcile::reconcile_apply_auto(
                 &mut store, &report,
             ) {
-                Ok(added) => {
-                    if added > 0 {
+                Ok((missing, stale, orphaned)) => {
+                    if missing + stale > 0 {
                         log::info!(
-                            "[attachment_reconcile auto] silently added {} missing linked_notes entries",
-                            added
+                            "[attachment_reconcile auto] +{} missing linked_notes, -{} stale (→ {} orphan refs await user review)",
+                            missing, stale, orphaned
                         );
                     }
                 }
-                Err(e) => log::warn!("[attachment_reconcile auto] apply_safe failed: {}", e),
+                Err(e) => log::warn!("[attachment_reconcile auto] apply failed: {}", e),
             }
         });
 
