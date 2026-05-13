@@ -499,6 +499,37 @@ pub fn sync_v2_enqueue_attachment(
     Ok(())
 }
 
+/// Track B Phase B-3 PART 6 (HanBin 2026-05-13): force a stuck attachment
+/// back onto the dirty queue. Used by the wikilink chip's "Retry sync"
+/// action when an upload appears to have failed beyond max retries. Lane
+/// is recomputed from current size so a chunked-layout file does not get
+/// misrouted onto the fast lane.
+#[tauri::command]
+pub fn sync_v2_retry_attachment(
+    attachment_id: String,
+    library_state: tauri::State<'_, LibraryState>,
+    state: tauri::State<'_, SyncEngineState>,
+) -> Result<(), String> {
+    let vault = require_vault(&library_state)?;
+    let store = crate::features::sync_v2::attachment_store::AttachmentStore::new(vault)?;
+    let r = store
+        .get_by_id(&attachment_id)
+        .ok_or_else(|| format!("attachment_id {} not found", attachment_id))?;
+    let lane = crate::features::sync_v2::attachment_sync::lane_for_size(r.size_bytes);
+    let relative = format!(".notology/attachments/refs/{}.json", attachment_id);
+    if let Some(engine) = state.get() {
+        engine.enqueue_dirty_with_lane(
+            DirtyOperation::AttachmentUpsert { relative_path: relative },
+            lane,
+        );
+        log::info!(
+            "[sync_v2_retry_attachment] re-enqueued {} ({} bytes, lane={:?})",
+            attachment_id, r.size_bytes, lane
+        );
+    }
+    Ok(())
+}
+
 // ── Track B Phase B-2: Attachment commands ──────────────────────────────────
 
 /// DTO of `AttachmentRef` for frontend consumption (camelCase). Mirrors the
@@ -678,6 +709,70 @@ pub async fn attachment_unlink_from_note(
         engine.enqueue_dirty(DirtyOperation::AttachmentUpsert { relative_path: relative });
     }
     Ok(())
+}
+
+/// Track B Phase B-3 PART 6 (2026-05-13): unlink-or-delete in one transaction.
+///
+/// Option C (HanBin 2026-05-13): when the user removes a wikilink chip, we
+/// unlink the attachment from that note. If `linked_notes` becomes empty
+/// (this was the last reference anywhere), we proceed straight to a full
+/// hard-delete — ref JSON, display hardlink, orphan CAS blob, and NAS-side
+/// cleanup all in one shot. The frontend confirmation modal is the only
+/// guard against accidental data loss.
+///
+/// Returns `true` when the attachment was fully deleted, `false` when it was
+/// merely unlinked from this note (other notes still hold links).
+#[tauri::command]
+pub async fn attachment_unlink_or_delete(
+    app: tauri::AppHandle,
+    attachment_id: String,
+    note_id: String,
+    library_state: tauri::State<'_, LibraryState>,
+    sync_state: tauri::State<'_, SyncEngineState>,
+) -> Result<bool, String> {
+    let vault = require_vault(&library_state)?;
+    let mut store =
+        crate::features::sync_v2::attachment_store::AttachmentStore::new(vault)?;
+
+    // Snapshot pre-unlink state so we can decide between unlink and full delete.
+    let (remaining_links, lane) = {
+        let r = store
+            .get_by_id(&attachment_id)
+            .ok_or_else(|| format!("attachment_id {} not found", attachment_id))?;
+        let remaining = r
+            .linked_notes
+            .iter()
+            .filter(|n| n.as_str() != note_id.as_str())
+            .count();
+        (
+            remaining,
+            crate::features::sync_v2::attachment_sync::lane_for_size(r.size_bytes),
+        )
+    };
+
+    store.unlink_from_note(&attachment_id, &note_id)?;
+
+    if remaining_links > 0 {
+        // Other notes still reference this attachment — just propagate the
+        // updated linked_notes via an upsert.
+        if let Some(engine) = sync_state.get() {
+            let relative = format!(".notology/attachments/refs/{}.json", attachment_id);
+            engine.enqueue_dirty(DirtyOperation::AttachmentUpsert { relative_path: relative });
+        }
+        return Ok(false);
+    }
+
+    // Last link gone → hard delete (matches attachment_delete semantics).
+    store.delete_attachment(&attachment_id)?;
+    if let Some(engine) = sync_state.get() {
+        let relative = format!(".notology/attachments/refs/{}.json", attachment_id);
+        engine.enqueue_dirty_with_lane(
+            DirtyOperation::AttachmentDelete { relative_path: relative },
+            lane,
+        );
+    }
+    let _ = app.emit("attachment:deleted", &attachment_id);
+    Ok(true)
 }
 
 #[tauri::command]

@@ -58,6 +58,14 @@ export interface ConfirmDeleteState {
   itemType: 'note' | 'folder' | 'file';
   onConfirm: () => void;
   count?: number;
+  /**
+   * Track B Phase B-3 PART 6: optional cancel callback. Fired when the user
+   * dismisses the modal via ESC or the Cancel button. Used by the wikilink
+   * deletion flow to restore the chip when confirmation is declined.
+   */
+  onCancel?: () => void;
+  /** Optional override of the warning text below the message. */
+  warningOverride?: string;
 }
 
 export interface AlertModalState {
@@ -114,7 +122,7 @@ interface ModalState {
   hideLiteratureInputModal: () => void;
   showEventInputModal: (callback: (formData: any) => void) => void;
   hideEventInputModal: () => void;
-  showConfirmDelete: (itemName: string, itemType: 'note' | 'folder' | 'file', onConfirm: () => void, count?: number) => void;
+  showConfirmDelete: (itemName: string, itemType: 'note' | 'folder' | 'file', onConfirm: () => void, count?: number, options?: { onCancel?: () => void; warningOverride?: string }) => void;
   hideConfirmDelete: () => void;
   showAlertModal: (title: string, message: string) => void;
   hideAlertModal: () => void;
@@ -178,8 +186,12 @@ export const useModalStore = create<ModalState>()((set) => ({
     set({ eventInputModalState: { visible: true, callback } }),
   hideEventInputModal: () => set({ eventInputModalState: null }),
 
-  showConfirmDelete: (itemName, itemType, onConfirm, count) =>
-    set({ confirmDeleteState: { visible: true, itemName, itemType, onConfirm, count } }),
+  showConfirmDelete: (itemName, itemType, onConfirm, count, options) =>
+    set({ confirmDeleteState: {
+      visible: true, itemName, itemType, onConfirm, count,
+      onCancel: options?.onCancel,
+      warningOverride: options?.warningOverride,
+    } }),
   hideConfirmDelete: () => set({ confirmDeleteState: null }),
 
   showAlertModal: (title, message) =>
@@ -263,8 +275,8 @@ export const modalActions = {
   showEventInputModal: (callback: (formData: any) => void) =>
     useModalStore.getState().showEventInputModal(callback),
   hideEventInputModal: () => useModalStore.getState().hideEventInputModal(),
-  showConfirmDelete: (itemName: string, itemType: 'note' | 'folder' | 'file', onConfirm: () => void, count?: number) =>
-    useModalStore.getState().showConfirmDelete(itemName, itemType, onConfirm, count),
+  showConfirmDelete: (itemName: string, itemType: 'note' | 'folder' | 'file', onConfirm: () => void, count?: number, options?: { onCancel?: () => void; warningOverride?: string }) =>
+    useModalStore.getState().showConfirmDelete(itemName, itemType, onConfirm, count, options),
   hideConfirmDelete: () => useModalStore.getState().hideConfirmDelete(),
   showAlertModal: (title: string, message: string) =>
     useModalStore.getState().showAlertModal(title, message),

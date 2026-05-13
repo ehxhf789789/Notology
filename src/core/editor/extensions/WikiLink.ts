@@ -11,6 +11,7 @@ import {
   startMultiAttachmentDrag,
 } from '../../../features/sync_v2/attachmentDragOut';
 import { useAttachmentStore } from '../../../features/sync_v2/stores/attachmentStore';
+import { requestBatchAttachmentDelete } from '../../../features/sync_v2/attachmentDelete';
 
 // ── Track B Phase B-3 PART 5: multi-chip selection + marquee ────────────────
 //
@@ -345,6 +346,9 @@ export const WikiLink = Node.create<WikiLinkOptions>({
   addProseMirrorPlugins() {
     const { onClickLink, onContextMenu, resolveLink, getNoteType, onEditorContextMenu, getNotePath, isAttachment: isAttachmentCallback, resolveFilePath } = this.options;
     const wikiLinkType = this.type;
+    // Captured so the deletion-guard plugin can call editor.commands.undo()
+    // from outside the ProseMirror dispatch cycle (after the modal resolves).
+    const editor = this.editor;
 
     return [
       // ── Selection plugin (PART 5) ────────────────────────────────────────
@@ -530,17 +534,22 @@ export const WikiLink = Node.create<WikiLinkOptions>({
 
                 // Track B Phase B-3 stabilization: surface sync status on
                 // the chip so a 600 MB upload doesn't look like the drop
-                // failed. Three states:
+                // failed. Four states (added PART 6 stuck state):
                 //   - pending / unresolved (no ref yet) : `attachment_add`
                 //     in flight (sha + CAS write). Paint via the
                 //     `.unresolved.attachment` CSS rule.
                 //   - uploading (ref exists, no etag)   : NAS push in flight.
+                //   - stuck (ref + no etag + >15 min)   : push likely failed
+                //     beyond max retries — user must retry/discard.
                 //   - resolved (etag present)           : fully synced.
                 let attachmentSyncClass = '';
                 if (isAttachment && !isPending) {
-                  const attRef = useAttachmentStore.getState().resolveByName(fileName);
+                  const store = useAttachmentStore.getState();
+                  const attRef = store.resolveByName(fileName);
                   if (attRef && !attRef.syncEtag) {
-                    attachmentSyncClass = 'wiki-link-uploading';
+                    attachmentSyncClass = store.isStuck(attRef.attachmentId)
+                      ? 'wiki-link-stuck'
+                      : 'wiki-link-uploading';
                   } else if (attRef) {
                     attachmentSyncClass = 'wiki-link-synced';
                   }
@@ -844,8 +853,110 @@ export const WikiLink = Node.create<WikiLinkOptions>({
           },
         },
       }),
+
+      // ── Track B Phase B-3 PART 6: deletion guard (Option C) ───────────────
+      //
+      // Detects attachment wikilink atoms that disappear from the doc between
+      // transactions and routes them through `requestBatchAttachmentDelete`.
+      // The user's chosen policy (HanBin 2026-05-13) is hard delete on the
+      // last link, gated by a confirmation modal that can be disabled in
+      // settings. Sources of "wikilink disappearance" include:
+      //   - Backspace/Delete adjacent to chip
+      //   - Cut / paste-over selection containing the chip
+      //   - Context-menu Delete (also wrapped at the menu level)
+      //   - Programmatic editor commands
+      //
+      // On cancel, we issue `editor.commands.undo()` as a best-effort restore.
+      // The history plugin reverses the latest transaction; if intervening
+      // edits piled up while the modal was open, those are reversed too —
+      // acceptable since the modal blocks ~the entire UI surface anyway.
+      //
+      // Set `tr.setMeta('wikiLink/skipDeleteGuard', true)` on any transaction
+      // that is itself the cleanup pass after a confirmed deletion, so this
+      // guard does not re-trigger the modal.
+      new Plugin({
+        key: new PluginKey('wikiLinkDeletionGuard'),
+        appendTransaction(transactions, oldState, newState) {
+          if (!transactions.some((tr) => tr.docChanged)) return null;
+          if (transactions.some((tr) => tr.getMeta('wikiLink/skipDeleteGuard'))) return null;
+
+          const oldNames = countAttachmentAtoms(oldState.doc, isAttachmentCallback);
+          const newNames = countAttachmentAtoms(newState.doc, isAttachmentCallback);
+
+          const removed: string[] = [];
+          for (const [name, oldCount] of oldNames) {
+            const newCount = newNames.get(name) ?? 0;
+            for (let i = newCount; i < oldCount; i++) removed.push(name);
+          }
+          if (removed.length === 0) return null;
+
+          // Defer the modal flow — never call into React state synchronously
+          // from inside appendTransaction.
+          queueMicrotask(() => {
+            void handleRemovedAttachmentWikilinks(removed, editor, getNotePath);
+          });
+          return null;
+        },
+      }),
     ];
   },
 });
+
+/** Count attachment-flavored wikilink atoms in a doc, grouped by fileName. */
+function countAttachmentAtoms(
+  doc: import('@tiptap/pm/model').Node,
+  isAttachmentCallback: WikiLinkOptions['isAttachment'],
+): Map<string, number> {
+  const map = new Map<string, number>();
+  doc.descendants((node) => {
+    if (node.type.name !== 'wikiLink') return;
+    const fileName = node.attrs.fileName;
+    if (!fileName) return;
+    // Cheapest discriminator that holds: the stored attribute set at insert
+    // time. Fall back to the callback (live state) so chips that just
+    // resolved before this deletion still get the confirmation path.
+    const isAtt =
+      node.attrs.isAttachmentAttr === true
+      || isAttachmentCallback?.(fileName) === true;
+    if (!isAtt) return;
+    map.set(fileName, (map.get(fileName) ?? 0) + 1);
+  });
+  return map;
+}
+
+async function handleRemovedAttachmentWikilinks(
+  removedFileNames: string[],
+  editor: import('@tiptap/core').Editor,
+  getNotePath: WikiLinkOptions['getNotePath'],
+) {
+  const store = useAttachmentStore.getState();
+  const noteId = getNotePath?.()
+    ?.replace(/\\/g, '/')
+    .split('/')
+    .pop()
+    ?.replace(/\.md$/i, '') ?? '';
+
+  const requests = removedFileNames
+    .map((fileName) => {
+      const ref = store.resolveByName(fileName, noteId);
+      if (!ref) return null;
+      return {
+        attachmentId: ref.attachmentId,
+        originalName: ref.originalName,
+        noteId,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  if (requests.length === 0) return;
+
+  const { cancelled } = await requestBatchAttachmentDelete(requests);
+  if (cancelled.length > 0) {
+    // Best-effort restore. The undo command reverses the most recent
+    // transaction in the history stack; the chip's deletion is the trigger
+    // we just confirmed, so undoing it brings the chip(s) back.
+    editor.chain().focus().undo().run();
+  }
+}
 
 export default WikiLink;

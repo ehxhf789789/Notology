@@ -10,6 +10,8 @@ import { FOLDER_STATUS_INFO } from '../../core/types';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { t } from '../../core/utils/i18n';
 import { useModalClose } from '../../core/hooks/useModalListeners';
+import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
+import { syncV2Commands } from '../sync_v2/syncV2Commands';
 
 // Render folder status icon using Lucide
 function renderStatusIcon(status: FolderStatus) {
@@ -318,6 +320,27 @@ function ContextMenu() {
               {t('revealInExplorer', language)}
             </button>
           )}
+          {/* Track B Phase B-3 PART 6: Retry sync for stuck attachments. */}
+          {(() => {
+            const ref = useAttachmentStore.getState().resolveByName(fileName);
+            if (!ref) return null;
+            const stuck = useAttachmentStore.getState().isStuck(ref.attachmentId);
+            if (!stuck) return null;
+            return (
+              <>
+                <div className="context-menu-separator" />
+                <button
+                  className="context-menu-item"
+                  onClick={() => {
+                    void syncV2Commands.attachmentRetry(ref.attachmentId);
+                    modalActions.hideContextMenu();
+                  }}
+                >
+                  {t('attachmentStuckRetry', language)}
+                </button>
+              </>
+            );
+          })()}
           <div className="context-menu-separator" />
           <button className="context-menu-item" onClick={handleRenameWikiLink}>
             {t('renameWikiLink', language)}

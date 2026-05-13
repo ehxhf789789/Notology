@@ -604,3 +604,35 @@ html[data-theme="light"] .wiki-image-embed-delete {
 html[data-theme="light"] .wiki-link-inline.unresolved.attachment {
   color: color-mix(in srgb, var(--c-amber, #f59e0b) 80%, black) !important;
 }
+
+/* ===== Track B Phase B-3 PART 6: stuck-sync state =====
+   When an AttachmentRef has been "uploading" (sync_etag === null) for
+   longer than STUCK_THRESHOLD_MS (15 min, set in attachmentStore), the
+   chip flips to a red "stuck" visual that overrides the amber pulse.
+   Right-click opens a menu with Retry / Discard actions.
+*/
+
+.wiki-link-inline.wiki-link-stuck {
+  border-color: color-mix(in srgb, var(--c-red, #ef4444) 60%, transparent) !important;
+  background-color: color-mix(in srgb, var(--c-red, #ef4444) 12%, transparent) !important;
+  color: color-mix(in srgb, var(--c-red, #ef4444) 90%, currentColor) !important;
+  animation: none !important; /* kill the amber pulse */
+}
+
+/* Replace the spinning glyph with a warning triangle for stuck chips. */
+.wiki-link-inline.wiki-link-stuck::after {
+  content: '⚠';
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.9em;
+  color: var(--c-red, #ef4444);
+  animation: none;
+  border: none;
+  width: auto;
+  height: auto;
+  vertical-align: middle;
+}
+
+html[data-theme="light"] .wiki-link-inline.wiki-link-stuck {
+  color: color-mix(in srgb, var(--c-red, #ef4444) 80%, black) !important;
+}

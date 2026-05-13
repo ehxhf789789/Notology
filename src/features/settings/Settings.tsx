@@ -1,8 +1,7 @@
 import { useState, useMemo, useCallback, useSyncExternalStore } from 'react';
 import { SettingsRegistry } from './SettingsRegistry';
 
-// Feature plugin registrations (side-effect imports)
-import '../sync/index';
+// Feature plugin registrations (side-effect imports done in main.tsx)
 import { useVaultPath } from '../../core/stores/fileTreeStore';
 import { useSettingsStore, type ThemeSetting, type FontSetting, type LanguageSetting, type CustomFont } from '../../core/stores/settingsStore';
 import { useTemplateStore } from '../templates/stores/templateStore';
@@ -41,6 +40,7 @@ function Settings({ onClose }: SettingsProps) {
     hoverZoomEnabled, setHoverZoomEnabled, hoverZoomLevel, hoverDefaultWidth, hoverDefaultHeight, setHoverDefaultSize,
     theme, setTheme, font, setFont, customFonts, selectedCustomFont, addCustomFont, removeCustomFont, language, setLanguage,
     devMode, setDevMode,
+    confirmAttachmentDelete, setConfirmAttachmentDelete,
   } = useSettingsStore();
   const {
     noteTemplates, enabledTemplateIds, addNoteTemplate, updateNoteTemplate, removeNoteTemplate, toggleTemplateEnabled,
@@ -276,6 +276,20 @@ function Settings({ onClose }: SettingsProps) {
                       {toolbarDefaultCollapsed ? t('on', language) : t('off', language)}
                     </button>
                   </div>
+                  {/* Track B Phase B-3 PART 6 (HanBin 2026-05-13): toggle the
+                      attachment-deletion confirmation modal. */}
+                  <div className="settings-row">
+                    <div className="settings-row-info">
+                      <span className="settings-row-label">{t('confirmAttachmentDeleteLabel', language)}</span>
+                      <span className="settings-row-desc">{t('confirmAttachmentDeleteHint', language)}</span>
+                    </div>
+                    <button
+                      className={`settings-toggle-btn ${confirmAttachmentDelete ? 'active' : ''}`}
+                      onClick={() => setConfirmAttachmentDelete(!confirmAttachmentDelete, vaultPath)}
+                    >
+                      {confirmAttachmentDelete ? t('on', language) : t('off', language)}
+                    </button>
+                  </div>
                 </section>
 
                 <section className="settings-section">
@@ -493,6 +507,7 @@ function Settings({ onClose }: SettingsProps) {
                     </button>
                   </div>
                 </section>
+
               </div>
             )}
 

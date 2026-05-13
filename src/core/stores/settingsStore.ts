@@ -30,6 +30,16 @@ interface SettingsState {
   hoverDefaultWidth: number;
   hoverDefaultHeight: number;
   graphSettings: GraphSettings;
+  fontSize: number;
+  lineHeight: string;
+  spellCheck: boolean;
+  accentColor: number;
+  /**
+   * Track B Phase B-3 PART 6 (Option C, HanBin 2026-05-13). When true,
+   * removing an attachment wikilink chip raises a confirmation modal before
+   * the attachment is hard-deleted from CAS / NAS. Off = silent hard delete.
+   */
+  confirmAttachmentDelete: boolean;
 
   // Actions
   setTheme: (theme: ThemeSetting, vaultPath: string | null) => void;
@@ -44,6 +54,11 @@ interface SettingsState {
   setHoverZoomLevel: (level: number, vaultPath: string | null) => void;
   setHoverDefaultSize: (width: number, height: number, vaultPath: string | null) => void;
   setGraphSettings: (settings: Partial<GraphSettings>, vaultPath: string | null) => void;
+  setFontSize: (size: number, vaultPath: string | null) => void;
+  setLineHeight: (lh: string, vaultPath: string | null) => void;
+  setSpellCheck: (enabled: boolean, vaultPath: string | null) => void;
+  setAccentColor: (index: number, vaultPath: string | null) => void;
+  setConfirmAttachmentDelete: (enabled: boolean, vaultPath: string | null) => void;
 
   // Load from persisted storage
   loadSettings: (vaultPath: string) => Promise<void>;
@@ -51,9 +66,19 @@ interface SettingsState {
   resetToDefaults: () => void;
 }
 
+// Detect initial theme from URL param > data-theme attribute > system preference
+function detectInitialTheme(): ThemeSetting {
+  if (typeof window === 'undefined') return 'dark';
+  const urlTheme = new URLSearchParams(window.location.search).get('theme');
+  if (urlTheme === 'light' || urlTheme === 'dark' || urlTheme === 'system') return urlTheme;
+  const attrTheme = document.documentElement.getAttribute('data-theme');
+  if (attrTheme === 'light' || attrTheme === 'dark' || attrTheme === 'system') return attrTheme;
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
 export const useSettingsStore = create<SettingsState>()((set, get) => ({
-  // Initial state
-  theme: 'dark',
+  // Initial state — theme detected from current context to prevent dark flash
+  theme: detectInitialTheme(),
   font: 'default',
   customFonts: [],
   selectedCustomFont: null,
@@ -66,6 +91,11 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   hoverDefaultWidth: 1000,
   hoverDefaultHeight: 800,
   graphSettings: { ...DEFAULT_GRAPH_SETTINGS },
+  fontSize: 15,
+  lineHeight: '1.6',
+  spellCheck: false,
+  accentColor: 4,
+  confirmAttachmentDelete: true,
 
   // Actions
   setTheme: (newTheme, vaultPath) => {
@@ -73,6 +103,8 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     document.documentElement.dataset.theme = newTheme;
     // Broadcast theme change to all hover windows
     emit('theme-changed', { theme: newTheme }).catch(() => {});
+    // Save to global store so VaultSelector can read it
+    getGlobalStore().then(store => store.set('last_theme', newTheme)).catch(() => {});
     if (!vaultPath) return;
     getVaultStore(vaultPath).then(store => store.set('theme', newTheme));
   },
@@ -188,6 +220,46 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     getVaultStore(vaultPath).then(store => store.set('graph_settings', merged));
   },
 
+  setFontSize: (size, vaultPath) => {
+    const clamped = Math.min(24, Math.max(12, size));
+    set({ fontSize: clamped });
+    document.documentElement.style.setProperty('--editor-font-size', `${clamped}px`);
+    if (!vaultPath) return;
+    getVaultStore(vaultPath).then(store => store.set('font_size', clamped));
+  },
+
+  setLineHeight: (lh, vaultPath) => {
+    set({ lineHeight: lh });
+    document.documentElement.style.setProperty('--editor-line-height', lh);
+    if (!vaultPath) return;
+    getVaultStore(vaultPath).then(store => store.set('line_height', lh));
+  },
+
+  setSpellCheck: (enabled, vaultPath) => {
+    set({ spellCheck: enabled });
+    document.querySelectorAll<HTMLElement>('[contenteditable]').forEach(el => {
+      el.spellcheck = enabled;
+    });
+    if (!vaultPath) return;
+    getVaultStore(vaultPath).then(store => store.set('spell_check', enabled));
+  },
+
+  setAccentColor: (index, vaultPath) => {
+    set({ accentColor: index });
+    const FOLDER_COLORS = ['#FF6B6B','#FF922B','#FCC419','#51CF66','#339AF0','#7950F2','#F06595','#20C997','#845EF7','#FD7E14'];
+    const color = FOLDER_COLORS[index % FOLDER_COLORS.length];
+    document.documentElement.style.setProperty('--c-blue', color);
+    document.documentElement.style.setProperty('--color-accent', color);
+    if (!vaultPath) return;
+    getVaultStore(vaultPath).then(store => store.set('accent_color', index));
+  },
+
+  setConfirmAttachmentDelete: (enabled, vaultPath) => {
+    set({ confirmAttachmentDelete: enabled });
+    if (!vaultPath) return;
+    getVaultStore(vaultPath).then(store => store.set('confirm_attachment_delete', enabled));
+  },
+
   loadSettings: async (vaultPath) => {
     const vaultStore = await getVaultStore(vaultPath);
 
@@ -230,6 +302,8 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     if (savedTheme) {
       updates.theme = savedTheme;
       document.documentElement.dataset.theme = savedTheme;
+      // Persist to global store for VaultSelector
+      getGlobalStore().then(s => s.set('last_theme', savedTheme)).catch(() => {});
     } else {
       updates.theme = 'dark';
       document.documentElement.dataset.theme = 'dark';
@@ -263,6 +337,35 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     } else {
       updates.language = 'ko';
       document.documentElement.lang = 'ko';
+    }
+
+    // New Phase 4 settings
+    const savedFontSize = await vaultStore.get<number>('font_size');
+    const savedLineHeight = await vaultStore.get<string>('line_height');
+    const savedSpellCheck = await vaultStore.get<boolean>('spell_check');
+    const savedAccentColor = await vaultStore.get<number>('accent_color');
+    if (savedFontSize) {
+      updates.fontSize = savedFontSize;
+      document.documentElement.style.setProperty('--editor-font-size', `${savedFontSize}px`);
+    }
+    if (savedLineHeight) {
+      updates.lineHeight = savedLineHeight;
+      document.documentElement.style.setProperty('--editor-line-height', savedLineHeight);
+    }
+    if (savedSpellCheck !== null && savedSpellCheck !== undefined) {
+      updates.spellCheck = savedSpellCheck;
+    }
+    if (savedAccentColor !== null && savedAccentColor !== undefined) {
+      updates.accentColor = savedAccentColor;
+      const FOLDER_COLORS = ['#FF6B6B','#FF922B','#FCC419','#51CF66','#339AF0','#7950F2','#F06595','#20C997','#845EF7','#FD7E14'];
+      const color = FOLDER_COLORS[savedAccentColor % FOLDER_COLORS.length];
+      document.documentElement.style.setProperty('--c-blue', color);
+      document.documentElement.style.setProperty('--color-accent', color);
+    }
+
+    const savedConfirmAttachmentDelete = await vaultStore.get<boolean>('confirm_attachment_delete');
+    if (savedConfirmAttachmentDelete !== null && savedConfirmAttachmentDelete !== undefined) {
+      updates.confirmAttachmentDelete = savedConfirmAttachmentDelete;
     }
 
     const savedGraphSettings = await vaultStore.get<GraphSettings>('graph_settings');
@@ -300,6 +403,11 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       hoverDefaultWidth: 1000,
       hoverDefaultHeight: 800,
       graphSettings: { ...DEFAULT_GRAPH_SETTINGS },
+      fontSize: 15,
+      lineHeight: '1.6',
+      spellCheck: false,
+      accentColor: 4,
+      confirmAttachmentDelete: true,
     });
   },
 }));
@@ -312,6 +420,10 @@ export const useDevMode = () => useSettingsStore((s) => s.devMode);
 export const useAutoSaveDelay = () => useSettingsStore((s) => s.autoSaveDelay);
 export const useToolbarDefaultCollapsed = () => useSettingsStore((s) => s.toolbarDefaultCollapsed);
 export const useGraphSettings = () => useSettingsStore((s) => s.graphSettings);
+export const useFontSize = () => useSettingsStore((s) => s.fontSize);
+export const useLineHeight = () => useSettingsStore((s) => s.lineHeight);
+export const useSpellCheck = () => useSettingsStore((s) => s.spellCheck);
+export const useAccentColor = () => useSettingsStore((s) => s.accentColor);
 
 // Actions (stable references)
 export const settingsActions = {
@@ -345,4 +457,14 @@ export const settingsActions = {
     useSettingsStore.getState().setGraphSettings(settings, vaultPath),
   resetToDefaults: () =>
     useSettingsStore.getState().resetToDefaults(),
+  setFontSize: (size: number, vaultPath: string | null) =>
+    useSettingsStore.getState().setFontSize(size, vaultPath),
+  setLineHeight: (lh: string, vaultPath: string | null) =>
+    useSettingsStore.getState().setLineHeight(lh, vaultPath),
+  setSpellCheck: (enabled: boolean, vaultPath: string | null) =>
+    useSettingsStore.getState().setSpellCheck(enabled, vaultPath),
+  setAccentColor: (index: number, vaultPath: string | null) =>
+    useSettingsStore.getState().setAccentColor(index, vaultPath),
+  setConfirmAttachmentDelete: (enabled: boolean, vaultPath: string | null) =>
+    useSettingsStore.getState().setConfirmAttachmentDelete(enabled, vaultPath),
 };

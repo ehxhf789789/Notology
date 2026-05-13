@@ -196,8 +196,30 @@ export const syncV2Commands = {
     EventBus.emit('attachment:saved', { path: attachmentId });
   },
 
+  /**
+   * Track B Phase B-3 PART 6 — unlink-or-delete (Option C, HanBin 2026-05-13).
+   * Returns true if the attachment was fully hard-deleted (this note held the
+   * last link), false if other notes still reference it.
+   */
+  attachmentUnlinkOrDelete: async (attachmentId: string, noteId: string): Promise<boolean> => {
+    const wasDeleted = await invoke<boolean>('attachment_unlink_or_delete', { attachmentId, noteId });
+    if (wasDeleted) {
+      EventBus.emit('attachment:deleted', { path: attachmentId });
+    } else {
+      EventBus.emit('attachment:saved', { path: attachmentId });
+    }
+    return wasDeleted;
+  },
+
   attachmentListForNote: (noteId: string) =>
     invoke<AttachmentRefDto[]>('attachment_list_for_note', { noteId }),
+
+  /**
+   * Track B Phase B-3 PART 6 — force a stuck attachment back onto the
+   * dirty queue. The chip's "Retry sync" context-menu action calls this.
+   */
+  attachmentRetry: (attachmentId: string): Promise<void> =>
+    invoke<void>('sync_v2_retry_attachment', { attachmentId }),
 
   /** Track B Phase B-3: full index for the redesigned Attachments tab + resolver. */
   attachmentListAll: () => invoke<AttachmentRefDto[]>('attachment_list_all'),

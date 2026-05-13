@@ -877,6 +877,7 @@ pub fn run() {
             features::sync_v2::commands::sync_v2_enqueue_delete,
             features::sync_v2::commands::sync_v2_enqueue_move,
             features::sync_v2::commands::sync_v2_enqueue_attachment,
+            features::sync_v2::commands::sync_v2_retry_attachment,
             features::sync_v2::commands::sync_v2_enqueue_folder_create,
             features::sync_v2::commands::sync_v2_enqueue_folder_delete,
             // Track B Phase B-2 — attachment + migration commands
@@ -884,6 +885,7 @@ pub fn run() {
             features::sync_v2::commands::attachment_delete,
             features::sync_v2::commands::attachment_link_to_note,
             features::sync_v2::commands::attachment_unlink_from_note,
+            features::sync_v2::commands::attachment_unlink_or_delete,
             features::sync_v2::commands::attachment_list_for_note,
             features::sync_v2::commands::attachment_list_all,
             features::sync_v2::commands::attachment_local_path,

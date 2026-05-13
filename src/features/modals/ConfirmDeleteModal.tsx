@@ -8,9 +8,15 @@ function ConfirmDeleteModal() {
   const hideConfirmDelete = useModalStore(s => s.hideConfirmDelete);
   const language = useSettingsStore(s => s.language);
 
+  // ESC key cancels — wired to call onCancel before hiding so callers that
+  // need to restore state (e.g. wikilink-deletion flow) get a signal.
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') hideConfirmDelete();
+      if (e.key === 'Escape') {
+        const onCancel = useModalStore.getState().confirmDeleteState?.onCancel;
+        onCancel?.();
+        hideConfirmDelete();
+      }
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
@@ -18,7 +24,7 @@ function ConfirmDeleteModal() {
 
   if (!confirmDeleteState || !confirmDeleteState.visible) return null;
 
-  const { itemName, itemType, onConfirm, count } = confirmDeleteState;
+  const { itemName, itemType, onConfirm, onCancel, count, warningOverride } = confirmDeleteState;
   const isFolder = itemType === 'folder';
   const isFile = itemType === 'file';
   const isBatch = count && count > 1;
@@ -29,6 +35,7 @@ function ConfirmDeleteModal() {
   };
 
   const handleCancel = () => {
+    onCancel?.();
     hideConfirmDelete();
   };
 
@@ -54,8 +61,10 @@ function ConfirmDeleteModal() {
     return <><strong>"{itemName}"</strong> {t('confirmDeleteNote', language)}</>;
   };
 
-  // Determine warning text
+  // Determine warning text — caller may provide a custom override (Option C
+  // surfaces "this also deletes the NAS copy" when the last link is removed).
   const getWarning = () => {
+    if (warningOverride) return warningOverride;
     if (isBatch || isFile) return t('warnWikilinks', language);
     if (isFolder) return t('warnSubitems', language);
     return t('warnAttachments', language);

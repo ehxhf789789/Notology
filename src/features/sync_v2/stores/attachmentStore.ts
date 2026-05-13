@@ -62,6 +62,15 @@ interface AttachmentState {
   resolveByName: (fileName: string, noteId?: string) => AttachmentRefDto | null;
   listForNote: (noteId: string) => AttachmentRefDto[];
   all: () => AttachmentRefDto[];
+  /**
+   * Track B Phase B-3 PART 6 (HanBin 2026-05-13): "infinite-spinner" guard.
+   * Returns true when the ref has no `syncEtag` yet AND its
+   * attachment_id timestamp is older than STUCK_THRESHOLD_MS, which
+   * indicates the chunked upload (or its retry budget) has likely been
+   * exhausted. The chip then transitions from amber/uploading to a red
+   * "stuck" state so the user can intervene instead of waiting forever.
+   */
+  isStuck: (attachmentId: string) => boolean;
 }
 
 function emptyIndex(): AttachmentIndex {
@@ -221,8 +230,33 @@ export const useAttachmentStore = create<AttachmentState>()(
     all() {
       return Array.from(get().index.byId.values());
     },
+
+    isStuck(attachmentId) {
+      const r = get().index.byId.get(attachmentId);
+      if (!r) return false;
+      if (r.syncEtag) return false; // already synced, not stuck
+      const createdMs = parseAttachmentIdMs(r.attachmentId);
+      if (createdMs === null) return false; // bad id format — refuse to flag
+      return Date.now() - createdMs > STUCK_THRESHOLD_MS;
+    },
   })),
 );
+
+/**
+ * Parse the 14-digit timestamp embedded in an attachment_id (YYYYMMDDhhmmss
+ * in UTC, sortable). Returns the ms epoch, or null if the format doesn't
+ * match (covers migrated legacy ids, manual user edits, etc.).
+ */
+function parseAttachmentIdMs(id: string): number | null {
+  const m = id.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/);
+  if (!m) return null;
+  const [, Y, M, D, h, mn, s] = m;
+  const t = Date.UTC(+Y, +M - 1, +D, +h, +mn, +s);
+  return Number.isFinite(t) ? t : null;
+}
+
+/** 15 minutes — see `isStuck` docstring for rationale. */
+const STUCK_THRESHOLD_MS = 15 * 60 * 1000;
 
 /**
  * Wire the store to the EventBus + Tauri events. Call once from app bootstrap.
