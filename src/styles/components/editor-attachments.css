@@ -636,3 +636,53 @@ html[data-theme="light"] .wiki-link-inline.unresolved.attachment {
 html[data-theme="light"] .wiki-link-inline.wiki-link-stuck {
   color: color-mix(in srgb, var(--c-red, #ef4444) 80%, black) !important;
 }
+
+/* ===== Track B Phase B-3 PART 6: orphan attachment state =====
+   When a chip survives a failed attachment_add (and our auto-cleanup
+   missed it — e.g. the editor was unmounted before the failure event)
+   OR when a manually-typed wikilink points at an attachment-shaped
+   filename that has no AttachmentRef and no pending entry, we paint
+   `.wiki-link-orphan` so the user can distinguish "this is a broken
+   ATTACHMENT link, just delete it" from a regular unresolved note link.
+
+   The dashed gray border + red broken-chain glyph deliberately differs
+   from `.wiki-link-stuck`: stuck implies "we have the file, sync failed,
+   retry it." Orphan implies "we never had the file, just remove the link."
+*/
+
+/* `.wiki-link-orphan` must override `.unresolved.attachment` (which paints
+   amber + spinner glyph). The compound selector below matches both class
+   combinations the decoration plugin emits and beats the amber rule on
+   specificity. */
+.wiki-link-inline.wiki-link-orphan,
+.wiki-link-inline.unresolved.attachment.wiki-link-orphan {
+  border-color: color-mix(in srgb, var(--c-gray, #9ca3af) 50%, transparent) !important;
+  border-style: dashed !important;
+  background-color: color-mix(in srgb, var(--c-gray, #9ca3af) 6%, transparent) !important;
+  color: color-mix(in srgb, var(--c-gray, #9ca3af) 90%, currentColor) !important;
+  opacity: 0.85;
+  animation: none !important;
+}
+
+/* `✕` (heavy multiplication X) is the orphan glyph. Deliberately distinct
+   from `⚠` (stuck) so users can read the two states at a glance:
+   ⚠ red = "we have the file, retry sync"; ✕ red = "broken, just remove". */
+.wiki-link-inline.wiki-link-orphan::after,
+.wiki-link-inline.unresolved.attachment.wiki-link-orphan::after {
+  content: '✕' !important;
+  display: inline-block !important;
+  margin-left: 4px !important;
+  font-size: 0.9em !important;
+  color: var(--c-red, #ef4444) !important;
+  animation: none !important;
+  border: none !important;
+  width: auto !important;
+  height: auto !important;
+  vertical-align: middle !important;
+  font-weight: 700 !important;
+  border-radius: 0 !important;
+}
+
+html[data-theme="light"] .wiki-link-inline.wiki-link-orphan {
+  color: color-mix(in srgb, var(--c-gray, #9ca3af) 80%, black) !important;
+}

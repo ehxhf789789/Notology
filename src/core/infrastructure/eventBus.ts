@@ -19,6 +19,13 @@ export interface EventMap {
   'folder:renamed': { oldPath: string; newPath: string };
   'attachment:saved': { path: string };
   'attachment:deleted': { path: string };
+  /**
+   * Track B Phase B-3 PART 6 (HanBin 2026-05-13): attachment_add and its
+   * legacy fallback both rejected. The editor that issued the optimistic
+   * insert is responsible for removing the orphaned wikilink so the user
+   * is never stranded with a chip that points at nothing.
+   */
+  'attachment:addFailed': { fileName: string; notePath: string; error: string };
   'comments:saved': { notePath: string; commentsPath: string };
   'config:saved': { path: string };
   'vault:opened': { path: string };

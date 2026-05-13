@@ -3,6 +3,7 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { noteCommands } from '../services/tauriCommands';
 import { syncV2Commands } from '../../features/sync_v2/syncV2Commands';
 import { useAttachmentStore } from '../../features/sync_v2/stores/attachmentStore';
+import { EventBus } from '../infrastructure/eventBus';
 
 interface DropTarget {
   id: string;
@@ -78,6 +79,7 @@ async function initGlobalListener() {
         const basename = sourceBasenames[idx];
         if (basename) useAttachmentStore.getState().markPending(basename);
         void (async () => {
+          let bothFailedError: unknown = null;
           try {
             await syncV2Commands.attachmentAdd(sourcePath, {
               notePath: target.notePath,
@@ -94,9 +96,23 @@ async function initGlobalListener() {
                 '[useDragDrop] both attachmentAdd and importAttachment failed:',
                 err2,
               );
+              bothFailedError = err2;
             }
           } finally {
             if (basename) useAttachmentStore.getState().unmarkPending(basename);
+          }
+
+          // Track B Phase B-3 PART 6 (HanBin 2026-05-13): orphan prevention.
+          // Both backend paths rejected → the optimistic chip in the doc is
+          // now pointing at nothing on disk and nothing on NAS. We emit a
+          // failure event so the editor that issued the insert can remove
+          // it before the user is left with a permanent "gray ghost" chip.
+          if (bothFailedError !== null && basename) {
+            EventBus.emit('attachment:addFailed', {
+              fileName: basename,
+              notePath: target.notePath,
+              error: String(bothFailedError),
+            });
           }
         })();
       });

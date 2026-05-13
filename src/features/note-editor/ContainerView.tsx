@@ -20,6 +20,8 @@ import { useNoteTypeCacheStore } from '../content-cache/stores/noteTypeCacheStor
 import { createNote, createFolder, createNoteWithTemplate, selectContainer } from '../../core/stores/appActions';
 import { useDropTarget } from '../../core/hooks/useDragDrop';
 import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
+import { EventBus } from '../../core/infrastructure/eventBus';
+import { removeOrphanWikiLinkNodes } from '../sync_v2/orphanRemoval';
 import { getEditorExtensions } from '../../core/editor/editorConfig';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { t } from '../../core/utils/i18n';
@@ -477,6 +479,28 @@ function ContainerView() {
       editor.view.dispatch(editor.state.tr);
     }
   }, [attachmentHydratedAt, editor]);
+
+  // Track B Phase B-3 PART 6: orphan prevention. When useDragDrop reports
+  // that both `attachment_add` and the legacy `import_attachment` fallback
+  // rejected, the optimistic chip we just inserted points at nothing on
+  // disk and nothing on NAS. Remove it before the user is stranded with
+  // a permanent gray ghost. Filter by notePath so a failed drop in another
+  // open note doesn't strip chips from this one.
+  useEffect(() => {
+    if (!editor) return;
+    const off = EventBus.on('attachment:addFailed', ({ fileName, notePath }) => {
+      if (!folderNotePath) return;
+      const norm = (p: string) => p.replace(/\\/g, '/').toLowerCase();
+      if (norm(notePath) !== norm(folderNotePath)) return;
+      const removed = removeOrphanWikiLinkNodes(editor, fileName);
+      if (removed > 0) {
+        console.warn(
+          `[ContainerView] removed ${removed} orphan wikilink(s) for ${fileName} after attachment_add failure`,
+        );
+      }
+    });
+    return off;
+  }, [editor, folderNotePath]);
 
   // Save on unmount if dirty
   useEffect(() => {

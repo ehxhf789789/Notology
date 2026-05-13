@@ -25,6 +25,8 @@ import TagPanel from '../tags/TagPanel';
 import { hoverWindowPropsAreEqual, type HoverEditorWindowProps } from './hoverAnimationUtils';
 import { preprocessWikiLinks } from '../../core/utils/wikiLinkPreprocess';
 import { useDropTarget } from '../../core/hooks/useDragDrop';
+import { EventBus } from '../../core/infrastructure/eventBus';
+import { removeOrphanWikiLinkNodes } from '../sync_v2/orphanRemoval';
 import { contentCacheActions } from '../content-cache/stores/contentCacheStore';
 import { useFileLookupStore } from '../../core/stores/fileLookupStore';
 
@@ -604,6 +606,26 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
       editor.view.dispatch(editor.state.tr);
     }
   }, [attachmentHydratedAt, editor]);
+
+  // Track B Phase B-3 PART 6: orphan prevention — drop into a hover window
+  // and the backend rejects, strip the optimistic chip. Mirrors the
+  // ContainerView wiring; filters by this hover window's note path so a
+  // failure in a different open window does not strip from this one.
+  useEffect(() => {
+    if (!editor) return;
+    const off = EventBus.on('attachment:addFailed', ({ fileName, notePath }) => {
+      if (!win.filePath) return;
+      const norm = (p: string) => p.replace(/\\/g, '/').toLowerCase();
+      if (norm(notePath) !== norm(win.filePath)) return;
+      const removed = removeOrphanWikiLinkNodes(editor, fileName);
+      if (removed > 0) {
+        console.warn(
+          `[HoverEditor] removed ${removed} orphan wikilink(s) for ${fileName} after attachment_add failure`,
+        );
+      }
+    });
+    return off;
+  }, [editor, win.filePath]);
 
   // ========== DRAG/RESIZE (extracted hook) ==========
   const {

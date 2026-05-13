@@ -165,6 +165,18 @@ function parseWikiLinkContent(content: string): { fileName: string; displayText:
   return { fileName: content, displayText: content };
 }
 
+/**
+ * Track B Phase B-3 PART 6 — extension heuristic for "this is clearly an
+ * attachment, not a note." Used by the orphan-detection path when a chip's
+ * stored `isAttachmentAttr` is false but the filename ends in a known
+ * binary-attachment extension. `.md` is deliberately excluded so legitimate
+ * note wikilinks with the `.md` suffix don't get flagged.
+ */
+function isAttachmentExtension(fileName: string): boolean {
+  const cat = getAttachmentCategory(fileName);
+  return cat !== 'other' && cat !== 'markdown';
+}
+
 // Helper function to infer note type from filename
 function inferNoteType(fileName: string): string {
   const prefixes = ['NOTE', 'MTG', 'ADM', 'SEM', 'TASK', 'CONTACT', 'SETUP', 'DATA', 'THEO', 'PAPER', 'SKETCH'];
@@ -534,15 +546,22 @@ export const WikiLink = Node.create<WikiLinkOptions>({
 
                 // Track B Phase B-3 stabilization: surface sync status on
                 // the chip so a 600 MB upload doesn't look like the drop
-                // failed. Four states (added PART 6 stuck state):
+                // failed. Five states (added PART 6 stuck + orphan):
                 //   - pending / unresolved (no ref yet) : `attachment_add`
                 //     in flight (sha + CAS write). Paint via the
                 //     `.unresolved.attachment` CSS rule.
                 //   - uploading (ref exists, no etag)   : NAS push in flight.
                 //   - stuck (ref + no etag + >15 min)   : push likely failed
                 //     beyond max retries — user must retry/discard.
+                //   - orphan (no ref + not pending +    : the optimistic
+                //     intent-was-attachment cue)          chip survived a
+                //     failed attachment_add (rare: editor was unmounted
+                //     before the failure event reached it, or chip was
+                //     typed manually). Paint distinctly so the user can
+                //     act instead of mistaking it for a broken note link.
                 //   - resolved (etag present)           : fully synced.
                 let attachmentSyncClass = '';
+                let isOrphan = false;
                 if (isAttachment && !isPending) {
                   const store = useAttachmentStore.getState();
                   const attRef = store.resolveByName(fileName);
@@ -552,12 +571,33 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                       : 'wiki-link-uploading';
                   } else if (attRef) {
                     attachmentSyncClass = 'wiki-link-synced';
+                  } else {
+                    // No ref + not pending + flagged as attachment → orphan.
+                    isOrphan = true;
+                    attachmentSyncClass = 'wiki-link-orphan';
+                  }
+                } else if (!isAttachment && !isPending && isAttachmentExtension(fileName)) {
+                  // Chip was inserted without isAttachmentAttr set (e.g. via
+                  // wikiLinkTransform before the store hydrated), but the
+                  // file extension says it's clearly an attachment. Treat as
+                  // orphan so the user gets the same red-warning affordance.
+                  const store = useAttachmentStore.getState();
+                  const attRef = store.resolveByName(fileName);
+                  if (!attRef) {
+                    isOrphan = true;
+                    attachmentSyncClass = 'wiki-link-orphan';
                   }
                 }
 
+                // When orphan, force-apply attachment + category classes so
+                // the chip still surfaces its file-type icon (alongside the
+                // red dashed border) instead of looking like a plain
+                // unresolved note link.
+                const effectiveIsAttachment = isAttachment || isOrphan;
+
                 decorations.push(
                   Decoration.node(pos, pos + node.nodeSize, {
-                    class: `wiki-link-decoration ${isAttachment ? `attachment att-${getAttachmentCategory(fileName)}` : ''} ${noteType ? `note-type-${noteType}` : ''} ${isResolved ? 'resolved' : 'unresolved'} ${attachmentSyncClass}`,
+                    class: `wiki-link-decoration ${effectiveIsAttachment ? `attachment att-${getAttachmentCategory(fileName)}` : ''} ${noteType ? `note-type-${noteType}` : ''} ${isResolved ? 'resolved' : 'unresolved'} ${attachmentSyncClass}`,
                   })
                 );
                 return false; // Don't descend into atom node
