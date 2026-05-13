@@ -107,8 +107,25 @@
   outline: none;
 }
 
+/* Pin every row to a fixed 32 px so the table doesn't redistribute
+   remaining vertical space when few rows are visible (e.g. after a tier
+   filter narrows the list down to 2 rows — HanBin 2026-05-13 caught
+   this: each row was ballooning into a half-screen gap). `vertical-align:
+   middle` keeps the badge + filename centered inside the 32 px band. */
 .attachments-tab-v2-root .search-table {
-  flex: 1 1 auto;
+  /* Don't flex-fill the wrapper — let the table size to its content so
+     the wrapper's overflow:auto provides scroll when the row count
+     exceeds the visible area. */
+  flex: 0 0 auto;
+}
+
+.attachments-tab-v2-root .search-row {
+  height: 32px;
+}
+
+.attachments-tab-v2-root .search-td,
+.attachments-tab-v2-root .search-th {
+  vertical-align: middle;
 }
 
 .attachments-tab-v2-filters {
