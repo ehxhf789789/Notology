@@ -181,15 +181,19 @@ impl AttachmentStore {
         let tier = AttachmentTier::from_extension(&ext);
         let mime_type = AttachmentTier::mime_for_extension(&ext).to_string();
 
-        // Track B Phase B-3 stabilization (2026-05-13): smart dedup. If THIS
-        // exact (sha, note_id) tuple is already represented by an existing
-        // ref, return that ref instead of creating a fresh attachment_id with
-        // identical content+linkage. Prevents the duplicate-chip / duplicate-
-        // ref artifact HanBin hit when re-dragging the same file into the
-        // same note. Sync impact: avoids redundant ref JSON pushes for a
-        // file already on NAS under another id linked to this note.
+        // Track B Phase B-3 PART 6 hotfix (HanBin 2026-05-13): smart dedup
+        // must include `original_name`. The previous (sha, note_id)-only
+        // match returned the existing ref when the user dropped a renamed
+        // copy of an already-attached file (same content, different name),
+        // but the optimistic chip carried the NEW name → wikilink lookup
+        // by name found nothing → chip rendered as orphan ✕ for a fully
+        // valid drop. Including `original_name` means renamed-copy drops
+        // get their own ref (sharing the CAS blob via `blobs_by_sha`)
+        // while truly-identical re-drops still dedupe.
         if let Some(existing) = self.refs_by_id.values().find(|r| {
-            r.sha256 == sha && r.linked_notes.iter().any(|n| n == note_id)
+            r.sha256 == sha
+                && r.original_name == original_name
+                && r.linked_notes.iter().any(|n| n == note_id)
         }) {
             return Ok(AddOutcome {
                 attachment_ref: existing.clone(),

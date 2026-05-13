@@ -105,9 +105,27 @@ async function initGlobalListener() {
               );
               bothFailedError = err2;
             }
-          } finally {
-            if (basename) useAttachmentStore.getState().unmarkPending(basename);
           }
+
+          // Track B Phase B-3 PART 6 (HanBin 2026-05-13): close the
+          // unmark/refresh race. The backend emits `attachment:saved`
+          // which kicks off `store.refresh()` asynchronously, but if we
+          // unmark pending before the new ref is actually in the store
+          // the decoration briefly sees (storedIsAttachment=true, no ref,
+          // not pending) → orphan ✕ flash. Worse, if a decoration
+          // re-render or HMR fires inside that window, the ✕ can stick.
+          //
+          // Force a synchronous refresh before unmarking so the chip
+          // transitions amber → tier-color atomically.
+          if (attachmentAddSucceeded) {
+            try {
+              await useAttachmentStore.getState().refresh();
+            } catch (e) {
+              console.warn('[useDragDrop] post-add refresh failed:', e);
+            }
+          }
+
+          if (basename) useAttachmentStore.getState().unmarkPending(basename);
 
           // Track B Phase B-3 PART 6 (HanBin 2026-05-13): orphan prevention.
           //
