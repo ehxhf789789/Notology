@@ -20,6 +20,7 @@ import { getTemplateCustomColor as getTemplateColor } from '../content-cache/not
 import { NOTE_TYPES } from './searchHelpers';
 import { SearchFilters } from './SearchFilters';
 import { FrontmatterResultRow, ContentResultCard, AttachmentResultRow, DetailsResultCard } from './SearchResultItem';
+import AttachmentsTab from './AttachmentsTab';
 import BulkTagModal from '../modals/BulkTagModal';
 import FloatingWords from './FloatingWords';
 
@@ -1373,43 +1374,15 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
           )}
         </div>
       ) : mode === 'attachments' ? (
+        // Track B Phase B-3 PART 6 (HanBin 2026-05-13): the entire tab body
+        // is now driven by `AttachmentRef` index via AttachmentsTab. Legacy
+        // filesystem-walk rendering (and the AttachmentResultRow path,
+        // filteredAttachments memo, selection state, etc.) are kept around
+        // through session 2; session 3 will remove them once the new flow
+        // covers every action.
         <div className="search-table-wrapper" ref={searchTableRef}>
-          {conflictCount > 0 && (
-            <div className="bulk-sync-banner" style={{ borderBottom: '1px solid rgba(232, 168, 56, 0.3)', animation: 'none', opacity: 1 }}>
-              <span>{tf('syncConflictMsg', language, { count: conflictCount })}</span>
-            </div>
-          )}
-            <table className="search-table">
-              <thead>
-                <tr>
-                  <th className="search-th">{t('fileName', language)}</th>
-                  <th className="search-th">{t('ownerNote', language)}</th>
-                  <th className="search-th">{t('attachedNote', language)}</th>
-                  <th className="search-th">{t('container', language)}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAttachments.map(att => (
-                  <AttachmentResultRow
-                    key={att.path}
-                    att={att}
-                    attachmentsQuery={attachmentsQuery}
-                    isSelected={selectedAttachments.has(att.path)}
-                    onAttachmentClick={handleAttachmentClick}
-                    onAttachmentContextMenu={handleAttachmentContextMenu}
-                    language={language}
-                  />
-                ))}
-                {filteredAttachments.length === 0 && (
-                  <tr>
-                    <td className="search-td search-empty" colSpan={4}>
-                      {searchIndexing ? t('indexInitializing', language) : t('noAttachments', language)}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <AttachmentsTab containerPath={containerPath} query={attachmentsQuery} />
+        </div>
       ) : mode === 'details' ? (
         /* Details mode - detailed metadata view */
         <div className="search-details-results">
