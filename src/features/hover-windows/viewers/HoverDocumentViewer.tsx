@@ -420,10 +420,10 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
 
       case 'pdf':
         return (
-          <div className="hover-editor-body pdf-viewer-body" style={{ position: 'relative' }}>
-            {/* HanBin 2026-05-13 round 10: native WebView2 PDF + ⋮-menu
-                click blocker overlay. See HoverPdfViewer.tsx for the
-                rationale. */}
+          <div className="hover-editor-body pdf-viewer-body">
+            {/* HanBin 2026-05-13 round 11: native WebView2 PDF. chrome://
+                nav is blocked at the controller level — see
+                `system.rs::create_hover_window` `on_navigation` hook. */}
             {pdfPath && <iframe
               src={convertFileSrc(pdfPath)}
               referrerPolicy="no-referrer"
@@ -431,13 +431,6 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
               height="100%"
               style={{ border: 'none' }}
             />}
-            <div
-              className="pdf-overflow-blocker"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-              aria-hidden="true"
-              title=""
-            />
           </div>
         );
     }

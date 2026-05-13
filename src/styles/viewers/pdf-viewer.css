@@ -19,26 +19,10 @@
   min-height: 0;
 }
 
-/* ⋮-menu click absorber. Placed on top of the iframe in z-order so
-   pointer events in the top-right corner of the PDF toolbar are
-   swallowed before they reach the native viewer. The dimensions
-   intentionally err on the generous side so the menu stays unreachable
-   across Chromium / WebView2 toolbar layout variants. Page nav, zoom,
-   and fit controls live on the LEFT side of the toolbar and remain
-   fully usable. */
-.pdf-overflow-blocker {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 80px;
-  height: 48px;
-  background: transparent;
-  cursor: not-allowed;
-  z-index: 10;
-  /* Subtle visual hint that this region isn't clickable. Borderless +
-     no background means it's effectively invisible at rest; the
-     `not-allowed` cursor + `title=""` is the only signal. */
-}
+/* The click-absorber overlay was removed in round 11 — chrome:// nav
+   is now vetoed at the WebView2 controller level via
+   `WebviewWindowBuilder::on_navigation` in the Rust hover-window
+   builder. See system.rs::create_hover_window. */
 
 /* Root wrapper — flex column, fills the hover window body. */
 .pdfjs-viewer {

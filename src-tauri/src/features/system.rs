@@ -259,7 +259,25 @@ pub async fn create_hover_window(
         .focused(true)
         .visible(false)
         .min_inner_size(400.0, 300.0)
-        .background_color(bg);
+        .background_color(bg)
+        // HanBin 2026-05-13 round 11: veto chrome:// / edge:// / about:
+        // navigation at the WebView2 controller level. This is the
+        // canonical fix for the PDF viewer's ⋮-menu "Settings" item
+        // black-screening the hover window — we no longer need a click
+        // absorber overlay in React because the underlying webview
+        // refuses to commit to the chrome:// URL in the first place.
+        // The viewer (and any other in-iframe nav that goes off-app)
+        // is allowed; only the internal browser pages are blocked.
+        .on_navigation(|url| {
+            let scheme = url.scheme();
+            if scheme == "chrome" || scheme == "edge" || scheme == "about"
+                || scheme == "chrome-search" || scheme == "chrome-untrusted"
+            {
+                log::warn!("[hover-nav-guard] blocked navigation to {}", url);
+                return false;
+            }
+            true
+        });
 
     // INTENTIONALLY NO parent_label here:
     // Earlier we set parent("main") for OS-level chain-close. Side
