@@ -26,7 +26,7 @@ import { hoverWindowPropsAreEqual, type HoverEditorWindowProps } from './hoverAn
 import { preprocessWikiLinks } from '../../core/utils/wikiLinkPreprocess';
 import { useDropTarget } from '../../core/hooks/useDragDrop';
 import { EventBus } from '../../core/infrastructure/eventBus';
-import { removeOrphanWikiLinkNodes } from '../sync_v2/orphanRemoval';
+import { removeOrphanWikiLinkNodes, consumeFailedAdds } from '../sync_v2/orphanRemoval';
 import { contentCacheActions } from '../content-cache/stores/contentCacheStore';
 import { useFileLookupStore } from '../../core/stores/fileLookupStore';
 
@@ -611,10 +611,26 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   // and the backend rejects, strip the optimistic chip. Mirrors the
   // ContainerView wiring; filters by this hover window's note path so a
   // failure in a different open window does not strip from this one.
+  //
+  // Two-stage cleanup (HanBin 2026-05-13): mount-scan drains failures that
+  // landed during a remount race (hover window reopened, HMR cycle), then
+  // the live subscription handles failures while mounted.
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || !win.filePath) return;
+    const queued = consumeFailedAdds(win.filePath);
+    if (queued.length > 0) {
+      let total = 0;
+      for (const fileName of queued) {
+        total += removeOrphanWikiLinkNodes(editor, fileName);
+      }
+      if (total > 0) {
+        console.warn(
+          `[HoverEditor] mount-scan removed ${total} orphan wikilink(s):`,
+          queued,
+        );
+      }
+    }
     const off = EventBus.on('attachment:addFailed', ({ fileName, notePath }) => {
-      if (!win.filePath) return;
       const norm = (p: string) => p.replace(/\\/g, '/').toLowerCase();
       if (norm(notePath) !== norm(win.filePath)) return;
       const removed = removeOrphanWikiLinkNodes(editor, fileName);

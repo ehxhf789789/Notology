@@ -4,6 +4,7 @@ import { noteCommands } from '../services/tauriCommands';
 import { syncV2Commands } from '../../features/sync_v2/syncV2Commands';
 import { useAttachmentStore } from '../../features/sync_v2/stores/attachmentStore';
 import { EventBus } from '../infrastructure/eventBus';
+import { addPersistentFailedAdd } from '../../features/sync_v2/orphanRemoval';
 
 interface DropTarget {
   id: string;
@@ -80,10 +81,14 @@ async function initGlobalListener() {
         if (basename) useAttachmentStore.getState().markPending(basename);
         void (async () => {
           let bothFailedError: unknown = null;
+          let attachmentAddSucceeded = false;
+          console.log('[useDragDrop] attachmentAdd starting for', basename);
           try {
             await syncV2Commands.attachmentAdd(sourcePath, {
               notePath: target.notePath,
             });
+            attachmentAddSucceeded = true;
+            console.log('[useDragDrop] attachmentAdd success for', basename);
           } catch (err) {
             console.warn(
               '[useDragDrop] attachmentAdd failed, falling back to importAttachment:',
@@ -91,6 +96,8 @@ async function initGlobalListener() {
             );
             try {
               await noteCommands.importAttachment(sourcePath, target.notePath);
+              attachmentAddSucceeded = true;
+              console.log('[useDragDrop] legacy importAttachment success for', basename);
             } catch (err2) {
               console.error(
                 '[useDragDrop] both attachmentAdd and importAttachment failed:',
@@ -103,16 +110,46 @@ async function initGlobalListener() {
           }
 
           // Track B Phase B-3 PART 6 (HanBin 2026-05-13): orphan prevention.
+          //
           // Both backend paths rejected → the optimistic chip in the doc is
-          // now pointing at nothing on disk and nothing on NAS. We emit a
-          // failure event so the editor that issued the insert can remove
-          // it before the user is left with a permanent "gray ghost" chip.
+          // now pointing at nothing on disk and nothing on NAS. Two-step
+          // notification so the chip cannot survive a transient editor
+          // unmount / HMR window:
+          //
+          //   1. Persist the failure to localStorage with a short TTL. Any
+          //      editor that mounts within the window scans this list and
+          //      removes matching chips. Catches the case where the failure
+          //      fires while ContainerView / HoverEditor is being remounted
+          //      (race that HanBin hit 2026-05-13).
+          //   2. Emit `attachment:addFailed` for currently-mounted editors.
+          //
+          // Both run unconditionally so a missed event doesn't strand a chip.
           if (bothFailedError !== null && basename) {
+            try {
+              addPersistentFailedAdd(target.notePath, basename);
+            } catch (e) {
+              console.warn('[useDragDrop] persistent failure write failed:', e);
+            }
             EventBus.emit('attachment:addFailed', {
               fileName: basename,
               notePath: target.notePath,
               error: String(bothFailedError),
             });
+          }
+          // Sanity check: even after a successful add path, if nothing has
+          // appeared in the attachment store after 8 s, something is wrong
+          // (engine offline + local-only write, or backend misroute). Emit a
+          // diagnostic log to help the user surface the bug.
+          if (attachmentAddSucceeded && basename) {
+            setTimeout(() => {
+              const ref = useAttachmentStore.getState().resolveByName(basename);
+              if (!ref) {
+                console.warn(
+                  '[useDragDrop] attachment_add reported success but no ref appeared after 8 s:',
+                  basename,
+                );
+              }
+            }, 8000);
           }
         })();
       });

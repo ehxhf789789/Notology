@@ -165,18 +165,6 @@ function parseWikiLinkContent(content: string): { fileName: string; displayText:
   return { fileName: content, displayText: content };
 }
 
-/**
- * Track B Phase B-3 PART 6 — extension heuristic for "this is clearly an
- * attachment, not a note." Used by the orphan-detection path when a chip's
- * stored `isAttachmentAttr` is false but the filename ends in a known
- * binary-attachment extension. `.md` is deliberately excluded so legitimate
- * note wikilinks with the `.md` suffix don't get flagged.
- */
-function isAttachmentExtension(fileName: string): boolean {
-  const cat = getAttachmentCategory(fileName);
-  return cat !== 'other' && cat !== 'markdown';
-}
-
 // Helper function to infer note type from filename
 function inferNoteType(fileName: string): string {
   const prefixes = ['NOTE', 'MTG', 'ADM', 'SEM', 'TASK', 'CONTACT', 'SETUP', 'DATA', 'THEO', 'PAPER', 'SKETCH'];
@@ -571,19 +559,21 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                       : 'wiki-link-uploading';
                   } else if (attRef) {
                     attachmentSyncClass = 'wiki-link-synced';
-                  } else {
-                    // No ref + not pending + flagged as attachment → orphan.
-                    isOrphan = true;
-                    attachmentSyncClass = 'wiki-link-orphan';
-                  }
-                } else if (!isAttachment && !isPending && isAttachmentExtension(fileName)) {
-                  // Chip was inserted without isAttachmentAttr set (e.g. via
-                  // wikiLinkTransform before the store hydrated), but the
-                  // file extension says it's clearly an attachment. Treat as
-                  // orphan so the user gets the same red-warning affordance.
-                  const store = useAttachmentStore.getState();
-                  const attRef = store.resolveByName(fileName);
-                  if (!attRef) {
+                  } else if (storedIsAttachment) {
+                    // Orphan classification requires the chip to have been
+                    // *deliberately* inserted as an attachment (stored attr
+                    // set to true at insertion time by the drop handler).
+                    //
+                    // The extension-only heuristic was removed (HanBin
+                    // 2026-05-13): it false-positived during the brief gap
+                    // between `unmarkPending` and the failure event handler
+                    // removing the chip, painting freshly-dropped chips as
+                    // orphan ✕ for files that were still on disk.
+                    //
+                    // Manually-typed wikilinks like `[[file.m4a]]` that lack
+                    // a real ref now just render as plain unresolved (gray
+                    // underline). That is acceptable — the user typed it,
+                    // they know it is a guess, not a confirmed attachment.
                     isOrphan = true;
                     attachmentSyncClass = 'wiki-link-orphan';
                   }

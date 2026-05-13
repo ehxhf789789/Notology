@@ -21,7 +21,7 @@ import { createNote, createFolder, createNoteWithTemplate, selectContainer } fro
 import { useDropTarget } from '../../core/hooks/useDragDrop';
 import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import { EventBus } from '../../core/infrastructure/eventBus';
-import { removeOrphanWikiLinkNodes } from '../sync_v2/orphanRemoval';
+import { removeOrphanWikiLinkNodes, consumeFailedAdds } from '../sync_v2/orphanRemoval';
 import { getEditorExtensions } from '../../core/editor/editorConfig';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { t } from '../../core/utils/i18n';
@@ -486,10 +486,30 @@ function ContainerView() {
   // disk and nothing on NAS. Remove it before the user is stranded with
   // a permanent gray ghost. Filter by notePath so a failed drop in another
   // open note doesn't strip chips from this one.
+  //
+  // Two-stage cleanup (HanBin 2026-05-13):
+  //   1. Mount scan: consume any persistent failure entries that landed
+  //      while this editor was being remounted (HMR / navigation race).
+  //   2. Live subscription: handle failures that happen while we are
+  //      mounted.
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || !folderNotePath) return;
+    // Stage 1 — drain anything we missed during remount.
+    const queued = consumeFailedAdds(folderNotePath);
+    if (queued.length > 0) {
+      let total = 0;
+      for (const fileName of queued) {
+        total += removeOrphanWikiLinkNodes(editor, fileName);
+      }
+      if (total > 0) {
+        console.warn(
+          `[ContainerView] mount-scan removed ${total} orphan wikilink(s):`,
+          queued,
+        );
+      }
+    }
+    // Stage 2 — live subscription.
     const off = EventBus.on('attachment:addFailed', ({ fileName, notePath }) => {
-      if (!folderNotePath) return;
       const norm = (p: string) => p.replace(/\\/g, '/').toLowerCase();
       if (norm(notePath) !== norm(folderNotePath)) return;
       const removed = removeOrphanWikiLinkNodes(editor, fileName);
