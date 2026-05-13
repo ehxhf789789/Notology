@@ -6,6 +6,27 @@
   color: #cc8899;
 }
 
+/* Fix table to a known column layout so the row never overflows the
+   wrapper and the wrapper never grows a horizontal scrollbar (HanBin
+   2026-05-13: "좌우 스크롤이 생기지 않도록"). The filename column flexes
+   to fill remaining space; explicit <col> widths in AttachmentsTab.tsx
+   pin the rest. */
+.attachments-tab-v2-table {
+  table-layout: fixed;
+}
+
+/* Numeric / fixed-width columns right-align so digits line up. The
+   first column (filename) inherits the default left alignment. */
+.attachments-tab-v2-table th + th,
+.attachments-tab-v2-table td + td {
+  text-align: right;
+}
+/* Sync-state column stays centered around its badge. */
+.attachments-tab-v2-table th:nth-child(3),
+.attachments-tab-v2-table td:nth-child(3) {
+  text-align: left;
+}
+
 /* ============================================================ */
 /* PART 6 — Attachments tab additions (HanBin 2026-05-13).      */
 /* Layout, rows, hover, header, padding all inherit from the    */

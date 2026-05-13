@@ -136,14 +136,24 @@ export default function AttachmentsTab({ containerPath, query }: AttachmentsTabP
   // below + the editor's ✕ chip visual.
 
   return (
-    <table className="search-table">
+    <table className="search-table attachments-tab-v2-table">
+      {/* Fixed column widths (HanBin 2026-05-13: no horizontal scroll like
+          the 상세 tab). The filename column flexes; everything else has a
+          tight explicit width so total = 100% of the wrapper. */}
+      <colgroup>
+        <col />
+        <col style={{ width: 56 }} />
+        <col style={{ width: 110 }} />
+        <col style={{ width: 80 }} />
+        <col style={{ width: 96 }} />
+      </colgroup>
       <thead>
         <tr>
           <th className="search-th">{t('fileName', language)}</th>
-          <th className="search-th">{t('attachmentLinkedNotes', language)}</th>
-          <th className="search-th">{t('attachmentSyncState', language)}</th>
+          <th className="search-th">{t('attachmentLinkedNotesShort', language)}</th>
+          <th className="search-th">{t('attachmentSyncShort', language)}</th>
           <th className="search-th">{t('attachmentSize', language)}</th>
-          <th className="search-th">{t('attachmentCreated', language)}</th>
+          <th className="search-th">{t('attachmentCreatedShort', language)}</th>
         </tr>
       </thead>
       <tbody>
