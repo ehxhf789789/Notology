@@ -572,9 +572,35 @@ html[data-theme="light"] .wiki-image-embed-delete {
   to { transform: rotate(360deg); }
 }
 
-/* Unresolved (still mid attachment_add) — make the gray pulse so users
-   can tell "processing" from "broken link". */
+/* Unresolved attachment chip — we just dropped a file, the AttachmentRef
+   doesn't exist in the store yet (sha256 + CAS write still running).
+   Visually identical to .wiki-link-uploading so the user perceives a
+   single uninterrupted "processing" state from drop → resolved instead of
+   gray → amber → tier-color (HanBin's three-step transition feedback).
+   The selector deliberately requires `.attachment` to keep genuinely
+   broken wikilinks (typo'd note name) gray as the "unresolved" affordance. */
 .wiki-link-inline.unresolved.attachment {
+  border-color: color-mix(in srgb, var(--c-amber, #f59e0b) 60%, transparent) !important;
+  background-color: color-mix(in srgb, var(--c-amber, #f59e0b) 12%, transparent) !important;
+  color: color-mix(in srgb, var(--c-amber, #f59e0b) 90%, currentColor) !important;
   animation: wiki-link-upload-pulse 1.8s ease-in-out infinite;
-  opacity: 0.85;
+  opacity: 1;
+}
+
+.wiki-link-inline.unresolved.attachment::after {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 4px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--c-amber, #f59e0b) 70%, transparent);
+  border-top-color: transparent;
+  animation: wiki-link-spinner 0.8s linear infinite;
+  vertical-align: middle;
+}
+
+/* Light-theme tweak — keep contrast on the amber. */
+html[data-theme="light"] .wiki-link-inline.unresolved.attachment {
+  color: color-mix(in srgb, var(--c-amber, #f59e0b) 80%, black) !important;
 }
