@@ -538,9 +538,40 @@ function ContainerView() {
   };
 
   // Drag-drop via Tauri native events
-  // NOTE: All importedPaths are in _att folder (attachments), so keep full filename with extension
+  // Phase B-3 stabilization: importedPaths are now SOURCE basenames passed
+  // optimistically — backend processing happens in the background. We dedup
+  // against existing wikilinks here so re-dragging the same file into the
+  // same note doesn't double-insert.
   const handleFileDrop = useCallback((importedPaths: string[], position?: { x: number; y: number }) => {
     if (!editor) return;
+
+    // Collect every wikilink name already in the doc — case-insensitive set.
+    const existingNames = new Set<string>();
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === 'wikiLink' && typeof node.attrs.fileName === 'string') {
+        existingNames.add(node.attrs.fileName.toLowerCase());
+      }
+    });
+
+    const toInsert: string[] = [];
+    let skipped = 0;
+    for (const importedPath of importedPaths) {
+      const fileName = importedPath.split(/[/\\]/).pop() || '';
+      if (!fileName) continue;
+      if (existingNames.has(fileName.toLowerCase())) {
+        skipped++;
+        continue;
+      }
+      toInsert.push(fileName);
+      existingNames.add(fileName.toLowerCase()); // catch dup within same drop batch
+    }
+
+    if (skipped > 0) {
+      console.info(`[ContainerView] skipped ${skipped} already-attached file(s)`);
+    }
+    if (toInsert.length === 0) {
+      return;
+    }
 
     // Try to find the editor position from drop coordinates
     let insertPos: number | null = null;
@@ -554,20 +585,14 @@ function ContainerView() {
       }
     }
 
-    // Build content string for all attachments
-    const links = importedPaths.map(importedPath => {
-      const fileName = importedPath.split(/[/\\]/).pop() || '';
-      return `[[${fileName}]]`;
-    }).join('\n');
+    const links = toInsert.map((fileName) => `[[${fileName}]]`).join('\n');
 
     if (insertPos !== null) {
-      // Insert at drop position
       editor.chain()
         .focus()
         .insertContentAt(insertPos, links + '\n')
         .run();
     } else {
-      // Fallback: insert at end of document
       editor.chain()
         .focus()
         .command(({ tr, state }) => {

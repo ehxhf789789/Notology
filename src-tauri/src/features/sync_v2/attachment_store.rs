@@ -181,6 +181,23 @@ impl AttachmentStore {
         let tier = AttachmentTier::from_extension(&ext);
         let mime_type = AttachmentTier::mime_for_extension(&ext).to_string();
 
+        // Track B Phase B-3 stabilization (2026-05-13): smart dedup. If THIS
+        // exact (sha, note_id) tuple is already represented by an existing
+        // ref, return that ref instead of creating a fresh attachment_id with
+        // identical content+linkage. Prevents the duplicate-chip / duplicate-
+        // ref artifact HanBin hit when re-dragging the same file into the
+        // same note. Sync impact: avoids redundant ref JSON pushes for a
+        // file already on NAS under another id linked to this note.
+        if let Some(existing) = self.refs_by_id.values().find(|r| {
+            r.sha256 == sha && r.linked_notes.iter().any(|n| n == note_id)
+        }) {
+            return Ok(AddOutcome {
+                attachment_ref: existing.clone(),
+                was_deduped: true,
+                link_method: LinkMethod::Hardlink,
+            });
+        }
+
         // Dedup: same sha already present?
         let was_deduped = self.blobs_by_sha.contains_key(&sha);
 

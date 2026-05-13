@@ -6,7 +6,124 @@ import { preloadHoverContent } from '../../../features/hover-windows/stores/hove
 import { useSettingsStore } from '../../stores/settingsStore';
 import { t } from '../../utils/i18n';
 import { getAttachmentCategory } from '../../../features/suggestions/attachmentCategory';
-import { startAttachmentDrag } from '../../../features/sync_v2/attachmentDragOut';
+import {
+  startAttachmentDrag,
+  startMultiAttachmentDrag,
+} from '../../../features/sync_v2/attachmentDragOut';
+import { useAttachmentStore } from '../../../features/sync_v2/stores/attachmentStore';
+
+// ── Track B Phase B-3 PART 5: multi-chip selection + marquee ────────────────
+//
+// Selection is keyed by fileName (the node.attrs.fileName string). All chip
+// occurrences of `[[Report.pdf]]` in the doc highlight together — same
+// underlying attachment, same drag-out result.
+//
+// Gestures:
+//   - Click chip                : single-select (clear others)
+//   - Shift / Ctrl / Meta+click : toggle in selection
+//   - Click outside chip (no mod): clear selection (text caret still works)
+//   - Ctrl / Cmd + drag in editor: marquee — every chip intersecting the rect
+//                                  joins the selection (file-manager style)
+//   - Drag a selected chip      : group drag-out of every fileName in the set
+//   - Esc                       : clear selection
+//   - Doc edit                  : selection auto-clears (positions invalidate)
+const wikiLinkSelectionPluginKey = new PluginKey<Set<string>>('wikiLinkSelection');
+
+const MARQUEE_THRESHOLD_PX = 3;
+const MARQUEE_OVERLAY_CLASS = 'wiki-link-marquee';
+
+function setWikiSelection(view: import('@tiptap/pm/view').EditorView, names: Set<string>) {
+  view.dispatch(view.state.tr.setMeta(wikiLinkSelectionPluginKey, names));
+}
+
+function clearWikiSelection(view: import('@tiptap/pm/view').EditorView) {
+  const cur = wikiLinkSelectionPluginKey.getState(view.state);
+  if (cur && cur.size > 0) {
+    view.dispatch(view.state.tr.setMeta(wikiLinkSelectionPluginKey, new Set<string>()));
+  }
+}
+
+function getWikiSelection(state: import('@tiptap/pm/state').EditorState): Set<string> {
+  return wikiLinkSelectionPluginKey.getState(state) ?? new Set();
+}
+
+/**
+ * Begin a marquee selection from a mousedown event. Attaches document-level
+ * mousemove + mouseup listeners that paint an overlay div and compute which
+ * attachment chips intersect the rectangle. Selection is committed on
+ * mouseup; the overlay is removed regardless of outcome.
+ *
+ * The overlay only materializes once the mouse has actually moved past
+ * `MARQUEE_THRESHOLD_PX` — a Ctrl+click that doesn't move shouldn't draw
+ * a phantom rectangle.
+ */
+function startMarquee(
+  view: import('@tiptap/pm/view').EditorView,
+  startEvent: MouseEvent,
+) {
+  const startX = startEvent.clientX;
+  const startY = startEvent.clientY;
+  let overlay: HTMLDivElement | null = null;
+  let confirmed = false;
+
+  const onMove = (e: MouseEvent) => {
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (!confirmed) {
+      if (Math.abs(dx) < MARQUEE_THRESHOLD_PX && Math.abs(dy) < MARQUEE_THRESHOLD_PX) {
+        return;
+      }
+      confirmed = true;
+      overlay = document.createElement('div');
+      overlay.className = MARQUEE_OVERLAY_CLASS;
+      document.body.appendChild(overlay);
+    }
+    const left = Math.min(startX, e.clientX);
+    const top = Math.min(startY, e.clientY);
+    const width = Math.abs(dx);
+    const height = Math.abs(dy);
+    if (overlay) {
+      overlay.style.left = `${left}px`;
+      overlay.style.top = `${top}px`;
+      overlay.style.width = `${width}px`;
+      overlay.style.height = `${height}px`;
+    }
+  };
+
+  const onUp = (e: MouseEvent) => {
+    document.removeEventListener('mousemove', onMove, true);
+    document.removeEventListener('mouseup', onUp, true);
+    if (overlay) {
+      overlay.remove();
+      overlay = null;
+    }
+    if (!confirmed) return; // bare Ctrl+click — nothing to do here
+    const left = Math.min(startX, e.clientX);
+    const top = Math.min(startY, e.clientY);
+    const right = Math.max(startX, e.clientX);
+    const bottom = Math.max(startY, e.clientY);
+
+    // Walk every chip rendered inside this editor view, keeping only those
+    // whose bounding box overlaps the marquee. additive=Ctrl+click already
+    // toggles; here we union with the existing set so a user can extend a
+    // selection across multiple marquee drags.
+    const next = new Set(getWikiSelection(view.state));
+    const chips = view.dom.querySelectorAll<HTMLElement>('[data-wiki-link]');
+    chips.forEach((chip) => {
+      if (!chip.classList.contains('attachment')) return;
+      const r = chip.getBoundingClientRect();
+      const overlaps = r.right >= left && r.left <= right && r.bottom >= top && r.top <= bottom;
+      if (overlaps) {
+        const fileName = chip.getAttribute('data-wiki-link');
+        if (fileName) next.add(fileName);
+      }
+    });
+    setWikiSelection(view, next);
+  };
+
+  document.addEventListener('mousemove', onMove, true);
+  document.addEventListener('mouseup', onUp, true);
+}
 
 export interface WikiLinkOptions {
   onClickLink: (fileName: string) => void;
@@ -221,6 +338,115 @@ export const WikiLink = Node.create<WikiLinkOptions>({
     const wikiLinkType = this.type;
 
     return [
+      // ── Selection plugin (PART 5) ────────────────────────────────────────
+      // Owns the multi-chip selection state + marquee gesture. Decoration
+      // emits the `.wiki-link-selected` class so CSS paints the highlight.
+      new Plugin({
+        key: wikiLinkSelectionPluginKey,
+        state: {
+          init: () => new Set<string>(),
+          apply(tr, prev) {
+            const meta = tr.getMeta(wikiLinkSelectionPluginKey);
+            if (meta instanceof Set) return meta as Set<string>;
+            // Doc edits invalidate the selection set conceptually; clearing
+            // avoids stale highlights on chips that may have shifted/deleted.
+            if (tr.docChanged) return new Set();
+            return prev ?? new Set();
+          },
+        },
+        props: {
+          decorations(state) {
+            const sel = wikiLinkSelectionPluginKey.getState(state);
+            if (!sel || sel.size === 0) return DecorationSet.empty;
+            const decos: Decoration[] = [];
+            state.doc.descendants((node, pos) => {
+              if (node.type.name !== 'wikiLink') return;
+              const name = node.attrs.fileName;
+              if (name && sel.has(name)) {
+                decos.push(
+                  Decoration.node(pos, pos + node.nodeSize, {
+                    class: 'wiki-link-selected',
+                  }),
+                );
+              }
+            });
+            return DecorationSet.create(state.doc, decos);
+          },
+          handleDOMEvents: {
+            mousedown(view, event) {
+              // Ctrl/Cmd+drag anywhere in the editor = marquee selection.
+              // We commit to marquee only once the mouse actually moves
+              // past the threshold; a plain Ctrl+click on a chip still
+              // performs the toggle path below.
+              const isMarqueeKey = event.ctrlKey || event.metaKey;
+              const evTarget = event.target;
+              const evEl =
+                evTarget instanceof Element
+                  ? evTarget
+                  : (evTarget as Node | null)?.parentElement ?? null;
+              const chipEl = evEl?.closest('[data-wiki-link]') as HTMLElement | null;
+
+              if (chipEl) {
+                const fileName = chipEl.getAttribute('data-wiki-link');
+                if (!fileName) return false;
+                const isAttachmentChip = chipEl.classList.contains('attachment');
+                if (!isAttachmentChip) {
+                  // Note wikilinks: clear any attachment-selection and pass
+                  // through so the normal click/double-click flow runs.
+                  clearWikiSelection(view);
+                  return false;
+                }
+
+                const sel = new Set(getWikiSelection(view.state));
+                const toggle = event.shiftKey || event.ctrlKey || event.metaKey;
+                if (toggle) {
+                  if (sel.has(fileName)) sel.delete(fileName);
+                  else sel.add(fileName);
+                  setWikiSelection(view, sel);
+                  // Block the synthetic text-selection that ProseMirror
+                  // would otherwise create on a contenteditable=false atom.
+                  event.preventDefault();
+                  return true;
+                }
+                // Plain click. If this chip is already part of a group
+                // selection, *preserve* the group so the user can drag the
+                // whole set with the same gesture. Otherwise reset to just
+                // this chip.
+                if (!sel.has(fileName)) {
+                  const next = new Set<string>();
+                  next.add(fileName);
+                  setWikiSelection(view, next);
+                }
+                return false; // let dragstart proceed
+              }
+
+              // Click outside any chip.
+              if (isMarqueeKey) {
+                // Begin tracking for marquee — actual overlay only spawns on
+                // mouse movement beyond the threshold (see startMarquee).
+                startMarquee(view, event);
+                event.preventDefault();
+                return true;
+              }
+              // Bare click outside chip → clear selection (text caret still
+              // gets placed by ProseMirror after this returns false).
+              clearWikiSelection(view);
+              return false;
+            },
+            keydown(view, event) {
+              if (event.key === 'Escape') {
+                const sel = getWikiSelection(view.state);
+                if (sel.size > 0) {
+                  clearWikiSelection(view);
+                  return true;
+                }
+              }
+              return false;
+            },
+          },
+        },
+      }),
+
       // Plugin to convert text [[...]] patterns to wiki link nodes
       new Plugin({
         key: new PluginKey('wikiLinkTransform'),
@@ -555,6 +781,31 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                 .split('/')
                 .pop()
                 ?.replace(/\.md$/i, '');
+
+              // PART 5: if this chip is part of a multi-selection, drag the
+              // whole group at once. Otherwise fall back to the single-chip
+              // path. Resolution happens here (sync) so the plugin's OS-
+              // level drag-initiation call sees the full payload.
+              const selectionSet = getWikiSelection(view.state);
+              if (selectionSet.size > 1 && selectionSet.has(fileName)) {
+                const store = useAttachmentStore.getState();
+                const refs = Array.from(selectionSet)
+                  .map((name) => store.resolveByName(name, noteId))
+                  .filter((r): r is NonNullable<typeof r> => r !== null);
+                // Dedup by attachment_id so the same file selected twice
+                // isn't dragged twice (covers the rare case of duplicate
+                // chips for the same attachment in one note body).
+                const unique = new Map<string, (typeof refs)[number]>();
+                for (const r of refs) unique.set(r.attachmentId, r);
+                console.log(
+                  '[WikiLink dragstart] intercepting multi-attachment:',
+                  unique.size,
+                  'files',
+                );
+                void startMultiAttachmentDrag(Array.from(unique.values()));
+                return true;
+              }
+
               console.log('[WikiLink dragstart] intercepting attachment:', fileName);
               // Fire-and-forget — the plugin uses the native OS drag API
               // (IDataObject on Windows) which captures the mouse-down

@@ -5,7 +5,7 @@ import { fileCommands, searchCommands, memoCommands } from '../../../core/servic
 import { isHoverWindow } from '../../../core/utils/multiWindow';
 import { hoverActions, HOVER_ANIMATION } from '../stores/hoverStore';
 import { refreshActions } from '../../../core/stores/refreshStore';
-import type { NoteFrontmatter, CanvasData, HoverWindow } from '../../../core/types';
+import type { NoteFrontmatter, SketchData, HoverWindow } from '../../../core/types';
 import { serializeFrontmatter, getCurrentTimestamp } from '../../../core/utils/frontmatter';
 import { markAsSelfSaved } from '../../../core/utils/selfSaveTracker';
 import { notifyFileSaved, notifySearchIndexUpdated } from '../../../core/utils/windowSync';
@@ -497,7 +497,7 @@ export function useCloseMinimize({
         // Save before closing if dirty
         try {
           // SKETCH: use body state (canvas JSON), not TipTap markdown
-          const currentBody = frontmatter.canvas ? body : (editor ? (editor.storage as any).markdown.getMarkdown() : body);
+          const currentBody = ((frontmatter as any)?.sketch || (frontmatter as any)?.canvas) ? body : (editor ? (editor.storage as any).markdown.getMarkdown() : body);
           await saveFile(currentBody);
           // Explicitly wait for indexing to complete BEFORE closing
           // This ensures search index is updated before the window is destroyed
@@ -563,7 +563,7 @@ export function useCloseMinimize({
     // Save before closing
     if (isDirty && frontmatter) {
       // SKETCH: use body state (canvas JSON), not TipTap markdown
-      const currentBody = frontmatter.canvas ? body : (editor ? (editor.storage as any).markdown.getMarkdown() : body);
+      const currentBody = ((frontmatter as any)?.sketch || (frontmatter as any)?.canvas) ? body : (editor ? (editor.storage as any).markdown.getMarkdown() : body);
       const syncGrace = remoteLock ? new Promise(r => setTimeout(r, 2000)) : Promise.resolve();
       await syncGrace;
       await saveFile(currentBody).catch(err => console.error('Background save failed:', err));
@@ -637,7 +637,7 @@ export interface UseCtrlWheelZoomParams {
   hoverEditorRef: React.RefObject<HTMLDivElement | null>;
   hoverZoomEnabled: boolean;
   hoverZoomLevel: number;
-  isCanvas: boolean;
+  isSketch: boolean;
   setHoverZoomLevel: (level: number) => void;
 }
 
@@ -645,12 +645,12 @@ export function useCtrlWheelZoom({
   hoverEditorRef,
   hoverZoomEnabled,
   hoverZoomLevel,
-  isCanvas,
+  isSketch,
   setHoverZoomLevel,
 }: UseCtrlWheelZoomParams) {
   // Ctrl+Wheel zoom state ref (to access current values in event handler)
-  const zoomStateRef = useRef({ enabled: hoverZoomEnabled, level: hoverZoomLevel, isCanvas });
-  zoomStateRef.current = { enabled: hoverZoomEnabled, level: hoverZoomLevel, isCanvas };
+  const zoomStateRef = useRef({ enabled: hoverZoomEnabled, level: hoverZoomLevel, isSketch });
+  zoomStateRef.current = { enabled: hoverZoomEnabled, level: hoverZoomLevel, isSketch };
 
   // Set up wheel event listener on the whole hover-editor window (using capture phase)
   useEffect(() => {
@@ -658,9 +658,9 @@ export function useCtrlWheelZoom({
     if (!el) return;
 
     const handleWheel = (e: WheelEvent) => {
-      const { enabled, level, isCanvas: isCanvasNote } = zoomStateRef.current;
+      const { enabled, level, isSketch: isSketchNote } = zoomStateRef.current;
       // Skip Ctrl+zoom for canvas notes (they have their own zoom via scroll)
-      if (!enabled || !e.ctrlKey || isCanvasNote) return;
+      if (!enabled || !e.ctrlKey || isSketchNote) return;
 
       // Prevent default browser zoom and TipTap scroll behavior
       e.preventDefault();
@@ -777,7 +777,7 @@ export function useKeyboardShortcuts({
 
 export interface UseFileDropParams {
   editor: Editor | null;
-  isCanvas: boolean;
+  isSketch: boolean;
   saveFile: (currentBody?: string) => Promise<void>;
   saveTimeoutRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
   refreshHoverWindowsForFile: (filePath: string) => void;
@@ -787,7 +787,7 @@ export interface UseFileDropParams {
 
 export function useFileDrop({
   editor,
-  isCanvas,
+  isSketch,
   saveFile,
   saveTimeoutRef,
   refreshHoverWindowsForFile,
@@ -795,17 +795,47 @@ export function useFileDrop({
   refreshFileTree,
 }: UseFileDropParams) {
   const handleFileDrop = useCallback(async (importedPaths: string[], position?: { x: number; y: number }) => {
-    // Skip for canvas notes - they have their own drop handler in CanvasEditor
-    if (isCanvas) return;
+    // Skip for sketch notes - they have their own drop handler in SketchEditor
+    if (isSketch) return;
     if (!editor) return;
 
     // IMPORTANT: Refresh file tree FIRST so new attachments are found by resolveLink
     // This must complete BEFORE inserting wikiLink nodes
     await refreshFileTree();
 
+    // Phase B-3 stabilization: dedup against existing wikilinks in this note.
+    // Optimistic-UI flow passes source basenames; a re-drag of the same file
+    // would otherwise insert a duplicate `[[name]]` next to the original.
+    const existingNames = new Set<string>();
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === 'wikiLink' && typeof node.attrs.fileName === 'string') {
+        existingNames.add(node.attrs.fileName.toLowerCase());
+      }
+    });
+
+    const dedupedPaths: string[] = [];
+    let skipped = 0;
+    for (const p of importedPaths) {
+      const fileName = p.split(/[/\\]/).pop() || '';
+      if (!fileName) continue;
+      if (existingNames.has(fileName.toLowerCase())) {
+        skipped++;
+        continue;
+      }
+      dedupedPaths.push(p);
+      existingNames.add(fileName.toLowerCase());
+    }
+    if (skipped > 0) {
+      console.info(`[HoverEditor] skipped ${skipped} already-attached file(s)`);
+    }
+    if (dedupedPaths.length === 0) {
+      return;
+    }
+
     // Build proper HTML structure for list items with wikilinks
-    // NOTE: All importedPaths are in _att folder (attachments), so keep full filename with extension
-    const listItems = importedPaths.map(path => {
+    // NOTE: All dedupedPaths are basenames in `.attachments/` (Phase B-3) or
+    //   `_att/` (legacy). Keep full filename with extension.
+    const listItems = dedupedPaths.map(path => {
       const fileName = path.split(/[/\\]/).pop() || '';
       return {
         type: 'listItem',
@@ -986,7 +1016,7 @@ export function useFileDrop({
       // After save, refresh all other hover windows showing this file
       refreshHoverWindowsForFile(winFilePath);
     });
-  }, [editor, isCanvas, saveFile, refreshHoverWindowsForFile, winFilePath, saveTimeoutRef, refreshFileTree]);
+  }, [editor, isSketch, saveFile, refreshHoverWindowsForFile, winFilePath, saveTimeoutRef, refreshFileTree]);
 
   return { handleFileDrop };
 }

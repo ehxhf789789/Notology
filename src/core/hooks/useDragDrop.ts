@@ -42,41 +42,56 @@ async function initGlobalListener() {
         return;
       }
 
-      // Track B Phase B-2 (2026-05-12): route through `attachment_add` so the
-      // file is content-addressed into CAS, hardlinked into `.attachments/`,
-      // and enqueued for NAS sync (Fast or Slow lane by size). The legacy
-      // `importAttachment` path is kept available as a fallback for sync-
-      // disabled vaults — in that mode it still copies into `_att/` so the
-      // user can keep working locally and a later migration will move the
-      // files forward.
-      const importPromises = paths.map(async (sourcePath) => {
-        try {
-          const ref = await syncV2Commands.attachmentAdd(sourcePath, {
-            notePath: target.notePath,
-          });
-          // Return the vault-relative display path so the caller can insert
-          // a wikilink that resolves cleanly (e.g. `[[Report.pdf]]`).
-          return ref.displayPath.replace(/^\.attachments\//, '');
-        } catch (err) {
-          console.warn(
-            '[useDragDrop] attachmentAdd failed, falling back to importAttachment:',
-            err,
-          );
+      // Track B Phase B-3 stabilization (2026-05-13): optimistic UI.
+      //
+      // Previously this awaited `attachmentAdd` for every dropped file
+      // before inserting wikilinks. For a 600 MB MP4 that meant ~30 s of
+      // silent UI — users assumed the drop failed and re-dragged the file,
+      // producing duplicate chips (the bug HanBin reported).
+      //
+      // New flow:
+      //   1. Insert wikilinks immediately using source basenames so the
+      //      chip surfaces in the note within one frame.
+      //   2. Fire `attachmentAdd` calls in the background. Each populates
+      //      the CAS blob + ref JSON + enqueues for NAS push (Fast / Slow
+      //      lane by size). On response the `attachment:saved` EventBus
+      //      message refreshes the attachment store, which re-colors the
+      //      chip from gray (unresolved during processing) to its tier color.
+      //   3. Dedup happens in two layers: target.onDrop skips wikilinks
+      //      already present in the note body, AND the backend
+      //      `add_attachment` returns the existing ref when (sha, note_id)
+      //      already match — so even concurrent drops can't produce a
+      //      duplicate `AttachmentRef`.
+      //   4. Fallback to legacy `importAttachment` (background) only if
+      //      `attachmentAdd` rejects (sync engine offline).
+      const sourceBasenames = paths.map((p) => p.split(/[\\/]/).pop() || '');
+
+      // Optimistic insert — fires synchronously, no await.
+      target.onDrop(sourceBasenames, position);
+
+      // Background processing — never blocks the editor.
+      paths.forEach((sourcePath) => {
+        void (async () => {
           try {
-            return await noteCommands.importAttachment(sourcePath, target.notePath);
-          } catch (err2) {
-            console.error('[useDragDrop] both attachmentAdd and importAttachment failed:', err2);
-            return null;
+            await syncV2Commands.attachmentAdd(sourcePath, {
+              notePath: target.notePath,
+            });
+          } catch (err) {
+            console.warn(
+              '[useDragDrop] attachmentAdd failed, falling back to importAttachment:',
+              err,
+            );
+            try {
+              await noteCommands.importAttachment(sourcePath, target.notePath);
+            } catch (err2) {
+              console.error(
+                '[useDragDrop] both attachmentAdd and importAttachment failed:',
+                err2,
+              );
+            }
           }
-        }
+        })();
       });
-
-      const results = await Promise.all(importPromises);
-      const importedPaths = results.filter((path): path is string => path !== null);
-
-      if (importedPaths.length > 0) {
-        target.onDrop(importedPaths, position);
-      }
     }
   });
 
