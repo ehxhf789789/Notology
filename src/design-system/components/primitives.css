@@ -1036,7 +1036,10 @@
 .ds-toast {
   pointer-events: auto;
   display: flex;
-  align-items: flex-start;
+  /* Vertical-center every column (body / action / close) so the action
+     button and close icon sit on the visual axis of the title+desc
+     block rather than hugging the top edge. */
+  align-items: center;
   gap: var(--space-md);
   width: min(100vw - var(--space-2xl), 380px);
   padding: var(--space-md);
