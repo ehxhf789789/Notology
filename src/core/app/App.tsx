@@ -28,6 +28,10 @@ import Sidebar from '../layout/Sidebar';
 import ContainerView from '../../features/note-editor/ContainerView';
 import Search from '../../features/search/Search';
 import HoverEditorLayer from '../../features/hover-windows/HoverEditorLayer';
+import MigrationModal from '../../features/migration/components/MigrationModal';
+import { useMigrationProgress } from '../../features/migration/hooks/useMigrationProgress';
+import FaststartMigrationModal from '../../features/faststart-migration/components/FaststartMigrationModal';
+import { useFaststartMigrationProgress } from '../../features/faststart-migration/hooks/useFaststartMigrationProgress';
 import RightPanel from '../layout/RightPanel';
 import ContextMenu from '../../features/context-menu/ContextMenu';
 import { Slot } from '../infrastructure/slotRegistry';
@@ -60,6 +64,12 @@ import '../../styles/index.css';
 const HOVER_PANEL_WIDTH = 280;
 
 function AppLayout() {
+  // Subscribe to `migration:progress` Tauri events → migrationStore.
+  // Single mount-point in the app shell, runs for the entire app lifetime.
+  useMigrationProgress();
+  // Stage 4.6.2: same pattern for faststart bulk migration progress.
+  useFaststartMigrationProgress();
+
   // ========== ZUSTAND SELECTIVE SUBSCRIPTIONS (prevents cascade re-renders) ==========
   const vaultPath = useVaultPath();
   const selectedContainer = useSelectedContainer();
@@ -420,6 +430,8 @@ function AppLayout() {
       <AlertModal />
       <RenameDialog />
       <UpdateChecker />
+      <MigrationModal />
+      <FaststartMigrationModal />
     </div>
   );
 }

@@ -5,8 +5,11 @@
  */
 import { open } from '@tauri-apps/plugin-dialog';
 import { join } from '@tauri-apps/api/path';
-import { fileCommands, noteCommands, searchCommands, vaultCommands, utilCommands } from '../services/tauriCommands';
+import { fileCommands, noteCommands, searchCommands, vaultCommands, utilCommands, libraryCommands } from '../services/tauriCommands';
 import { EventBus } from '../infrastructure/eventBus';
+
+// Guard: prevent concurrent openVault calls (e.g., rapid clicks, HMR re-mount)
+let openVaultInProgress = false;
 import { fileTreeActions, useFileTreeStore } from './fileTreeStore';
 import { hoverActions, useHoverStore } from '../../features/hover-windows/stores/hoverStore';
 import { closeHoverWindow } from '../utils/multiWindow';
@@ -96,6 +99,21 @@ async function initSearchIndex(vaultPath: string): Promise<void> {
 }
 
 export async function openVault(newVaultPath?: string) {
+  // Prevent concurrent invocations (HMR double-mount, rapid clicks)
+  if (openVaultInProgress) {
+    console.log('[openVault] Already in progress, skipping duplicate call');
+    return;
+  }
+  openVaultInProgress = true;
+
+  try {
+    await openVaultInner(newVaultPath);
+  } finally {
+    openVaultInProgress = false;
+  }
+}
+
+async function openVaultInner(newVaultPath?: string) {
   const currentVaultPath = useFileTreeStore.getState().vaultPath;
 
   let defaultPath: string | undefined;
@@ -124,11 +142,12 @@ export async function openVault(newVaultPath?: string) {
   } catch { /* ignore */ }
 
   fileTreeActions.setVaultPath(selected);
-  refreshActions.setSearchReady(false);
   fileTreeActions.setSelectedContainer(null);
   hoverActions.clearAll();
   vaultConfigActions.clearAll();
   clearVaultConfigCache();
+  // Reset stale search state (clears init_in_progress flag if previous init hung)
+  searchCommands.resetSearchState().catch(() => {});
 
   const globalStore = await getGlobalStore();
   await globalStore.set('vault_path', selected);
@@ -146,22 +165,73 @@ export async function openVault(newVaultPath?: string) {
 
     // Infrastructure: notify features that vault is ready
     refreshActions.setSearchIndexing(true);
+    // App is usable immediately — search/graph will show loading until index ready
+    refreshActions.setSearchReady(true);
     EventBus.emit('vault:opened', { path: selected });
 
-    // Search indexes MUST complete before searchReady=true
-    // Otherwise graph/search could show data from previous vault
+    // PART 7 (HanBin 2026-05-14): user-confirmed migration modal.
+    // Previously this ran silently — fulfilling Decision 1 of STAGE_1_PLAN.md
+    // Appendix C, and the deferred TODO from Sub-Stage 1.6 §10.5. The flow
+    // is now: check → if needed AND not declined → migrationActions.prompt()
+    // → MigrationModal shows → user decides → store calls runMigration().
+    // The library init still happens regardless (works pre- and post-
+    // migration), so the editor remains usable while the modal is up.
+    libraryCommands.checkMigrationNeeded(selected).then(async (report) => {
+      if (report.needs_migration && report.total_notes > 0) {
+        const { migrationActions, wasMigrationDeclined } = await import('../../features/migration/stores/migrationStore');
+        if (!wasMigrationDeclined(selected)) {
+          console.log(`[openVault] Migration needed: ${report.total_notes} notes — prompting user`);
+          migrationActions.prompt(selected, report);
+        } else {
+          console.log('[openVault] Migration previously declined for this vault — skipping prompt');
+        }
+      }
+      // Initialize library (works whether migration ran or not)
+      libraryCommands.initLibrary(selected).catch(e => {
+        console.warn('[openVault] Library init failed (non-fatal):', e);
+      });
+    }).catch(e => {
+      console.warn('[openVault] Migration check failed (non-fatal):', e);
+      libraryCommands.initLibrary(selected).catch(() => {});
+    });
+
+    // Stage 4.6.2 (HanBin 2026-05-14): faststart bulk migration check.
+    // Runs after the Stage-4 migration check (independent — Stage-4 fixes
+    // ref/blob layout; Stage 4.6 re-muxes existing video blobs to faststart).
+    // Both modals can theoretically queue if both apply, but in practice
+    // Stage-4 migrated vaults already have refs that 4.6 then probes.
+    void (async () => {
+      try {
+        const { faststartMigrationCommands } = await import('../services/tauriCommands');
+        const report = await faststartMigrationCommands.check(selected);
+        if (report.candidates > 0) {
+          const { faststartMigrationActions, wasFaststartMigrationDeclined } =
+            await import('../../features/faststart-migration/stores/faststartMigrationStore');
+          if (!wasFaststartMigrationDeclined(selected)) {
+            console.log(`[openVault] Faststart migration: ${report.candidates}/${report.total_videos} videos need conversion — prompting user`);
+            faststartMigrationActions.prompt(selected, report);
+          } else {
+            console.log('[openVault] Faststart migration previously declined for this vault — skipping prompt');
+          }
+        }
+      } catch (e) {
+        console.warn('[openVault] Faststart migration check failed (non-fatal):', e);
+      }
+    })();
+
+    // Search index initializes in background — does not block app usage
     initSearchIndex(selected).then(() => {
       console.log('[openVault] Search index ready');
-      refreshActions.setSearchReady(true);
       refreshActions.setSearchIndexing(false);
       refreshActions.incrementSearchRefresh();
     }).catch(searchErr => {
       console.error('[openVault] Background search init failed:', searchErr);
-      refreshActions.setSearchReady(true);
       refreshActions.setSearchIndexing(false);
     });
   } catch (e) {
     console.error('Failed to read directory:', e);
+    // Even if readDirectory fails, try to initialize sync so cached vault can sync
+    EventBus.emit('vault:opened', { path: selected });
     fileTreeActions.setVaultPath(null);
     vaultConfigActions.removeRecentVault(selected);
     const filteredRecent = useVaultConfigStore.getState().recentVaults;
@@ -171,6 +241,7 @@ export async function openVault(newVaultPath?: string) {
 }
 
 export async function closeVault() {
+  EventBus.emit('vault:closed', {});
   fileTreeActions.clearAll();
   hoverActions.clearAll();
   vaultConfigActions.clearAll();
@@ -482,7 +553,6 @@ export async function forceOpenLockedVault() {
   const result = await acquireVaultLock(lockedVaultPath, true);
   if (result.status === 'Success' || result.status === 'AlreadyHeld') {
     fileTreeActions.setVaultPath(lockedVaultPath);
-    refreshActions.setSearchReady(false);
     fileTreeActions.setSelectedContainer(null);
     hoverActions.clearAll();
     vaultConfigActions.clearAll();
@@ -502,15 +572,14 @@ export async function forceOpenLockedVault() {
       await loadVaultSettings(lockedVaultPath);
 
       refreshActions.setSearchIndexing(true);
+      refreshActions.setSearchReady(true);
 
       initSearchIndex(lockedVaultPath).then(() => {
         console.log('[forceOpenLockedVault] Search index ready');
-        refreshActions.setSearchReady(true);
         refreshActions.setSearchIndexing(false);
         refreshActions.incrementSearchRefresh();
       }).catch(searchErr => {
         console.error('[forceOpenLockedVault] Background search init failed:', searchErr);
-        refreshActions.setSearchReady(true);
         refreshActions.setSearchIndexing(false);
       });
     } catch (e) {
@@ -537,12 +606,57 @@ export function refreshHoverWindowsForFile(filePath: string) {
 // Initialization (called from AppProvider on mount)
 // ============================================================================
 
+let initializeAppCalled = false;
+
 export async function initializeApp() {
+  // Guard against double-invocation (HMR re-mount)
+  if (initializeAppCalled) {
+    console.log('[initializeApp] Already called, skipping duplicate');
+    return;
+  }
+  initializeAppCalled = true;
+
   await settingsActions.loadGlobalSettings();
 
-  // NAS-centric architecture: NEVER auto-open a vault.
-  // WebDAV connection is the first prerequisite.
-  // VaultSelector (with NAS connection flow) will be shown.
-  // vaultPath stays null → App.tsx shows VaultSelector.
-  console.log('[initializeApp] Settings loaded — waiting for NAS connection via VaultSelector');
+  // Try to auto-reopen last vault if it exists locally.
+  // This works on both fresh start and HMR recovery.
+  // Sync will connect in the background via EventBus subscription on vault:opened.
+  try {
+    const globalStore = await getGlobalStore();
+    const savedPath = await globalStore.get<string>('vault_path');
+    if (savedPath) {
+      // Verify the folder still exists before opening
+      const exists = await fileCommands.checkFileExists(savedPath).catch(() => false);
+      if (exists) {
+        console.log('[initializeApp] Auto-reopening last vault:', savedPath);
+        await openVault(savedPath);
+        // Show main window directly (don't emit vault-selected — that would
+        // trigger App.tsx listener to call openVault() again, causing duplicate
+        // sync monitors). See SYNC_DIAGNOSTIC_REPORT.md Finding 5.
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          const mainWin = getCurrentWindow();
+          await mainWin.show();
+          await mainWin.setFocus();
+        } catch {}
+        return;
+      } else {
+        console.log('[initializeApp] Saved vault path no longer exists, clearing:', savedPath);
+        await globalStore.delete('vault_path');
+      }
+    }
+  } catch (e) {
+    console.warn('[initializeApp] Failed to auto-reopen vault:', e);
+  }
+
+  // No saved vault — show main window with inline vault selector
+  console.log('[initializeApp] No vault to auto-reopen, showing inline vault selector');
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    const mainWin = getCurrentWindow();
+    await mainWin.show();
+    await mainWin.setFocus();
+  } catch (e) {
+    console.warn('[initializeApp] Failed to show main window:', e);
+  }
 }

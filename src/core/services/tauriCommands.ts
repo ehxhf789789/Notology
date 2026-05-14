@@ -24,12 +24,10 @@ export interface UrlMetadata {
   favicon: string;
 }
 
-export interface AttachmentFileInfo {
-  file_name: string;
-  path: string;
-  is_image: boolean;
-  mtime: number;
-}
+// AttachmentFileInfo + readAttachmentFolder removed 2026-05-14 (HanBin).
+// The `//` attachment-recall command used to enumerate the `_att/` per-note
+// folder via this Tauri call; it now reads from the in-memory
+// AttachmentRef store (`useAttachmentStore.listForNote`). No callers remain.
 
 // ============================================================================
 // File Commands
@@ -76,10 +74,6 @@ export const fileCommands = {
 
   getFileMtime: (path: string) =>
     invoke<number>('get_file_mtime', { path }),
-
-  /** Read attachment folder contents with mtime, sorted by most recent first */
-  readAttachmentFolder: (attFolderPath: string, query: string) =>
-    invoke<AttachmentFileInfo[]>('read_attachment_folder', { attFolderPath, query }),
 };
 
 // ============================================================================
@@ -108,17 +102,34 @@ export const noteCommands = {
   deleteNote: (notePath: string) =>
     invoke<void>('delete_note', { notePath }).then(() => {
       EventBus.emit('file:deleted', { path: notePath });
+      // Also sync _att folder deletion
+      const stem = notePath.replace(/\\/g, '/').split('/').pop()?.replace(/\.[^.]+$/, '') || '';
+      const dir = notePath.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
+      EventBus.emit('folder:deleted', { path: `${dir}/${stem}_att` });
     }),
 
   moveNote: (notePath: string, newDir: string) =>
     invoke<string>('move_note', { notePath, newDir }).then((newPath) => {
       EventBus.emit('file:renamed', { oldPath: notePath, newPath });
+      // Sync _att folder move
+      const stem = notePath.replace(/\\/g, '/').split('/').pop()?.replace(/\.[^.]+$/, '') || '';
+      const oldDir = notePath.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
+      const newNoteDir = newPath.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
+      EventBus.emit('folder:renamed', { oldPath: `${oldDir}/${stem}_att`, newPath: `${newNoteDir}/${stem}_att` });
       return newPath;
     }),
 
   renameFileWithLinks: (filePath: string, newName: string, vaultPath: string) =>
     invoke<string>('rename_file_with_links', { filePath, newName, vaultPath }).then((newPath) => {
       EventBus.emit('file:renamed', { oldPath: filePath, newPath });
+      // Sync _att folder rename (old_att → new_att)
+      const oldStem = filePath.replace(/\\/g, '/').split('/').pop()?.replace(/\.[^.]+$/, '') || '';
+      const newStem = newPath.replace(/\\/g, '/').split('/').pop()?.replace(/\.[^.]+$/, '') || '';
+      if (oldStem !== newStem) {
+        const oldDir = filePath.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
+        const newDir = newPath.replace(/\\/g, '/').split('/').slice(0, -1).join('/');
+        EventBus.emit('folder:renamed', { oldPath: `${oldDir}/${oldStem}_att`, newPath: `${newDir}/${newStem}_att` });
+      }
       return newPath;
     }),
 
@@ -365,4 +376,70 @@ export const previewCommands = {
   // HWP rendering via Rust hwpers crate
   renderHwpToSvg: (path: string) =>
     invoke<string>('render_hwp_to_svg', { path }),
+};
+
+// ─── Library & Migration Commands ──────────────────────────────────
+
+export interface PreMigrationReport {
+  needs_migration: boolean;
+  total_notes: number;
+  has_sync_backup: boolean;
+}
+
+export interface MigrationState {
+  version: number;
+  status: string;
+  total_notes: number;
+  migrated_notes: number;
+  failed_notes: { path: string; reason: string; attempts: number }[];
+  started_at: string;
+  completed_at: string | null;
+  last_failure_reason: string | null;
+}
+
+export const libraryCommands = {
+  initLibrary: (vaultPath: string) =>
+    invoke<void>('init_library_for_vault', { vaultPath }),
+
+  clearLibrary: () =>
+    invoke<void>('clear_library'),
+
+  checkMigrationNeeded: (vaultPath: string) =>
+    invoke<PreMigrationReport>('check_migration_needed', { vaultPath }),
+
+  runMigration: (vaultPath: string) =>
+    invoke<MigrationState>('run_vault_migration', { vaultPath }),
+
+  getMigrationState: (vaultPath: string) =>
+    invoke<MigrationState | null>('get_vault_migration_state', { vaultPath }),
+
+  declineMigration: (vaultPath: string) =>
+    invoke<void>('decline_vault_migration', { vaultPath }),
+};
+
+// ── Stage 4.6 Faststart bulk migration (HanBin 2026-05-14) ──
+
+export interface FaststartReport {
+  candidates: number;
+  total_videos: number;
+  estimated_disk_required: number;
+}
+
+export interface FaststartState {
+  converted: number;
+  skipped_already_faststart: number;
+  failed: string[];
+  backup_dir: string | null;
+  duration_ms: number;
+}
+
+export const faststartMigrationCommands = {
+  check: (vaultPath: string) =>
+    invoke<FaststartReport>('faststart_migration_check', { vaultPath }),
+
+  run: (vaultPath: string) =>
+    invoke<FaststartState>('faststart_migration_run', { vaultPath }),
+
+  decline: (vaultPath: string) =>
+    invoke<void>('faststart_migration_decline', { vaultPath }),
 };
