@@ -364,6 +364,235 @@
     검증: <code>npm run audit:tokens</code> 실행 시 Tier-1 leakage = 0.
   </p>
 
+  <!-- ================================================================
+       Stage 5.0.2b — Floating-UI 의존 primitive 9개 정적 미리보기
+       ================================================================
+       이 primitive 들은 React + Floating-UI 로 동적으로 동작합니다
+       (portal 마운트, focus trap, list navigation 등). 정적 HTML 로는
+       완전한 동작 검증이 어렵지만 CSS 스타일은 동일하게 적용됩니다.
+       완전한 동작 검증은 5.0.3 (App shell) 에서 실제 surface 에 연결될
+       때 진행됩니다. 아래는 각 primitive 의 "열린 상태" 시각 검증.
+       ================================================================ -->
+
+  <h1 style="margin-top: var(--space-3xl);">5.0.2b — Floating-UI primitives (정적 미리보기)</h1>
+  <p>
+    Tooltip / Popover / Dialog / DropdownMenu / ContextMenu / Tabs /
+    SegmentedControl / Select / Toast — 총 9개. 아래는 각 컴포넌트의
+    렌더 결과를 정적 마크업으로 표시 (실제 위치 계산은 Floating-UI 가
+    런타임에 처리). 동작 검증은 5.0.3 surface 통합 시점에 진행됩니다.
+  </p>
+
+  <!-- Tooltip -->
+  <h2>Tooltip — 툴팁</h2>
+  <div class="panel" style="min-height: 80px; display: flex; align-items: center; gap: var(--space-2xl);">
+    <button class="ds-btn ds-btn--secondary ds-btn--md">호버 대상 (마우스 올림 가정)</button>
+    <span class="ds-tooltip" style="position: static; display: inline-block;">새 노트 만들기 (Ctrl+N)</span>
+  </div>
+
+  <!-- Popover -->
+  <h2>Popover — 팝오버</h2>
+  <div class="panel" style="min-height: 200px;">
+    <div class="ds-popover" style="position: static; display: inline-block;">
+      <h3 style="margin: 0 0 var(--space-sm); font-size: var(--fs-title);">동기화 옵션</h3>
+      <p style="margin: 0; color: var(--tx-2); font-size: var(--fs-body);">
+        Synology NAS 와의 동기화 설정을 확인하세요.
+      </p>
+      <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-md);">
+        <button class="ds-btn ds-btn--ghost ds-btn--sm">취소</button>
+        <button class="ds-btn ds-btn--primary ds-btn--sm">적용</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dialog (mock overlay inside container, not full-screen) -->
+  <h2>Dialog — 모달</h2>
+  <div class="panel" style="position: relative; min-height: 320px; overflow: hidden; padding: 0;">
+    <div style="position: absolute; inset: 0; background: var(--modal-backdrop-bg); display: grid; place-items: center;">
+      <div class="ds-dialog ds-dialog--md" style="position: static;">
+        <header class="ds-dialog__header">
+          <h2 class="ds-dialog__title">노트 삭제</h2>
+          <button class="ds-icon-btn ds-icon-btn--ghost ds-icon-btn--sm" aria-label="닫기">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </header>
+        <p class="ds-dialog__desc">이 노트를 휴지통으로 옮기시겠습니까? 30일 안에 복원 가능합니다.</p>
+        <div class="ds-dialog__body">
+          <span class="ds-field ds-field--md"><input class="ds-input" type="text" value="회의록 — 2026-05-15.md" readonly></span>
+        </div>
+        <footer class="ds-dialog__footer">
+          <button class="ds-btn ds-btn--secondary ds-btn--md">취소</button>
+          <button class="ds-btn ds-btn--danger ds-btn--md">삭제</button>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <!-- DropdownMenu / ContextMenu -->
+  <h2>DropdownMenu + ContextMenu — 메뉴</h2>
+  <div class="panel" style="display: flex; gap: var(--space-2xl); align-items: flex-start;">
+    <div class="ds-menu" style="position: static;">
+      <div class="ds-menu__label">노트 동작</div>
+      <button class="ds-menu__item">
+        <span class="ds-menu__label-text">새 노트</span>
+        <span class="ds-kbd ds-kbd--sm ds-menu__shortcut"><span class="ds-kbd-group"><kbd class="ds-kbd__key">Ctrl</kbd></span><span class="ds-kbd-group"><span class="ds-kbd__plus">+</span><kbd class="ds-kbd__key">N</kbd></span></span>
+      </button>
+      <button class="ds-menu__item ds-menu__item--active">
+        <span class="ds-menu__label-text">이름 바꾸기 (active)</span>
+        <span class="ds-kbd ds-kbd--sm ds-menu__shortcut"><span class="ds-kbd-group"><kbd class="ds-kbd__key">F2</kbd></span></span>
+      </button>
+      <button class="ds-menu__item">
+        <span class="ds-menu__label-text">사본 만들기</span>
+      </button>
+      <div class="ds-menu__sep"></div>
+      <button class="ds-menu__item ds-menu__item--destructive">
+        <span class="ds-menu__label-text">삭제</span>
+        <span class="ds-kbd ds-kbd--sm ds-menu__shortcut"><span class="ds-kbd-group"><kbd class="ds-kbd__key">Ctrl</kbd></span><span class="ds-kbd-group"><span class="ds-kbd__plus">+</span><kbd class="ds-kbd__key">D</kbd></span></span>
+      </button>
+    </div>
+    <div class="ds-menu ds-menu--context" style="position: static;">
+      <button class="ds-menu__item">
+        <span class="ds-menu__label-text">잘라내기</span>
+        <span class="ds-kbd ds-kbd--sm ds-menu__shortcut"><span class="ds-kbd-group"><kbd class="ds-kbd__key">Ctrl</kbd></span><span class="ds-kbd-group"><span class="ds-kbd__plus">+</span><kbd class="ds-kbd__key">X</kbd></span></span>
+      </button>
+      <button class="ds-menu__item">
+        <span class="ds-menu__label-text">복사</span>
+        <span class="ds-kbd ds-kbd--sm ds-menu__shortcut"><span class="ds-kbd-group"><kbd class="ds-kbd__key">Ctrl</kbd></span><span class="ds-kbd-group"><span class="ds-kbd__plus">+</span><kbd class="ds-kbd__key">C</kbd></span></span>
+      </button>
+      <button class="ds-menu__item" disabled>
+        <span class="ds-menu__label-text">붙여넣기 (비활성)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <h2>Tabs — 탭</h2>
+  <div class="panel">
+    <div class="ds-tabs ds-tabs--horizontal">
+      <div class="ds-tabs__list" role="tablist">
+        <button class="ds-tabs__tab ds-tabs__tab--selected" aria-selected="true">노트</button>
+        <button class="ds-tabs__tab">본문</button>
+        <button class="ds-tabs__tab">첨부</button>
+        <button class="ds-tabs__tab">상세</button>
+        <button class="ds-tabs__tab" disabled>그래프 (비활성)</button>
+      </div>
+      <div class="ds-tabs__panel" style="padding: var(--space-md) 0;">
+        선택된 탭의 패널 내용 — 노트 목록이 여기 표시됩니다.
+      </div>
+    </div>
+  </div>
+
+  <!-- SegmentedControl -->
+  <h2>SegmentedControl — 분할 토글</h2>
+  <div class="panel col">
+    <div class="ds-seg ds-seg--md" role="radiogroup" aria-label="뷰 모드">
+      <button class="ds-seg__btn ds-seg__btn--selected" role="radio" aria-checked="true">할일</button>
+      <button class="ds-seg__btn" role="radio">메모</button>
+      <button class="ds-seg__btn" role="radio">전체</button>
+    </div>
+    <div class="ds-seg ds-seg--sm" role="radiogroup" aria-label="크기 sm">
+      <button class="ds-seg__btn" role="radio">월</button>
+      <button class="ds-seg__btn ds-seg__btn--selected" role="radio" aria-checked="true">주</button>
+      <button class="ds-seg__btn" role="radio">일</button>
+    </div>
+  </div>
+
+  <!-- Select -->
+  <h2>Select — 커스텀 셀렉트</h2>
+  <div class="panel grid-2">
+    <div class="col">
+      <h3>닫힌 상태</h3>
+      <button class="ds-select ds-select--md" style="max-width: 280px;" aria-expanded="false">
+        <span class="ds-select__value">Pretendard (기본)</span>
+        <span class="ds-select__caret">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </button>
+      <button class="ds-select ds-select--md" style="max-width: 280px;" aria-expanded="false">
+        <span class="ds-select__placeholder">폰트 선택...</span>
+        <span class="ds-select__caret">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </button>
+      <button class="ds-select ds-select--md ds-select--invalid" style="max-width: 280px;" aria-expanded="false">
+        <span class="ds-select__placeholder">필수 항목입니다</span>
+        <span class="ds-select__caret">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </button>
+    </div>
+    <div class="col">
+      <h3>열린 상태 (listbox 정적 표시)</h3>
+      <div class="ds-select__list" style="position: static; max-width: 280px; max-height: none;">
+        <div class="ds-select__option ds-select__option--selected" role="option" aria-selected="true">
+          <span class="ds-select__option-label">Pretendard (기본)</span>
+          <svg class="ds-select__option-check" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="ds-select__option ds-select__option--active" role="option">
+          <span class="ds-select__option-label">나눔고딕 (active)</span>
+        </div>
+        <div class="ds-select__option" role="option">
+          <span class="ds-select__option-label">Noto Sans KR</span>
+        </div>
+        <div class="ds-select__option" role="option">
+          <span class="ds-select__option-label">맑은 고딕</span>
+        </div>
+        <div class="ds-select__option ds-select__option--disabled" role="option" aria-disabled="true">
+          <span class="ds-select__option-label">커스텀 (설치 필요)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <h2>Toast — 알림</h2>
+  <div class="panel col">
+    <div class="ds-toast ds-toast--info">
+      <div class="ds-toast__body">
+        <div class="ds-toast__title">동기화가 시작되었습니다</div>
+        <div class="ds-toast__desc">12개 노트를 NAS 로 업로드 중입니다.</div>
+      </div>
+      <button class="ds-toast__close" aria-label="닫기">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="ds-toast ds-toast--success">
+      <div class="ds-toast__body">
+        <div class="ds-toast__title">저장됨</div>
+        <div class="ds-toast__desc">회의록 — 2026-05-15</div>
+      </div>
+      <button class="ds-toast__action">실행 취소</button>
+      <button class="ds-toast__close" aria-label="닫기">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="ds-toast ds-toast--warning">
+      <div class="ds-toast__body">
+        <div class="ds-toast__title">버전 충돌</div>
+        <div class="ds-toast__desc">NAS 의 더 새로운 버전과 충돌이 발생했습니다.</div>
+      </div>
+      <button class="ds-toast__action">해결</button>
+      <button class="ds-toast__close" aria-label="닫기">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="ds-toast ds-toast--danger" role="alert">
+      <div class="ds-toast__body">
+        <div class="ds-toast__title">동기화 실패</div>
+        <div class="ds-toast__desc">NAS 연결을 확인하세요.</div>
+      </div>
+      <button class="ds-toast__action">재시도</button>
+      <button class="ds-toast__close" aria-label="닫기">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <p class="note">
+    위 9개는 정적 마크업 — 실제 portal / focus trap / list navigation 등 동작
+    검증은 React 가 마운트되는 5.0.3 (App shell) 부터 실제 surface 에 적용되며
+    이뤄집니다. 이번에는 CSS 토큰만 검증.
+  </p>
+
   <script>
     function setTheme(t) {
       document.documentElement.setAttribute('data-theme', t);

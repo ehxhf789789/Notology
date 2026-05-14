@@ -599,3 +599,496 @@
   color: var(--tx-3);
   font-size: var(--fs-caption);
 }
+
+/* ============================================================
+   STAGE 5.0.2b — Floating-UI dependent + complex primitives
+   ============================================================ */
+
+/* ============================================================
+   <Tooltip>  — small dark bubble, hover/focus triggered
+   ============================================================ */
+.ds-tooltip {
+  z-index: var(--z-popover);
+  background: var(--bg-elev-3);
+  color: var(--tx-1);
+  border: 1px solid var(--bdr-2);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-tight);
+  max-width: 280px;
+  box-shadow: var(--shadow-pop);
+  pointer-events: none;
+}
+.ds-tooltip__arrow {
+  fill: var(--bg-elev-3);
+}
+
+/* ============================================================
+   <Popover>  — click-triggered floating panel with focus mgmt
+   ============================================================ */
+.ds-popover {
+  z-index: var(--z-popover);
+  background: var(--bg-elev-2);
+  color: var(--tx-1);
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-pop);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-md);
+  min-width: 200px;
+  max-width: 360px;
+  outline: none;
+}
+.ds-popover__arrow {
+  fill: var(--bg-elev-2);
+  stroke: var(--bdr-1);
+  stroke-width: 1;
+}
+.ds-popover:focus-visible {
+  outline: 2px solid var(--bdr-focus);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   <Dialog>  — modal with overlay + focus trap
+   ============================================================ */
+.ds-dialog__overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--modal-backdrop-bg);
+  display: grid;
+  place-items: center;
+  z-index: var(--z-modal-backdrop);
+  padding: var(--space-lg);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.ds-dialog {
+  position: relative;
+  background: var(--bg-elev-1);
+  color: var(--tx-1);
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--modal-radius);
+  box-shadow: var(--shadow-overlay);
+  width: 100%;
+  max-height: calc(100vh - var(--space-3xl));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  outline: none;
+}
+.ds-dialog--sm { max-width: 360px; }
+.ds-dialog--md { max-width: 480px; }
+.ds-dialog--lg { max-width: 720px; }
+.ds-dialog--xl { max-width: 960px; }
+
+.ds-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-lg) 0;
+}
+.ds-dialog__title {
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  color: var(--tx-1);
+}
+.ds-dialog__close {
+  flex-shrink: 0;
+}
+.ds-dialog__desc {
+  margin: var(--space-xs) var(--space-lg) 0;
+  font-size: var(--fs-body);
+  color: var(--tx-2);
+}
+.ds-dialog__body {
+  padding: var(--space-lg);
+  overflow-y: auto;
+  flex: 1;
+}
+.ds-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+  border-top: 1px solid var(--bdr-1);
+  background: var(--bg-elev-2);
+}
+
+/* ============================================================
+   <DropdownMenu> + <ContextMenu>  — share .ds-menu skeleton
+   ============================================================ */
+.ds-menu {
+  z-index: var(--z-popover);
+  min-width: 200px;
+  max-width: 340px;
+  background: var(--bg-elev-2);
+  color: var(--tx-1);
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-pop);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-xs);
+  outline: none;
+}
+.ds-menu--context { min-width: 180px; }
+
+.ds-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--tx-1);
+  font: inherit;
+  font-size: var(--fs-body);
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+}
+.ds-menu__item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ds-menu__item:hover:not(:disabled),
+.ds-menu__item--active {
+  background: var(--bg-hover);
+}
+.ds-menu__item--destructive { color: var(--c-danger); }
+.ds-menu__item--destructive:hover:not(:disabled),
+.ds-menu__item--destructive.ds-menu__item--active {
+  background: color-mix(in srgb, var(--c-danger) 14%, transparent);
+}
+.ds-menu__icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--tx-2);
+}
+.ds-menu__item--destructive .ds-menu__icon { color: var(--c-danger); }
+.ds-menu__label-text { flex: 1; }
+.ds-menu__shortcut { margin-left: auto; }
+.ds-menu__label {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--fs-caption);
+  color: var(--tx-3);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.ds-menu__sep {
+  height: 1px;
+  background: var(--bdr-1);
+  margin: var(--space-xs) 0;
+}
+
+/* ============================================================
+   <Tabs>
+   ============================================================ */
+.ds-tabs {
+  display: flex;
+  gap: var(--space-md);
+}
+.ds-tabs--horizontal { flex-direction: column; }
+.ds-tabs--vertical   { flex-direction: row; align-items: stretch; }
+
+.ds-tabs__list {
+  display: flex;
+  gap: var(--space-xs);
+  border-bottom: 1px solid var(--bdr-1);
+}
+.ds-tabs--vertical .ds-tabs__list {
+  flex-direction: column;
+  border-bottom: 0;
+  border-right: 1px solid var(--bdr-1);
+  min-width: 160px;
+}
+
+.ds-tabs__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  border: 0;
+  color: var(--tx-2);
+  font: inherit;
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition:
+    color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard);
+  white-space: nowrap;
+}
+.ds-tabs__tab:hover:not(:disabled) {
+  color: var(--tx-1);
+  background: var(--bg-hover);
+}
+.ds-tabs__tab:disabled { opacity: 0.5; cursor: not-allowed; }
+.ds-tabs__tab:focus-visible {
+  outline: 2px solid var(--bdr-focus);
+  outline-offset: -2px;
+}
+.ds-tabs__tab--selected {
+  color: var(--c-accent);
+}
+.ds-tabs__tab--selected::after {
+  content: '';
+  position: absolute;
+  left: var(--space-sm);
+  right: var(--space-sm);
+  bottom: -1px;
+  height: 2px;
+  background: var(--c-accent);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.ds-tabs--vertical .ds-tabs__tab {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  justify-content: flex-start;
+}
+.ds-tabs--vertical .ds-tabs__tab--selected::after {
+  left: auto;
+  right: -1px;
+  top: var(--space-xs);
+  bottom: var(--space-xs);
+  width: 2px;
+  height: auto;
+}
+.ds-tabs__tab-icon { display: inline-flex; align-items: center; }
+.ds-tabs__panel { outline: none; }
+.ds-tabs__panel:focus-visible {
+  outline: 2px solid var(--bdr-focus);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   <SegmentedControl>
+   ============================================================ */
+.ds-seg {
+  display: inline-flex;
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
+  padding: var(--space-2xs);
+  gap: var(--space-2xs);
+  border: 1px solid var(--bdr-1);
+}
+.ds-seg--full { display: flex; width: 100%; }
+.ds-seg__btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  background: transparent;
+  border: 0;
+  color: var(--tx-2);
+  font: inherit;
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+  white-space: nowrap;
+}
+.ds-seg--sm .ds-seg__btn { font-size: var(--fs-caption); padding: var(--space-xs) var(--space-md); min-height: 24px; }
+.ds-seg--md .ds-seg__btn { font-size: var(--fs-body);    padding: var(--space-xs) var(--space-md); min-height: 28px; }
+
+.ds-seg__btn:hover:not(:disabled):not(.ds-seg__btn--selected) {
+  color: var(--tx-1);
+}
+.ds-seg__btn--selected {
+  background: var(--bg-elev-1);
+  color: var(--tx-1);
+  box-shadow: var(--shadow-pop);
+}
+.ds-seg__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ds-seg__btn:focus-visible {
+  outline: 2px solid var(--bdr-focus);
+  outline-offset: 2px;
+}
+.ds-seg__icon { display: inline-flex; align-items: center; }
+
+/* ============================================================
+   <Select>
+   ============================================================ */
+.ds-select {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  min-width: 0;
+  background: var(--bg-input);
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-md);
+  color: var(--tx-1);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  outline: none;
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+.ds-select--sm { font-size: var(--fs-caption); padding: var(--space-xs) var(--space-md); min-height: 28px; }
+.ds-select--md { font-size: var(--fs-body);    padding: var(--space-sm) var(--space-md); min-height: 32px; }
+.ds-select--lg { font-size: var(--fs-title);   padding: var(--space-md) var(--space-md); min-height: 40px; }
+
+.ds-select:hover:not(:disabled) { background: var(--bg-input-hover); }
+.ds-select[aria-expanded='true'],
+.ds-select:focus-visible {
+  border-color: var(--bdr-focus);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bdr-focus) 30%, transparent);
+}
+.ds-select--invalid {
+  border-color: var(--c-danger);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-danger) 30%, transparent);
+}
+.ds-select--disabled, .ds-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ds-select__value {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.ds-select__value-icon { display: inline-flex; flex-shrink: 0; color: var(--tx-2); }
+.ds-select__placeholder { color: var(--tx-3); flex: 1; }
+.ds-select__caret {
+  display: inline-flex;
+  color: var(--tx-3);
+  flex-shrink: 0;
+}
+
+.ds-select__list {
+  z-index: var(--z-popover);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-pop);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-xs);
+  overflow-y: auto;
+  outline: none;
+}
+.ds-select__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  color: var(--tx-1);
+  cursor: pointer;
+  font-size: var(--fs-body);
+  outline: none;
+}
+.ds-select__option:hover:not(.ds-select__option--disabled),
+.ds-select__option--active {
+  background: var(--bg-hover);
+}
+.ds-select__option--selected {
+  background: var(--bg-sel);
+  color: var(--c-accent);
+}
+.ds-select__option--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ds-select__option-icon { display: inline-flex; flex-shrink: 0; color: var(--tx-2); }
+.ds-select__option-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-select__option-check { flex-shrink: 0; color: var(--c-accent); }
+
+/* ============================================================
+   <Toast> + <Toaster>
+   ============================================================ */
+.ds-toast-stack {
+  position: fixed;
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  pointer-events: none;
+  max-width: 100%;
+}
+.ds-toast-stack--top-left      { top: 0;    left: 0;     align-items: flex-start; }
+.ds-toast-stack--top-right     { top: 0;    right: 0;    align-items: flex-end; }
+.ds-toast-stack--top-center    { top: 0;    left: 50%;   transform: translateX(-50%); align-items: center; }
+.ds-toast-stack--bottom-left   { bottom: 0; left: 0;     align-items: flex-start; }
+.ds-toast-stack--bottom-right  { bottom: 0; right: 0;    align-items: flex-end; }
+.ds-toast-stack--bottom-center { bottom: 0; left: 50%;   transform: translateX(-50%); align-items: center; }
+
+.ds-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  width: min(100vw - var(--space-2xl), 380px);
+  padding: var(--space-md);
+  background: var(--bg-elev-2);
+  color: var(--tx-1);
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-pop);
+  box-shadow: var(--shadow-modal);
+  font-size: var(--fs-body);
+  animation: ds-toast-enter var(--motion-normal) var(--ease-decelerate);
+}
+@keyframes ds-toast-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-toast { animation: none; }
+}
+.ds-toast--info    { border-left: 3px solid var(--c-info); }
+.ds-toast--success { border-left: 3px solid var(--c-success); }
+.ds-toast--warning { border-left: 3px solid var(--c-warning); }
+.ds-toast--danger  { border-left: 3px solid var(--c-danger); }
+.ds-toast__body { flex: 1; min-width: 0; }
+.ds-toast__title { font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
+.ds-toast__desc {
+  margin-top: var(--space-2xs);
+  color: var(--tx-2);
+  font-size: var(--fs-caption);
+  line-height: var(--lh-normal);
+}
+.ds-toast__action {
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  color: var(--c-accent);
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  padding: var(--space-2xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+}
+.ds-toast__action:hover { background: var(--bg-hover); }
+.ds-toast__close {
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  color: var(--tx-3);
+  cursor: pointer;
+  padding: var(--space-2xs);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ds-toast__close:hover { background: var(--bg-hover); color: var(--tx-1); }

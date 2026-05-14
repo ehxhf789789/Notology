@@ -1,9 +1,6 @@
 /**
  * Notology Design System — primitive component library.
- * Stage 5.0.2a (simple primitives, no Floating-UI dependency).
- *
- * Stage 5.0.2b will add: Tooltip, Popover, Dialog, DropdownMenu,
- * ContextMenu, Tabs, SegmentedControl, Toast, Select.
+ * Stage 5.0.2a (simple primitives) + 5.0.2b (Floating-UI dependent).
  *
  * Importing any primitive pulls in primitives.css once via the
  * side-effect import below.
@@ -45,3 +42,23 @@ export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
 export { KeyboardHint } from './KeyboardHint';
 export type { KeyboardHintProps, KeyboardHintSize } from './KeyboardHint';
+
+// ── 5.0.2b: Floating-UI dependent ──
+export { Tooltip } from './Tooltip';
+export type { TooltipProps } from './Tooltip';
+export { Popover } from './Popover';
+export type { PopoverProps } from './Popover';
+export { Dialog } from './Dialog';
+export type { DialogProps, DialogSize } from './Dialog';
+export { DropdownMenu, MenuItem, MenuSeparator } from './DropdownMenu';
+export type { DropdownMenuProps, MenuItemProps } from './DropdownMenu';
+export { ContextMenu, ContextMenuItem, ContextMenuSeparator } from './ContextMenu';
+export type { ContextMenuProps, ContextMenuItemProps } from './ContextMenu';
+export { Tabs, TabList, Tab, TabPanel } from './Tabs';
+export type { TabsProps, TabListProps, TabProps, TabPanelProps, TabsOrientation } from './Tabs';
+export { SegmentedControl } from './SegmentedControl';
+export type { SegmentedControlProps, SegmentedOption, SegmentedSize } from './SegmentedControl';
+export { Select } from './Select';
+export type { SelectProps, SelectOption, SelectSize } from './Select';
+export { Toaster, toast, useToast } from './Toast';
+export type { ToasterProps, ToastOptions, ToastVariant } from './Toast';
