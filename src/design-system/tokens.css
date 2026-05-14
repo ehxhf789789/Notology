@@ -1,171 +1,338 @@
 /* ============================================================
-   Notology v4.0 — iOS Design Language Tokens
-   Single source of truth for all visual properties.
-   Desktop and Mobile share these tokens.
+   Notology Design Tokens — Stage 5.0.1 (3-tier system)
+   ------------------------------------------------------------
+   Tier 1 — Primitives  : raw values, ONLY themes.css/tokens.css
+                          may reference these directly.
+   Tier 2 — Semantic    : light/dark variants live in themes.css.
+                          Components consume Tier 2.
+   Tier 3 — Component   : one-off opt-in tokens (button, modal,
+                          chrome heights). Mode-agnostic unless
+                          they reference Tier 2.
+
+   This file defines Tier 1 + Tier 3 + every mode-agnostic
+   legacy alias preserved for backward compatibility while
+   Stage 5.0 migration proceeds.
+   Tier 2 (semantic, theme-variant) lives in styles/base/themes.css.
    ============================================================ */
 
 :root {
-  /* ── iOS System Colors ── */
-  --c-blue:   #007AFF;
-  --c-green:  #34C759;
-  --c-red:    #FF3B30;
-  --c-orange: #FF9500;
-  --c-yellow: #FFCC00;
-  --c-purple: #AF52DE;
-  --c-teal:   #5AC8FA;
-  --c-indigo: #5856D6;
-  --c-pink:   #FF2D55;
-  --c-gray:   #8E8E93;
+  /* ============================================================
+     TIER 1 — PRIMITIVES (raw values; never used directly outside
+     tokens.css / themes.css. audit-tokens.mjs enforces this.)
+     ============================================================ */
 
-  /* ── Note Type Colors (12 templates) ── */
-  --t-NOTE:    #007AFF;
-  --t-SKETCH:  #FFCC00;
-  --t-MTG:     #FF9500;
-  --t-SEM:     #5856D6;
-  --t-EVENT:   #30B0C7;
-  --t-OFA:     #636366;
-  --t-PAPER:   #AF52DE;
-  --t-LIT:     #FF6B35;
-  --t-DATA:    #5AC8FA;
-  --t-THEO:    #FF2D55;
-  --t-CONTACT: #34C759;
-  --t-SETUP:   #8E8E93;
+  /* ── primitive-gray ── */
+  --primitive-gray-0:    #FFFFFF;
+  --primitive-gray-50:   #F7F8FA;
+  --primitive-gray-100:  #EFF1F4;
+  --primitive-gray-200:  #E2E5EA;
+  --primitive-gray-300:  #CCD1D9;
+  --primitive-gray-400:  #A4ACB8;
+  --primitive-gray-500:  #7C8493;
+  --primitive-gray-600:  #5A626F;
+  --primitive-gray-700:  #3E4550;
+  --primitive-gray-800:  #2A2F38;
+  --primitive-gray-900:  #1A1D24;
+  --primitive-gray-1000: #000000;
 
-  /* ── Background Layers ── */
-  --bg-app:      #F2F2F7;
-  --bg-base:     #FFFFFF;
-  --bg-elevated: #FFFFFF;
-  --bg-input:    rgba(118,118,128,0.16);
-  --bg-hover:    rgba(0,0,0,0.07);
-  --bg-sel:      rgba(0,122,255,0.08);
-  --bg-pressed:  rgba(0,0,0,0.09);
+  /* ── primitive-blue (accent, link) ── */
+  --primitive-blue-50:  #EBF5FF;
+  --primitive-blue-100: #D6EBFF;
+  --primitive-blue-200: #ADD6FF;
+  --primitive-blue-300: #7AB8FF;
+  --primitive-blue-400: #4D9AFF;
+  --primitive-blue-500: #007AFF;
+  --primitive-blue-600: #0062D6;
+  --primitive-blue-700: #004BA8;
+  --primitive-blue-800: #003574;
+  --primitive-blue-900: #00224A;
 
-  /* ── Text — HIGH CONTRAST for readability ── */
-  --tx-1: rgba(0,0,0,0.92);   /* Primary text */
-  --tx-2: rgba(0,0,0,0.55);   /* Secondary text */
-  --tx-3: rgba(0,0,0,0.42);   /* Tertiary / placeholder */
-  --tx-4: rgba(0,0,0,0.20);   /* Disabled / decorative */
-  --tx-link: #007AFF;
-  --tx-danger: #FF3B30;
+  /* ── primitive-red (danger) ── */
+  --primitive-red-50:  #FFEBEA;
+  --primitive-red-100: #FFD0CD;
+  --primitive-red-200: #FFA6A1;
+  --primitive-red-300: #FF7873;
+  --primitive-red-400: #FF564F;
+  --primitive-red-500: #FF3B30;
+  --primitive-red-600: #D62D24;
+  --primitive-red-700: #A8221C;
+  --primitive-red-800: #741714;
+  --primitive-red-900: #4A0E0C;
 
-  /* ── Separators ── */
-  --sep:   rgba(60,60,67,0.36);
-  --sep-l: rgba(60,60,67,0.24);
-  --sep-o: #C6C6C8;
+  /* ── primitive-amber (warning) ── */
+  --primitive-amber-50:  #FFF6E5;
+  --primitive-amber-100: #FFE9BF;
+  --primitive-amber-200: #FFD27A;
+  --primitive-amber-300: #FFB94D;
+  --primitive-amber-400: #FFA31F;
+  --primitive-amber-500: #FF9500;
+  --primitive-amber-600: #D67800;
+  --primitive-amber-700: #A85D00;
+  --primitive-amber-800: #744000;
+  --primitive-amber-900: #4A2900;
 
-  /* ── Typography ── */
-  --font: -apple-system, 'SF Pro Text', 'Inter', 'Pretendard', system-ui, sans-serif;
-  --font-d: -apple-system, 'SF Pro Display', 'Inter', 'Pretendard', system-ui, sans-serif;
-  --font-mono: 'SF Mono', 'JetBrains Mono', 'Consolas', monospace;
+  /* ── primitive-green (success) ── */
+  --primitive-green-50:  #E6FAEC;
+  --primitive-green-100: #C2F0CF;
+  --primitive-green-200: #8AE3A6;
+  --primitive-green-300: #57D17B;
+  --primitive-green-400: #34C759;
+  --primitive-green-500: #28A046;
+  --primitive-green-600: #1F7F38;
+  --primitive-green-700: #185E29;
+  --primitive-green-800: #103E1C;
+  --primitive-green-900: #082010;
 
+  /* ── primitive-purple ── */
+  --primitive-purple-50:  #F4EAFC;
+  --primitive-purple-100: #E4CDF8;
+  --primitive-purple-200: #CDA1F2;
+  --primitive-purple-300: #B675EC;
+  --primitive-purple-400: #AF52DE;
+  --primitive-purple-500: #8A3FB0;
+  --primitive-purple-600: #6E3290;
+  --primitive-purple-700: #52256C;
+  --primitive-purple-800: #371848;
+  --primitive-purple-900: #1B0C24;
+
+  /* ── primitive-space (4px grid) ── */
+  --primitive-space-0:  0px;
+  --primitive-space-1:  4px;
+  --primitive-space-2:  8px;
+  --primitive-space-3:  12px;
+  --primitive-space-4:  16px;
+  --primitive-space-5:  20px;
+  --primitive-space-6:  24px;
+  --primitive-space-7:  32px;
+  --primitive-space-8:  40px;
+  --primitive-space-9:  48px;
+  --primitive-space-10: 64px;
+  --primitive-space-11: 80px;
+  --primitive-space-12: 96px;
+
+  /* ── primitive-radius ── */
+  --primitive-radius-0:    0px;
+  --primitive-radius-2:    2px;
+  --primitive-radius-4:    4px;
+  --primitive-radius-6:    6px;
+  --primitive-radius-8:    8px;
+  --primitive-radius-10:   10px;
+  --primitive-radius-12:   12px;
+  --primitive-radius-16:   16px;
+  --primitive-radius-full: 9999px;
+
+  /* ── primitive-font-size ── */
+  --primitive-fs-10: 10px;
+  --primitive-fs-12: 12px;
+  --primitive-fs-14: 14px;
+  --primitive-fs-16: 16px;
+  --primitive-fs-18: 18px;
+  --primitive-fs-22: 22px;
+  --primitive-fs-28: 28px;
+  --primitive-fs-32: 32px;
+
+  /* ── primitive-font-weight ── */
+  --primitive-fw-400: 400;
+  --primitive-fw-500: 500;
+  --primitive-fw-600: 600;
+  --primitive-fw-700: 700;
+
+  /* ── primitive-line-height ── */
+  --primitive-lh-tight:   1.2;
+  --primitive-lh-normal:  1.5;
+  --primitive-lh-relaxed: 1.7;
+
+  /* ── primitive-shadow (light-mode base; dark adjustments in themes.css) ── */
+  --primitive-shadow-1: 0 1px 4px rgba(0, 0, 0, 0.08),
+                        0 0 0 0.5px rgba(0, 0, 0, 0.05);
+  --primitive-shadow-2: 0 4px 16px rgba(0, 0, 0, 0.10),
+                        0 0 0 0.5px rgba(0, 0, 0, 0.05);
+  --primitive-shadow-3: 0 8px 32px rgba(0, 0, 0, 0.14),
+                        0 0 0 0.5px rgba(0, 0, 0, 0.06);
+
+  /* ── primitive-font-family ── */
+  --primitive-font-sans: -apple-system, 'SF Pro Text', 'Inter',
+                         'Pretendard', system-ui, sans-serif;
+  --primitive-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono',
+                         'Consolas', monospace;
+  --primitive-font-display: -apple-system, 'SF Pro Display', 'Inter',
+                            'Pretendard', system-ui, sans-serif;
+
+  /* ============================================================
+     TIER 2 — SEMANTIC (mode-agnostic only)
+     theme-variant Tier-2 lives in themes.css.
+     ============================================================ */
+
+  /* ── spacing (named scale per plan §2.4) ── */
+  --space-xs:  var(--primitive-space-1);   /* 4 */
+  --space-sm:  var(--primitive-space-2);   /* 8 */
+  --space-md:  var(--primitive-space-3);   /* 12 */
+  --space-lg:  var(--primitive-space-4);   /* 16 */
+  --space-xl:  var(--primitive-space-6);   /* 24 */
+  --space-2xl: var(--primitive-space-7);   /* 32 */
+  --space-3xl: var(--primitive-space-9);   /* 48 */
+
+  /* ── radius (semantic — pop/pill added; legacy --radius-* preserved below) ── */
+  --radius-pop:  var(--primitive-radius-10);  /* dialog/card */
+  --radius-pill: var(--primitive-radius-full);
+
+  /* ── font-size (semantic) ── */
+  --fs-caption: var(--primitive-fs-12);
+  --fs-body:    var(--primitive-fs-14);
+  --fs-title:   var(--primitive-fs-16);
+  --fs-h3:      var(--primitive-fs-18);
+  --fs-h2:      var(--primitive-fs-22);
+  --fs-h1:      var(--primitive-fs-28);
+
+  /* ── line-height (semantic) ── */
+  --lh-tight:   var(--primitive-lh-tight);
+  --lh-normal:  var(--primitive-lh-normal);
+  --lh-relaxed: var(--primitive-lh-relaxed);
+
+  /* ── motion (named per plan §2.5) ── */
+  --motion-fast:   150ms;
+  --motion-normal: 250ms;
+  --motion-slow:   400ms;
+
+  --ease-standard:   cubic-bezier(0.4,  0.0, 0.2, 1.0);
+  --ease-accelerate: cubic-bezier(0.4,  0.0, 1.0, 1.0);
+  --ease-decelerate: cubic-bezier(0.0,  0.0, 0.2, 1.0);
+
+  /* ============================================================
+     TIER 3 — COMPONENT (one-off, opt-in)
+     ============================================================ */
+  --titlebar-height: 36px;
+  --toolbar-height:  44px;
+  --statusbar-height: 26px;
+  --modal-radius:    var(--radius-pop);
+
+  /* ============================================================
+     LEGACY ALIASES (mode-agnostic)
+     Preserve every existing token name used elsewhere in the
+     repo so visual rendering is unchanged. Theme-variant aliases
+     live in themes.css.
+
+     Audit (2026-05-14):
+       --font-{xs,sm,base,md,lg,xl} : 38 active uses → preserve
+       --z-*                       : 63 active uses → preserve
+       --sp-*, --r-*, --fs-N*      : extensive use   → preserve
+       --space-N* (numeric)        :  0 active uses → preserved anyway
+       --radius-{sm,md,lg,xl,2xl}  :  1 active use  → preserved
+     ============================================================ */
+
+  /* ── legacy: typography (--font-* numeric scale from old styles/tokens.css) ── */
+  --font-xs:   9px;
+  --font-sm:   11px;
+  --font-base: 12px;
+  --font-md:   13px;
+  --font-lg:   14px;
+  --font-xl:   16px;
+  --font-2xl:  18px;
+  --font-3xl:  20px;
+
+  /* ── legacy: typography (--font, --font-d, --font-mono from old design-system/tokens.css) ── */
+  --font:      var(--primitive-font-sans);
+  --font-d:    var(--primitive-font-display);
+  --font-mono: var(--primitive-font-mono);
+
+  /* ── legacy: --fs-N (numeric scale from old design-system/tokens.css) ── */
   --fs-34: 34px; --fs-28: 28px; --fs-26: 26px; --fs-22: 22px;
   --fs-20: 20px; --fs-17: 17px; --fs-16: 16px;
   --fs-15: 15px; --fs-13: 13px; --fs-12: 12px; --fs-11: 11px; --fs-10: 10px;
 
-  /* ── Spacing (8pt grid) ── */
-  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
-  --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px;
+  /* ── legacy: --sp-N (8pt grid, numeric) ── */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px;
 
-  /* ── Radius ── */
-  --r-4:4px; --r-6:6px; --r-8:8px; --r-10:10px;
-  --r-12:12px; --r-16:16px; --r-20:20px; --r-pill:999px;
+  /* ── legacy: --space-N (2/4/6/8/10/12/16/20/24/32) ── */
+  --space-1: 2px;  --space-2: 4px;  --space-3: 6px;  --space-4: 8px;
+  --space-5: 10px; --space-6: 12px; --space-8: 16px; --space-10: 20px;
+  --space-12: 24px; --space-16: 32px;
 
-  /* ── Shadows ── */
-  --sh-sm: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.05);
-  --sh-md: 0 4px 16px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.05);
-  --sh-lg: 0 8px 32px rgba(0,0,0,0.14), 0 0 0 0.5px rgba(0,0,0,0.06);
-  --sh-hw: 0 0 0 0.5px rgba(0,0,0,0.07),
-           0 8px 32px rgba(0,0,0,0.11),
-           0 24px 64px rgba(0,0,0,0.07);
+  /* ── legacy: --r-N + named radius (kept at original values to avoid regression) ── */
+  --r-4: 4px;   --r-6: 6px;   --r-8: 8px;   --r-10: 10px;
+  --r-12: 12px; --r-16: 16px; --r-20: 20px; --r-pill: 999px;
 
-  /* ── iOS Animations ── */
-  --ease-out:    cubic-bezier(0.0, 0.0, 0.2, 1.0);
-  --spring:      cubic-bezier(0.34, 1.56, 0.64, 1.0);
-  --ease-in-out: cubic-bezier(0.4, 0.0, 0.2, 1.0);
+  --radius-xs:   2px;
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;   /* note: plan target 10; keeping 8 for backward compat — re-evaluated per sub-stage */
+  --radius-xl:   12px;  /* note: plan target 16; keeping 12 for backward compat */
+  --radius-2xl:  16px;
+  --radius-full: 50%;   /* note: was 50% in legacy (circles); plan target 9999px lives in --radius-pill */
+
+  /* ── legacy: motion (--dur-*, --ease-out, --ease-in-out, --spring) ── */
   --dur-100: 100ms; --dur-150: 150ms; --dur-200: 200ms;
   --dur-300: 300ms; --dur-400: 400ms; --dur-500: 500ms;
 
-  /* ── Layout Dimensions ── */
-  --h-titlebar:   36px;
-  --h-toolbar:    44px;
-  --h-statusbar:  26px;
-  --w-sidebar:    240px;
-  --w-notelist:   300px;
-  --h-mob-nav:    44px;
-  --h-mob-tab:    56px;
+  --ease-out:    cubic-bezier(0.0, 0.0, 0.2, 1.0);
+  --ease-in-out: cubic-bezier(0.4, 0.0, 0.2, 1.0);
+  --spring:      cubic-bezier(0.34, 1.56, 0.64, 1.0);
+
+  --duration-fast:   0.1s;
+  --duration-normal: 0.2s;
+  --duration-slow:   0.3s;
+
+  /* ── legacy: layout dimensions ── */
+  --h-titlebar:  var(--titlebar-height);
+  --h-toolbar:   var(--toolbar-height);
+  --h-statusbar: var(--statusbar-height);
+  --w-sidebar:   240px;
+  --w-notelist:  300px;
+  --h-mob-nav:   44px;
+  --h-mob-tab:   56px;
+
+  /* ── legacy: button heights ── */
+  --btn-height-sm: 28px;
+  --btn-height-md: 32px;
+  --btn-height-lg: 36px;
+  --backdrop-blur: blur(8px);
+
+  /* ── legacy: z-index scale ── */
+  --z-base:            1;
+  --z-above:           5;
+  --z-raised:          10;
+  --z-dropdown:        100;
+  --z-sticky:          500;
+  --z-overlay:         900;
+  --z-modal-backdrop:  1000;
+  --z-modal:           1001;
+  --z-context-menu:    2000;
+  --z-popover:         5000;
+  --z-settings:        6000;
+  --z-notification:    8000;
+  --z-toast:           9000;
+  --z-titlebar:        10000;
+  --z-window-menu:     10100;
+  --z-top:             99999;
+
+  /* ── note-type colors (mode-agnostic identity colors) ── */
+  --t-NOTE:    var(--primitive-blue-500);
+  --t-SKETCH:  #FFCC00;
+  --t-MTG:     var(--primitive-amber-500);
+  --t-SEM:     #5856D6;
+  --t-EVENT:   #30B0C7;
+  --t-OFA:     #636366;
+  --t-PAPER:   var(--primitive-purple-400);
+  --t-LIT:     #FF6B35;
+  --t-DATA:    #5AC8FA;
+  --t-THEO:    #FF2D55;
+  --t-CONTACT: var(--primitive-green-400);
+  --t-SETUP:   #8E8E93;
 }
 
 /* ============================================================
-   DARK MODE
-   Key principle: text must be clearly readable against dark bg.
-   All text colors use HIGH alpha values.
+   Reduced-motion override (Stage 5.0.12 a11y; landed early here)
    ============================================================ */
-[data-theme="dark"] {
-  --bg-app:      #000000;
-  --bg-base:     #1C1C1E;
-  --bg-elevated: #2C2C2E;
-  --bg-input:    rgba(118,118,128,0.24);
-  --bg-hover:    rgba(255,255,255,0.06);
-  --bg-sel:      rgba(0,122,255,0.18);
-  --bg-pressed:  rgba(255,255,255,0.10);
-
-  /* Text — HIGH contrast for dark backgrounds */
-  --tx-1: rgba(255,255,255,0.95);   /* Primary: bright white */
-  --tx-2: rgba(255,255,255,0.60);   /* Secondary: clearly visible */
-  --tx-3: rgba(255,255,255,0.38);   /* Tertiary: readable placeholder */
-  --tx-4: rgba(255,255,255,0.22);   /* Disabled */
-  --tx-link: #0A84FF;
-  --tx-danger: #FF453A;
-
-  /* Separators */
-  --sep:   rgba(84,84,88,0.65);
-  --sep-l: rgba(84,84,88,0.40);
-  --sep-o: #38383A;
-
-  /* Dark mode system colors (brighter for dark bg) */
-  --c-blue:   #0A84FF;
-  --c-green:  #32D74B;
-  --c-red:    #FF453A;
-  --c-orange: #FF9F0A;
-  --c-yellow: #FFD60A;
-  --c-purple: #BF5AF2;
-  --c-teal:   #64D2FF;
-  --c-indigo: #5E5CE6;
-  --c-pink:   #FF375F;
-
-  /* Shadows (slightly more visible on dark) */
-  --sh-sm: 0 1px 4px rgba(0,0,0,0.30), 0 0 0 0.5px rgba(255,255,255,0.06);
-  --sh-md: 0 4px 16px rgba(0,0,0,0.40), 0 0 0 0.5px rgba(255,255,255,0.06);
-  --sh-lg: 0 8px 32px rgba(0,0,0,0.50), 0 0 0 0.5px rgba(255,255,255,0.06);
-  --sh-hw: 0 0 0 0.5px rgba(255,255,255,0.08),
-           0 8px 32px rgba(0,0,0,0.40),
-           0 24px 64px rgba(0,0,0,0.30);
-}
-
-/* System dark mode auto-detect (when data-theme not explicitly set) */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg-app: #000000;
-    --bg-base: #1C1C1E;
-    --bg-elevated: #2C2C2E;
-    --bg-input: rgba(118,118,128,0.24);
-    --bg-hover: rgba(255,255,255,0.06);
-    --bg-sel: rgba(0,122,255,0.18);
-    --bg-pressed: rgba(255,255,255,0.10);
-    --tx-1: rgba(255,255,255,0.95);
-    --tx-2: rgba(255,255,255,0.60);
-    --tx-3: rgba(255,255,255,0.38);
-    --tx-4: rgba(255,255,255,0.22);
-    --tx-link: #0A84FF;
-    --tx-danger: #FF453A;
-    --sep: rgba(84,84,88,0.65);
-    --sep-l: rgba(84,84,88,0.40);
-    --sep-o: #38383A;
-    --c-blue: #0A84FF;
-    --c-green: #32D74B;
-    --c-red: #FF453A;
-    --c-orange: #FF9F0A;
-    --c-purple: #BF5AF2;
-    --c-teal: #64D2FF;
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast:     1ms;
+    --motion-normal:   1ms;
+    --motion-slow:     1ms;
+    --duration-fast:   1ms;
+    --duration-normal: 1ms;
+    --duration-slow:   1ms;
+    --dur-100: 1ms; --dur-150: 1ms; --dur-200: 1ms;
+    --dur-300: 1ms; --dur-400: 1ms; --dur-500: 1ms;
   }
 }

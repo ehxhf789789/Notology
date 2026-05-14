@@ -1,183 +1,634 @@
-/* ============================================================ */
-/* Theme Variables - Dark (Default) */
-/* ============================================================ */
-:root,
-html[data-theme="dark"] {
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #242424;
-  --bg-tertiary: #2d2d2d;
-  --bg-elevated: #333;
-  --bg-hover: #3a3a3a;
-  --bg-hover-rgba: rgba(42, 42, 42, 1);
-  --text-primary: #e0e0e0;
-  --text-secondary: #aaa;
-  --text-muted: #888;
-  --border-color: #444;
-  --border-light: #555;
-  --accent-color: #00d4aa;
-  --accent-hover: #00e5bb;
-  --accent-primary: #60a5fa;
-  --shadow-color: rgba(0, 0, 0, 0.3);
-  --bg-input: #2a2a2a;
-  --border-focus: var(--accent-primary);
-  --backdrop-bg: rgba(0, 0, 0, 0.6);
-  --calendar-today-bg: #264f78;
-  --calendar-today-hover: #2d5a89;
-  --calendar-selected-bg: #094771;
-  --calendar-selected-border: #007acc;
-  /* Code Block - Dark Theme (Catppuccin Mocha inspired) */
-  --code-bg: #1e1e2e;
-  --code-border: #313244;
-  --code-text: #cdd6f4;
-  --code-inline-bg: rgba(122, 162, 247, 0.15);
-  --code-inline-text: #7aa2f7;
-  --code-comment: #6c7086;
-  --code-keyword: #cba6f7;
-  --code-string: #a6e3a1;
-  --code-number: #fab387;
-  --code-function: #89b4fa;
-  --code-variable: #f38ba8;
-  --code-property: #89dceb;
-  --code-operator: #94e2d5;
-  --code-tag: #f38ba8;
-  --code-attribute: #fab387;
-  --code-punctuation: #9399b2;
-  --code-type: #f9e2af;
-}
+/* ============================================================
+   Notology Themes — Stage 5.0.1
+   ------------------------------------------------------------
+   Tier 2 SEMANTIC tokens with light + dark variants.
+   - Tier 1 primitives are imported from src/design-system/tokens.css.
+   - Components consume Tier 2 names (e.g. --bg-app, --tx-1, --c-accent).
+   - Legacy theme names (--bg-primary, --text-primary, --accent-primary
+     etc.) preserved exactly so 70+ existing CSS files render unchanged.
 
-/* ============================================================ */
-/* Theme Variables - Light */
-/* ============================================================ */
-html[data-theme="light"] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f5;
-  --bg-tertiary: #e8e8e8;
-  --bg-elevated: #ffffff;
-  --bg-hover: #e0e0e0;
+   Resolution order:
+     1. html[data-theme="light"]  → forces light
+     2. html[data-theme="dark"]   → forces dark
+     3. html[data-theme="system"] → @media (prefers-color-scheme: ...)
+     4. :root default             → light (also drives system w/ light OS)
+
+   *-dark.css parallel files (document-viewers-dark.css) intentionally
+   left in place until Stage 5.0.9 viewer redesign — they will be folded
+   into token-based theming then.
+   ============================================================ */
+
+/* ============================================================
+   :root — DEFAULT LIGHT (also drives system-theme when OS is light)
+   ============================================================ */
+:root {
+  /* ── Tier 2: surface / background ── */
+  --bg-app:      #F2F2F7;
+  --bg-elev-1:   #FFFFFF;
+  --bg-elev-2:   #FFFFFF;
+  --bg-elev-3:   var(--primitive-gray-50);
+  --bg-base:     #FFFFFF;
+  --bg-elevated: #FFFFFF;
+
+  --bg-input:        rgba(118, 118, 128, 0.16);
+  --bg-input-hover:  rgba(118, 118, 128, 0.22);
+  --bg-input-active: rgba(118, 118, 128, 0.30);
+
+  --bg-hover:    rgba(0, 0, 0, 0.07);
+  --bg-sel:      rgba(0, 122, 255, 0.08);
+  --bg-pressed:  rgba(0, 0, 0, 0.09);
   --bg-hover-rgba: rgba(220, 220, 220, 1);
-  --text-primary: #1a1a1a;
+
+  /* ── Tier 2: text ── */
+  --tx-1: rgba(0, 0, 0, 0.92);
+  --tx-2: rgba(0, 0, 0, 0.55);
+  --tx-3: rgba(0, 0, 0, 0.42);
+  --tx-disabled: rgba(0, 0, 0, 0.20);
+  --tx-on-accent: #FFFFFF;
+  --tx-link:    var(--primitive-blue-500);
+  --tx-danger:  var(--primitive-red-500);
+
+  /* ── Tier 2: border ── */
+  --bdr-1: rgba(60, 60, 67, 0.18);  /* subtle  */
+  --bdr-2: rgba(60, 60, 67, 0.36);  /* default */
+  --bdr-3: rgba(60, 60, 67, 0.55);  /* strong  */
+  --bdr-focus: var(--primitive-blue-500);
+
+  /* legacy: separators */
+  --sep:   rgba(60, 60, 67, 0.36);
+  --sep-l: rgba(60, 60, 67, 0.24);
+  --sep-o: #C6C6C8;
+
+  /* ── Tier 2: accent ── */
+  --c-accent:         var(--primitive-blue-500);
+  --c-accent-hover:   var(--primitive-blue-600);
+  --c-accent-pressed: var(--primitive-blue-700);
+
+  /* ── Tier 2: status colors ── */
+  --c-success: var(--primitive-green-400);
+  --c-warning: var(--primitive-amber-500);
+  --c-danger:  var(--primitive-red-500);
+  --c-info:    var(--primitive-blue-500);
+  --c-on-success: #FFFFFF;
+  --c-on-warning: #1A1D24;
+  --c-on-danger:  #FFFFFF;
+  --c-on-info:    #FFFFFF;
+
+  /* ── Tier 2: shadows ── */
+  --shadow-pop:     var(--primitive-shadow-1);
+  --shadow-modal:   var(--primitive-shadow-2);
+  --shadow-overlay: var(--primitive-shadow-3);
+  --shadow-inset:   inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+
+  /* ── Tier 3 component (accent-bound; resolved per theme) ── */
+  --btn-primary-bg:        var(--c-accent);
+  --btn-primary-fg:        var(--tx-on-accent);
+  --btn-primary-bg-hover:  var(--c-accent-hover);
+  --btn-primary-bg-active: var(--c-accent-pressed);
+  --modal-backdrop-bg:     rgba(0, 0, 0, 0.40);
+
+  /* ============================================================
+     LEGACY THEME NAMES (preserved 1:1 from previous themes.css)
+     Every existing CSS file references one of these — DO NOT
+     rename or change values without a follow-up sub-stage that
+     migrates the consumer surfaces.
+     ============================================================ */
+
+  /* legacy: --c-* iOS system colors */
+  --c-blue:   #007AFF;
+  --c-green:  #34C759;
+  --c-red:    #FF3B30;
+  --c-orange: #FF9500;
+  --c-yellow: #FFCC00;
+  --c-purple: #AF52DE;
+  --c-teal:   #5AC8FA;
+  --c-indigo: #5856D6;
+  --c-pink:   #FF2D55;
+  --c-gray:   #8E8E93;
+
+  /* legacy: --bg-primary / --text-primary etc. (themes.css v1 names) */
+  --bg-primary:   #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary:  #e8e8e8;
+  --text-primary:   #1a1a1a;
   --text-secondary: #555;
-  --text-muted: #888;
+  --text-muted:     #888;
   --border-color: #ddd;
   --border-light: #ccc;
-  --accent-color: #00a884;
-  --accent-hover: #00b894;
-  --accent-primary: #3b82f6;
-  --shadow-color: rgba(0, 0, 0, 0.08);
-  --bg-input: #ffffff;
-  --border-focus: var(--accent-primary);
-  --backdrop-bg: rgba(0, 0, 0, 0.4);
-  --calendar-today-bg: #e3f0ff;
-  --calendar-today-hover: #d4e6fc;
-  --calendar-selected-bg: #cce5ff;
+  --accent-color:    #00a884;
+  --accent-hover:    #00b894;
+  --accent-primary:  #3b82f6;
+  --shadow-color:    rgba(0, 0, 0, 0.08);
+  --border-focus:    var(--accent-primary);
+  --backdrop-bg:     rgba(0, 0, 0, 0.4);
+
+  /* legacy: calendar */
+  --calendar-today-bg:        #e3f0ff;
+  --calendar-today-hover:     #d4e6fc;
+  --calendar-selected-bg:     #cce5ff;
   --calendar-selected-border: #007acc;
-  /* Code Block - Light Theme */
-  --code-bg: #f8f9fc;
-  --code-border: #e2e4e9;
-  --code-text: #3c3f4a;
-  --code-inline-bg: rgba(59, 130, 246, 0.1);
+
+  /* legacy: code highlight palette */
+  --code-bg:           #f8f9fc;
+  --code-border:       #e2e4e9;
+  --code-text:         #3c3f4a;
+  --code-inline-bg:    rgba(59, 130, 246, 0.10);
+  --code-inline-text:  #2563eb;
+  --code-comment:      #6b7280;
+  --code-keyword:      #8b5cf6;
+  --code-string:       #059669;
+  --code-number:       #d97706;
+  --code-function:     #2563eb;
+  --code-variable:     #dc2626;
+  --code-property:     #0891b2;
+  --code-operator:     #0d9488;
+  --code-tag:          #dc2626;
+  --code-attribute:    #d97706;
+  --code-punctuation:  #6b7280;
+  --code-type:         #ca8a04;
+
+  /* legacy: semantic color shortcuts (styles/tokens.css carryover) */
+  --color-link:        #007acc;
+  --color-link-hover:  #0098ff;
+  --color-danger:      #f87171;
+  --color-danger-bg:   rgba(248, 113, 113, 0.15);
+  --color-warning:     #eab308;
+  --color-success:     #4ade80;
+  --color-info:        #60a5fa;
+
+  /* legacy: shadow scale (styles/tokens.css carryover) */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px var(--shadow-color);
+  --shadow-lg: 0 8px 32px var(--shadow-color);
+  --shadow-xl: 0 12px 40px var(--shadow-color);
+  --shadow-focus: 0 0 0 2px var(--accent-primary);
+  --focus-ring: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--accent-primary);
+
+  /* legacy: shadow scale from design-system/tokens.css */
+  --sh-sm: var(--primitive-shadow-1);
+  --sh-md: var(--primitive-shadow-2);
+  --sh-lg: var(--primitive-shadow-3);
+  --sh-hw: 0 0 0 0.5px rgba(0, 0, 0, 0.07),
+           0 8px 32px rgba(0, 0, 0, 0.11),
+           0 24px 64px rgba(0, 0, 0, 0.07);
+
+  /* legacy: text 4-step (—-tx-4 now —-tx-disabled, alias preserved) */
+  --tx-4: var(--tx-disabled);
+
+  /* legacy: table cell backgrounds (light mode) */
+  --cell-dark-gray: #e0e0e0;
+  --cell-gray:      #f0f0f0;
+  --cell-blue:      #dbeafe;
+  --cell-green:     #dcfce7;
+  --cell-brown:     #fef3c7;
+  --cell-purple:    #f3e8ff;
+  --cell-red:       #fee2e2;
+
+  /* legacy: sketch node backgrounds (light mode) */
+  --node-default: #ffffff;
+  --node-blue:    #dbeafe;
+  --node-green:   #dcfce7;
+  --node-red:     #fee2e2;
+  --node-purple:  #ede9fe;
+  --node-orange:  #fff7ed;
+}
+
+/* ============================================================
+   html[data-theme="light"] — explicit light (mirrors :root defaults
+   but reasserts so :root [data-theme="system"] media query stays
+   independent)
+   ============================================================ */
+html[data-theme="light"] {
+  --bg-app:      #F2F2F7;
+  --bg-elev-1:   #FFFFFF;
+  --bg-elev-2:   #FFFFFF;
+  --bg-elev-3:   var(--primitive-gray-50);
+  --bg-base:     #FFFFFF;
+  --bg-elevated: #FFFFFF;
+
+  --bg-input:        rgba(118, 118, 128, 0.16);
+  --bg-input-hover:  rgba(118, 118, 128, 0.22);
+  --bg-input-active: rgba(118, 118, 128, 0.30);
+  --bg-hover:        rgba(0, 0, 0, 0.07);
+  --bg-sel:          rgba(0, 122, 255, 0.08);
+  --bg-pressed:      rgba(0, 0, 0, 0.09);
+  --bg-hover-rgba:   rgba(220, 220, 220, 1);
+
+  --tx-1: rgba(0, 0, 0, 0.92);
+  --tx-2: rgba(0, 0, 0, 0.55);
+  --tx-3: rgba(0, 0, 0, 0.42);
+  --tx-disabled: rgba(0, 0, 0, 0.20);
+  --tx-4: rgba(0, 0, 0, 0.20);
+  --tx-on-accent: #FFFFFF;
+  --tx-link:   var(--primitive-blue-500);
+  --tx-danger: var(--primitive-red-500);
+
+  --bdr-1: rgba(60, 60, 67, 0.18);
+  --bdr-2: rgba(60, 60, 67, 0.36);
+  --bdr-3: rgba(60, 60, 67, 0.55);
+  --bdr-focus: var(--primitive-blue-500);
+
+  --sep:   rgba(60, 60, 67, 0.36);
+  --sep-l: rgba(60, 60, 67, 0.24);
+  --sep-o: #C6C6C8;
+
+  --c-accent:         var(--primitive-blue-500);
+  --c-accent-hover:   var(--primitive-blue-600);
+  --c-accent-pressed: var(--primitive-blue-700);
+
+  --c-success: var(--primitive-green-400);
+  --c-warning: var(--primitive-amber-500);
+  --c-danger:  var(--primitive-red-500);
+  --c-info:    var(--primitive-blue-500);
+  --c-on-success: #FFFFFF;
+  --c-on-warning: #1A1D24;
+  --c-on-danger:  #FFFFFF;
+  --c-on-info:    #FFFFFF;
+
+  --shadow-pop:     var(--primitive-shadow-1);
+  --shadow-modal:   var(--primitive-shadow-2);
+  --shadow-overlay: var(--primitive-shadow-3);
+  --shadow-inset:   inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+
+  --btn-primary-bg:        var(--c-accent);
+  --btn-primary-fg:        var(--tx-on-accent);
+  --btn-primary-bg-hover:  var(--c-accent-hover);
+  --btn-primary-bg-active: var(--c-accent-pressed);
+  --modal-backdrop-bg:     rgba(0, 0, 0, 0.40);
+
+  /* iOS system colors (light) */
+  --c-blue:   #007AFF;
+  --c-green:  #34C759;
+  --c-red:    #FF3B30;
+  --c-orange: #FF9500;
+  --c-yellow: #FFCC00;
+  --c-purple: #AF52DE;
+  --c-teal:   #5AC8FA;
+  --c-indigo: #5856D6;
+  --c-pink:   #FF2D55;
+  --c-gray:   #8E8E93;
+
+  /* legacy theme v1 */
+  --bg-primary:   #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary:  #e8e8e8;
+  --text-primary:   #1a1a1a;
+  --text-secondary: #555;
+  --text-muted:     #888;
+  --border-color: #ddd;
+  --border-light: #ccc;
+  --accent-color:    #00a884;
+  --accent-hover:    #00b894;
+  --accent-primary:  #3b82f6;
+  --shadow-color:    rgba(0, 0, 0, 0.08);
+  --border-focus:    var(--accent-primary);
+  --backdrop-bg:     rgba(0, 0, 0, 0.4);
+
+  --calendar-today-bg:        #e3f0ff;
+  --calendar-today-hover:     #d4e6fc;
+  --calendar-selected-bg:     #cce5ff;
+  --calendar-selected-border: #007acc;
+
+  --code-bg:          #f8f9fc;
+  --code-border:      #e2e4e9;
+  --code-text:        #3c3f4a;
+  --code-inline-bg:   rgba(59, 130, 246, 0.10);
   --code-inline-text: #2563eb;
-  --code-comment: #6b7280;
-  --code-keyword: #8b5cf6;
-  --code-string: #059669;
-  --code-number: #d97706;
-  --code-function: #2563eb;
-  --code-variable: #dc2626;
-  --code-property: #0891b2;
-  --code-operator: #0d9488;
-  --code-tag: #dc2626;
-  --code-attribute: #d97706;
+  --code-comment:     #6b7280;
+  --code-keyword:     #8b5cf6;
+  --code-string:      #059669;
+  --code-number:      #d97706;
+  --code-function:    #2563eb;
+  --code-variable:    #dc2626;
+  --code-property:    #0891b2;
+  --code-operator:    #0d9488;
+  --code-tag:         #dc2626;
+  --code-attribute:   #d97706;
   --code-punctuation: #6b7280;
-  --code-type: #ca8a04;
+  --code-type:        #ca8a04;
+
+  --color-link:       #007acc;
+  --color-link-hover: #0098ff;
+  --color-danger:     #f87171;
+  --color-danger-bg:  rgba(248, 113, 113, 0.15);
+  --color-warning:    #eab308;
+  --color-success:    #4ade80;
+  --color-info:       #60a5fa;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.20);
+  --shadow-md: 0 4px 12px var(--shadow-color);
+  --shadow-lg: 0 8px 32px var(--shadow-color);
+  --shadow-xl: 0 12px 40px var(--shadow-color);
+  --shadow-focus: 0 0 0 2px var(--accent-primary);
+
+  --sh-sm: var(--primitive-shadow-1);
+  --sh-md: var(--primitive-shadow-2);
+  --sh-lg: var(--primitive-shadow-3);
+  --sh-hw: 0 0 0 0.5px rgba(0, 0, 0, 0.07),
+           0 8px 32px rgba(0, 0, 0, 0.11),
+           0 24px 64px rgba(0, 0, 0, 0.07);
+
+  --cell-dark-gray: #e0e0e0;
+  --cell-gray:      #f0f0f0;
+  --cell-blue:      #dbeafe;
+  --cell-green:     #dcfce7;
+  --cell-brown:     #fef3c7;
+  --cell-purple:    #f3e8ff;
+  --cell-red:       #fee2e2;
+
+  --node-default: #ffffff;
+  --node-blue:    #dbeafe;
+  --node-green:   #dcfce7;
+  --node-red:     #fee2e2;
+  --node-purple:  #ede9fe;
+  --node-orange:  #fff7ed;
 }
 
-/* System theme - follow OS preference */
-@media (prefers-color-scheme: light) {
-  html[data-theme="system"] {
-    --bg-primary: #ffffff;
-    --bg-secondary: #f5f5f5;
-    --bg-tertiary: #e8e8e8;
-    --bg-elevated: #ffffff;
-    --bg-hover: #e0e0e0;
-    --bg-hover-rgba: rgba(220, 220, 220, 1);
-    --text-primary: #1a1a1a;
-    --text-secondary: #555;
-    --text-muted: #888;
-    --border-color: #ddd;
-    --border-light: #ccc;
-    --accent-color: #00a884;
-    --accent-hover: #00b894;
-    --accent-primary: #3b82f6;
-    --shadow-color: rgba(0, 0, 0, 0.08);
-    --bg-input: #ffffff;
-    --border-focus: var(--accent-primary);
-    --backdrop-bg: rgba(0, 0, 0, 0.4);
-    --calendar-today-bg: #e3f0ff;
-    --calendar-today-hover: #d4e6fc;
-    --calendar-selected-bg: #cce5ff;
-    --calendar-selected-border: #007acc;
-    /* Code Block - Light Theme */
-    --code-bg: #f8f9fc;
-    --code-border: #e2e4e9;
-    --code-text: #3c3f4a;
-    --code-inline-bg: rgba(59, 130, 246, 0.1);
-    --code-inline-text: #2563eb;
-    --code-comment: #6b7280;
-    --code-keyword: #8b5cf6;
-    --code-string: #059669;
-    --code-number: #d97706;
-    --code-function: #2563eb;
-    --code-variable: #dc2626;
-    --code-property: #0891b2;
-    --code-operator: #0d9488;
-    --code-tag: #dc2626;
-    --code-attribute: #d97706;
-    --code-punctuation: #6b7280;
-    --code-type: #ca8a04;
-  }
+/* ============================================================
+   html[data-theme="dark"] — DARK
+   ============================================================ */
+html[data-theme="dark"] {
+  --bg-app:      #000000;
+  --bg-elev-1:   #1C1C1E;
+  --bg-elev-2:   #2C2C2E;
+  --bg-elev-3:   #3A3A3C;
+  --bg-base:     #1C1C1E;
+  --bg-elevated: #2C2C2E;
+
+  --bg-input:        rgba(118, 118, 128, 0.24);
+  --bg-input-hover:  rgba(118, 118, 128, 0.32);
+  --bg-input-active: rgba(118, 118, 128, 0.40);
+  --bg-hover:        rgba(255, 255, 255, 0.06);
+  --bg-sel:          rgba(0, 122, 255, 0.18);
+  --bg-pressed:      rgba(255, 255, 255, 0.10);
+  --bg-hover-rgba:   rgba(42, 42, 42, 1);
+
+  --tx-1: rgba(255, 255, 255, 0.95);
+  --tx-2: rgba(255, 255, 255, 0.60);
+  --tx-3: rgba(255, 255, 255, 0.38);
+  --tx-disabled: rgba(255, 255, 255, 0.22);
+  --tx-4: rgba(255, 255, 255, 0.22);
+  --tx-on-accent: #FFFFFF;
+  --tx-link:   #0A84FF;
+  --tx-danger: #FF453A;
+
+  --bdr-1: rgba(84, 84, 88, 0.40);
+  --bdr-2: rgba(84, 84, 88, 0.65);
+  --bdr-3: rgba(120, 120, 128, 0.80);
+  --bdr-focus: #0A84FF;
+
+  --sep:   rgba(84, 84, 88, 0.65);
+  --sep-l: rgba(84, 84, 88, 0.40);
+  --sep-o: #38383A;
+
+  --c-accent:         #0A84FF;
+  --c-accent-hover:   #2E96FF;
+  --c-accent-pressed: #0062D6;
+
+  --c-success: #32D74B;
+  --c-warning: #FF9F0A;
+  --c-danger:  #FF453A;
+  --c-info:    #0A84FF;
+  --c-on-success: #FFFFFF;
+  --c-on-warning: #1A1D24;
+  --c-on-danger:  #FFFFFF;
+  --c-on-info:    #FFFFFF;
+
+  /* Dark-mode shadow variants — keep depth visible against dark bg */
+  --shadow-pop:     0 1px 4px rgba(0, 0, 0, 0.30),
+                    0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  --shadow-modal:   0 4px 16px rgba(0, 0, 0, 0.40),
+                    0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  --shadow-overlay: 0 8px 32px rgba(0, 0, 0, 0.50),
+                    0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  --shadow-inset:   inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+
+  --btn-primary-bg:        var(--c-accent);
+  --btn-primary-fg:        var(--tx-on-accent);
+  --btn-primary-bg-hover:  var(--c-accent-hover);
+  --btn-primary-bg-active: var(--c-accent-pressed);
+  --modal-backdrop-bg:     rgba(0, 0, 0, 0.60);
+
+  /* iOS system colors (dark) */
+  --c-blue:   #0A84FF;
+  --c-green:  #32D74B;
+  --c-red:    #FF453A;
+  --c-orange: #FF9F0A;
+  --c-yellow: #FFD60A;
+  --c-purple: #BF5AF2;
+  --c-teal:   #64D2FF;
+  --c-indigo: #5E5CE6;
+  --c-pink:   #FF375F;
+  --c-gray:   #8E8E93;
+
+  /* legacy theme v1 — dark */
+  --bg-primary:   #1a1a1a;
+  --bg-secondary: #242424;
+  --bg-tertiary:  #2d2d2d;
+  --text-primary:   #e0e0e0;
+  --text-secondary: #aaa;
+  --text-muted:     #888;
+  --border-color: #444;
+  --border-light: #555;
+  --accent-color:    #00d4aa;
+  --accent-hover:    #00e5bb;
+  --accent-primary:  #60a5fa;
+  --shadow-color:    rgba(0, 0, 0, 0.3);
+  --border-focus:    var(--accent-primary);
+  --backdrop-bg:     rgba(0, 0, 0, 0.6);
+
+  --calendar-today-bg:        #264f78;
+  --calendar-today-hover:     #2d5a89;
+  --calendar-selected-bg:     #094771;
+  --calendar-selected-border: #007acc;
+
+  --code-bg:          #1e1e2e;
+  --code-border:      #313244;
+  --code-text:        #cdd6f4;
+  --code-inline-bg:   rgba(122, 162, 247, 0.15);
+  --code-inline-text: #7aa2f7;
+  --code-comment:     #6c7086;
+  --code-keyword:     #cba6f7;
+  --code-string:      #a6e3a1;
+  --code-number:      #fab387;
+  --code-function:    #89b4fa;
+  --code-variable:    #f38ba8;
+  --code-property:    #89dceb;
+  --code-operator:    #94e2d5;
+  --code-tag:         #f38ba8;
+  --code-attribute:   #fab387;
+  --code-punctuation: #9399b2;
+  --code-type:        #f9e2af;
+
+  --color-link:       #007acc;
+  --color-link-hover: #0098ff;
+  --color-danger:     #f87171;
+  --color-danger-bg:  rgba(248, 113, 113, 0.15);
+  --color-warning:    #eab308;
+  --color-success:    #4ade80;
+  --color-info:       #60a5fa;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.30);
+  --shadow-md: 0 4px 12px var(--shadow-color);
+  --shadow-lg: 0 8px 32px var(--shadow-color);
+  --shadow-xl: 0 12px 40px var(--shadow-color);
+  --shadow-focus: 0 0 0 2px var(--accent-primary);
+
+  --sh-sm: var(--shadow-pop);
+  --sh-md: var(--shadow-modal);
+  --sh-lg: var(--shadow-overlay);
+  --sh-hw: 0 0 0 0.5px rgba(255, 255, 255, 0.08),
+           0 8px 32px rgba(0, 0, 0, 0.40),
+           0 24px 64px rgba(0, 0, 0, 0.30);
+
+  --cell-dark-gray: #2d2d2d;
+  --cell-gray:      #3c3c3c;
+  --cell-blue:      #1e3a5f;
+  --cell-green:     #2d4a2c;
+  --cell-brown:     #5f3a1e;
+  --cell-purple:    #5f1e3a;
+  --cell-red:       #4a2d2d;
+
+  --node-default: #2d2d2d;
+  --node-blue:    #1e3a5f;
+  --node-green:   #1e4d2b;
+  --node-red:     #4d1e1e;
+  --node-purple:  #3d1e4d;
+  --node-orange:  #4d3a1e;
 }
 
+/* ============================================================
+   System theme — follow OS preference
+   (html[data-theme="system"] and :root with no explicit data-theme)
+   ============================================================ */
 @media (prefers-color-scheme: dark) {
-  html[data-theme="system"] {
-    --bg-primary: #1a1a1a;
+  html[data-theme="system"],
+  :root:not([data-theme]):not([data-theme="light"]) {
+    --bg-app:      #000000;
+    --bg-elev-1:   #1C1C1E;
+    --bg-elev-2:   #2C2C2E;
+    --bg-elev-3:   #3A3A3C;
+    --bg-base:     #1C1C1E;
+    --bg-elevated: #2C2C2E;
+
+    --bg-input:        rgba(118, 118, 128, 0.24);
+    --bg-input-hover:  rgba(118, 118, 128, 0.32);
+    --bg-input-active: rgba(118, 118, 128, 0.40);
+    --bg-hover:        rgba(255, 255, 255, 0.06);
+    --bg-sel:          rgba(0, 122, 255, 0.18);
+    --bg-pressed:      rgba(255, 255, 255, 0.10);
+    --bg-hover-rgba:   rgba(42, 42, 42, 1);
+
+    --tx-1: rgba(255, 255, 255, 0.95);
+    --tx-2: rgba(255, 255, 255, 0.60);
+    --tx-3: rgba(255, 255, 255, 0.38);
+    --tx-disabled: rgba(255, 255, 255, 0.22);
+    --tx-4: rgba(255, 255, 255, 0.22);
+    --tx-on-accent: #FFFFFF;
+    --tx-link:   #0A84FF;
+    --tx-danger: #FF453A;
+
+    --bdr-1: rgba(84, 84, 88, 0.40);
+    --bdr-2: rgba(84, 84, 88, 0.65);
+    --bdr-3: rgba(120, 120, 128, 0.80);
+    --bdr-focus: #0A84FF;
+
+    --sep:   rgba(84, 84, 88, 0.65);
+    --sep-l: rgba(84, 84, 88, 0.40);
+    --sep-o: #38383A;
+
+    --c-accent:         #0A84FF;
+    --c-accent-hover:   #2E96FF;
+    --c-accent-pressed: #0062D6;
+    --c-success: #32D74B;
+    --c-warning: #FF9F0A;
+    --c-danger:  #FF453A;
+    --c-info:    #0A84FF;
+    --c-on-success: #FFFFFF;
+    --c-on-warning: #1A1D24;
+    --c-on-danger:  #FFFFFF;
+    --c-on-info:    #FFFFFF;
+
+    --shadow-pop:     0 1px 4px rgba(0, 0, 0, 0.30),
+                      0 0 0 0.5px rgba(255, 255, 255, 0.06);
+    --shadow-modal:   0 4px 16px rgba(0, 0, 0, 0.40),
+                      0 0 0 0.5px rgba(255, 255, 255, 0.06);
+    --shadow-overlay: 0 8px 32px rgba(0, 0, 0, 0.50),
+                      0 0 0 0.5px rgba(255, 255, 255, 0.06);
+    --shadow-inset:   inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+
+    --modal-backdrop-bg: rgba(0, 0, 0, 0.60);
+
+    --c-blue:   #0A84FF;
+    --c-green:  #32D74B;
+    --c-red:    #FF453A;
+    --c-orange: #FF9F0A;
+    --c-yellow: #FFD60A;
+    --c-purple: #BF5AF2;
+    --c-teal:   #64D2FF;
+    --c-indigo: #5E5CE6;
+    --c-pink:   #FF375F;
+
+    --bg-primary:   #1a1a1a;
     --bg-secondary: #242424;
-    --bg-tertiary: #2d2d2d;
-    --bg-elevated: #333;
-    --bg-hover: #3a3a3a;
-    --bg-hover-rgba: rgba(42, 42, 42, 1);
-    --text-primary: #e0e0e0;
+    --bg-tertiary:  #2d2d2d;
+    --text-primary:   #e0e0e0;
     --text-secondary: #aaa;
-    --text-muted: #888;
+    --text-muted:     #888;
     --border-color: #444;
     --border-light: #555;
-    --accent-color: #00d4aa;
-    --accent-hover: #00e5bb;
-    --accent-primary: #60a5fa;
-    --shadow-color: rgba(0, 0, 0, 0.3);
-    --bg-input: #2a2a2a;
-    --border-focus: var(--accent-primary);
-    --backdrop-bg: rgba(0, 0, 0, 0.6);
-    --calendar-today-bg: #264f78;
-    --calendar-today-hover: #2d5a89;
-    --calendar-selected-bg: #094771;
+    --accent-color:    #00d4aa;
+    --accent-hover:    #00e5bb;
+    --accent-primary:  #60a5fa;
+    --shadow-color:    rgba(0, 0, 0, 0.3);
+    --backdrop-bg:     rgba(0, 0, 0, 0.6);
+
+    --calendar-today-bg:        #264f78;
+    --calendar-today-hover:     #2d5a89;
+    --calendar-selected-bg:     #094771;
     --calendar-selected-border: #007acc;
-    /* Code Block - Dark Theme */
-    --code-bg: #1e1e2e;
-    --code-border: #313244;
-    --code-text: #cdd6f4;
-    --code-inline-bg: rgba(122, 162, 247, 0.15);
+
+    --code-bg:          #1e1e2e;
+    --code-border:      #313244;
+    --code-text:        #cdd6f4;
+    --code-inline-bg:   rgba(122, 162, 247, 0.15);
     --code-inline-text: #7aa2f7;
-    --code-comment: #6c7086;
-    --code-keyword: #cba6f7;
-    --code-string: #a6e3a1;
-    --code-number: #fab387;
-    --code-function: #89b4fa;
-    --code-variable: #f38ba8;
-    --code-property: #89dceb;
-    --code-operator: #94e2d5;
-    --code-tag: #f38ba8;
-    --code-attribute: #fab387;
+    --code-comment:     #6c7086;
+    --code-keyword:     #cba6f7;
+    --code-string:      #a6e3a1;
+    --code-number:      #fab387;
+    --code-function:    #89b4fa;
+    --code-variable:    #f38ba8;
+    --code-property:    #89dceb;
+    --code-operator:    #94e2d5;
+    --code-tag:         #f38ba8;
+    --code-attribute:   #fab387;
     --code-punctuation: #9399b2;
-    --code-type: #f9e2af;
+    --code-type:        #f9e2af;
+
+    --sh-sm: var(--shadow-pop);
+    --sh-md: var(--shadow-modal);
+    --sh-lg: var(--shadow-overlay);
+    --sh-hw: 0 0 0 0.5px rgba(255, 255, 255, 0.08),
+             0 8px 32px rgba(0, 0, 0, 0.40),
+             0 24px 64px rgba(0, 0, 0, 0.30);
+
+    --cell-dark-gray: #2d2d2d;
+    --cell-gray:      #3c3c3c;
+    --cell-blue:      #1e3a5f;
+    --cell-green:     #2d4a2c;
+    --cell-brown:     #5f3a1e;
+    --cell-purple:    #5f1e3a;
+    --cell-red:       #4a2d2d;
+
+    --node-default: #2d2d2d;
+    --node-blue:    #1e3a5f;
+    --node-green:   #1e4d2b;
+    --node-red:     #4d1e1e;
+    --node-purple:  #3d1e4d;
+    --node-orange:  #4d3a1e;
   }
 }

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Notology Design Tokens — Stage 5.0.1 Preview</title>
+  <!--
+    Self-contained preview page for visual verification of the
+    3-tier design-token system landed in Stage 5.0.1.
+
+    Open directly in a browser:  src/design-system/token-preview.html
+    No build needed; this file inlines the token CSS for portability.
+  -->
+  <link rel="stylesheet" href="./tokens.css" />
+  <link rel="stylesheet" href="../styles/base/themes.css" />
+  <link rel="stylesheet" href="./mobile-tokens.css" />
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg-app);
+      color: var(--tx-1);
+      font-family: var(--primitive-font-sans);
+      font-size: var(--fs-body);
+      line-height: var(--lh-normal);
+      padding: var(--space-xl);
+      min-height: 100vh;
+    }
+    h1 { font-size: var(--fs-h1); font-weight: 700; margin: 0 0 var(--space-lg); }
+    h2 { font-size: var(--fs-h2); font-weight: 600; margin: var(--space-2xl) 0 var(--space-md); }
+    h3 { font-size: var(--fs-h3); font-weight: 600; margin: var(--space-xl) 0 var(--space-sm); }
+    p  { color: var(--tx-2); margin: 0 0 var(--space-md); }
+    code {
+      font-family: var(--primitive-font-mono);
+      font-size: var(--fs-caption);
+      padding: 2px 6px;
+      background: var(--code-inline-bg);
+      color: var(--code-inline-text);
+      border-radius: var(--radius-sm);
+    }
+    .toolbar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; gap: var(--space-md); align-items: center;
+      background: var(--bg-elev-1);
+      border: 1px solid var(--bdr-1);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm) var(--space-md);
+      margin-bottom: var(--space-xl);
+      box-shadow: var(--shadow-pop);
+    }
+    .toolbar button {
+      font: inherit;
+      background: var(--btn-primary-bg);
+      color: var(--btn-primary-fg);
+      border: 0;
+      padding: 6px 14px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background var(--motion-fast) var(--ease-standard);
+    }
+    .toolbar button:hover  { background: var(--btn-primary-bg-hover); }
+    .toolbar button:active { background: var(--btn-primary-bg-active); }
+    .toolbar button.secondary {
+      background: var(--bg-input);
+      color: var(--tx-1);
+    }
+    .toolbar button.secondary:hover  { background: var(--bg-input-hover); }
+    .toolbar button.secondary:active { background: var(--bg-input-active); }
+
+    /* swatch grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: var(--space-md);
+    }
+    .sw {
+      background: var(--bg-elev-1);
+      border: 1px solid var(--bdr-1);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      box-shadow: var(--shadow-pop);
+    }
+    .sw .chip {
+      height: 56px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--bdr-1);
+      margin-bottom: var(--space-sm);
+    }
+    .sw .name {
+      font-family: var(--primitive-font-mono);
+      font-size: var(--fs-caption);
+      color: var(--tx-1);
+      word-break: break-all;
+    }
+    .sw .desc {
+      font-size: var(--fs-caption);
+      color: var(--tx-3);
+    }
+
+    /* typography section */
+    .typo-row {
+      display: grid;
+      grid-template-columns: 96px 1fr 96px;
+      gap: var(--space-md);
+      align-items: baseline;
+      padding: var(--space-sm) 0;
+      border-bottom: 1px solid var(--bdr-1);
+    }
+    .typo-row .label  { font-family: var(--primitive-font-mono); font-size: var(--fs-caption); color: var(--tx-3); }
+    .typo-row .sample { color: var(--tx-1); }
+    .typo-row .meta   { font-family: var(--primitive-font-mono); font-size: var(--fs-caption); color: var(--tx-3); text-align: right; }
+
+    /* state buttons */
+    .state-row {
+      display: flex; flex-wrap: wrap; gap: var(--space-sm);
+      align-items: center;
+    }
+    .pill {
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: var(--fs-caption);
+      font-weight: 600;
+    }
+    .pill.success { background: var(--c-success); color: var(--c-on-success); }
+    .pill.warning { background: var(--c-warning); color: var(--c-on-warning); }
+    .pill.danger  { background: var(--c-danger);  color: var(--c-on-danger);  }
+    .pill.info    { background: var(--c-info);    color: var(--c-on-info);    }
+
+    /* shadow + radius demo cards */
+    .shadow-demo {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-md);
+    }
+    .shadow-demo .card {
+      background: var(--bg-elev-1);
+      padding: var(--space-md);
+      border-radius: var(--radius-md);
+      font-family: var(--primitive-font-mono);
+      font-size: var(--fs-caption);
+      color: var(--tx-1);
+    }
+    .shadow-demo .card.s1 { box-shadow: var(--shadow-pop); }
+    .shadow-demo .card.s2 { box-shadow: var(--shadow-modal); }
+    .shadow-demo .card.s3 { box-shadow: var(--shadow-overlay); }
+    .shadow-demo .card.si { box-shadow: var(--shadow-inset); }
+
+    .radius-demo { display: flex; flex-wrap: wrap; gap: var(--space-md); align-items: end; }
+    .radius-demo .box {
+      width: 96px; height: 64px;
+      background: var(--c-accent);
+      color: var(--tx-on-accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: var(--fs-caption);
+    }
+    .r-sm { border-radius: var(--radius-sm); }
+    .r-md { border-radius: var(--radius-md); }
+    .r-lg { border-radius: var(--radius-lg); }
+    .r-xl { border-radius: var(--radius-xl); }
+    .r-2xl{ border-radius: var(--radius-2xl); }
+    .r-pop{ border-radius: var(--radius-pop); }
+    .r-pill{ border-radius: var(--radius-pill); }
+
+    /* spacing demo */
+    .spacing-demo { display: flex; flex-direction: column; gap: 2px; }
+    .spacing-demo .row {
+      display: flex; align-items: center; gap: var(--space-md);
+      font-family: var(--primitive-font-mono); font-size: var(--fs-caption);
+    }
+    .spacing-demo .bar {
+      background: var(--c-accent);
+      height: 12px;
+    }
+
+    .note { color: var(--tx-3); font-size: var(--fs-caption); margin-top: var(--space-sm); }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <strong style="margin-right: auto;">Notology Design Tokens — Stage 5.0.1</strong>
+    <button type="button" id="btn-light"  class="secondary">Light</button>
+    <button type="button" id="btn-system" class="secondary">System</button>
+    <button type="button" id="btn-dark"   class="secondary">Dark</button>
+    <button type="button" id="btn-primary">Primary action</button>
+  </div>
+
+  <h1>Three-tier design token preview</h1>
+  <p>
+    This page renders every Tier 2 semantic token + selected Tier 3 component tokens
+    landed in Stage 5.0.1. Toggle <code>data-theme</code> with the buttons above to
+    verify light / dark coverage. Tier 1 primitives are not shown directly here —
+    they are intentionally invisible to consumer code.
+  </p>
+
+  <h2>Surfaces — <code>--bg-*</code></h2>
+  <div class="grid">
+    <div class="sw"><div class="chip" style="background: var(--bg-app);"></div><div class="name">--bg-app</div><div class="desc">window canvas</div></div>
+    <div class="sw"><div class="chip" style="background: var(--bg-elev-1);"></div><div class="name">--bg-elev-1</div><div class="desc">cards, sidebar</div></div>
+    <div class="sw"><div class="chip" style="background: var(--bg-elev-2);"></div><div class="name">--bg-elev-2</div><div class="desc">popovers, modals</div></div>
+    <div class="sw"><div class="chip" style="background: var(--bg-elev-3);"></div><div class="name">--bg-elev-3</div><div class="desc">top-most overlays</div></div>
+    <div class="sw"><div class="chip" style="background: var(--bg-input);"></div><div class="name">--bg-input</div><div class="desc">form fields</div></div>
+    <div class="sw"><div class="chip" style="background: var(--bg-input-hover);"></div><div class="name">--bg-input-hover</div><div class="desc">hover state</div></div>
+    <div class="sw"><div class="chip" style="background: var(--bg-input-active);"></div><div class="name">--bg-input-active</div><div class="desc">pressed state</div></div>
+  </div>
+
+  <h2>Text — <code>--tx-*</code></h2>
+  <div class="grid">
+    <div class="sw"><div class="chip" style="background: var(--bg-elev-1); display:flex; align-items:center; justify-content:center; color: var(--tx-1);">Aa 한글</div><div class="name">--tx-1</div><div class="desc">primary</div></div>
+    <div class="sw"><div class="chip" style="background: var(--bg-elev-1); display:flex; align-items:center; justify-content:center; color: var(--tx-2);">Aa 한글</div><div class="name">--tx-2</div><div class="desc">secondary</div></div>
+    <div class="sw"><div class="chip" style="background: var(--bg-elev-1); display:flex; align-items:center; justify-content:center; color: var(--tx-3);">Aa 한글</div><div class="name">--tx-3</div><div class="desc">tertiary</div></div>
+    <div class="sw"><div class="chip" style="background: var(--bg-elev-1); display:flex; align-items:center; justify-content:center; color: var(--tx-disabled);">Aa 한글</div><div class="name">--tx-disabled</div><div class="desc">disabled</div></div>
+    <div class="sw"><div class="chip" style="background: var(--c-accent); display:flex; align-items:center; justify-content:center; color: var(--tx-on-accent);">Aa 한글</div><div class="name">--tx-on-accent</div><div class="desc">on accent bg</div></div>
+  </div>
+
+  <h2>Borders — <code>--bdr-*</code></h2>
+  <div class="grid">
+    <div class="sw"><div class="chip" style="background: var(--bg-elev-1); border: 1px solid var(--bdr-1);"></div><div class="name">--bdr-1</div><div class="desc">subtle</div></div>
+    <div class="sw"><div class="chip" style="background: var(--bg-elev-1); border: 1px solid var(--bdr-2);"></div><div class="name">--bdr-2</div><div class="desc">default</div></div>
+    <div class="sw"><div class="chip" style="background: var(--bg-elev-1); border: 1px solid var(--bdr-3);"></div><div class="name">--bdr-3</div><div class="desc">strong</div></div>
+    <div class="sw"><div class="chip" style="background: var(--bg-elev-1); border: 2px solid var(--bdr-focus);"></div><div class="name">--bdr-focus</div><div class="desc">focus ring</div></div>
+  </div>
+
+  <h2>Accent &amp; status</h2>
+  <div class="grid">
+    <div class="sw"><div class="chip" style="background: var(--c-accent);"></div><div class="name">--c-accent</div></div>
+    <div class="sw"><div class="chip" style="background: var(--c-accent-hover);"></div><div class="name">--c-accent-hover</div></div>
+    <div class="sw"><div class="chip" style="background: var(--c-accent-pressed);"></div><div class="name">--c-accent-pressed</div></div>
+    <div class="sw"><div class="chip" style="background: var(--c-success);"></div><div class="name">--c-success</div></div>
+    <div class="sw"><div class="chip" style="background: var(--c-warning);"></div><div class="name">--c-warning</div></div>
+    <div class="sw"><div class="chip" style="background: var(--c-danger);"></div><div class="name">--c-danger</div></div>
+    <div class="sw"><div class="chip" style="background: var(--c-info);"></div><div class="name">--c-info</div></div>
+  </div>
+  <div class="state-row" style="margin-top: var(--space-md);">
+    <span class="pill success">Synced</span>
+    <span class="pill warning">Pending</span>
+    <span class="pill danger">Conflict</span>
+    <span class="pill info">Info</span>
+  </div>
+
+  <h2>Typography — <code>--fs-*</code> / <code>--lh-*</code></h2>
+  <div class="typo-row"><div class="label">h1</div><div class="sample" style="font-size: var(--fs-h1); line-height: var(--lh-tight); font-weight: 700;">노톨로지 디자인 시스템</div><div class="meta">28 / tight</div></div>
+  <div class="typo-row"><div class="label">h2</div><div class="sample" style="font-size: var(--fs-h2); line-height: var(--lh-tight); font-weight: 600;">노톨로지 디자인 시스템</div><div class="meta">22 / tight</div></div>
+  <div class="typo-row"><div class="label">h3</div><div class="sample" style="font-size: var(--fs-h3); line-height: var(--lh-normal); font-weight: 600;">노톨로지 디자인 시스템</div><div class="meta">18 / normal</div></div>
+  <div class="typo-row"><div class="label">title</div><div class="sample" style="font-size: var(--fs-title); line-height: var(--lh-normal);">Notology design system — sample body 한글 본문 표본</div><div class="meta">16 / normal</div></div>
+  <div class="typo-row"><div class="label">body</div><div class="sample" style="font-size: var(--fs-body); line-height: var(--lh-normal);">Notology design system — sample body 한글 본문 표본</div><div class="meta">14 / normal</div></div>
+  <div class="typo-row"><div class="label">caption</div><div class="sample" style="font-size: var(--fs-caption); line-height: var(--lh-normal);">Notology design system — caption 캡션 표본</div><div class="meta">12 / normal</div></div>
+  <p class="note">한글 / Latin baseline check — both should sit on the same baseline at every size.</p>
+
+  <h2>Spacing — <code>--space-*</code></h2>
+  <div class="spacing-demo">
+    <div class="row"><span style="width: 60px;">xs</span><div class="bar" style="width: var(--space-xs);"></div><span>4px</span></div>
+    <div class="row"><span style="width: 60px;">sm</span><div class="bar" style="width: var(--space-sm);"></div><span>8px</span></div>
+    <div class="row"><span style="width: 60px;">md</span><div class="bar" style="width: var(--space-md);"></div><span>12px</span></div>
+    <div class="row"><span style="width: 60px;">lg</span><div class="bar" style="width: var(--space-lg);"></div><span>16px</span></div>
+    <div class="row"><span style="width: 60px;">xl</span><div class="bar" style="width: var(--space-xl);"></div><span>24px</span></div>
+    <div class="row"><span style="width: 60px;">2xl</span><div class="bar" style="width: var(--space-2xl);"></div><span>32px</span></div>
+    <div class="row"><span style="width: 60px;">3xl</span><div class="bar" style="width: var(--space-3xl);"></div><span>48px</span></div>
+  </div>
+
+  <h2>Radius — <code>--radius-*</code></h2>
+  <div class="radius-demo">
+    <div class="box r-sm">sm/4</div>
+    <div class="box r-md">md/6</div>
+    <div class="box r-lg">lg/8</div>
+    <div class="box r-xl">xl/12</div>
+    <div class="box r-2xl">2xl/16</div>
+    <div class="box r-pop">pop/10</div>
+    <div class="box r-pill">pill</div>
+  </div>
+  <p class="note">
+    <code>--radius-lg</code> stays at 8 (plan target was 10) to avoid regressing
+    Stage 4.x surfaces; <code>--radius-pop</code> is the new 10px pop-out token.
+  </p>
+
+  <h2>Shadows — <code>--shadow-*</code></h2>
+  <div class="shadow-demo">
+    <div class="card s1">shadow-pop</div>
+    <div class="card s2">shadow-modal</div>
+    <div class="card s3">shadow-overlay</div>
+    <div class="card si">shadow-inset</div>
+  </div>
+
+  <h2>Motion — <code>--motion-*</code> / <code>--ease-*</code></h2>
+  <p>
+    Hover the primary button at the top — transition runs at
+    <code>var(--motion-fast)</code> with <code>var(--ease-standard)</code>.
+    A user with <code>prefers-reduced-motion: reduce</code> set will see all
+    durations collapse to 1ms (defined inside <code>tokens.css</code>).
+  </p>
+
+  <script>
+    const setTheme = (t) => {
+      document.documentElement.setAttribute('data-theme', t);
+      localStorage.setItem('notology-preview-theme', t);
+    };
+    document.getElementById('btn-light').addEventListener('click',  () => setTheme('light'));
+    document.getElementById('btn-system').addEventListener('click', () => setTheme('system'));
+    document.getElementById('btn-dark').addEventListener('click',   () => setTheme('dark'));
+    const saved = localStorage.getItem('notology-preview-theme');
+    if (saved) setTheme(saved);
+  </script>
+</body>
+</html>
