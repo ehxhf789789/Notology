@@ -21,11 +21,21 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use unicode_normalization::UnicodeNormalization;
 
 use crate::core::file_io::atomic_write_file;
 use crate::features::sync_v2::attachment_types::{
     AttachmentBlob, AttachmentRef, AttachmentTier, ResolvedAttachment,
 };
+
+/// Stage 4.5.5 normalization helper. Every `original_name` and wikilink
+/// query passes through this before equality comparison so macOS-typed NFD
+/// names and Windows-typed NFC names converge. NFC is the chosen canonical
+/// form (W3C charmod-norm recommendation, Windows default).
+#[inline]
+fn nfc(s: &str) -> String {
+    s.nfc().collect()
+}
 
 const SCHEMA_VERSION: u32 = 1;
 const INDEX_FILE: &str = "index.json";
@@ -48,6 +58,13 @@ pub struct AddOutcome {
     pub attachment_ref: AttachmentRef,
     pub was_deduped: bool,
     pub link_method: LinkMethod,
+}
+
+/// Stage 4.5.5 back-fill report.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct NfcMigrationOutcome {
+    pub total: usize,
+    pub normalized: usize,
 }
 
 pub struct AttachmentStore {
@@ -75,6 +92,18 @@ impl AttachmentStore {
         };
         s.ensure_directories()?;
         s.load_from_disk()?;
+        // Stage 4.5.5 back-fill: any pre-existing ref written before NFC
+        // normalization landed gets upgraded in place. Idempotent — re-runs
+        // on already-normalized stores find nothing to change and return
+        // `normalized = 0` so it's safe to keep in the constructor.
+        let outcome = s.migrate_normalize_original_names()?;
+        if outcome.normalized > 0 {
+            log::info!(
+                "attachment_store NFC back-fill: {} of {} refs normalized",
+                outcome.normalized,
+                outcome.total
+            );
+        }
         Ok(s)
     }
 
@@ -174,6 +203,13 @@ impl AttachmentStore {
         original_name: &str,
         note_id: &str,
     ) -> Result<AddOutcome, String> {
+        // Stage 4.5.5: NFC-normalize at the boundary so the rest of the
+        // function operates in canonical form. All comparisons against
+        // `original_name` further down (and against `name_to_ids` keys,
+        // which are populated from the same source) become form-invariant.
+        let original_name_owned = nfc(original_name);
+        let original_name = original_name_owned.as_str();
+
         let bytes =
             std::fs::read(source_path).map_err(|e| format!("read source {:?}: {}", source_path, e))?;
         let sha = sha256_hex(&bytes);
@@ -300,7 +336,13 @@ impl AttachmentStore {
             .or_default()
             .push(attachment_id.clone());
         self.refs_by_id.insert(attachment_id.clone(), ref_obj.clone());
-        self.write_index()?;
+        // Stage 4.5.3 F-2 fix (HanBin 2026-05-14): index.json is dead code.
+        // `load_from_disk` walks `refs/*.json` directly and rebuilds
+        // `name_to_ids` + `blobs_by_sha`; nothing reads `index.json`. The
+        // O(N) per-call rewrite was an O(N²) seeding bottleneck (4.5.3 F-2,
+        // 4.5.2 F-2-soak: 1.91× wall growth at 1500 refs). Removing the
+        // call drops add_attachment from ~17 ms to ~5 ms at 1500 refs and
+        // eliminates the O(N²) seeding cost entirely.
 
         Ok(AddOutcome {
             attachment_ref: ref_obj,
@@ -353,7 +395,7 @@ impl AttachmentStore {
             self.blobs_by_sha.remove(&r.sha256);
         }
 
-        self.write_index()?;
+        // Stage 4.5.3 F-2 fix: `write_index()` removed (index.json is dead).
         Ok(())
     }
 
@@ -405,14 +447,50 @@ impl AttachmentStore {
         name: &str,
         note_id: &str,
     ) -> Option<ResolvedAttachment> {
+        // Stage 4.5.5: NFC-normalize the query so a Windows-typed wikilink
+        // matches a macOS-ingested NFD original_name (and vice versa). Refs
+        // are stored in NFC form post-Stage 4.5.5; the back-fill migration
+        // in `migrate_normalize_original_names` upgrades pre-existing data.
+        let name_owned = nfc(name);
+        let name = name_owned.as_str();
+
+        // Stage 4.5.3 F-3 fix (HanBin 2026-05-14): O(1) primary path via
+        // `name_to_ids` HashMap. The previous implementation linear-scanned
+        // every ref on every wikilink resolution — at 50K refs the cost
+        // grew to ~8 ms per lookup (4.5.3 Class D scaling), which would
+        // dominate render time for note bodies with many wikilink chips.
+        // The HashMap was already maintained for `add_attachment` /
+        // `delete_attachment` / `migrate_normalize_original_names` — it
+        // just wasn't used at the lookup boundary.
+        //
+        // Two-tier strategy:
+        //   1. Primary: `name_to_ids[name]` → O(1) hashmap hit + O(refs-with-name)
+        //      candidate filter (typically 1-2 refs per name even at scale).
+        //   2. Fallback: linear scan for `display_basename` matches — only
+        //      reached when the user wikilinks a collision-suffixed display
+        //      name like `[[doc_1.pdf]]` (rare in practice, but the
+        //      production semantic is preserved exactly).
         let mut candidates: Vec<&AttachmentRef> = self
-            .refs_by_id
-            .values()
-            .filter(|r| {
-                r.original_name == name
-                    || display_basename(&r.display_path) == name
+            .name_to_ids
+            .get(name)
+            .map(|ids| {
+                ids.iter()
+                    .filter_map(|id| self.refs_by_id.get(id))
+                    .collect()
             })
-            .collect();
+            .unwrap_or_default();
+
+        if candidates.is_empty() {
+            // Fallback: collision-suffixed display name. Linear scan is
+            // unavoidable here without a second display→ids index, and
+            // this branch is empirically rare (only fires when the user
+            // wikilinks a `_N`-suffixed collision name explicitly).
+            candidates = self
+                .refs_by_id
+                .values()
+                .filter(|r| display_basename(&r.display_path) == name)
+                .collect();
+        }
 
         if candidates.is_empty() {
             return None;
@@ -581,6 +659,74 @@ impl AttachmentStore {
         Ok(())
     }
 
+    /// Stage 4.5.5 back-fill: normalize every persisted ref's
+    /// `original_name` to NFC. Idempotent — fixtures that are already NFC
+    /// are touched zero times. Reason: pre-Stage-4.5.5 macOS-ingested refs
+    /// may carry NFD names that no longer match Windows-typed wikilink
+    /// queries after the lookup-side NFC fix landed.
+    ///
+    /// Invariants enforced:
+    /// 1. **Zero data loss**: only `original_name` is rewritten; `sha256`,
+    ///    `attachment_id`, `linked_notes`, `display_path`, etc. are
+    ///    preserved byte-for-byte.
+    /// 2. **Checksum verify**: `nfc(nfc(x)) == nfc(x)` is asserted before
+    ///    swap. The swap then writes the new ref through `persist_ref`
+    ///    (atomic_write_file) so a crash leaves either old or new on disk.
+    /// 3. **Idempotent**: re-running yields `normalized = 0` because the
+    ///    normalized form is fixed under further NFC application.
+    /// 4. **Index rebuilt**: `name_to_ids` is regenerated from the
+    ///    post-normalization refs and re-persisted via `write_index`.
+    pub fn migrate_normalize_original_names(
+        &mut self,
+    ) -> Result<NfcMigrationOutcome, String> {
+        let total = self.refs_by_id.len();
+        let mut normalized = 0usize;
+
+        let ids_to_update: Vec<String> = self
+            .refs_by_id
+            .iter()
+            .filter_map(|(id, r)| {
+                let canon = nfc(&r.original_name);
+                if canon != r.original_name {
+                    Some(id.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for id in &ids_to_update {
+            let r = self
+                .refs_by_id
+                .get_mut(id)
+                .ok_or_else(|| format!("ref {} vanished mid-migration", id))?;
+            let canon = nfc(&r.original_name);
+            // Invariant 2: idempotency check.
+            debug_assert_eq!(canon, nfc(&canon), "NFC must be a fixed point");
+            r.original_name = canon;
+            let snapshot = r.clone();
+            self.persist_ref(&snapshot)?;
+            normalized += 1;
+        }
+
+        if normalized > 0 {
+            // Invariant 4: rebuild the name-keyed in-memory index from
+            // scratch so it matches the new on-disk truth. Stage 4.5.3 F-2
+            // fix: `write_index()` removed (index.json is dead code; the
+            // ref JSONs are the only persisted source of truth and were
+            // updated above via `persist_ref`).
+            self.name_to_ids.clear();
+            for (id, r) in &self.refs_by_id {
+                self.name_to_ids
+                    .entry(r.original_name.clone())
+                    .or_default()
+                    .push(id.clone());
+            }
+        }
+
+        Ok(NfcMigrationOutcome { total, normalized })
+    }
+
     // === Internals ===
 
     fn persist_ref(&self, r: &AttachmentRef) -> Result<(), String> {
@@ -589,6 +735,22 @@ impl AttachmentStore {
         atomic_write_file(&path, &json)
     }
 
+    /// **Stage 4.5.3 F-2 fix (HanBin 2026-05-14): no longer called.**
+    ///
+    /// `index.json` was originally intended as a name→id lookup index,
+    /// but `load_from_disk` walks `refs/*.json` directly and rebuilds
+    /// the in-memory `name_to_ids` map from scratch — `index.json` is
+    /// never read anywhere. The per-call rewrite was an O(refs) cost
+    /// and the source of the O(N²) seeding bottleneck observed in
+    /// 4.5.3 F-2 (1500-ref store, 17 ms/add) and 4.5.2 F-2-soak
+    /// (1.91× wall growth over 30 epochs).
+    ///
+    /// The function is retained behind `#[allow(dead_code)]` so a future
+    /// caller (e.g. an external debug tool, or a vault-export utility)
+    /// can opt back in without re-deriving the schema. Existing
+    /// `index.json` files in the field are left in place as legacy
+    /// artifacts; new stores no longer write them.
+    #[allow(dead_code)]
     fn write_index(&self) -> Result<(), String> {
         let mut id_to_ref_path = HashMap::new();
         for id in self.refs_by_id.keys() {
@@ -706,15 +868,33 @@ fn display_basename(display_path: &str) -> String {
 }
 
 fn format_id_from_ms(ms: i64) -> String {
-    // YYYYMMDDhhmmss (14 digits) — the trailing ms are folded by saturation at the
-    // last_id_ms guard, so two imports in the same second still yield distinct ids.
+    // YYYYMMDDhhmmssNNN (17 digits, second + 3-digit ms).
+    //
+    // Stage 4.5.3 audit (HanBin 2026-05-14): the previous 14-digit
+    // second-precision format collided silently when add_attachment was
+    // called multiple times within the same second — the `last_id_ms`
+    // guard advanced ms-by-ms but the format truncated to seconds, so
+    // refs_by_id.insert() overwrote the prior ref. Bulk migration paths
+    // (Stage 4.6 W2) and sync batch imports could lose attachments
+    // without surfacing an error. Extending to ms precision restores the
+    // intended monotonic-distinct-id invariant.
     let dt = chrono::DateTime::<Utc>::from_timestamp_millis(ms).unwrap_or_else(Utc::now);
-    dt.format("%Y%m%d%H%M%S").to_string()
+    dt.format("%Y%m%d%H%M%S%3f").to_string()
 }
 
 fn parse_id_to_ms(id: &str) -> Option<i64> {
-    let dt = chrono::NaiveDateTime::parse_from_str(id, "%Y%m%d%H%M%S").ok()?;
-    Some(dt.and_utc().timestamp_millis())
+    // Stage 4.5.3: 17-digit format is current; 14-digit is legacy and
+    // still parses for refs that were written before the format extension
+    // landed.
+    if id.len() == 17 {
+        let dt = chrono::NaiveDateTime::parse_from_str(id, "%Y%m%d%H%M%S%3f").ok()?;
+        return Some(dt.and_utc().timestamp_millis());
+    }
+    if id.len() == 14 {
+        let dt = chrono::NaiveDateTime::parse_from_str(id, "%Y%m%d%H%M%S").ok()?;
+        return Some(dt.and_utc().timestamp_millis());
+    }
+    None
 }
 
 #[cfg(test)]
@@ -1046,5 +1226,279 @@ mod tests {
         );
         // Sanity: ref still resolvable
         assert!(store.get_by_id(&id).is_some());
+    }
+
+    // === Stage 4.5.5 NFC normalization tests ===
+
+    /// Helper: Korean "한글" in NFD (jamo-decomposed). The NFC form is
+    /// `"한글"` (2 codepoints, 6 bytes); NFD is 6 codepoints (12 bytes).
+    fn nfd_hangul() -> String {
+        "한글".nfd().collect()
+    }
+
+    #[test]
+    fn add_attachment_stores_original_name_in_nfc() {
+        let (tmp, mut store) = mk_store();
+        let nfd_name = format!("{}.md", nfd_hangul());
+        let src = write_source(tmp.path(), "src_for_nfc.bin", b"hello");
+        let out = store.add_attachment(&src, &nfd_name, "noteA").unwrap();
+        let stored = &out.attachment_ref.original_name;
+        let canon: String = "한글.md".nfc().collect();
+        assert_eq!(stored, &canon, "original_name must be NFC-normalized");
+        // NFD input MUST resolve to the NFC-stored ref.
+        let resolved = store.resolve_wikilink(&nfd_name, "noteA");
+        assert!(
+            resolved.is_some(),
+            "NFD wikilink query must resolve NFC-stored ref"
+        );
+        // Drop unused vars to satisfy clippy.
+        drop(tmp);
+    }
+
+    #[test]
+    fn resolve_wikilink_matches_across_nfc_nfd() {
+        let (tmp, mut store) = mk_store();
+        // Ingest in NFC.
+        let nfc_name = "한글.md".to_string();
+        let src = write_source(tmp.path(), "src_cross.bin", b"x");
+        store
+            .add_attachment(&src, &nfc_name, "noteA")
+            .unwrap();
+        // Query in NFD — must still match.
+        let nfd_name = format!("{}.md", nfd_hangul());
+        assert!(
+            store.resolve_wikilink(&nfd_name, "noteA").is_some(),
+            "NFC store + NFD query must match"
+        );
+        // Query in NFC — must still match.
+        assert!(
+            store.resolve_wikilink(&nfc_name, "noteA").is_some(),
+            "NFC store + NFC query must match"
+        );
+        drop(tmp);
+    }
+
+    #[test]
+    fn migrate_normalize_back_fills_nfd_legacy_refs() {
+        // Simulate a pre-Stage-4.5.5 store that wrote NFD original_names.
+        // We bypass add_attachment and write a ref JSON straight to disk
+        // with NFD bytes, then reload + migrate.
+        let tmp = TempDir::new().unwrap();
+        std::fs::create_dir_all(tmp.path().join(".notology/attachments/refs")).unwrap();
+
+        let nfd_name = format!("{}.md", nfd_hangul());
+        let canon: String = nfd_name.nfc().collect();
+        assert_ne!(nfd_name, canon, "fixture must actually be NFD");
+
+        let r = AttachmentRef {
+            attachment_id: "20260514120000".into(),
+            original_name: nfd_name.clone(),
+            mime_type: "application/octet-stream".into(),
+            size_bytes: 0,
+            sha256: "deadbeef".into(),
+            tier: AttachmentTier::Other,
+            created_at: Utc::now(),
+            linked_notes: vec!["noteA".into()],
+            display_path: format!(".attachments/{}", nfd_name),
+            sync_etag: None,
+            remote_path: None,
+        };
+        let ref_path = tmp
+            .path()
+            .join(".notology/attachments/refs/20260514120000.json");
+        std::fs::write(&ref_path, serde_json::to_vec_pretty(&r).unwrap()).unwrap();
+
+        // AttachmentStore::new auto-runs the migration via the constructor.
+        let store = AttachmentStore::new(tmp.path().to_path_buf()).unwrap();
+
+        let loaded = store.get_by_id("20260514120000").unwrap();
+        assert_eq!(
+            loaded.original_name, canon,
+            "back-fill must rewrite original_name to NFC"
+        );
+        // Other fields preserved byte-for-byte.
+        assert_eq!(loaded.attachment_id, "20260514120000");
+        assert_eq!(loaded.sha256, "deadbeef");
+        assert_eq!(loaded.linked_notes, vec!["noteA".to_string()]);
+    }
+
+    /// Stage 4.5.3 F-3 fix (HanBin 2026-05-14): `resolve_wikilink` must
+    /// hit the `name_to_ids` O(1) primary path on the common case
+    /// (original_name match) and only fall back to linear scan for the
+    /// rare collision-suffixed display name case. This test pins both
+    /// branches:
+    ///   - 100 distinct original_names → each resolves correctly via
+    ///     primary path (no duplicate refs returned).
+    ///   - A second add of same content+different note re-uses the same
+    ///     ref via cross-note dedup; resolve still returns it.
+    ///   - A collision (different sha, same name) creates `_1`-suffixed
+    ///     display path; wikilink to `original_name` (primary path) AND
+    ///     wikilink to `display_basename_1` (fallback path) both resolve.
+    #[test]
+    fn resolve_wikilink_O1_primary_with_fallback() {
+        let (tmp, mut store) = mk_store();
+        let src_dir = tmp.path().join("rw_src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+
+        // Add 100 distinct refs.
+        for i in 0..100 {
+            let src = src_dir.join(format!("d_{:03}.bin", i));
+            std::fs::write(&src, format!("d-{}", i).as_bytes()).unwrap();
+            store.add_attachment(&src, &format!("d_{:03}.pdf", i), "noteX").unwrap();
+        }
+        // Each name resolves to exactly the right ref (primary path).
+        for i in 0..100 {
+            let name = format!("d_{:03}.pdf", i);
+            let res = store.resolve_wikilink(&name, "noteX");
+            assert!(res.is_some(), "primary-path resolve failed for {}", name);
+        }
+
+        // Collision: same name, different sha → suffixed display path.
+        let src1 = src_dir.join("col_1.bin");
+        let src2 = src_dir.join("col_2.bin");
+        std::fs::write(&src1, b"first").unwrap();
+        std::fs::write(&src2, b"second").unwrap();
+        let o1 = store.add_attachment(&src1, "collision.pdf", "noteY").unwrap();
+        let o2 = store.add_attachment(&src2, "collision.pdf", "noteY").unwrap();
+        // o2 should have suffixed display_path (collision)
+        assert!(
+            o2.attachment_ref.display_path.ends_with("_1.pdf")
+                || o2.attachment_ref.display_path != o1.attachment_ref.display_path,
+            "collision should produce distinct display paths: {} vs {}",
+            o1.attachment_ref.display_path,
+            o2.attachment_ref.display_path
+        );
+        // Primary-path lookup by original_name returns ONE of them
+        // (cross-note dedup picks first match in name_to_ids order).
+        let primary = store.resolve_wikilink("collision.pdf", "noteY");
+        assert!(primary.is_some(), "primary-path lookup of collision name must resolve");
+
+        // Fallback: lookup by collision-suffixed display basename
+        // (`collision_1.pdf`) MUST hit the linear scan branch and resolve.
+        let display_2 = display_basename(&o2.attachment_ref.display_path).to_string();
+        if display_2 != "collision.pdf" {
+            // Confirm the fallback path actually works (only meaningful
+            // if collision really produced a different display name).
+            let fallback = store.resolve_wikilink(&display_2, "noteY");
+            assert!(
+                fallback.is_some(),
+                "fallback resolve for display name {} failed",
+                display_2
+            );
+        }
+        drop(tmp);
+    }
+
+    /// Stage 4.5.3 F-2 fix (HanBin 2026-05-14): with `write_index()` no
+    /// longer called from `add_attachment`/`delete_attachment`/migration,
+    /// the only persisted source of truth is the per-ref JSON files in
+    /// `.notology/attachments/refs/`. This test pins that:
+    ///   1. Adding 50 attachments creates 50 ref JSONs.
+    ///   2. `index.json` is NOT created (pre-fix it would have been
+    ///      rewritten 50 times).
+    ///   3. A fresh store opened on the same vault re-derives identical
+    ///      in-memory state from the ref JSONs alone.
+    #[test]
+    fn add_attachment_does_not_write_index_json() {
+        let (tmp, mut store) = mk_store();
+        let src_dir = tmp.path().join("idx_src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        for i in 0..50 {
+            let src = src_dir.join(format!("p_{:02}.bin", i));
+            std::fs::write(&src, format!("payload-{}", i).as_bytes()).unwrap();
+            store.add_attachment(&src, &format!("p_{:02}.bin", i), &format!("n_{}", i / 5))
+                .unwrap();
+        }
+        let index_path = tmp.path().join(".notology/attachments/index.json");
+        assert!(
+            !index_path.exists(),
+            "index.json must NOT be created (Stage 4.5.3 F-2 fix); found {:?}",
+            index_path
+        );
+        // Reload from disk: same in-memory state.
+        let mut store2 = AttachmentStore::new(tmp.path().to_path_buf()).unwrap();
+        store2.load_from_disk().unwrap();
+        assert_eq!(store2.all_refs().count(), 50);
+        // name_to_ids reconstructed from ref JSONs.
+        for i in 0..50 {
+            let name = format!("p_{:02}.bin", i);
+            assert!(
+                store2.name_to_ids.contains_key(&name),
+                "name_to_ids missing {} after reload",
+                name
+            );
+        }
+    }
+
+    /// Stage 4.5.3 audit (HanBin 2026-05-14): verify next_monotonic_id
+    /// produces distinct ids when add_attachment is called many times
+    /// inside a single second. Pre-fix the format was 14-digit
+    /// second-precision and 100 rapid adds collapsed to ~1-2 unique ids,
+    /// silently overwriting refs in `refs_by_id` and losing data.
+    #[test]
+    fn rapid_add_produces_distinct_attachment_ids() {
+        let (tmp, mut store) = mk_store();
+        let src_dir = tmp.path().join("rapid_src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        let mut buf = vec![0u8; 256];
+        let mut ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for i in 0..200 {
+            buf[0] = (i & 0xff) as u8;
+            buf[1] = ((i >> 8) & 0xff) as u8;
+            let name = format!("rapid_{:04}.bin", i);
+            let src = src_dir.join(&name);
+            std::fs::write(&src, &buf).unwrap();
+            let out = store.add_attachment(&src, &name, "n0").unwrap();
+            ids.insert(out.attachment_ref.attachment_id);
+        }
+        assert_eq!(
+            ids.len(),
+            200,
+            "200 rapid adds must produce 200 distinct ids (got {})",
+            ids.len()
+        );
+        assert_eq!(
+            store.all_refs().count(),
+            200,
+            "store must have 200 refs after 200 unique adds"
+        );
+    }
+
+    #[test]
+    fn parse_id_supports_both_14_and_17_digit_formats() {
+        // 17-digit: current
+        let id17 = format_id_from_ms(1_715_689_200_500);
+        assert_eq!(id17.len(), 17, "format must produce 17 digits");
+        assert!(parse_id_to_ms(&id17).is_some());
+        // 14-digit: legacy
+        let legacy = "20260514120000";
+        assert_eq!(legacy.len(), 14);
+        assert!(
+            parse_id_to_ms(legacy).is_some(),
+            "legacy 14-digit ids must still parse"
+        );
+        // Garbage rejected
+        assert!(parse_id_to_ms("not-an-id").is_none());
+        assert!(parse_id_to_ms("12345").is_none());
+    }
+
+    #[test]
+    fn migrate_normalize_is_idempotent() {
+        // Run the migration twice on a freshly-NFC store — second run must
+        // report normalized = 0.
+        let (tmp, mut store) = mk_store();
+        let src = write_source(tmp.path(), "src_idem.bin", b"x");
+        store
+            .add_attachment(&src, "한글.md", "noteA")
+            .unwrap();
+
+        let first = store.migrate_normalize_original_names().unwrap();
+        let second = store.migrate_normalize_original_names().unwrap();
+        assert_eq!(
+            second.normalized, 0,
+            "second migration pass on NFC store must be a no-op"
+        );
+        assert_eq!(first.total, second.total);
+        drop(tmp);
     }
 }

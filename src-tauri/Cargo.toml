@@ -57,11 +57,27 @@ rayon = "1.10"
 futures = "0.3"
 futures-util = "0.3"
 sha2 = "0.10"
+# Stage 4.5.5 (HanBin 2026-05-14): NFC-normalize attachment original_name
+# at ingest + lookup. macOS Finder produces NFD by default; Windows NFC.
+# Without this, the same Korean filename ingested on macOS and queried on
+# Windows produces a silent dedup miss (audit found 13/13 NFC≠NFD fixtures
+# fail cross-form lookup). See docs/architecture/stage_4_5_reports/4_5_5.md.
+unicode-normalization = "0.1"
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 # HWP rendering (desktop-only)
 hwpers = { version = "0.3", optional = true }
+
+# HanBin 2026-05-13 round 12: kill the PDF viewer's ⋮ overflow menu at the
+# WebView2 settings level (chrome://settings nav from "Settings" item was
+# black-screening the hover window). We need ICoreWebView2Settings7 +
+# SetHiddenPdfToolbarItems, plus the windows-core Interface trait for the
+# QueryInterface cast. Both crates are already transitive deps of Tauri,
+# we just promote them to direct so we can `use` them.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38"
+windows = "0.61"
 
 [features]
 default = ["desktop", "devtools"]

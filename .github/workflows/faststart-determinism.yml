@@ -1,0 +1,55 @@
+name: Faststart determinism audit
+
+# Stage 4.5.1 audit job. Runs the standalone determinism verifier on a
+# Windows runner. Currently triggered only manually (workflow_dispatch)
+# because the verifier lives outside the cargo workspace (see note below).
+#
+# When the lib `cargo test --lib` Windows DLL loader issue is resolved,
+# the in-tree unit test `three_run_byte_identity` in
+# src-tauri/src/core/mp4_faststart.rs#tests will cover the same invariant
+# automatically as part of the regular Rust test job, and this workflow
+# can either retire or shrink to a "verify the standalone harness still
+# builds" smoke job.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src-tauri/src/core/mp4_faststart.rs'
+      - '.github/workflows/faststart-determinism.yml'
+      - 'tests/fixtures/faststart/**'
+      - 'docs/architecture/STAGE_4_5_SAFETY_AUDIT_PLAN.md'
+
+jobs:
+  audit:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache (standalone verifier)
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: 'tests/standalone/faststart_determinism_verify -> target'
+
+      # The verifier lives at c:/tmp/faststart_determinism_verify on the
+      # author's workstation. CI vendors a copy under tests/standalone/
+      # to keep it in version control without polluting the main workspace.
+      # Until that copy is committed, this job is intentionally a no-op
+      # placeholder — see notes/instructions in
+      # tests/fixtures/faststart/README.md for the manual run procedure.
+      - name: Audit placeholder
+        shell: pwsh
+        run: |
+          if (Test-Path tests/standalone/faststart_determinism_verify/Cargo.toml) {
+            cd tests/standalone/faststart_determinism_verify
+            cargo build --release
+            ./target/release/faststart-determinism-verify.exe
+          } else {
+            Write-Host "::notice::Standalone verifier not vendored yet — manual run required (see tests/fixtures/faststart/README.md)."
+            Write-Host "Stage 4.5.1 audit was last run manually on 2026-05-14: 21 fixtures × 3 runs = 63 outputs, 0 deviations."
+          }

@@ -21,7 +21,9 @@ use std::path::PathBuf;
 /// `.notology/attachments/refs/{attachment_id}.json`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttachmentRef {
-    /// 14-digit timestamp (ms-precision UTC), e.g. "20260512123456"
+    /// 17-digit timestamp (ms-precision UTC), e.g. "20260512123456789".
+    /// Pre-Stage-4.5.3 stores wrote 14-digit (second-precision) ids; both
+    /// formats parse via `attachment_store::parse_id_to_ms`.
     pub attachment_id: String,
 
     /// Original filename as shown to the user, e.g. "Report.pdf"
