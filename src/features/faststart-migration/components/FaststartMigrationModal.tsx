@@ -13,6 +13,7 @@
  */
 
 import { useFaststartMigrationStore } from '../stores/faststartMigrationStore';
+import { utilCommands } from '../../../core/services/tauriCommands';
 
 function formatMb(bytes: number): string {
   const mb = bytes / (1024 * 1024);
@@ -158,11 +159,31 @@ export default function FaststartMigrationModal() {
               </details>
             )}
             {finalState.backup_dir && (
-              <p className="migration-modal-hint">
-                변환 전 데이터 백업: <code>{finalState.backup_dir}</code>
-              </p>
+              <div className="migration-modal-backup">
+                <div className="migration-modal-backup-label">
+                  변환 전 데이터 백업
+                </div>
+                <div
+                  className="migration-modal-backup-path"
+                  title={finalState.backup_dir}
+                >
+                  {finalState.backup_dir}
+                </div>
+              </div>
             )}
             <div className="migration-modal-actions">
+              {finalState.backup_dir && (
+                <button
+                  className="migration-modal-btn migration-modal-btn-secondary"
+                  onClick={() =>
+                    void utilCommands
+                      .revealInExplorer(finalState.backup_dir!)
+                      .catch(() => {})
+                  }
+                >
+                  백업 폴더 열기
+                </button>
+              )}
               <button
                 className="migration-modal-btn migration-modal-btn-primary"
                 onClick={reset}

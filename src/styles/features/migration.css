@@ -1,0 +1,217 @@
+/* ============================================================ */
+/* PART 7 (HanBin 2026-05-14) — Vault migration modal             */
+/* Token palette mirrors pdf-viewer toolbar + ConfirmDeleteModal. */
+/* ============================================================ */
+
+.migration-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: color-mix(in srgb, var(--bg-app, #0a0a0a) 60%, transparent);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.migration-modal {
+  width: 100%;
+  max-width: 460px;
+  background: var(--bg-elevated, color-mix(in srgb, var(--bg-app) 88%, white 12%));
+  color: var(--tx-1, #f3f4f6);
+  border: 0.5px solid var(--sep-l, color-mix(in srgb, var(--text-primary) 8%, transparent));
+  border-radius: var(--r-8, 8px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  padding: 24px;
+  font-size: var(--fs-13, 13px);
+  line-height: 1.55;
+}
+
+.migration-modal-title {
+  margin: 0 0 12px 0;
+  font-size: var(--fs-16, 16px);
+  font-weight: 600;
+  color: var(--tx-1, #f3f4f6);
+}
+
+.migration-modal-body {
+  margin: 0 0 14px 0;
+  color: var(--tx-2, #d1d5db);
+}
+
+.migration-modal-body strong {
+  color: var(--tx-1, #f3f4f6);
+  font-variant-numeric: tabular-nums;
+}
+
+.migration-modal-hint {
+  margin: 0 0 18px 0;
+  font-size: var(--fs-12, 12px);
+  color: var(--tx-3, #94a3b8);
+}
+
+.migration-modal-hint code,
+.migration-modal-failures code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: var(--fs-11, 11px);
+  padding: 1px 4px;
+  border-radius: var(--r-2, 2px);
+  background: color-mix(in srgb, var(--bg-app) 80%, var(--tx-2) 20%);
+}
+
+/* Stage 4.6.2 (HanBin 2026-05-14): backup path block on the
+   FaststartMigrationModal `done` view. The path is shown in a
+   monospace block that wraps cleanly on long Windows paths
+   (the previous inline <code> got cut between `한글` and `test`
+   because it had no break-word handling). */
+.migration-modal-backup {
+  margin: 0 0 18px 0;
+  padding: 10px 12px;
+  border-radius: var(--r-4, 6px);
+  background: color-mix(in srgb, var(--bg-app) 70%, var(--tx-2) 30%);
+  border: 1px solid var(--bdr-2, rgba(148, 163, 184, 0.2));
+}
+.migration-modal-backup-label {
+  font-size: var(--fs-12, 12px);
+  color: var(--tx-3, #94a3b8);
+  margin-bottom: 6px;
+}
+.migration-modal-backup-path {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: var(--fs-11, 11px);
+  color: var(--tx-2, #cbd5e1);
+  word-break: break-all;
+  line-height: 1.45;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.migration-modal-warn {
+  color: var(--c-amber, #f59e0b);
+  font-weight: 600;
+}
+
+.migration-modal-error-text {
+  color: var(--c-red, #ef4444);
+}
+
+.migration-modal-error-detail {
+  margin: 0 0 14px 0;
+  padding: 8px 10px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: var(--fs-11, 11px);
+  color: var(--tx-2);
+  background: color-mix(in srgb, var(--c-red, #ef4444) 8%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--c-red, #ef4444) 30%, transparent);
+  border-radius: var(--r-4, 4px);
+  max-height: 120px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.migration-modal-failures {
+  margin: 0 0 14px 0;
+  font-size: var(--fs-12, 12px);
+  color: var(--tx-3);
+}
+
+.migration-modal-failures summary {
+  cursor: pointer;
+  color: var(--tx-2);
+}
+
+.migration-modal-failures ul {
+  margin: 8px 0 0 0;
+  padding-left: 18px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.migration-modal-failures li {
+  margin: 2px 0;
+  font-size: var(--fs-11, 11px);
+}
+
+/* ── Progress bar ─────────────────────────────────────────────── */
+
+.migration-progress-bar-wrapper {
+  width: 100%;
+  height: 6px;
+  background: color-mix(in srgb, var(--bg-app) 60%, transparent);
+  border-radius: var(--r-pill, 999px);
+  overflow: hidden;
+  margin: 0 0 8px 0;
+}
+
+.migration-progress-bar-fill {
+  height: 100%;
+  background: var(--c-blue, #3b82f6);
+  transition: width 200ms ease-out;
+}
+
+.migration-progress-label {
+  margin: 0;
+  text-align: right;
+  font-size: var(--fs-12, 12px);
+  color: var(--tx-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.migration-progress-count {
+  color: var(--tx-1, #f3f4f6);
+  font-weight: 600;
+}
+
+.migration-progress-sep,
+.migration-progress-total {
+  color: var(--tx-3, #94a3b8);
+}
+
+.migration-progress-percent {
+  color: var(--tx-3, #94a3b8);
+}
+
+/* ── Action buttons ───────────────────────────────────────────── */
+
+.migration-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.migration-modal-btn {
+  padding: 6px 14px;
+  font-size: var(--fs-12, 12px);
+  border-radius: var(--r-4, 4px);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color var(--dur-150, 150ms), border-color var(--dur-150, 150ms);
+}
+
+.migration-modal-btn-secondary {
+  background: transparent;
+  color: var(--tx-2, #d1d5db);
+  border-color: var(--sep-l, color-mix(in srgb, var(--text-primary) 12%, transparent));
+}
+
+.migration-modal-btn-secondary:hover {
+  background: color-mix(in srgb, var(--c-blue, #3b82f6) 8%, transparent);
+  color: var(--tx-1, #f3f4f6);
+}
+
+.migration-modal-btn-primary {
+  background-color: var(--c-blue, #3b82f6);
+  color: white;
+  font-weight: 600;
+}
+
+.migration-modal-btn-primary:hover {
+  background-color: color-mix(in srgb, var(--c-blue, #3b82f6) 86%, black 14%);
+}
+
+.migration-modal-btn:focus-visible {
+  outline: 2px solid var(--c-blue, #3b82f6);
+  outline-offset: 2px;
+}
