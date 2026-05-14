@@ -491,6 +491,19 @@ fn faststart_migration_decline(vault_path: String) -> Result<(), String> {
     mig.decline()
 }
 
+/// Stage 4.6 follow-up (HanBin 2026-05-14): sweep orphan CAS blobs +
+/// orphan display files. After faststart migration the old moov-at-end
+/// blobs are no longer referenced by any AttachmentRef but still occupy
+/// disk space (HanBin vault: ~8 GB after the 9 conversions). Returns
+/// `(blobs_removed, display_files_removed)`.
+#[tauri::command]
+fn attachment_sweep_orphans(vault_path: String) -> Result<(usize, usize), String> {
+    let store = features::sync_v2::attachment_store::AttachmentStore::new(
+        std::path::PathBuf::from(&vault_path),
+    )?;
+    Ok(store.sweep_orphans())
+}
+
 /// Clear the Library state (e.g., on vault switch).
 #[tauri::command]
 fn clear_library(
@@ -976,6 +989,7 @@ pub fn run() {
             faststart_migration_check,
             faststart_migration_run,
             faststart_migration_decline,
+            attachment_sweep_orphans,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
