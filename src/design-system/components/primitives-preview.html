@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Notology Primitives — Stage 5.0.2a Preview</title>
+  <!--
+    Self-contained visual verification of the 14 simple primitives
+    landed in Stage 5.0.2a (Button, IconButton, Input, Textarea,
+    Checkbox, Toggle, Radio, Spinner, Skeleton, ProgressBar, Badge,
+    Card, EmptyState, KeyboardHint).
+
+    Open directly in a browser:
+      src/design-system/components/primitives-preview.html
+
+    No build needed — the page references the same .css files the
+    production primitives import. Renders identically to what the
+    React components produce, so this stands in for the regression
+    gate before Stage 5.0.3 starts consuming them.
+  -->
+  <link rel="stylesheet" href="../tokens.css" />
+  <link rel="stylesheet" href="../../styles/base/themes.css" />
+  <link rel="stylesheet" href="./primitives.css" />
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg-app);
+      color: var(--tx-1);
+      font-family: var(--font-sans);
+      font-size: var(--fs-body);
+      line-height: var(--lh-normal);
+      padding: var(--space-xl);
+      min-height: 100vh;
+    }
+    h1 { font-size: var(--fs-h1); font-weight: var(--fw-bold);    margin: 0 0 var(--space-lg); }
+    h2 { font-size: var(--fs-h2); font-weight: var(--fw-semibold); margin: var(--space-2xl) 0 var(--space-md); }
+    h3 { font-size: var(--fs-h3); font-weight: var(--fw-semibold); margin: var(--space-xl) 0 var(--space-sm); }
+    p  { color: var(--tx-2); margin: 0 0 var(--space-md); }
+    .note { color: var(--tx-3); font-size: var(--fs-caption); margin-top: var(--space-sm); }
+    .panel {
+      background: var(--bg-elev-1);
+      border: 1px solid var(--bdr-1);
+      border-radius: var(--radius-pop);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-lg);
+      box-shadow: var(--shadow-pop);
+    }
+    .row {
+      display: flex; flex-wrap: wrap; gap: var(--space-md);
+      align-items: center;
+    }
+    .col {
+      display: flex; flex-direction: column; gap: var(--space-md);
+    }
+    .toolbar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; gap: var(--space-md); align-items: center;
+      background: var(--bg-elev-1);
+      border: 1px solid var(--bdr-1);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm) var(--space-md);
+      margin-bottom: var(--space-xl);
+      box-shadow: var(--shadow-pop);
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg); }
+    @media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    /* Mock icon (used in IconButton, Input adornment, etc.) */
+    .mock-icon {
+      width: 16px; height: 16px;
+      display: inline-block;
+      background:
+        linear-gradient(currentColor, currentColor) center/60% 2px no-repeat,
+        linear-gradient(currentColor, currentColor) center/2px 60% no-repeat;
+    }
+    .mock-icon--sm { width: 12px; height: 12px; }
+    .mock-icon--lg { width: 20px; height: 20px; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <strong style="margin-right: auto;">Notology Primitives — 5.0.2a</strong>
+    <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" onclick="setTheme('light')">Light</button>
+    <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" onclick="setTheme('system')">System</button>
+    <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" onclick="setTheme('dark')">Dark</button>
+  </div>
+
+  <h1>Primitive component preview</h1>
+  <p>
+    14 components written against Tier 2 semantic tokens only. Toggle the theme
+    to verify light / dark coverage. Components 15–23 (Tooltip / Popover /
+    Dialog / DropdownMenu / Tabs / Toast / etc.) ship in 5.0.2b on top of
+    Floating-UI.
+  </p>
+
+  <!-- ==================== Button ==================== -->
+  <h2>Button</h2>
+  <div class="panel col">
+    <div class="row">
+      <button class="ds-btn ds-btn--primary ds-btn--sm">Primary sm</button>
+      <button class="ds-btn ds-btn--primary ds-btn--md">Primary md</button>
+      <button class="ds-btn ds-btn--primary ds-btn--lg">Primary lg</button>
+      <button class="ds-btn ds-btn--primary ds-btn--md" disabled>Disabled</button>
+    </div>
+    <div class="row">
+      <button class="ds-btn ds-btn--secondary ds-btn--md">Secondary</button>
+      <button class="ds-btn ds-btn--ghost ds-btn--md">Ghost</button>
+      <button class="ds-btn ds-btn--danger ds-btn--md">Danger</button>
+    </div>
+    <div class="row">
+      <button class="ds-btn ds-btn--primary ds-btn--md">
+        <span class="ds-btn__icon"><span class="mock-icon"></span></span>
+        With left icon
+      </button>
+      <button class="ds-btn ds-btn--secondary ds-btn--md">
+        Right icon
+        <span class="ds-btn__icon"><span class="mock-icon"></span></span>
+      </button>
+      <button class="ds-btn ds-btn--primary ds-btn--md" aria-busy="true" disabled>
+        <span class="ds-btn__spin"><span class="ds-spinner ds-spinner--sm"></span></span>
+        Loading…
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== IconButton ==================== -->
+  <h2>IconButton</h2>
+  <div class="panel row">
+    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--sm" aria-label="More"><span class="mock-icon mock-icon--sm"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--md" aria-label="More"><span class="mock-icon"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--lg" aria-label="More"><span class="mock-icon mock-icon--lg"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--subtle  ds-icon-btn--md" aria-label="Subtle"><span class="mock-icon"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--primary ds-icon-btn--md" aria-label="Primary"><span class="mock-icon"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--md" aria-label="Active" aria-pressed="true"><span class="mock-icon"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--md" aria-label="Disabled" disabled><span class="mock-icon"></span></button>
+  </div>
+
+  <!-- ==================== Input + Textarea ==================== -->
+  <h2>Input + Textarea</h2>
+  <div class="panel grid-2">
+    <div class="col">
+      <h3>Input</h3>
+      <span class="ds-field ds-field--sm"><input class="ds-input" type="text" placeholder="Small field"></span>
+      <span class="ds-field ds-field--md"><input class="ds-input" type="text" placeholder="Medium field"></span>
+      <span class="ds-field ds-field--lg"><input class="ds-input" type="text" placeholder="Large field"></span>
+      <span class="ds-field ds-field--md">
+        <span class="ds-field__icon"><span class="mock-icon"></span></span>
+        <input class="ds-input" type="text" placeholder="With left icon">
+      </span>
+      <span class="ds-field ds-field--md ds-field--invalid"><input class="ds-input" type="text" value="invalid value" aria-invalid="true"></span>
+      <span class="ds-field ds-field--md ds-field--disabled"><input class="ds-input" type="text" placeholder="Disabled" disabled></span>
+    </div>
+    <div class="col">
+      <h3>Textarea</h3>
+      <span class="ds-field ds-field--md"><textarea class="ds-textarea" placeholder="Multi-line input… 한글도 잘 보이는지 확인"></textarea></span>
+      <span class="ds-field ds-field--md ds-field--invalid"><textarea class="ds-textarea" aria-invalid="true">Invalid content</textarea></span>
+    </div>
+  </div>
+
+  <!-- ==================== Checkbox + Radio + Toggle ==================== -->
+  <h2>Checkbox + Radio + Toggle</h2>
+  <div class="panel grid-2">
+    <div class="col">
+      <h3>Checkbox</h3>
+      <label class="ds-check ds-checkbox"><input class="ds-check__input" type="checkbox"><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">Plain checkbox</span></span></label>
+      <label class="ds-check ds-checkbox"><input class="ds-check__input" type="checkbox" checked><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">Checked with description</span><span class="ds-check__desc">Side caption explaining the option in 한글 + English</span></span></label>
+      <label class="ds-check ds-checkbox" data-disabled="true"><input class="ds-check__input" type="checkbox" disabled><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">Disabled</span></span></label>
+
+      <h3>Radio</h3>
+      <label class="ds-check ds-radio"><input class="ds-check__input" type="radio" name="r" value="a"><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">Option A</span></span></label>
+      <label class="ds-check ds-radio"><input class="ds-check__input" type="radio" name="r" value="b" checked><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">Option B (default)</span><span class="ds-check__desc">Selected on page load</span></span></label>
+      <label class="ds-check ds-radio" data-disabled="true"><input class="ds-check__input" type="radio" name="r" value="c" disabled><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">Disabled</span></span></label>
+    </div>
+    <div class="col">
+      <h3>Toggle</h3>
+      <label class="ds-toggle ds-toggle--md"><input class="ds-toggle__input" type="checkbox" role="switch"><span class="ds-toggle__track"><span class="ds-toggle__thumb"></span></span><span class="ds-toggle__body"><span class="ds-toggle__label">Sync enabled</span><span class="ds-toggle__desc">Push local changes to NAS</span></span></label>
+      <label class="ds-toggle ds-toggle--md"><input class="ds-toggle__input" type="checkbox" role="switch" checked><span class="ds-toggle__track"><span class="ds-toggle__thumb"></span></span><span class="ds-toggle__body"><span class="ds-toggle__label">Dev mode (on)</span></span></label>
+      <label class="ds-toggle ds-toggle--sm"><input class="ds-toggle__input" type="checkbox" role="switch" checked><span class="ds-toggle__track"><span class="ds-toggle__thumb"></span></span><span class="ds-toggle__body"><span class="ds-toggle__label">Small toggle</span></span></label>
+      <label class="ds-toggle ds-toggle--md" data-disabled="true"><input class="ds-toggle__input" type="checkbox" role="switch" disabled><span class="ds-toggle__track"><span class="ds-toggle__thumb"></span></span><span class="ds-toggle__body"><span class="ds-toggle__label">Disabled</span></span></label>
+    </div>
+  </div>
+
+  <!-- ==================== Feedback: Spinner / Skeleton / ProgressBar ==================== -->
+  <h2>Spinner + Skeleton + ProgressBar</h2>
+  <div class="panel grid-2">
+    <div class="col">
+      <h3>Spinner</h3>
+      <div class="row">
+        <span class="ds-spinner ds-spinner--sm"></span>
+        <span class="ds-spinner ds-spinner--md"></span>
+        <span class="ds-spinner ds-spinner--lg"></span>
+      </div>
+
+      <h3>Skeleton</h3>
+      <div class="col">
+        <div class="ds-skeleton ds-skeleton--text" style="width: 100%;"></div>
+        <div class="ds-skeleton ds-skeleton--text" style="width: 75%;"></div>
+        <div class="ds-skeleton ds-skeleton--text" style="width: 50%;"></div>
+        <div class="row">
+          <div class="ds-skeleton ds-skeleton--circle" style="width: 40px; height: 40px;"></div>
+          <div class="ds-skeleton ds-skeleton--md" style="width: 120px; height: 40px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <h3>ProgressBar</h3>
+      <div class="ds-progress">
+        <div class="ds-progress__header"><span>Uploading…</span><span class="ds-progress__value">35%</span></div>
+        <div class="ds-progress__track"><div class="ds-progress__fill" style="width: 35%;"></div></div>
+      </div>
+      <div class="ds-progress ds-progress--success">
+        <div class="ds-progress__header"><span>Complete</span><span class="ds-progress__value">100%</span></div>
+        <div class="ds-progress__track"><div class="ds-progress__fill" style="width: 100%;"></div></div>
+      </div>
+      <div class="ds-progress ds-progress--warning">
+        <div class="ds-progress__header"><span>Backing up</span><span class="ds-progress__value">60%</span></div>
+        <div class="ds-progress__track"><div class="ds-progress__fill" style="width: 60%;"></div></div>
+      </div>
+      <div class="ds-progress ds-progress--indeterminate">
+        <div class="ds-progress__header"><span>Indeterminate</span></div>
+        <div class="ds-progress__track"><div class="ds-progress__fill"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Badge ==================== -->
+  <h2>Badge</h2>
+  <div class="panel row">
+    <span class="ds-badge ds-badge--neutral ds-badge--md">neutral</span>
+    <span class="ds-badge ds-badge--accent  ds-badge--md">accent</span>
+    <span class="ds-badge ds-badge--success ds-badge--md">success</span>
+    <span class="ds-badge ds-badge--warning ds-badge--md">warning</span>
+    <span class="ds-badge ds-badge--danger  ds-badge--md">danger</span>
+    <span class="ds-badge ds-badge--info    ds-badge--md">info</span>
+    <span class="ds-badge ds-badge--accent  ds-badge--sm">12</span>
+    <span class="ds-badge ds-badge--success ds-badge--dot"></span>
+    <span class="ds-badge ds-badge--warning ds-badge--dot"></span>
+    <span class="ds-badge ds-badge--danger  ds-badge--dot"></span>
+  </div>
+
+  <!-- ==================== Card ==================== -->
+  <h2>Card</h2>
+  <div class="panel grid-2">
+    <div class="ds-card ds-card--cozy">
+      <strong>Cozy density</strong>
+      <p style="margin: var(--space-sm) 0 0; color: var(--tx-2);">Standard padding. Used by search rows + note list.</p>
+    </div>
+    <div class="ds-card ds-card--cozy ds-card--interactive" role="button" tabindex="0">
+      <strong>Interactive</strong>
+      <p style="margin: var(--space-sm) 0 0; color: var(--tx-2);">Hover / focus / press states.</p>
+    </div>
+    <div class="ds-card ds-card--cozy ds-card--interactive ds-card--selected" role="button" tabindex="0" aria-pressed="true">
+      <strong>Selected</strong>
+      <p style="margin: var(--space-sm) 0 0; color: var(--tx-2);">Bound to <code>--c-accent</code>.</p>
+    </div>
+    <div class="ds-card ds-card--compact">
+      <strong>Compact</strong>
+      <p style="margin: var(--space-xs) 0 0; color: var(--tx-2); font-size: var(--fs-caption);">Tight density</p>
+    </div>
+  </div>
+
+  <!-- ==================== EmptyState ==================== -->
+  <h2>EmptyState</h2>
+  <div class="panel">
+    <div class="ds-empty">
+      <div class="ds-empty__icon"><span class="mock-icon mock-icon--lg"></span></div>
+      <div class="ds-empty__title">No memos yet</div>
+      <div class="ds-empty__desc">Add a memo to any note and it will appear here in 한글 or English.</div>
+      <div class="ds-empty__action"><button class="ds-btn ds-btn--primary ds-btn--md">Add memo</button></div>
+    </div>
+  </div>
+
+  <!-- ==================== KeyboardHint ==================== -->
+  <h2>KeyboardHint</h2>
+  <div class="panel col">
+    <div class="row">
+      <span>Open command palette</span>
+      <span class="ds-kbd ds-kbd--md"><span class="ds-kbd-group"><kbd class="ds-kbd__key">Ctrl</kbd></span><span class="ds-kbd-group"><span class="ds-kbd__plus">+</span><kbd class="ds-kbd__key">K</kbd></span></span>
+    </div>
+    <div class="row">
+      <span>Toggle right panel</span>
+      <span class="ds-kbd ds-kbd--md"><span class="ds-kbd-group"><kbd class="ds-kbd__key">Ctrl</kbd></span><span class="ds-kbd-group"><span class="ds-kbd__plus">+</span><kbd class="ds-kbd__key">→</kbd></span></span>
+    </div>
+    <div class="row">
+      <span>Small variant</span>
+      <span class="ds-kbd ds-kbd--sm"><span class="ds-kbd-group"><kbd class="ds-kbd__key">Ctrl</kbd></span><span class="ds-kbd-group"><span class="ds-kbd__plus">+</span><kbd class="ds-kbd__key">Shift</kbd></span><span class="ds-kbd-group"><span class="ds-kbd__plus">+</span><kbd class="ds-kbd__key">F</kbd></span></span>
+    </div>
+  </div>
+
+  <p class="note">
+    All 14 components use only Tier 2 / Tier 3 design tokens. Run
+    <code>npm run audit:tokens</code> to verify Tier-1 leakage stays at 0.
+  </p>
+
+  <script>
+    function setTheme(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      localStorage.setItem('notology-preview-theme', t);
+    }
+    const saved = localStorage.getItem('notology-preview-theme');
+    if (saved) setTheme(saved);
+  </script>
+</body>
+</html>

@@ -95,8 +95,10 @@
   --primitive-purple-800: #371848;
   --primitive-purple-900: #1B0C24;
 
-  /* ── primitive-space (4px grid) ── */
+  /* ── primitive-space (4px grid + hairline) ── */
   --primitive-space-0:  0px;
+  --primitive-space-px: 1px;
+  --primitive-space-half: 2px;
   --primitive-space-1:  4px;
   --primitive-space-2:  8px;
   --primitive-space-3:  12px;
@@ -164,13 +166,26 @@
      ============================================================ */
 
   /* ── spacing (named scale per plan §2.4) ── */
-  --space-xs:  var(--primitive-space-1);   /* 4 */
-  --space-sm:  var(--primitive-space-2);   /* 8 */
-  --space-md:  var(--primitive-space-3);   /* 12 */
-  --space-lg:  var(--primitive-space-4);   /* 16 */
-  --space-xl:  var(--primitive-space-6);   /* 24 */
-  --space-2xl: var(--primitive-space-7);   /* 32 */
-  --space-3xl: var(--primitive-space-9);   /* 48 */
+  --space-px:  var(--primitive-space-px);    /* 1  — hairlines */
+  --space-2xs: var(--primitive-space-half);  /* 2  — tight padding */
+  --space-xs:  var(--primitive-space-1);     /* 4 */
+  --space-sm:  var(--primitive-space-2);     /* 8 */
+  --space-md:  var(--primitive-space-3);     /* 12 */
+  --space-lg:  var(--primitive-space-4);     /* 16 */
+  --space-xl:  var(--primitive-space-6);     /* 24 */
+  --space-2xl: var(--primitive-space-7);     /* 32 */
+  --space-3xl: var(--primitive-space-9);     /* 48 */
+
+  /* ── font-weight (semantic aliases for Tier 1 weights) ── */
+  --fw-regular:  var(--primitive-fw-400);
+  --fw-medium:   var(--primitive-fw-500);
+  --fw-semibold: var(--primitive-fw-600);
+  --fw-bold:     var(--primitive-fw-700);
+
+  /* ── font-family (semantic aliases) ── */
+  --font-sans:    var(--primitive-font-sans);
+  --font-display: var(--primitive-font-display);
+  /* (--font-mono is set in the legacy aliases block below) */
 
   /* ── radius (semantic — pop/pill added; legacy --radius-* preserved below) ── */
   --radius-pop:  var(--primitive-radius-10);  /* dialog/card */
