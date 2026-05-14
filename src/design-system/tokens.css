@@ -152,13 +152,23 @@
   --primitive-shadow-3: 0 8px 32px rgba(0, 0, 0, 0.14),
                         0 0 0 0.5px rgba(0, 0, 0, 0.06);
 
-  /* ── primitive-font-family ── */
-  --primitive-font-sans: -apple-system, 'SF Pro Text', 'Inter',
-                         'Pretendard', system-ui, sans-serif;
-  --primitive-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono',
-                         'Consolas', monospace;
-  --primitive-font-display: -apple-system, 'SF Pro Display', 'Inter',
-                            'Pretendard', system-ui, sans-serif;
+  /* ── primitive-font-family ──
+     Korean fallbacks are first-class — Notology is a Korean-default app.
+     Order: brand sans → Korean (Pretendard / Malgun Gothic / Gulim) →
+            Latin (Apple SF / Segoe) → generic fallback.
+     The runtime `[data-font]` selector in reset.css overrides --app-font
+     for user font selection; these primitives are the static base stack
+     for places that need a locked font (e.g. brand wordmark, code labels).
+  */
+  --primitive-font-sans:
+    "Pretendard", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif;
+  --primitive-font-display:
+    "Pretendard", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo",
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif;
+  --primitive-font-mono:
+    ui-monospace, "SF Mono", "JetBrains Mono", "D2Coding",
+    "Consolas", "Courier New", monospace;
 
   /* ============================================================
      TIER 2 — SEMANTIC (mode-agnostic only)

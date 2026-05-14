@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="ko" data-theme="light" data-font="default">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -13,24 +13,36 @@
     Open directly in a browser:
       src/design-system/components/primitives-preview.html
 
-    No build needed — the page references the same .css files the
-    production primitives import. Renders identically to what the
-    React components produce, so this stands in for the regression
-    gate before Stage 5.0.3 starts consuming them.
+    Imports reset.css so the same `--app-font` system that drives
+    production Notology applies here too — toggle font + theme from
+    the top toolbar to verify both axes.
   -->
   <link rel="stylesheet" href="../tokens.css" />
   <link rel="stylesheet" href="../../styles/base/themes.css" />
+  <link rel="stylesheet" href="../../styles/base/reset.css" />
   <link rel="stylesheet" href="./primitives.css" />
   <style>
     html, body { margin: 0; padding: 0; }
     body {
       background: var(--bg-app);
       color: var(--tx-1);
-      font-family: var(--font-sans);
+      /* --app-font (set by reset.css) responds to [data-font="..."] —
+         matches production Notology behavior so primitives inherit the
+         user-selected font exactly as they will in the live app. */
+      font-family: var(--app-font);
       font-size: var(--fs-body);
       line-height: var(--lh-normal);
       padding: var(--space-xl);
       min-height: 100vh;
+    }
+    select.font-picker {
+      font: inherit;
+      background: var(--bg-input);
+      color: var(--tx-1);
+      border: 1px solid var(--bdr-1);
+      border-radius: var(--radius-md);
+      padding: var(--space-xs) var(--space-sm);
+      cursor: pointer;
     }
     h1 { font-size: var(--fs-h1); font-weight: var(--fw-bold);    margin: 0 0 var(--space-lg); }
     h2 { font-size: var(--fs-h2); font-weight: var(--fw-semibold); margin: var(--space-2xl) 0 var(--space-md); }
@@ -80,108 +92,121 @@
 <body>
   <div class="toolbar">
     <strong style="margin-right: auto;">Notology Primitives — 5.0.2a</strong>
+    <select id="font-picker" class="font-picker" title="폰트 변경 (settings.font 와 동일)">
+      <option value="default">기본 (Pretendard)</option>
+      <option value="nanum">나눔고딕</option>
+      <option value="noto">Noto Sans KR</option>
+      <option value="malgun">맑은 고딕</option>
+    </select>
     <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" onclick="setTheme('light')">Light</button>
     <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" onclick="setTheme('system')">System</button>
     <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" onclick="setTheme('dark')">Dark</button>
   </div>
 
-  <h1>Primitive component preview</h1>
+  <h1>Primitive 컴포넌트 미리보기</h1>
   <p>
-    14 components written against Tier 2 semantic tokens only. Toggle the theme
-    to verify light / dark coverage. Components 15–23 (Tooltip / Popover /
-    Dialog / DropdownMenu / Tabs / Toast / etc.) ship in 5.0.2b on top of
-    Floating-UI.
+    Tier 2 semantic token 만 사용하는 14개 primitive. 상단에서 테마 +
+    폰트를 토글해 light / dark / 폰트 변경 모두 검증하세요. Component 15–23
+    (Tooltip / Popover / Dialog / DropdownMenu / Tabs / Toast / Select 등)
+    은 Floating-UI 와 함께 5.0.2b 에서 제공됩니다.
+  </p>
+  <p class="note">
+    이 페이지는 production 의 <code>reset.css</code> 를 그대로 import 하므로,
+    settings 에서 폰트를 바꿀 때와 동일한 메커니즘 (<code>[data-font]</code>
+    selector → <code>--app-font</code> cascade) 으로 동작합니다.
+    모든 primitive 는 <code>font-family: inherit</code> 으로 사용자 폰트를
+    자동으로 따라갑니다.
   </p>
 
   <!-- ==================== Button ==================== -->
-  <h2>Button</h2>
+  <h2>Button — 버튼</h2>
   <div class="panel col">
     <div class="row">
-      <button class="ds-btn ds-btn--primary ds-btn--sm">Primary sm</button>
-      <button class="ds-btn ds-btn--primary ds-btn--md">Primary md</button>
-      <button class="ds-btn ds-btn--primary ds-btn--lg">Primary lg</button>
-      <button class="ds-btn ds-btn--primary ds-btn--md" disabled>Disabled</button>
+      <button class="ds-btn ds-btn--primary ds-btn--sm">저장 sm</button>
+      <button class="ds-btn ds-btn--primary ds-btn--md">저장 md</button>
+      <button class="ds-btn ds-btn--primary ds-btn--lg">저장 lg</button>
+      <button class="ds-btn ds-btn--primary ds-btn--md" disabled>비활성</button>
     </div>
     <div class="row">
-      <button class="ds-btn ds-btn--secondary ds-btn--md">Secondary</button>
-      <button class="ds-btn ds-btn--ghost ds-btn--md">Ghost</button>
-      <button class="ds-btn ds-btn--danger ds-btn--md">Danger</button>
+      <button class="ds-btn ds-btn--secondary ds-btn--md">취소 (Secondary)</button>
+      <button class="ds-btn ds-btn--ghost ds-btn--md">더보기 (Ghost)</button>
+      <button class="ds-btn ds-btn--danger ds-btn--md">삭제 (Danger)</button>
     </div>
     <div class="row">
       <button class="ds-btn ds-btn--primary ds-btn--md">
         <span class="ds-btn__icon"><span class="mock-icon"></span></span>
-        With left icon
+        새 노트 만들기
       </button>
       <button class="ds-btn ds-btn--secondary ds-btn--md">
-        Right icon
+        다음 단계
         <span class="ds-btn__icon"><span class="mock-icon"></span></span>
       </button>
       <button class="ds-btn ds-btn--primary ds-btn--md" aria-busy="true" disabled>
         <span class="ds-btn__spin"><span class="ds-spinner ds-spinner--sm"></span></span>
-        Loading…
+        동기화 중…
       </button>
     </div>
   </div>
 
   <!-- ==================== IconButton ==================== -->
-  <h2>IconButton</h2>
+  <h2>IconButton — 아이콘 버튼</h2>
   <div class="panel row">
-    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--sm" aria-label="More"><span class="mock-icon mock-icon--sm"></span></button>
-    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--md" aria-label="More"><span class="mock-icon"></span></button>
-    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--lg" aria-label="More"><span class="mock-icon mock-icon--lg"></span></button>
-    <button class="ds-icon-btn ds-icon-btn--subtle  ds-icon-btn--md" aria-label="Subtle"><span class="mock-icon"></span></button>
-    <button class="ds-icon-btn ds-icon-btn--primary ds-icon-btn--md" aria-label="Primary"><span class="mock-icon"></span></button>
-    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--md" aria-label="Active" aria-pressed="true"><span class="mock-icon"></span></button>
-    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--md" aria-label="Disabled" disabled><span class="mock-icon"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--sm" aria-label="더보기"><span class="mock-icon mock-icon--sm"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--md" aria-label="더보기"><span class="mock-icon"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--lg" aria-label="더보기"><span class="mock-icon mock-icon--lg"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--subtle  ds-icon-btn--md" aria-label="옅은 강조"><span class="mock-icon"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--primary ds-icon-btn--md" aria-label="기본 강조"><span class="mock-icon"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--md" aria-label="활성 (토글 켜짐)" aria-pressed="true"><span class="mock-icon"></span></button>
+    <button class="ds-icon-btn ds-icon-btn--ghost   ds-icon-btn--md" aria-label="비활성" disabled><span class="mock-icon"></span></button>
   </div>
 
   <!-- ==================== Input + Textarea ==================== -->
-  <h2>Input + Textarea</h2>
+  <h2>Input + Textarea — 입력 필드</h2>
   <div class="panel grid-2">
     <div class="col">
       <h3>Input</h3>
-      <span class="ds-field ds-field--sm"><input class="ds-input" type="text" placeholder="Small field"></span>
-      <span class="ds-field ds-field--md"><input class="ds-input" type="text" placeholder="Medium field"></span>
-      <span class="ds-field ds-field--lg"><input class="ds-input" type="text" placeholder="Large field"></span>
+      <span class="ds-field ds-field--sm"><input class="ds-input" type="text" placeholder="작은 입력 (sm) — 노트 제목을 입력하세요"></span>
+      <span class="ds-field ds-field--md"><input class="ds-input" type="text" placeholder="기본 입력 (md) — 회의록 제목"></span>
+      <span class="ds-field ds-field--lg"><input class="ds-input" type="text" placeholder="큰 입력 (lg) — 검색어를 입력하세요"></span>
       <span class="ds-field ds-field--md">
         <span class="ds-field__icon"><span class="mock-icon"></span></span>
-        <input class="ds-input" type="text" placeholder="With left icon">
+        <input class="ds-input" type="text" placeholder="아이콘 포함 — 태그 검색…">
       </span>
-      <span class="ds-field ds-field--md ds-field--invalid"><input class="ds-input" type="text" value="invalid value" aria-invalid="true"></span>
-      <span class="ds-field ds-field--md ds-field--disabled"><input class="ds-input" type="text" placeholder="Disabled" disabled></span>
+      <span class="ds-field ds-field--md ds-field--invalid"><input class="ds-input" type="text" value="잘못된 값" aria-invalid="true"></span>
+      <span class="ds-field ds-field--md ds-field--disabled"><input class="ds-input" type="text" placeholder="비활성 입력" disabled></span>
     </div>
     <div class="col">
       <h3>Textarea</h3>
-      <span class="ds-field ds-field--md"><textarea class="ds-textarea" placeholder="Multi-line input… 한글도 잘 보이는지 확인"></textarea></span>
-      <span class="ds-field ds-field--md ds-field--invalid"><textarea class="ds-textarea" aria-invalid="true">Invalid content</textarea></span>
+      <span class="ds-field ds-field--md"><textarea class="ds-textarea" placeholder="여러 줄 입력… 한글 본문, English text, 숫자 0123, 기호(@#$) 가 모두 한 줄 안에서 올바른 베이스라인에 정렬되어야 합니다."></textarea></span>
+      <span class="ds-field ds-field--md ds-field--invalid"><textarea class="ds-textarea" aria-invalid="true">검증 실패 — 필수 항목입니다</textarea></span>
     </div>
   </div>
 
   <!-- ==================== Checkbox + Radio + Toggle ==================== -->
-  <h2>Checkbox + Radio + Toggle</h2>
+  <h2>Checkbox + Radio + Toggle — 폼 컨트롤</h2>
   <div class="panel grid-2">
     <div class="col">
-      <h3>Checkbox</h3>
-      <label class="ds-check ds-checkbox"><input class="ds-check__input" type="checkbox"><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">Plain checkbox</span></span></label>
-      <label class="ds-check ds-checkbox"><input class="ds-check__input" type="checkbox" checked><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">Checked with description</span><span class="ds-check__desc">Side caption explaining the option in 한글 + English</span></span></label>
-      <label class="ds-check ds-checkbox" data-disabled="true"><input class="ds-check__input" type="checkbox" disabled><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">Disabled</span></span></label>
+      <h3>Checkbox — 체크박스</h3>
+      <label class="ds-check ds-checkbox"><input class="ds-check__input" type="checkbox"><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">기본 체크박스</span></span></label>
+      <label class="ds-check ds-checkbox"><input class="ds-check__input" type="checkbox" checked><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">체크된 상태 + 설명</span><span class="ds-check__desc">옆에 작은 캡션이 옵션을 설명합니다 — 한글 본문과 영문이 함께 표시될 때의 가독성 확인</span></span></label>
+      <label class="ds-check ds-checkbox" data-disabled="true"><input class="ds-check__input" type="checkbox" disabled><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">비활성</span></span></label>
 
-      <h3>Radio</h3>
-      <label class="ds-check ds-radio"><input class="ds-check__input" type="radio" name="r" value="a"><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">Option A</span></span></label>
-      <label class="ds-check ds-radio"><input class="ds-check__input" type="radio" name="r" value="b" checked><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">Option B (default)</span><span class="ds-check__desc">Selected on page load</span></span></label>
-      <label class="ds-check ds-radio" data-disabled="true"><input class="ds-check__input" type="radio" name="r" value="c" disabled><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">Disabled</span></span></label>
+      <h3>Radio — 라디오</h3>
+      <label class="ds-check ds-radio"><input class="ds-check__input" type="radio" name="r" value="a"><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">옵션 A — 가벼움</span></span></label>
+      <label class="ds-check ds-radio"><input class="ds-check__input" type="radio" name="r" value="b" checked><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">옵션 B — 권장 (기본 선택)</span><span class="ds-check__desc">페이지 로드 시 선택된 상태</span></span></label>
+      <label class="ds-check ds-radio" data-disabled="true"><input class="ds-check__input" type="radio" name="r" value="c" disabled><span class="ds-check__box"></span><span class="ds-check__body"><span class="ds-check__label">옵션 C — 비활성</span></span></label>
     </div>
     <div class="col">
-      <h3>Toggle</h3>
-      <label class="ds-toggle ds-toggle--md"><input class="ds-toggle__input" type="checkbox" role="switch"><span class="ds-toggle__track"><span class="ds-toggle__thumb"></span></span><span class="ds-toggle__body"><span class="ds-toggle__label">Sync enabled</span><span class="ds-toggle__desc">Push local changes to NAS</span></span></label>
-      <label class="ds-toggle ds-toggle--md"><input class="ds-toggle__input" type="checkbox" role="switch" checked><span class="ds-toggle__track"><span class="ds-toggle__thumb"></span></span><span class="ds-toggle__body"><span class="ds-toggle__label">Dev mode (on)</span></span></label>
-      <label class="ds-toggle ds-toggle--sm"><input class="ds-toggle__input" type="checkbox" role="switch" checked><span class="ds-toggle__track"><span class="ds-toggle__thumb"></span></span><span class="ds-toggle__body"><span class="ds-toggle__label">Small toggle</span></span></label>
-      <label class="ds-toggle ds-toggle--md" data-disabled="true"><input class="ds-toggle__input" type="checkbox" role="switch" disabled><span class="ds-toggle__track"><span class="ds-toggle__thumb"></span></span><span class="ds-toggle__body"><span class="ds-toggle__label">Disabled</span></span></label>
+      <h3>Toggle — 스위치</h3>
+      <label class="ds-toggle ds-toggle--md"><input class="ds-toggle__input" type="checkbox" role="switch"><span class="ds-toggle__track"><span class="ds-toggle__thumb"></span></span><span class="ds-toggle__body"><span class="ds-toggle__label">NAS 동기화</span><span class="ds-toggle__desc">로컬 변경사항을 Synology NAS 로 자동 푸시</span></span></label>
+      <label class="ds-toggle ds-toggle--md"><input class="ds-toggle__input" type="checkbox" role="switch" checked><span class="ds-toggle__track"><span class="ds-toggle__thumb"></span></span><span class="ds-toggle__body"><span class="ds-toggle__label">개발자 모드 (켜짐)</span></span></label>
+      <label class="ds-toggle ds-toggle--sm"><input class="ds-toggle__input" type="checkbox" role="switch" checked><span class="ds-toggle__track"><span class="ds-toggle__thumb"></span></span><span class="ds-toggle__body"><span class="ds-toggle__label">작은 스위치</span></span></label>
+      <label class="ds-toggle ds-toggle--md" data-disabled="true"><input class="ds-toggle__input" type="checkbox" role="switch" disabled><span class="ds-toggle__track"><span class="ds-toggle__thumb"></span></span><span class="ds-toggle__body"><span class="ds-toggle__label">비활성</span></span></label>
     </div>
   </div>
 
   <!-- ==================== Feedback: Spinner / Skeleton / ProgressBar ==================== -->
-  <h2>Spinner + Skeleton + ProgressBar</h2>
+  <h2>Spinner + Skeleton + ProgressBar — 로딩/진행 상태</h2>
   <div class="panel grid-2">
     <div class="col">
       <h3>Spinner</h3>
@@ -191,7 +216,7 @@
         <span class="ds-spinner ds-spinner--lg"></span>
       </div>
 
-      <h3>Skeleton</h3>
+      <h3>Skeleton — 로딩 플레이스홀더</h3>
       <div class="col">
         <div class="ds-skeleton ds-skeleton--text" style="width: 100%;"></div>
         <div class="ds-skeleton ds-skeleton--text" style="width: 75%;"></div>
@@ -203,93 +228,140 @@
       </div>
     </div>
     <div class="col">
-      <h3>ProgressBar</h3>
+      <h3>ProgressBar — 진행률</h3>
       <div class="ds-progress">
-        <div class="ds-progress__header"><span>Uploading…</span><span class="ds-progress__value">35%</span></div>
+        <div class="ds-progress__header"><span>업로드 중…</span><span class="ds-progress__value">35%</span></div>
         <div class="ds-progress__track"><div class="ds-progress__fill" style="width: 35%;"></div></div>
       </div>
       <div class="ds-progress ds-progress--success">
-        <div class="ds-progress__header"><span>Complete</span><span class="ds-progress__value">100%</span></div>
+        <div class="ds-progress__header"><span>완료</span><span class="ds-progress__value">100%</span></div>
         <div class="ds-progress__track"><div class="ds-progress__fill" style="width: 100%;"></div></div>
       </div>
       <div class="ds-progress ds-progress--warning">
-        <div class="ds-progress__header"><span>Backing up</span><span class="ds-progress__value">60%</span></div>
+        <div class="ds-progress__header"><span>백업 중</span><span class="ds-progress__value">60%</span></div>
         <div class="ds-progress__track"><div class="ds-progress__fill" style="width: 60%;"></div></div>
       </div>
       <div class="ds-progress ds-progress--indeterminate">
-        <div class="ds-progress__header"><span>Indeterminate</span></div>
+        <div class="ds-progress__header"><span>진행률 미정 (indeterminate)</span></div>
         <div class="ds-progress__track"><div class="ds-progress__fill"></div></div>
       </div>
     </div>
   </div>
 
   <!-- ==================== Badge ==================== -->
-  <h2>Badge</h2>
+  <h2>Badge — 뱃지</h2>
   <div class="panel row">
-    <span class="ds-badge ds-badge--neutral ds-badge--md">neutral</span>
-    <span class="ds-badge ds-badge--accent  ds-badge--md">accent</span>
-    <span class="ds-badge ds-badge--success ds-badge--md">success</span>
-    <span class="ds-badge ds-badge--warning ds-badge--md">warning</span>
-    <span class="ds-badge ds-badge--danger  ds-badge--md">danger</span>
-    <span class="ds-badge ds-badge--info    ds-badge--md">info</span>
-    <span class="ds-badge ds-badge--accent  ds-badge--sm">12</span>
+    <span class="ds-badge ds-badge--neutral ds-badge--md">기본</span>
+    <span class="ds-badge ds-badge--accent  ds-badge--md">강조</span>
+    <span class="ds-badge ds-badge--success ds-badge--md">동기화됨</span>
+    <span class="ds-badge ds-badge--warning ds-badge--md">대기 중</span>
+    <span class="ds-badge ds-badge--danger  ds-badge--md">충돌</span>
+    <span class="ds-badge ds-badge--info    ds-badge--md">정보</span>
+    <span class="ds-badge ds-badge--accent  ds-badge--sm">12개</span>
     <span class="ds-badge ds-badge--success ds-badge--dot"></span>
     <span class="ds-badge ds-badge--warning ds-badge--dot"></span>
     <span class="ds-badge ds-badge--danger  ds-badge--dot"></span>
   </div>
 
   <!-- ==================== Card ==================== -->
-  <h2>Card</h2>
+  <h2>Card — 카드</h2>
   <div class="panel grid-2">
     <div class="ds-card ds-card--cozy">
-      <strong>Cozy density</strong>
-      <p style="margin: var(--space-sm) 0 0; color: var(--tx-2);">Standard padding. Used by search rows + note list.</p>
+      <strong>표준 밀도 (cozy)</strong>
+      <p style="margin: var(--space-sm) 0 0; color: var(--tx-2);">검색 결과 행, 노트 리스트에서 사용. 한글 본문 + Latin sample 표본.</p>
     </div>
     <div class="ds-card ds-card--cozy ds-card--interactive" role="button" tabindex="0">
-      <strong>Interactive</strong>
-      <p style="margin: var(--space-sm) 0 0; color: var(--tx-2);">Hover / focus / press states.</p>
+      <strong>인터랙티브 카드</strong>
+      <p style="margin: var(--space-sm) 0 0; color: var(--tx-2);">호버 / 포커스 / 눌림 상태가 표시됩니다.</p>
     </div>
     <div class="ds-card ds-card--cozy ds-card--interactive ds-card--selected" role="button" tabindex="0" aria-pressed="true">
-      <strong>Selected</strong>
-      <p style="margin: var(--space-sm) 0 0; color: var(--tx-2);">Bound to <code>--c-accent</code>.</p>
+      <strong>선택됨</strong>
+      <p style="margin: var(--space-sm) 0 0; color: var(--tx-2);"><code>--c-accent</code> 색상으로 강조됩니다.</p>
     </div>
     <div class="ds-card ds-card--compact">
-      <strong>Compact</strong>
-      <p style="margin: var(--space-xs) 0 0; color: var(--tx-2); font-size: var(--fs-caption);">Tight density</p>
+      <strong>좁은 밀도 (compact)</strong>
+      <p style="margin: var(--space-xs) 0 0; color: var(--tx-2); font-size: var(--fs-caption);">FolderTree 의 폴더 행에서 사용</p>
     </div>
   </div>
 
   <!-- ==================== EmptyState ==================== -->
-  <h2>EmptyState</h2>
+  <h2>EmptyState — 빈 상태</h2>
   <div class="panel">
     <div class="ds-empty">
       <div class="ds-empty__icon"><span class="mock-icon mock-icon--lg"></span></div>
-      <div class="ds-empty__title">No memos yet</div>
-      <div class="ds-empty__desc">Add a memo to any note and it will appear here in 한글 or English.</div>
-      <div class="ds-empty__action"><button class="ds-btn ds-btn--primary ds-btn--md">Add memo</button></div>
+      <div class="ds-empty__title">아직 메모가 없습니다</div>
+      <div class="ds-empty__desc">노트에 메모를 추가하면 이곳에 표시됩니다. 한글이든 영문이든 모두 지원합니다.</div>
+      <div class="ds-empty__action"><button class="ds-btn ds-btn--primary ds-btn--md">메모 추가</button></div>
     </div>
   </div>
 
   <!-- ==================== KeyboardHint ==================== -->
-  <h2>KeyboardHint</h2>
+  <h2>KeyboardHint — 단축키 힌트</h2>
   <div class="panel col">
     <div class="row">
-      <span>Open command palette</span>
+      <span>명령어 팔레트 열기</span>
       <span class="ds-kbd ds-kbd--md"><span class="ds-kbd-group"><kbd class="ds-kbd__key">Ctrl</kbd></span><span class="ds-kbd-group"><span class="ds-kbd__plus">+</span><kbd class="ds-kbd__key">K</kbd></span></span>
     </div>
     <div class="row">
-      <span>Toggle right panel</span>
+      <span>우측 패널 토글</span>
       <span class="ds-kbd ds-kbd--md"><span class="ds-kbd-group"><kbd class="ds-kbd__key">Ctrl</kbd></span><span class="ds-kbd-group"><span class="ds-kbd__plus">+</span><kbd class="ds-kbd__key">→</kbd></span></span>
     </div>
     <div class="row">
-      <span>Small variant</span>
+      <span>전체 검색 (sm variant)</span>
       <span class="ds-kbd ds-kbd--sm"><span class="ds-kbd-group"><kbd class="ds-kbd__key">Ctrl</kbd></span><span class="ds-kbd-group"><span class="ds-kbd__plus">+</span><kbd class="ds-kbd__key">Shift</kbd></span><span class="ds-kbd-group"><span class="ds-kbd__plus">+</span><kbd class="ds-kbd__key">F</kbd></span></span>
     </div>
   </div>
 
+  <!-- ==================== Font sample matrix ==================== -->
+  <h2>폰트 비교 매트릭스 — 컴포넌트 안에서의 한글 렌더링</h2>
+  <p>
+    같은 컴포넌트를 4가지 폰트로 비교합니다. 각 행은 해당 폰트가 시스템에 설치된
+    경우 그 폰트로, 미설치 시 fallback (Malgun → Gulim → system) 으로 떨어집니다.
+    Production 환경의 settings.font 메커니즘과 정확히 같습니다.
+  </p>
+  <div class="panel col">
+    <div style="display: grid; grid-template-columns: 140px 1fr 1fr; gap: var(--space-md); align-items: center;">
+      <span style="font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3);">Pretendard (default)</span>
+      <div style="font-family: 'Pretendard', 'Malgun Gothic', '맑은 고딕', sans-serif;">
+        <button class="ds-btn ds-btn--primary ds-btn--md" style="font-family: inherit;">새 노트 만들기</button>
+      </div>
+      <div style="font-family: 'Pretendard', 'Malgun Gothic', '맑은 고딕', sans-serif;">
+        <span class="ds-field ds-field--md" style="max-width: 320px;"><input class="ds-input" type="text" value="회의록 — 2026-05-15" style="font-family: inherit;"></span>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 140px 1fr 1fr; gap: var(--space-md); align-items: center;">
+      <span style="font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3);">나눔고딕 (nanum)</span>
+      <div style="font-family: 'NanumGothic', '나눔고딕', 'Malgun Gothic', '맑은 고딕', sans-serif;">
+        <button class="ds-btn ds-btn--primary ds-btn--md" style="font-family: inherit;">새 노트 만들기</button>
+      </div>
+      <div style="font-family: 'NanumGothic', '나눔고딕', 'Malgun Gothic', '맑은 고딕', sans-serif;">
+        <span class="ds-field ds-field--md" style="max-width: 320px;"><input class="ds-input" type="text" value="회의록 — 2026-05-15" style="font-family: inherit;"></span>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 140px 1fr 1fr; gap: var(--space-md); align-items: center;">
+      <span style="font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3);">Noto Sans KR (noto)</span>
+      <div style="font-family: 'Noto Sans KR', 'Malgun Gothic', '맑은 고딕', sans-serif;">
+        <button class="ds-btn ds-btn--primary ds-btn--md" style="font-family: inherit;">새 노트 만들기</button>
+      </div>
+      <div style="font-family: 'Noto Sans KR', 'Malgun Gothic', '맑은 고딕', sans-serif;">
+        <span class="ds-field ds-field--md" style="max-width: 320px;"><input class="ds-input" type="text" value="회의록 — 2026-05-15" style="font-family: inherit;"></span>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 140px 1fr 1fr; gap: var(--space-md); align-items: center;">
+      <span style="font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3);">맑은 고딕 (malgun)</span>
+      <div style="font-family: 'Malgun Gothic', '맑은 고딕', 'Gulim', '굴림', sans-serif;">
+        <button class="ds-btn ds-btn--primary ds-btn--md" style="font-family: inherit;">새 노트 만들기</button>
+      </div>
+      <div style="font-family: 'Malgun Gothic', '맑은 고딕', 'Gulim', '굴림', sans-serif;">
+        <span class="ds-field ds-field--md" style="max-width: 320px;"><input class="ds-input" type="text" value="회의록 — 2026-05-15" style="font-family: inherit;"></span>
+      </div>
+    </div>
+  </div>
+
   <p class="note">
-    All 14 components use only Tier 2 / Tier 3 design tokens. Run
-    <code>npm run audit:tokens</code> to verify Tier-1 leakage stays at 0.
+    모든 14개 primitive 가 Tier 2 / Tier 3 design token 만 사용합니다. 폰트는
+    <code>font-family: inherit</code> 로 사용자 선택을 자동으로 따라갑니다.
+    검증: <code>npm run audit:tokens</code> 실행 시 Tier-1 leakage = 0.
   </p>
 
   <script>
@@ -297,8 +369,19 @@
       document.documentElement.setAttribute('data-theme', t);
       localStorage.setItem('notology-preview-theme', t);
     }
-    const saved = localStorage.getItem('notology-preview-theme');
-    if (saved) setTheme(saved);
+    function setFont(f) {
+      document.documentElement.setAttribute('data-font', f);
+      localStorage.setItem('notology-preview-font', f);
+    }
+    const savedTheme = localStorage.getItem('notology-preview-theme');
+    if (savedTheme) setTheme(savedTheme);
+    const savedFont = localStorage.getItem('notology-preview-font');
+    if (savedFont) {
+      setFont(savedFont);
+      const picker = document.getElementById('font-picker');
+      if (picker) picker.value = savedFont;
+    }
+    document.getElementById('font-picker').addEventListener('change', (e) => setFont(e.target.value));
   </script>
 </body>
 </html>

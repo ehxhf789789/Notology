@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="ko" data-theme="light" data-font="default">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -9,28 +9,43 @@
     3-tier design-token system landed in Stage 5.0.1.
 
     Open directly in a browser:  src/design-system/token-preview.html
-    No build needed; this file inlines the token CSS for portability.
+    No build needed; this file references the same .css files the
+    production app imports — including reset.css which defines the
+    `--app-font` system (5 font choices via [data-font="..."]).
+    Toggle theme + font from the toolbar to verify both axes.
   -->
   <link rel="stylesheet" href="./tokens.css" />
   <link rel="stylesheet" href="../styles/base/themes.css" />
+  <link rel="stylesheet" href="../styles/base/reset.css" />
   <link rel="stylesheet" href="./mobile-tokens.css" />
   <style>
     html, body { margin: 0; padding: 0; }
     body {
       background: var(--bg-app);
       color: var(--tx-1);
-      font-family: var(--primitive-font-sans);
+      /* Use --app-font so the page responds to [data-font="..."] selection
+         exactly like the production Notology app does. */
+      font-family: var(--app-font);
       font-size: var(--fs-body);
       line-height: var(--lh-normal);
       padding: var(--space-xl);
       min-height: 100vh;
+    }
+    select.font-picker {
+      font: inherit;
+      background: var(--bg-input);
+      color: var(--tx-1);
+      border: 1px solid var(--bdr-1);
+      border-radius: var(--radius-md);
+      padding: var(--space-xs) var(--space-sm);
+      cursor: pointer;
     }
     h1 { font-size: var(--fs-h1); font-weight: 700; margin: 0 0 var(--space-lg); }
     h2 { font-size: var(--fs-h2); font-weight: 600; margin: var(--space-2xl) 0 var(--space-md); }
     h3 { font-size: var(--fs-h3); font-weight: 600; margin: var(--space-xl) 0 var(--space-sm); }
     p  { color: var(--tx-2); margin: 0 0 var(--space-md); }
     code {
-      font-family: var(--primitive-font-mono);
+      font-family: var(--font-mono);
       font-size: var(--fs-caption);
       padding: 2px 6px;
       background: var(--code-inline-bg);
@@ -86,7 +101,7 @@
       margin-bottom: var(--space-sm);
     }
     .sw .name {
-      font-family: var(--primitive-font-mono);
+      font-family: var(--font-mono);
       font-size: var(--fs-caption);
       color: var(--tx-1);
       word-break: break-all;
@@ -105,9 +120,9 @@
       padding: var(--space-sm) 0;
       border-bottom: 1px solid var(--bdr-1);
     }
-    .typo-row .label  { font-family: var(--primitive-font-mono); font-size: var(--fs-caption); color: var(--tx-3); }
+    .typo-row .label  { font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3); }
     .typo-row .sample { color: var(--tx-1); }
-    .typo-row .meta   { font-family: var(--primitive-font-mono); font-size: var(--fs-caption); color: var(--tx-3); text-align: right; }
+    .typo-row .meta   { font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3); text-align: right; }
 
     /* state buttons */
     .state-row {
@@ -133,7 +148,7 @@
       background: var(--bg-elev-1);
       padding: var(--space-md);
       border-radius: var(--radius-md);
-      font-family: var(--primitive-font-mono);
+      font-family: var(--font-mono);
       font-size: var(--fs-caption);
       color: var(--tx-1);
     }
@@ -162,7 +177,7 @@
     .spacing-demo { display: flex; flex-direction: column; gap: 2px; }
     .spacing-demo .row {
       display: flex; align-items: center; gap: var(--space-md);
-      font-family: var(--primitive-font-mono); font-size: var(--fs-caption);
+      font-family: var(--font-mono); font-size: var(--fs-caption);
     }
     .spacing-demo .bar {
       background: var(--c-accent);
@@ -175,6 +190,12 @@
 <body>
   <div class="toolbar">
     <strong style="margin-right: auto;">Notology Design Tokens — Stage 5.0.1</strong>
+    <select id="font-picker" class="font-picker" title="폰트 변경 (settings.font 와 동일)">
+      <option value="default">기본 (Pretendard)</option>
+      <option value="nanum">나눔고딕</option>
+      <option value="noto">Noto Sans KR</option>
+      <option value="malgun">맑은 고딕</option>
+    </select>
     <button type="button" id="btn-light"  class="secondary">Light</button>
     <button type="button" id="btn-system" class="secondary">System</button>
     <button type="button" id="btn-dark"   class="secondary">Dark</button>
@@ -235,13 +256,59 @@
   </div>
 
   <h2>Typography — <code>--fs-*</code> / <code>--lh-*</code></h2>
-  <div class="typo-row"><div class="label">h1</div><div class="sample" style="font-size: var(--fs-h1); line-height: var(--lh-tight); font-weight: 700;">노톨로지 디자인 시스템</div><div class="meta">28 / tight</div></div>
-  <div class="typo-row"><div class="label">h2</div><div class="sample" style="font-size: var(--fs-h2); line-height: var(--lh-tight); font-weight: 600;">노톨로지 디자인 시스템</div><div class="meta">22 / tight</div></div>
-  <div class="typo-row"><div class="label">h3</div><div class="sample" style="font-size: var(--fs-h3); line-height: var(--lh-normal); font-weight: 600;">노톨로지 디자인 시스템</div><div class="meta">18 / normal</div></div>
-  <div class="typo-row"><div class="label">title</div><div class="sample" style="font-size: var(--fs-title); line-height: var(--lh-normal);">Notology design system — sample body 한글 본문 표본</div><div class="meta">16 / normal</div></div>
-  <div class="typo-row"><div class="label">body</div><div class="sample" style="font-size: var(--fs-body); line-height: var(--lh-normal);">Notology design system — sample body 한글 본문 표본</div><div class="meta">14 / normal</div></div>
-  <div class="typo-row"><div class="label">caption</div><div class="sample" style="font-size: var(--fs-caption); line-height: var(--lh-normal);">Notology design system — caption 캡션 표본</div><div class="meta">12 / normal</div></div>
-  <p class="note">한글 / Latin baseline check — both should sit on the same baseline at every size.</p>
+  <p>
+    아래 샘플은 현재 선택된 폰트 (<code id="current-font-name">default</code>)
+    로 렌더링됩니다. 상단 폰트 드롭다운에서 변경하면 즉시 반영. 한글 +
+    영문 + 숫자 + 기호가 한 줄에 섞인 본문을 확인하세요.
+  </p>
+  <div class="typo-row"><div class="label">h1</div><div class="sample" style="font-size: var(--fs-h1); line-height: var(--lh-tight); font-weight: 700;">노톨로지 디자인 시스템 / Notology</div><div class="meta">28 / tight</div></div>
+  <div class="typo-row"><div class="label">h2</div><div class="sample" style="font-size: var(--fs-h2); line-height: var(--lh-tight); font-weight: 600;">제목 H2 — 연구노트 + Heading sample</div><div class="meta">22 / tight</div></div>
+  <div class="typo-row"><div class="label">h3</div><div class="sample" style="font-size: var(--fs-h3); line-height: var(--lh-normal); font-weight: 600;">소제목 H3 — Subheading 표본</div><div class="meta">18 / normal</div></div>
+  <div class="typo-row"><div class="label">title</div><div class="sample" style="font-size: var(--fs-title); line-height: var(--lh-normal);">노트 본문 표본: 회의 메모를 캘린더에서 확인하기. Tag: #stage5 · 2026-05-15</div><div class="meta">16 / normal</div></div>
+  <div class="typo-row"><div class="label">body</div><div class="sample" style="font-size: var(--fs-body); line-height: var(--lh-normal);">본문 14px — 한글의 받침, 모음, 자음이 일관된 베이스라인에 정렬되어야 합니다. Latin baseline alignment check.</div><div class="meta">14 / normal</div></div>
+  <div class="typo-row"><div class="label">caption</div><div class="sample" style="font-size: var(--fs-caption); line-height: var(--lh-normal);">캡션 12px — 마지막 수정 2026-05-15 14:23 · 동기화됨 · 12개 노트</div><div class="meta">12 / normal</div></div>
+
+  <h3 style="margin-top: var(--space-xl);">한글 가독성 검증 — line-height 차이</h3>
+  <div style="background: var(--bg-elev-1); border: 1px solid var(--bdr-1); border-radius: var(--radius-md); padding: var(--space-lg); display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-lg);">
+    <div>
+      <div style="font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3); margin-bottom: var(--space-sm);">lh-tight (1.2)</div>
+      <p style="font-size: var(--fs-body); line-height: var(--lh-tight); margin: 0;">노톨로지는 개인 지식 관리(PKM) 도구로, 마크다운을 기반으로 wikilink, 첨부파일, 캔버스, NAS 동기화를 지원합니다.</p>
+    </div>
+    <div>
+      <div style="font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3); margin-bottom: var(--space-sm);">lh-normal (1.5)</div>
+      <p style="font-size: var(--fs-body); line-height: var(--lh-normal); margin: 0;">노톨로지는 개인 지식 관리(PKM) 도구로, 마크다운을 기반으로 wikilink, 첨부파일, 캔버스, NAS 동기화를 지원합니다.</p>
+    </div>
+    <div>
+      <div style="font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3); margin-bottom: var(--space-sm);">lh-relaxed (1.7)</div>
+      <p style="font-size: var(--fs-body); line-height: var(--lh-relaxed); margin: 0;">노톨로지는 개인 지식 관리(PKM) 도구로, 마크다운을 기반으로 wikilink, 첨부파일, 캔버스, NAS 동기화를 지원합니다.</p>
+    </div>
+  </div>
+  <p class="note">한글 본문은 보통 라틴보다 약간 여유 있는 line-height 가 가독성에 좋습니다. 본문 기본값은 <code>--lh-normal (1.5)</code>.</p>
+
+  <h3 style="margin-top: var(--space-xl);">폰트 비교 매트릭스 — 같은 문장, 4종 폰트</h3>
+  <div style="background: var(--bg-elev-1); border: 1px solid var(--bdr-1); border-radius: var(--radius-md); padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-md);">
+    <div style="display: grid; grid-template-columns: 140px 1fr; gap: var(--space-md); align-items: baseline;">
+      <span style="font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3);">Pretendard (default)</span>
+      <span style="font-size: var(--fs-title); font-family: 'Pretendard', 'Malgun Gothic', '맑은 고딕', sans-serif;">노톨로지 디자인 시스템 — 한글 abc ABC 0123</span>
+    </div>
+    <div style="display: grid; grid-template-columns: 140px 1fr; gap: var(--space-md); align-items: baseline;">
+      <span style="font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3);">나눔고딕 (nanum)</span>
+      <span style="font-size: var(--fs-title); font-family: 'NanumGothic', '나눔고딕', 'Malgun Gothic', '맑은 고딕', sans-serif;">노톨로지 디자인 시스템 — 한글 abc ABC 0123</span>
+    </div>
+    <div style="display: grid; grid-template-columns: 140px 1fr; gap: var(--space-md); align-items: baseline;">
+      <span style="font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3);">Noto Sans KR (noto)</span>
+      <span style="font-size: var(--fs-title); font-family: 'Noto Sans KR', 'Malgun Gothic', '맑은 고딕', sans-serif;">노톨로지 디자인 시스템 — 한글 abc ABC 0123</span>
+    </div>
+    <div style="display: grid; grid-template-columns: 140px 1fr; gap: var(--space-md); align-items: baseline;">
+      <span style="font-family: var(--font-mono); font-size: var(--fs-caption); color: var(--tx-3);">맑은 고딕 (malgun)</span>
+      <span style="font-size: var(--fs-title); font-family: 'Malgun Gothic', '맑은 고딕', 'Gulim', '굴림', sans-serif;">노톨로지 디자인 시스템 — 한글 abc ABC 0123</span>
+    </div>
+  </div>
+  <p class="note">
+    각 행은 해당 폰트가 시스템에 설치된 경우 그 폰트로 렌더링됩니다. 미설치 시
+    fallback chain (Malgun → Gulim → system) 으로 자연스럽게 떨어집니다.
+    Production 환경에서도 settings.font 설정에 따라 동일하게 동작합니다.
+  </p>
 
   <h2>Spacing — <code>--space-*</code></h2>
   <div class="spacing-demo">
@@ -290,11 +357,25 @@
       document.documentElement.setAttribute('data-theme', t);
       localStorage.setItem('notology-preview-theme', t);
     };
+    const setFont = (f) => {
+      document.documentElement.setAttribute('data-font', f);
+      const label = document.getElementById('current-font-name');
+      if (label) label.textContent = f;
+      localStorage.setItem('notology-preview-font', f);
+    };
+
     document.getElementById('btn-light').addEventListener('click',  () => setTheme('light'));
     document.getElementById('btn-system').addEventListener('click', () => setTheme('system'));
     document.getElementById('btn-dark').addEventListener('click',   () => setTheme('dark'));
-    const saved = localStorage.getItem('notology-preview-theme');
-    if (saved) setTheme(saved);
+    document.getElementById('font-picker').addEventListener('change', (e) => setFont(e.target.value));
+
+    const savedTheme = localStorage.getItem('notology-preview-theme');
+    if (savedTheme) setTheme(savedTheme);
+    const savedFont = localStorage.getItem('notology-preview-font');
+    if (savedFont) {
+      setFont(savedFont);
+      document.getElementById('font-picker').value = savedFont;
+    }
   </script>
 </body>
 </html>
