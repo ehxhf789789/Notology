@@ -81,7 +81,7 @@ struct FaststartJournalEntry {
     status: EntryStatus,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 enum EntryStatus {
     Converted,
@@ -190,56 +190,70 @@ impl FaststartMigration {
         }
         state.backup_dir = Some(backup_root);
 
-        // Snapshot candidate ids upfront — `swap_ref_sha` mutates the
+        // Snapshot candidate refs upfront — `swap_ref_sha` mutates the
         // store, so we can't iterate `all_refs` while mutating.
-        let candidate_ids: Vec<(String, String)> = store
+        let candidate_pairs: Vec<(String, String)> = store
             .all_refs()
             .filter(|r| is_video_ref(r))
             .map(|r| (r.attachment_id.clone(), r.sha256.clone()))
             .collect();
-        let total = candidate_ids.len();
-        on_progress(0, total);
+
+        // Stage 4.6.3 F-2 fix (HanBin 2026-05-14): group refs by sha256
+        // before processing. Cross-note dedup means the same physical
+        // CAS blob can be referenced by multiple AttachmentRefs. The
+        // pre-fix code re-muxed each shared blob once per ref (HanBin
+        // vault: 06주차-Part-01.mp4 ×2 → 2 redundant re-muxes ≈ 30 s
+        // wasted). Now we re-mux once per unique sha and `swap_ref_sha`
+        // every ref in the group to the single new sha. Order is
+        // deterministic (BTreeMap by sha) so re-runs converge.
+        let mut by_sha: std::collections::BTreeMap<String, Vec<String>> =
+            std::collections::BTreeMap::new();
+        for (id, sha) in candidate_pairs.iter() {
+            by_sha.entry(sha.clone()).or_default().push(id.clone());
+        }
+        let total_refs = candidate_pairs.len();
+        let mut processed_refs = 0usize;
+        on_progress(0, total_refs);
 
         let tmp_dir = self.vault_root.join(".notology/attachments/faststart_tmp");
         std::fs::create_dir_all(&tmp_dir).map_err(|e| format!("tmp mkdir: {e}"))?;
 
-        for (idx, (id, old_sha)) in candidate_ids.iter().enumerate() {
-            match self.process_one(&mut store, id, old_sha, &tmp_dir) {
-                Ok(EntryStatus::Converted) => {
-                    state.converted += 1;
-                    journal.entries.push(FaststartJournalEntry {
-                        attachment_id: id.clone(),
-                        old_sha: old_sha.clone(),
-                        new_sha: store
-                            .get_by_id(id)
-                            .map(|r| r.sha256.clone())
-                            .unwrap_or_default(),
-                        timestamp: Utc::now(),
-                        status: EntryStatus::Converted,
-                    });
+        for (old_sha, ids) in by_sha.iter() {
+            let status = self
+                .process_sha_group(&mut store, old_sha, ids, &tmp_dir)
+                .unwrap_or(EntryStatus::Failed);
+
+            // For Converted, all ids in the group now point at the same
+            // new sha — fetch once.
+            let new_sha = if status == EntryStatus::Converted {
+                store
+                    .get_by_id(&ids[0])
+                    .map(|r| r.sha256.clone())
+                    .unwrap_or_default()
+            } else if status == EntryStatus::SkippedAlreadyFaststart {
+                old_sha.clone()
+            } else {
+                String::new()
+            };
+
+            for id in ids {
+                match status {
+                    EntryStatus::Converted => state.converted += 1,
+                    EntryStatus::SkippedAlreadyFaststart => {
+                        state.skipped_already_faststart += 1
+                    }
+                    EntryStatus::Failed => state.failed.push(id.clone()),
                 }
-                Ok(EntryStatus::SkippedAlreadyFaststart) => {
-                    state.skipped_already_faststart += 1;
-                    journal.entries.push(FaststartJournalEntry {
-                        attachment_id: id.clone(),
-                        old_sha: old_sha.clone(),
-                        new_sha: old_sha.clone(),
-                        timestamp: Utc::now(),
-                        status: EntryStatus::SkippedAlreadyFaststart,
-                    });
-                }
-                Ok(EntryStatus::Failed) | Err(_) => {
-                    state.failed.push(id.clone());
-                    journal.entries.push(FaststartJournalEntry {
-                        attachment_id: id.clone(),
-                        old_sha: old_sha.clone(),
-                        new_sha: String::new(),
-                        timestamp: Utc::now(),
-                        status: EntryStatus::Failed,
-                    });
-                }
+                journal.entries.push(FaststartJournalEntry {
+                    attachment_id: id.clone(),
+                    old_sha: old_sha.clone(),
+                    new_sha: new_sha.clone(),
+                    timestamp: Utc::now(),
+                    status,
+                });
+                processed_refs += 1;
+                on_progress(processed_refs, total_refs);
             }
-            on_progress(idx + 1, total);
         }
 
         // Best-effort tmp dir cleanup
@@ -254,14 +268,22 @@ impl FaststartMigration {
         Ok(state)
     }
 
-    /// Process a single ref: probe → re-mux → swap. Returns the
-    /// resulting status. Internal errors map to `Failed` (entry-level
-    /// failure shouldn't abort the entire migration).
-    fn process_one(
+    /// Process a sha-group: probe one blob → re-mux once → swap every
+    /// ref id in the group to the new sha. Stage 4.6.3 F-2 fix
+    /// (HanBin 2026-05-14): cross-note dedup means a single physical
+    /// CAS blob can have multiple AttachmentRefs pointing at it. The
+    /// pre-fix per-ref loop re-muxed the same blob N times; this
+    /// per-sha loop does it once.
+    ///
+    /// Returns aggregate status — applied uniformly to all ids in the
+    /// group. A partial swap failure (rare; would need disk error
+    /// mid-loop) returns Failed for the whole group; the caller
+    /// records per-id failed entries so the user can re-run.
+    fn process_sha_group(
         &self,
         store: &mut AttachmentStore,
-        attachment_id: &str,
         old_sha: &str,
+        ids: &[String],
         tmp_dir: &std::path::Path,
     ) -> Result<EntryStatus, String> {
         let blob_path = store.cas_path(old_sha);
@@ -277,8 +299,10 @@ impl FaststartMigration {
             return Ok(EntryStatus::SkippedAlreadyFaststart);
         }
 
-        let tmp_path = tmp_dir.join(format!("{}.tmp", attachment_id));
-        if let Err(_e) = apply_faststart(&blob_path, &tmp_path) {
+        // Tmp filename keyed on sha (not id) so the same blob can't
+        // collide with itself across the group.
+        let tmp_path = tmp_dir.join(format!("{}.tmp", old_sha));
+        if apply_faststart(&blob_path, &tmp_path).is_err() {
             let _ = std::fs::remove_file(&tmp_path);
             return Ok(EntryStatus::Failed);
         }
@@ -298,7 +322,6 @@ impl FaststartMigration {
         if let Some(parent) = new_blob_path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| format!("new blob mkdir: {e}"))?;
         }
-        // Use rename first (fast same-volume), copy fallback if rename fails.
         if std::fs::rename(&tmp_path, &new_blob_path).is_err() {
             if std::fs::copy(&tmp_path, &new_blob_path).is_err() {
                 let _ = std::fs::remove_file(&tmp_path);
@@ -307,12 +330,14 @@ impl FaststartMigration {
             let _ = std::fs::remove_file(&tmp_path);
         }
 
-        // Swap ref sha in store
-        if store
-            .swap_ref_sha(attachment_id, new_sha, Some(new_size))
-            .is_err()
-        {
-            return Ok(EntryStatus::Failed);
+        // Swap every ref in the group to the single new sha.
+        for id in ids {
+            if store
+                .swap_ref_sha(id, new_sha.clone(), Some(new_size))
+                .is_err()
+            {
+                return Ok(EntryStatus::Failed);
+            }
         }
         Ok(EntryStatus::Converted)
     }
@@ -437,6 +462,67 @@ mod tests {
         assert_eq!(report.candidates, 0);
         assert_eq!(report.total_videos, 0);
         assert!(mig.declined());
+    }
+
+    /// Stage 4.6.3 F-2 fix (HanBin 2026-05-14): cross-note dedup means
+    /// one physical blob can have multiple AttachmentRefs. The fix
+    /// re-muxes once per unique sha, then `swap_ref_sha`s every ref in
+    /// the group. This test pins:
+    ///   - 1 unique blob shared by 2 notes → 2 refs
+    ///   - run() converts the blob ONCE (visible via journal entries
+    ///     all carrying the same new_sha)
+    ///   - both refs end up pointing at the same new sha
+    ///   - state.converted == 2 (still ref-level for UI prompt parity)
+    ///   - tmp file keyed on sha (not id) so no name collision
+    #[test]
+    fn run_dedupes_shared_blob_across_notes() {
+        let tmp = TempDir::new().unwrap();
+        let mut store = AttachmentStore::new(tmp.path().to_path_buf()).unwrap();
+        // Same content + same name → cross-note dedup yields 1 ref + linked_notes=[noteA, noteB].
+        // To create 2 *distinct* refs sharing one blob (the F-2 case), we add
+        // the same content with DIFFERENT names → 2 refs, 1 blob.
+        let src = tmp.path().join("video_shared.mp4");
+        write_non_faststart_mp4(&src);
+        let r1 = store.add_attachment(&src, "video_a.mp4", "noteA").unwrap();
+        let r2 = store.add_attachment(&src, "video_b.mp4", "noteB").unwrap();
+        assert_eq!(r1.attachment_ref.sha256, r2.attachment_ref.sha256,
+                   "same content → same sha");
+        assert_ne!(r1.attachment_ref.attachment_id, r2.attachment_ref.attachment_id,
+                   "different names → different refs");
+
+        let mut mig = FaststartMigration::new(tmp.path().to_path_buf());
+        let state = mig.run(|_, _| {}).unwrap();
+
+        assert_eq!(state.converted, 2,
+                   "both refs counted as converted (ref-level total preserved)");
+        assert!(state.failed.is_empty());
+
+        // Both refs now point at the SAME new sha — algorithmic
+        // determinism + single re-mux guarantees this.
+        let post1 = store.get_by_id(&r1.attachment_ref.attachment_id);
+        let post2 = store.get_by_id(&r2.attachment_ref.attachment_id);
+        // Note: store mutated by mig owns its own AttachmentStore;
+        // re-load from disk to see post-state.
+        let mut store2 = AttachmentStore::new(tmp.path().to_path_buf()).unwrap();
+        store2.load_from_disk().unwrap();
+        let p1 = store2.get_by_id(&r1.attachment_ref.attachment_id).unwrap();
+        let p2 = store2.get_by_id(&r2.attachment_ref.attachment_id).unwrap();
+        assert_eq!(p1.sha256, p2.sha256,
+                   "shared-blob refs converge to same new sha");
+        assert_ne!(p1.sha256, r1.attachment_ref.sha256,
+                   "sha actually changed (was re-muxed)");
+        let _ = (post1, post2);
+
+        // Journal: 2 entries with identical new_sha
+        let journal_bytes = std::fs::read(&mig.journal_path).unwrap();
+        let journal: FaststartJournal = serde_json::from_slice(&journal_bytes).unwrap();
+        let converted: Vec<&FaststartJournalEntry> = journal
+            .entries
+            .iter()
+            .filter(|e| e.status == EntryStatus::Converted)
+            .collect();
+        assert_eq!(converted.len(), 2);
+        assert_eq!(converted[0].new_sha, converted[1].new_sha);
     }
 
     #[test]
