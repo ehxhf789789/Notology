@@ -442,20 +442,36 @@ A sub-stage is "done" when:
 
 ---
 
-## 18. Open questions for HanBin (block 5.0.1 entry until answered)
+## 18. HanBin sign-off (2026-05-14)
 
-| # | Question | Default if unanswered |
+| # | Question | HanBin's answer |
 |---|---|---|
-| Q1 | Adopt the 12-sub-stage breakdown above, or condense / split? | adopt as-written |
-| Q2 | Cmd/Ctrl+K command palette as PRIMARY navigation (folder tree becomes secondary) or SUPPLEMENT (keep folder-tree-first paradigm)? | SUPPLEMENT — folder tree stays primary |
-| Q3 | Default editor toolbar visibility: ON (current) / OFF (slash-first) / OFF on first run, ON if user toggles | OFF (slash-first) — simpler default; toolbar one-click away |
-| Q4 | Accent color customization (6 presets) — in 5.0.1 or defer to a later refinement? | defer (5.0.6 settings sub-stage) |
-| Q5 | Keep both `migration-modal-*` and `faststart-migration-modal-*` CSS class names during 5.0.8 transition, or rename now to `<Dialog>`-based? | rename to `<Dialog>` in one shot in 5.0.8 (avoid two-step churn) |
-| Q6 | Floating-UI dep (~30KB) acceptable for `<Tooltip>` / `<Popover>` / `<DropdownMenu>` positioning? | yes |
-| Q7 | Mobile parity in 5.0.10 — full visual rewrite or token-only update keeping current screen layouts? | token-only first; full rewrite if HanBin decides post-5.0.9 |
-| Q8 | Per-vault design preferences (e.g. one vault uses dense layout, another spacious) — Stage 5.0 scope or future? | future |
+| Q1 | 12-sub-stage breakdown? | **Adopt as-written** |
+| Q2 | Cmd-K palette primary vs supplement? | **Supplement** — folder tree stays primary, Cmd-K is augmentation |
+| Q3 | Default editor toolbar visibility | **OFF (slash-first)** — PLUS new explicit requirement: full audit of ALL keyboard commands and shortcut bindings before 5.0.4 implementation. Current `/`, `//`, `$`, `$$` etc. are inconsistent. Standard editing shortcuts (Ctrl+Z / Ctrl+Shift+Z / Ctrl+X / Ctrl+C / Ctrl+V) must work without collision with custom commands. **Re-design the entire command + shortcut system**, document the new map, then implement. See §18a below. |
+| Q4 | Accent color customization scope | (no explicit answer — default applies: defer to 5.0.6 settings sub-stage) |
+| Q5 | CSS class-name rename timing | (no explicit answer — default: rename to `<Dialog>`-based in one shot at 5.0.8) |
+| Q6 | Floating-UI dep ~30KB | (no explicit answer — default: accepted) |
+| Q7 | Mobile parity scope | **Full visual rewrite** (overrides default of token-only). Mobile screens redesigned from scratch using the new design system + primitives. +3 to +5 sessions added to 5.0.10 budget. |
+| Q8 | Per-vault design preferences | (no explicit answer — default: future, not Stage 5.0) |
 
-Default-decision protocol matches Stage 4.5: if HanBin doesn't override, the defaults above stand and 5.0.1 begins.
+### 18a. New requirement from Q3 — Command & Shortcut Consolidation
+
+Before 5.0.4 (editor) implementation begins, a **command + shortcut audit pass** is required as the first action inside 5.0.4. Specifically:
+
+1. **Inventory every keyboard binding currently active** in Notology — TipTap defaults, our custom extensions, modal-level shortcuts (ESC / Enter), app-level shortcuts (Ctrl+S save, Ctrl+K search, etc.), context-menu accelerators. Source: `src/utils/shortcuts.ts`, `useAppKeyboardShortcuts`, every `editor.commands.*` keymap, every `onKeyDown` in modals.
+2. **Inventory every text-trigger command** — `/`, `//`, `$`, `$$`, `[[`, `>` callout, `-` list, `1.` list, `\`\`\`` code block, table syntax, etc. Document what each does.
+3. **Identify collisions** — same key binding doing different things in different contexts; same prefix used by multiple unrelated features (`/` for slash command + `//` for inline math?); standard OS shortcuts being overridden silently.
+4. **Design the new map** — single canonical command palette via `/` for block-level inserts, `Cmd+K` for navigation, OS-standard shortcuts (Ctrl+Z/Y/X/C/V/A/F/S) reserved and never overridden, function keys + Ctrl+Shift combos for app-level (search / settings / new note). Math `$..$` and `$$..$$` retained but documented as the only special inline syntax.
+5. **Document the result** in a sub-stage 5.0.4-pre report (`docs/architecture/stage_5_reports/5_0_4_pre_command_audit.md`) before implementation. HanBin reviews the proposed map; once signed off, implementation proceeds.
+
+This adds ~1 session to 5.0.4 (now estimated 3 sessions instead of 2). Total Stage 5.0 budget revised below.
+
+### 18b. Revised total estimate (after Q3 + Q7 changes)
+
+- **5.0.4 (editor)**: 2 → 3 sessions (+1 for command/shortcut audit)
+- **5.0.10 (mobile)**: 1 → 5 sessions (+4 for full rewrite)
+- **Stage 5.0 total**: 14 → ~19 sessions (still per-sub-stage shippable; HanBin can pause / re-prioritize between sub-stages)
 
 ---
 
