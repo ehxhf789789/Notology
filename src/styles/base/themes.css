@@ -19,6 +19,21 @@
    ============================================================ */
 
 /* ============================================================
+   color-scheme — tells the browser/OS which palette to use for
+   native UI (form control popups, native scrollbars, default
+   backgrounds). Without this, native <select> dropdowns and
+   date/color pickers render in light mode regardless of our
+   --bg-* tokens. Set once per theme selector.
+   ============================================================ */
+:root                       { color-scheme: light; }
+html[data-theme="light"]    { color-scheme: light; }
+html[data-theme="dark"]     { color-scheme: dark; }
+@media (prefers-color-scheme: dark) {
+  html[data-theme="system"],
+  :root:not([data-theme]):not([data-theme="light"]) { color-scheme: dark; }
+}
+
+/* ============================================================
    :root — DEFAULT LIGHT (also drives system-theme when OS is light)
    ============================================================ */
 :root {
