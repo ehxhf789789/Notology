@@ -641,6 +641,59 @@ impl AttachmentStore {
         (blobs_removed, displays_removed)
     }
 
+    /// Stage 4.6 (faststart bulk migration support, HanBin 2026-05-14):
+    /// swap an existing ref's `sha256` to a new value. Used by
+    /// `faststart_migration` when an existing blob has been re-muxed in
+    /// place — the file content changed (moov atom moved to the front)
+    /// so the sha256 changed too, but the AttachmentRef identity
+    /// (attachment_id, original_name, linked_notes, display_path) stays.
+    ///
+    /// Side effects:
+    ///  - Updates `refs_by_id[id].sha256` + optional `size_bytes`.
+    ///  - Resets `sync_etag` + `remote_path` so the new blob gets pushed
+    ///    on the next sync cycle (Track B contract: changed sha = unsynced).
+    ///  - Persists the updated ref JSON via `atomic_write_file`.
+    ///  - Adds the new sha to `blobs_by_sha` (caller is expected to have
+    ///    already written the new blob to the CAS path).
+    ///  - **Does NOT remove the old blob from `blobs_by_sha` or disk** —
+    ///    caller is responsible for `sweep_orphans()` after verification.
+    ///    This protects against mid-migration crashes leaving the vault
+    ///    without any usable copy.
+    ///
+    /// Returns the previous sha256 so the caller can manage CAS GC.
+    pub fn swap_ref_sha(
+        &mut self,
+        attachment_id: &str,
+        new_sha: String,
+        new_size_bytes: Option<u64>,
+    ) -> Result<String, String> {
+        let r = self
+            .refs_by_id
+            .get_mut(attachment_id)
+            .ok_or_else(|| format!("attachment_id {} not found", attachment_id))?;
+        let old_sha = std::mem::replace(&mut r.sha256, new_sha.clone());
+        if let Some(s) = new_size_bytes {
+            r.size_bytes = s;
+        }
+        r.sync_etag = None;
+        r.remote_path = None;
+        let snapshot = r.clone();
+        self.persist_ref(&snapshot)?;
+
+        let new_cas_path = self.cas_path(&new_sha);
+        let new_size = snapshot.size_bytes;
+        self.blobs_by_sha
+            .entry(new_sha.clone())
+            .or_insert_with(|| AttachmentBlob {
+                sha256: new_sha,
+                local_path: new_cas_path,
+                remote_path: None,
+                size_bytes: new_size,
+            });
+
+        Ok(old_sha)
+    }
+
     /// Update sync metadata after a successful push. Called by `attachment_sync`.
     pub fn record_sync_etag(
         &mut self,
@@ -1320,6 +1373,56 @@ mod tests {
         assert_eq!(loaded.attachment_id, "20260514120000");
         assert_eq!(loaded.sha256, "deadbeef");
         assert_eq!(loaded.linked_notes, vec!["noteA".to_string()]);
+    }
+
+    /// Stage 4.6 (HanBin 2026-05-14): `swap_ref_sha` updates the ref's
+    /// sha256 in place (used by faststart_migration after re-muxing the
+    /// existing CAS blob). Pins:
+    ///   - sha256 + size_bytes updated in-memory + on-disk (ref JSON)
+    ///   - sync_etag / remote_path reset to None (forces re-push)
+    ///   - other fields (attachment_id, original_name, linked_notes,
+    ///     display_path, mime_type, tier, created_at) unchanged
+    ///   - returned old_sha matches pre-swap value
+    ///   - blobs_by_sha gains entry for new sha
+    #[test]
+    fn swap_ref_sha_updates_ref_and_keeps_other_fields() {
+        let (tmp, mut store) = mk_store();
+        let src = write_source(tmp.path(), "swap_src.bin", b"original-content");
+        let out = store.add_attachment(&src, "swap.pdf", "noteA").unwrap();
+        let id = out.attachment_ref.attachment_id.clone();
+        let old_sha = out.attachment_ref.sha256.clone();
+        let original_name = out.attachment_ref.original_name.clone();
+        let display_path = out.attachment_ref.display_path.clone();
+        let linked_notes = out.attachment_ref.linked_notes.clone();
+        let created_at = out.attachment_ref.created_at;
+        let new_sha = "deadbeef".repeat(8); // 64-char fake sha
+        let new_size = 12345u64;
+
+        let returned_old = store
+            .swap_ref_sha(&id, new_sha.clone(), Some(new_size))
+            .unwrap();
+        assert_eq!(returned_old, old_sha, "returned old sha must match pre-swap");
+
+        let r = store.get_by_id(&id).unwrap();
+        assert_eq!(r.sha256, new_sha);
+        assert_eq!(r.size_bytes, new_size);
+        assert_eq!(r.original_name, original_name);
+        assert_eq!(r.display_path, display_path);
+        assert_eq!(r.linked_notes, linked_notes);
+        assert_eq!(r.created_at, created_at);
+        assert!(r.sync_etag.is_none());
+        assert!(r.remote_path.is_none());
+
+        // blobs_by_sha gains new entry
+        assert!(store.blobs_by_sha.contains_key(&new_sha));
+
+        // Reload from disk: same values
+        let mut store2 = AttachmentStore::new(tmp.path().to_path_buf()).unwrap();
+        store2.load_from_disk().unwrap();
+        let r2 = store2.get_by_id(&id).unwrap();
+        assert_eq!(r2.sha256, new_sha);
+        assert_eq!(r2.size_bytes, new_size);
+        assert!(r2.sync_etag.is_none());
     }
 
     /// Stage 4.5.3 F-3 fix (HanBin 2026-05-14): `resolve_wikilink` must

@@ -448,6 +448,49 @@ fn decline_vault_migration(vault_path: String) -> Result<(), String> {
     core::migration::decline_migration(std::path::Path::new(&vault_path))
 }
 
+// ── Stage 4.6 Faststart bulk migration commands (HanBin 2026-05-14) ──
+// Triggered by frontend on vault open: check → prompt → run / decline.
+
+/// Read-only scan: how many video CAS blobs need faststart conversion?
+#[tauri::command]
+fn faststart_migration_check(
+    vault_path: String,
+) -> Result<features::sync_v2::faststart_migration::FaststartReport, String> {
+    let mig = features::sync_v2::faststart_migration::FaststartMigration::new(
+        std::path::PathBuf::from(&vault_path),
+    );
+    mig.check_needed()
+}
+
+/// Execute faststart bulk migration. Emits `faststart_migration:progress`
+/// events on the AppHandle (done, total) for live UI updates.
+#[tauri::command]
+fn faststart_migration_run(
+    app: tauri::AppHandle,
+    vault_path: String,
+) -> Result<features::sync_v2::faststart_migration::FaststartState, String> {
+    use tauri::Emitter;
+    let mut mig = features::sync_v2::faststart_migration::FaststartMigration::new(
+        std::path::PathBuf::from(&vault_path),
+    );
+    mig.run(|done, total| {
+        let _ = app.emit(
+            "faststart_migration:progress",
+            serde_json::json!({ "done": done, "total": total }),
+        );
+    })
+}
+
+/// Decline faststart migration for a vault — `check_needed` will return
+/// zero-counts thereafter, suppressing the prompt.
+#[tauri::command]
+fn faststart_migration_decline(vault_path: String) -> Result<(), String> {
+    let mig = features::sync_v2::faststart_migration::FaststartMigration::new(
+        std::path::PathBuf::from(&vault_path),
+    );
+    mig.decline()
+}
+
 /// Clear the Library state (e.g., on vault switch).
 #[tauri::command]
 fn clear_library(
@@ -772,13 +815,12 @@ pub fn run() {
             features::wikilink::rename_file_with_links,
             features::wikilink::search_backlinks,
             // Attachment commands
-            features::attachment::read_attachment_folder,
             features::attachment::search_attachments,
             features::attachment::delete_multiple_files,
             features::attachment::delete_attachments_with_links,
             features::attachment::check_attachment_references,
-            // Track B Phase B-1 POC — drag-out probe (dev-only)
-            features::attachment_drag::attachment_drag_poc_prepare,
+            // (Track B Phase B-1 POC `attachment_drag_poc_prepare` removed
+            //  2026-05-14 — production drag-out lives in attachmentDragOut.ts)
             // Tag commands
             features::tags::bulk_delete_tag,
             features::tags::bulk_rename_tag,
@@ -930,6 +972,10 @@ pub fn run() {
             run_vault_migration,
             get_vault_migration_state,
             decline_vault_migration,
+            // Stage 4.6 faststart bulk migration (HanBin 2026-05-14)
+            faststart_migration_check,
+            faststart_migration_run,
+            faststart_migration_decline,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

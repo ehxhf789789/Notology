@@ -39,6 +39,12 @@ pub mod background_worker;
 // Track B Phase B-2 — legacy `{Note}_att/` → `.attachments/` + CAS migration.
 pub mod attachment_migration;
 
+// Stage 4.6 (HanBin 2026-05-14) — bulk re-mux of pre-existing video CAS
+// blobs to faststart format. Re-uses the Stage 4.x mp4_faststart engine
+// (frozen + 4.5.1 determinism-verified) and AttachmentStore::swap_ref_sha
+// to update refs in place. See docs/architecture/STAGE_4_6_ATTACHMENT_MIGRATION_PLAN.md.
+pub mod faststart_migration;
+
 // Track B Phase B-2 (Q2=C, §4.4-CL) — chunked blob upload layer.
 // Files ≥100 MB are split into 16 MB chunks with a commit-last manifest;
 // smaller files use a single PUT. Both layouts coexist on NAS.
