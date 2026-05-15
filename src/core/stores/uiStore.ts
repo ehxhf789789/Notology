@@ -5,6 +5,10 @@ const MIN_SIDEBAR_WIDTH = 200;
 const MAX_SIDEBAR_WIDTH = 500;
 const DEFAULT_SIDEBAR_WIDTH = 280;
 
+export const RIGHT_PANEL_TABS = ['calendar', 'tags', 'comments', 'outline', 'metadata'] as const;
+export type RightPanelTab = (typeof RIGHT_PANEL_TABS)[number];
+const DEFAULT_RIGHT_PANEL_TAB: RightPanelTab = 'calendar';
+
 // Load sidebar width from localStorage
 const loadSidebarWidth = (): number => {
   try {
@@ -17,6 +21,16 @@ const loadSidebarWidth = (): number => {
     }
   } catch {}
   return DEFAULT_SIDEBAR_WIDTH;
+};
+
+const loadRightPanelTab = (): RightPanelTab => {
+  try {
+    const stored = localStorage.getItem('notology-right-panel-tab');
+    if (stored && (RIGHT_PANEL_TABS as readonly string[]).includes(stored)) {
+      return stored as RightPanelTab;
+    }
+  } catch {}
+  return DEFAULT_RIGHT_PANEL_TAB;
 };
 
 // Track animation timeouts to prevent memory leaks on rapid toggling
@@ -32,6 +46,7 @@ interface UIState {
   sidebarAnimState: 'idle' | 'opening' | 'closing';
   hoverPanelAnimState: 'idle' | 'opening' | 'closing';
   sidebarWidth: number;
+  rightPanelTab: RightPanelTab;
 
   // Actions
   setShowSearch: (show: boolean) => void;
@@ -39,6 +54,7 @@ interface UIState {
   setShowSidebar: (show: boolean) => void;
   setShowHoverPanel: (show: boolean) => void;
   setSidebarWidth: (width: number) => void;
+  setRightPanelTab: (tab: RightPanelTab) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -51,6 +67,7 @@ export const useUIStore = create<UIState>()(
     sidebarAnimState: 'idle',
     hoverPanelAnimState: 'idle',
     sidebarWidth: loadSidebarWidth(),
+    rightPanelTab: loadRightPanelTab(),
 
     // Show search (mutually exclusive with calendar)
     setShowSearch: (show: boolean) => {
@@ -122,6 +139,14 @@ export const useUIStore = create<UIState>()(
         localStorage.setItem('notology-sidebar-width', String(clampedWidth));
       } catch {}
     },
+
+    // Set right-panel active tab with persistence
+    setRightPanelTab: (tab: RightPanelTab) => {
+      set({ rightPanelTab: tab });
+      try {
+        localStorage.setItem('notology-right-panel-tab', tab);
+      } catch {}
+    },
   }))
 );
 
@@ -133,6 +158,7 @@ export const useShowSidebar = () => useUIStore((s) => s.showSidebar);
 export const useSidebarAnimState = () => useUIStore((s) => s.sidebarAnimState);
 export const useHoverPanelAnimState = () => useUIStore((s) => s.hoverPanelAnimState);
 export const useSidebarWidth = () => useUIStore((s) => s.sidebarWidth);
+export const useRightPanelTab = () => useUIStore((s) => s.rightPanelTab);
 
 // Actions (stable references)
 export const uiActions = {
@@ -141,4 +167,5 @@ export const uiActions = {
   setShowSidebar: (show: boolean) => useUIStore.getState().setShowSidebar(show),
   setShowHoverPanel: (show: boolean) => useUIStore.getState().setShowHoverPanel(show),
   setSidebarWidth: (width: number) => useUIStore.getState().setSidebarWidth(width),
+  setRightPanelTab: (tab: RightPanelTab) => useUIStore.getState().setRightPanelTab(tab),
 };

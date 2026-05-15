@@ -1,0 +1,67 @@
+/* ============================================================
+   Right Panel — tab-row container (Stage 5.0.3a)
+   ------------------------------------------------------------
+   The .right-panel base + .right-panel-header + .right-panel-*
+   calendar/memo styles live in hover-editor.css (legacy
+   co-location since pre-5.0). This file adds only the new
+   tab-row layout introduced by 5.0.3a.
+
+   Korean tab labels (캘린더 / 태그 / 코멘트 / 아웃라인 / 메타데이터)
+   do not fit horizontally in 5 × 56px columns. We keep the
+   label text in DOM as the accessible name and visually hide
+   it via clip-path (modern sr-only — no negative-margin trick).
+   Native `title` attribute on each <Tab> exposes the label on
+   hover for sighted users.
+   ============================================================ */
+
+.right-panel { overflow: hidden; }
+
+.right-panel-tabs { flex: 1; min-height: 0; gap: 0; }
+
+.right-panel-tablist {
+  flex-shrink: 0;
+  padding: var(--space-xs) var(--space-xs) 0;
+  background: var(--bg-app);
+}
+
+.right-panel-tablist .ds-tabs__tab {
+  flex: 1;
+  justify-content: center;
+  padding: var(--space-sm) var(--space-xs);
+  min-width: 0;
+}
+
+.right-panel-tablist .ds-tabs__tab > span:not(.ds-tabs__tab-icon) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.right-panel-tablist .ds-tabs__tab-icon {
+  display: inline-flex;
+  color: inherit;
+}
+
+.right-panel-tab-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.right-panel-tab-content.right-panel-tab-empty {
+  justify-content: center;
+}
+
+.right-panel-calendar-tab {
+  /* Calendar tab inherits the pre-5.0.3a calendar/memo layout
+     (.right-panel-calendar / .right-panel-divider / .right-panel-memos
+     defined in hover-editor.css). This is just the container. */
+  display: flex;
+  flex-direction: column;
+}

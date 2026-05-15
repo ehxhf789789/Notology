@@ -30,6 +30,7 @@
 @import './components/hover-editor.css';
 @import './components/sync-conflict.css';
 @import './components/right-panel.css';
+@import './components/right-panel-tabs.css';
 @import './components/settings.css';
 @import './components/context-menu.css';
 @import './components/move-note-modal.css';

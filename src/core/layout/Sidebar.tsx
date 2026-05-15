@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Search, Plus, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
+import { Slot } from '../infrastructure/slotRegistry';
 import {
   useVaultPath,
   useFileTree,
   useSelectedContainer,
 } from '../stores/zustand';
-import { useShowSearch, useShowSidebar, uiActions } from '../stores/uiStore';
+import { useShowSearch, useShowSidebar, useShowHoverPanel, uiActions } from '../stores/uiStore';
+import { IconButton, Tooltip } from '../../design-system/components';
 import { useContainerConfigs, vaultConfigActions } from '../../features/vault-config/stores/vaultConfigStore';
 import { modalActions } from '../../features/modals/stores/modalStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -27,12 +29,21 @@ function Sidebar() {
   // ========== ZUSTAND UI STATE ==========
   const showSearch = useShowSearch();
   const showSidebar = useShowSidebar();
+  const showHoverPanel = useShowHoverPanel();
   const containerConfigs = useContainerConfigs();
   const language = useSettingsStore(s => s.language);
 
   // Get vault name from path
   const vaultName = vaultPath ? vaultPath.split(/[/\\]/).filter(Boolean).pop() : '';
   const [showSettings, setShowSettings] = useState(false);
+
+  // Listen for 'open-settings' custom event (from sync_v2 popover etc.)
+  useEffect(() => {
+    const handler = () => setShowSettings(true);
+    window.addEventListener('open-settings', handler);
+    return () => window.removeEventListener('open-settings', handler);
+  }, []);
+
   const [showNewContainer, setShowNewContainer] = useState(false);
   const [newContainerName, setNewContainerName] = useState('');
   const [showTypeSelector, setShowTypeSelector] = useState(false);
@@ -212,6 +223,17 @@ function Sidebar() {
             >
               <Search size={16} strokeWidth={2} />
             </button>
+            <Tooltip content={t('rightPanelToggle', language)} placement="bottom">
+              <IconButton
+                icon={<PanelRightOpen size={16} strokeWidth={2} />}
+                aria-label={t('rightPanelToggle', language)}
+                variant="ghost"
+                size="md"
+                pressed={showHoverPanel}
+                disabled={!vaultPath}
+                onClick={() => uiActions.setShowHoverPanel(!showHoverPanel)}
+              />
+            </Tooltip>
           </div>
         </div>
 
@@ -237,23 +259,23 @@ function Sidebar() {
         {/* Ribbon Bar */}
         {vaultPath && <RibbonBar />}
 
-        {/* Sidebar Footer - Vault & Settings */}
+        {/* Sidebar Footer - Vault name + sync status + settings */}
         <div className="sidebar-footer">
           <button
             className="sidebar-footer-btn vault-btn"
             onClick={() => modalActions.setShowVaultSelectorModal(true)}
             title={t('openVault', language)}
           >
-            <FolderClosed size={16} strokeWidth={2} />
+            <FolderClosed size={14} strokeWidth={2} />
             <span className="sidebar-footer-btn-text">{vaultName || t('openVault', language)}</span>
-            <ChevronDown size={14} strokeWidth={2} />
           </button>
+          <Slot name="sidebar-footer-status" />
           <button
             className="sidebar-footer-btn settings-btn"
             onClick={() => setShowSettings(true)}
             title={t('settings', language)}
           >
-            <SettingsIcon size={16} strokeWidth={2} />
+            <SettingsIcon size={14} strokeWidth={2} />
           </button>
         </div>
       </aside>

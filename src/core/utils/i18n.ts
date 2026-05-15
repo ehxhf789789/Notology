@@ -274,6 +274,7 @@ const ko: Record<string, string> = {
   restore: '복원',
   minimize: '최소화',
   openInApp: '응용프로그램으로 열기',
+  openInViewer: '뷰어로 열기',
 
   // ── Document Preview ──
   docPreviewConverting: '문서를 변환하고 있습니다...',
@@ -470,6 +471,21 @@ const ko: Record<string, string> = {
   calendarMemoCount: '{count}개',
   calendarNoTasks: '할일이 없습니다',
   calendarNoMemos: '메모가 없습니다',
+  prevMonth: '이전 달',
+  nextMonth: '다음 달',
+
+  // ── Right Panel (Stage 5.0.3a) ──
+  rightPanelTabsLabel: '우측 패널 탭',
+  rightPanelCalendar: '캘린더',
+  rightPanelTags: '태그',
+  rightPanelComments: '코멘트',
+  rightPanelOutline: '아웃라인',
+  rightPanelMetadata: '메타데이터',
+  rightPanelToggle: '우측 패널 열기 / 닫기',
+  rightPanelEmptyTitle: '표시할 항목이 없습니다',
+  rightPanelEmptyDesc: '이 탭에 표시될 내용은 아직 등록되지 않았습니다.',
+  rightPanelEmptyPerNoteTitle: '활성 노트 없음',
+  rightPanelEmptyPerNoteDesc: '노트를 열면 이 탭에서 해당 노트의 내용을 확인할 수 있습니다.',
 
   // ── Note template editor ──
   templateIconNote: '노트',
@@ -1348,6 +1364,7 @@ const en: Record<string, string> = {
   restore: 'Restore',
   minimize: 'Minimize',
   openInApp: 'Open in application',
+  openInViewer: 'Open in viewer',
 
   // ── Document Preview ──
   docPreviewConverting: 'Converting document...',
@@ -1542,6 +1559,21 @@ const en: Record<string, string> = {
   calendarMemoCount: '{count}',
   calendarNoTasks: 'No tasks',
   calendarNoMemos: 'No memos',
+  prevMonth: 'Previous month',
+  nextMonth: 'Next month',
+
+  // ── Right Panel (Stage 5.0.3a) ──
+  rightPanelTabsLabel: 'Right panel tabs',
+  rightPanelCalendar: 'Calendar',
+  rightPanelTags: 'Tags',
+  rightPanelComments: 'Comments',
+  rightPanelOutline: 'Outline',
+  rightPanelMetadata: 'Metadata',
+  rightPanelToggle: 'Toggle right panel',
+  rightPanelEmptyTitle: 'Nothing to show',
+  rightPanelEmptyDesc: 'No content has been registered for this tab yet.',
+  rightPanelEmptyPerNoteTitle: 'No active note',
+  rightPanelEmptyPerNoteDesc: 'Open a note to see its content here.',
 
   // ── Note template editor ──
   templateIconNote: 'Note',

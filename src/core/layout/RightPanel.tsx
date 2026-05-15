@@ -1,34 +1,147 @@
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, PanelRightClose, CheckSquare, MessageSquare } from 'lucide-react';
+import {
+  CalendarDays,
+  Tag,
+  MessageSquare,
+  ListTree,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  PanelRightClose,
+  CheckSquare,
+  MessageCircle,
+} from 'lucide-react';
 import { memoCommands } from '../services/tauriCommands';
 import { useVaultPath } from '../stores/fileTreeStore';
+import { refreshActions } from '../stores/refreshStore';
 import { hoverActions } from '../../features/hover-windows/stores/hoverStore';
 import { useCalendarRefreshTrigger } from '../stores/refreshStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { useUIStore } from '../stores/uiStore';
+import { useUIStore, useRightPanelTab, uiActions, type RightPanelTab } from '../stores/uiStore';
+import { Slot, SlotRegistry } from '../infrastructure/slotRegistry';
 import { t, tf } from '../utils/i18n';
+import { loadComments, saveComments } from '../../features/comments/comments';
+import { notifyMemoChanged } from '../utils/windowSync';
 import type { CalendarMemo, CalendarViewMode } from '../types';
+import { Tabs, TabList, Tab, TabPanel, EmptyState, IconButton, Tooltip } from '../../design-system/components';
 
 interface RightPanelProps {
   width: number;
 }
 
-// Format date to YYYY-MM-DD
 const formatDate = (date: Date): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
-
-// Get today's date string
 const getTodayString = (): string => formatDate(new Date());
 
 const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
+  const language = useSettingsStore(s => s.language);
+  const setShowHoverPanel = useUIStore(s => s.setShowHoverPanel);
+  const activeTab = useRightPanelTab();
+
+  return (
+    <div className="right-panel" style={{ width }}>
+      <header className="right-panel-header">
+        <div className="right-panel-header-left">
+          <div className="right-panel-today-icon">
+            <CalendarDays size={14} />
+            <span className="right-panel-today-day">{new Date().getDate()}</span>
+          </div>
+          <div className="right-panel-today-info">
+            <span className="right-panel-today-label">{t('today', language)}</span>
+            <span className="right-panel-today-date">
+              {new Date().toLocaleDateString(language === 'ko' ? 'ko-KR' : 'en-US', {
+                month: 'short',
+                weekday: 'short',
+              })}
+            </span>
+          </div>
+        </div>
+        <IconButton
+          icon={<PanelRightClose size={18} />}
+          aria-label={t('close', language)}
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowHoverPanel(false)}
+        />
+      </header>
+
+      <Tabs
+        value={activeTab}
+        onChange={(v) => uiActions.setRightPanelTab(v as RightPanelTab)}
+        className="right-panel-tabs"
+      >
+        <TabList aria-label={t('rightPanelTabsLabel', language)} className="right-panel-tablist">
+          <Tab value="calendar" icon={<CalendarDays size={14} />} title={t('rightPanelCalendar', language)}>
+            {t('rightPanelCalendar', language)}
+          </Tab>
+          <Tab value="tags"     icon={<Tag size={14} />}          title={t('rightPanelTags', language)}>
+            {t('rightPanelTags', language)}
+          </Tab>
+          <Tab value="comments" icon={<MessageSquare size={14} />} title={t('rightPanelComments', language)}>
+            {t('rightPanelComments', language)}
+          </Tab>
+          <Tab value="outline"  icon={<ListTree size={14} />}     title={t('rightPanelOutline', language)}>
+            {t('rightPanelOutline', language)}
+          </Tab>
+          <Tab value="metadata" icon={<FileText size={14} />}     title={t('rightPanelMetadata', language)}>
+            {t('rightPanelMetadata', language)}
+          </Tab>
+        </TabList>
+
+        <TabPanel value="calendar"><CalendarTabContent /></TabPanel>
+        <TabPanel value="tags"><SlotOrEmpty name="right-panel-tags" perNote /></TabPanel>
+        <TabPanel value="comments"><SlotOrEmpty name="right-panel-comments" perNote /></TabPanel>
+        <TabPanel value="outline"><SlotOrEmpty name="right-panel-outline" perNote /></TabPanel>
+        <TabPanel value="metadata"><SlotOrEmpty name="right-panel-metadata" perNote /></TabPanel>
+      </Tabs>
+    </div>
+  );
+});
+
+export default RightPanel;
+
+/* ============================================================
+   Slot-or-EmptyState wrapper for per-note tabs
+   ------------------------------------------------------------
+   Renders any feature components registered under the given
+   slot name. If none are registered, falls back to an
+   EmptyState explaining the panel is per-note.
+   ============================================================ */
+interface SlotOrEmptyProps {
+  name: string;
+  perNote?: boolean;
+}
+function SlotOrEmpty({ name, perNote }: SlotOrEmptyProps) {
+  const entries = SlotRegistry._getSnapshot(name);
+  const language = useSettingsStore(s => s.language);
+
+  if (entries.length > 0) {
+    return <div className="right-panel-tab-content"><Slot name={name} /></div>;
+  }
+
+  return (
+    <div className="right-panel-tab-content right-panel-tab-empty">
+      <EmptyState
+        title={t(perNote ? 'rightPanelEmptyPerNoteTitle' : 'rightPanelEmptyTitle', language)}
+        description={t(perNote ? 'rightPanelEmptyPerNoteDesc' : 'rightPanelEmptyDesc', language)}
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+   CalendarTabContent — the original RightPanel.tsx calendar
+   surface, lifted into its own component so it composes
+   inside the new tab-row layout.
+   ============================================================ */
+function CalendarTabContent() {
   const vaultPath = useVaultPath();
   const calendarRefreshTrigger = useCalendarRefreshTrigger();
   const language = useSettingsStore(s => s.language);
-  const setShowHoverPanel = useUIStore(s => s.setShowHoverPanel);
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
@@ -36,11 +149,8 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
   const [viewMode, setViewMode] = useState<CalendarViewMode>('task');
   const [temporarilyResolved, setTemporarilyResolved] = useState<Set<string>>(new Set());
 
-  // Load memos when vault changes or refresh trigger changes
   useEffect(() => {
-    if (vaultPath) {
-      loadMemos();
-    }
+    if (vaultPath) loadMemos();
   }, [vaultPath, calendarRefreshTrigger]);
 
   const loadMemos = async () => {
@@ -53,32 +163,21 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
     }
   };
 
-  // Filter memos by view mode and resolved status
-  const filteredMemos = useMemo(() => {
-    return memos.filter(memo => {
-      if (viewMode === 'task' && !memo.isTask) return false;
-      if (viewMode === 'memo' && memo.isTask) return false;
-      if (memo.resolved && !temporarilyResolved.has(memo.id)) return false;
-      return true;
-    });
-  }, [memos, viewMode, temporarilyResolved]);
+  const filteredMemos = useMemo(() => memos.filter(m => {
+    if (viewMode === 'task' && !m.isTask) return false;
+    if (viewMode === 'memo' && m.isTask) return false;
+    if (m.resolved && !temporarilyResolved.has(m.id)) return false;
+    return true;
+  }), [memos, viewMode, temporarilyResolved]);
 
-  // Group memos by date
   const memosByDate = useMemo(() => {
-    const grouped = new Map<string, CalendarMemo[]>();
-    filteredMemos.forEach(memo => {
-      const existing = grouped.get(memo.date) || [];
-      grouped.set(memo.date, [...existing, memo]);
-    });
-    return grouped;
+    const g = new Map<string, CalendarMemo[]>();
+    filteredMemos.forEach(m => g.set(m.date, [...(g.get(m.date) || []), m]));
+    return g;
   }, [filteredMemos]);
 
-  // Get memos for selected date
-  const selectedDateMemos = useMemo(() => {
-    return memosByDate.get(selectedDate) || [];
-  }, [selectedDate, memosByDate]);
+  const selectedDateMemos = useMemo(() => memosByDate.get(selectedDate) || [], [selectedDate, memosByDate]);
 
-  // Get today's task and memo counts (for badge display)
   const todayCounts = useMemo(() => {
     const today = getTodayString();
     const todayMemos = memos.filter(m => m.date === today && !m.resolved);
@@ -88,149 +187,104 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
     };
   }, [memos]);
 
-  // Calendar grid calculation
   const calendarGrid = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const firstDayOfWeek = firstDay.getDay();
-    const daysInMonth = lastDay.getDate();
-
+    const y = currentDate.getFullYear();
+    const m = currentDate.getMonth();
+    const firstDow = new Date(y, m, 1).getDay();
+    const days = new Date(y, m + 1, 0).getDate();
     const grid: (number | null)[] = [];
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      grid.push(null);
-    }
-    for (let day = 1; day <= daysInMonth; day++) {
-      grid.push(day);
-    }
+    for (let i = 0; i < firstDow; i++) grid.push(null);
+    for (let d = 1; d <= days; d++) grid.push(d);
     return grid;
   }, [currentDate]);
 
   const changeMonth = (delta: number) => {
     setCurrentDate(prev => {
-      const newDate = new Date(prev);
-      newDate.setMonth(newDate.getMonth() + delta);
-      return newDate;
+      const d = new Date(prev);
+      d.setMonth(d.getMonth() + delta);
+      return d;
     });
   };
 
   const handleDateClick = (day: number) => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const date = new Date(year, month, day);
-    setSelectedDate(formatDate(date));
+    const d = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    const dateStr = formatDate(d);
+    setSelectedDate(dateStr);
+    const dateMemos = memos.filter(m => m.date === dateStr && !m.resolved);
+    const hasTasks = dateMemos.some(m => m.isTask);
+    const hasMemos = dateMemos.some(m => !m.isTask);
+    if (viewMode === 'task' && !hasTasks && hasMemos) setViewMode('memo');
+    else if (viewMode === 'memo' && !hasMemos && hasTasks) setViewMode('task');
   };
 
-  const handleMemoClick = (memo: CalendarMemo) => {
-    hoverActions.open(memo.notePath);
-  };
+  const handleMemoClick = (memo: CalendarMemo) => hoverActions.open(memo.notePath);
 
-  const handleResolveToggle = (memoId: string) => {
+  const handleResolveToggle = useCallback(async (memo: CalendarMemo) => {
     setTemporarilyResolved(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(memoId)) {
-        newSet.delete(memoId);
-      } else {
-        newSet.add(memoId);
-      }
-      return newSet;
+      const next = new Set(prev);
+      next.has(memo.id) ? next.delete(memo.id) : next.add(memo.id);
+      return next;
     });
-  };
+    try {
+      const { comments, mtime } = await loadComments(memo.notePath);
+      const updated = comments.map(c => c.id === memo.id ? { ...c, resolved: !c.resolved } : c);
+      await saveComments(memo.notePath, updated, mtime);
+      refreshActions.batchRefresh({ calendar: true });
+      notifyMemoChanged(memo.notePath).catch(() => {});
+    } catch (e) {
+      console.error('Failed to toggle memo resolved state:', e);
+    }
+  }, []);
 
   const isToday = (day: number): boolean => {
     const today = new Date();
-    return (
-      day === today.getDate() &&
-      currentDate.getMonth() === today.getMonth() &&
-      currentDate.getFullYear() === today.getFullYear()
-    );
+    return day === today.getDate()
+      && currentDate.getMonth() === today.getMonth()
+      && currentDate.getFullYear() === today.getFullYear();
   };
 
   const getMemoCountForDate = (day: number): number => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const date = new Date(year, month, day);
-    const dateStr = formatDate(date);
-    return memosByDate.get(dateStr)?.length || 0;
+    const d = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    return memosByDate.get(formatDate(d))?.length || 0;
   };
 
   const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   return (
-    <div className="right-panel" style={{ width }}>
-      {/* Header - Shows today's date */}
-      <div className="right-panel-header">
-        <div className="right-panel-header-left">
-          <div className="right-panel-today-icon">
-            <CalendarDays size={14} />
-            <span className="right-panel-today-day">{new Date().getDate()}</span>
-          </div>
-          <div className="right-panel-today-info">
-            <span className="right-panel-today-label">{t('today', language)}</span>
-            <span className="right-panel-today-date">
-              {new Date().toLocaleDateString(language === 'ko' ? 'ko-KR' : 'en-US', {
-                month: 'short',
-                weekday: 'short'
-              })}
-            </span>
-          </div>
-        </div>
-        <button
-          className="right-panel-close"
-          onClick={() => setShowHoverPanel(false)}
-          title={t('close', language)}
-        >
-          <PanelRightClose size={18} />
-        </button>
-      </div>
-
-      {/* Calendar Section - Top 50% */}
+    <div className="right-panel-tab-content right-panel-calendar-tab">
       <div className="right-panel-calendar">
-        {/* Month Navigation */}
         <div className="right-panel-calendar-nav">
-          <button onClick={() => changeMonth(-1)} className="right-panel-nav-btn">
+          <button onClick={() => changeMonth(-1)} className="right-panel-nav-btn" aria-label={t('prevMonth', language)}>
             <ChevronLeft size={14} />
           </button>
           <span className="right-panel-month">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </span>
-          <button onClick={() => changeMonth(1)} className="right-panel-nav-btn">
+          <button onClick={() => changeMonth(1)} className="right-panel-nav-btn" aria-label={t('nextMonth', language)}>
             <ChevronRight size={14} />
           </button>
         </div>
 
-        {/* Compact Calendar Grid */}
         <div className="right-panel-calendar-grid">
           <div className="right-panel-weekdays">
-            {dayNames.map((day, i) => (
-              <div key={i} className="right-panel-weekday">{day}</div>
-            ))}
+            {dayNames.map((d, i) => <div key={i} className="right-panel-weekday">{d}</div>)}
           </div>
           <div className="right-panel-days">
-            {calendarGrid.map((day, index) => {
-              const memoCount = day !== null ? getMemoCountForDate(day) : 0;
-              const dateStr = day !== null
-                ? formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day))
-                : '';
-              const isSelected = dateStr === selectedDate;
-              const isTodayDate = day !== null && isToday(day);
-
+            {calendarGrid.map((day, idx) => {
+              if (day === null) return <div key={idx} className="right-panel-day empty" />;
+              const count = getMemoCountForDate(day);
+              const dateStr = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day));
+              const selected = dateStr === selectedDate;
+              const isTd = isToday(day);
               return (
                 <div
-                  key={index}
-                  className={`right-panel-day ${day === null ? 'empty' : ''} ${isTodayDate ? 'today' : ''} ${isSelected ? 'selected' : ''} ${memoCount > 0 ? 'has-memos' : ''}`}
-                  onClick={() => day !== null && handleDateClick(day)}
+                  key={idx}
+                  className={`right-panel-day${isTd ? ' today' : ''}${selected ? ' selected' : ''}${count > 0 ? ' has-memos' : ''}`}
+                  onClick={() => handleDateClick(day)}
                 >
-                  {day !== null && (
-                    <>
-                      <span className="right-panel-day-number">{day}</span>
-                      {memoCount > 0 && (
-                        <span className="right-panel-day-count">{memoCount}</span>
-                      )}
-                    </>
-                  )}
+                  <span className="right-panel-day-number">{day}</span>
+                  {count > 0 && <span className="right-panel-day-count">{count}</span>}
                 </div>
               );
             })}
@@ -238,16 +292,13 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
         </div>
       </div>
 
-      {/* Divider */}
       <div className="right-panel-divider" />
 
-      {/* Memo List Section - Bottom 50% */}
       <div className="right-panel-memos">
-        {/* View Mode Toggle */}
         <div className="right-panel-memo-header">
           <div className="right-panel-memo-toggle">
             <button
-              className={`right-panel-toggle-btn ${viewMode === 'task' ? 'active' : ''}`}
+              className={`right-panel-toggle-btn${viewMode === 'task' ? ' active' : ''}`}
               onClick={() => setViewMode('task')}
             >
               <CheckSquare size={12} />
@@ -257,36 +308,30 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
               )}
             </button>
             <button
-              className={`right-panel-toggle-btn ${viewMode === 'memo' ? 'active' : ''}`}
+              className={`right-panel-toggle-btn${viewMode === 'memo' ? ' active' : ''}`}
               onClick={() => setViewMode('memo')}
             >
-              <MessageSquare size={12} />
+              <MessageCircle size={12} />
               <span>{t('calendarMemo', language)}</span>
               {todayCounts.memoCount > 0 && (
                 <span className="right-panel-toggle-badge">{todayCounts.memoCount}</span>
               )}
             </button>
           </div>
-          <span className="right-panel-memo-count">
-            {selectedDateMemos.length}
-          </span>
+          <span className="right-panel-memo-count">{selectedDateMemos.length}</span>
         </div>
 
-        {/* Memo Items */}
         <div className="right-panel-memo-list">
           {selectedDateMemos.map(memo => (
             <div
               key={memo.id}
-              className={`right-panel-memo-item ${temporarilyResolved.has(memo.id) ? 'resolved' : ''}`}
+              className={`right-panel-memo-item${temporarilyResolved.has(memo.id) ? ' resolved' : ''}`}
               onClick={() => handleMemoClick(memo)}
             >
               <input
                 type="checkbox"
                 checked={temporarilyResolved.has(memo.id) || memo.resolved}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  handleResolveToggle(memo.id);
-                }}
+                onChange={(e) => { e.stopPropagation(); handleResolveToggle(memo); }}
                 className="right-panel-memo-checkbox"
               />
               <div className="right-panel-memo-content">
@@ -304,11 +349,11 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
       </div>
     </div>
   );
-});
+}
 
-export default RightPanel;
-
-// Export hook for getting today's memo count (used by collapsed bar)
+/* ============================================================
+   Exported hook (preserved API for collapsed-bar consumers)
+   ============================================================ */
 export function useTodayMemoCount(): { taskCount: number; memoCount: number; total: number } {
   const vaultPath = useVaultPath();
   const calendarRefreshTrigger = useCalendarRefreshTrigger();
@@ -316,21 +361,19 @@ export function useTodayMemoCount(): { taskCount: number; memoCount: number; tot
 
   useEffect(() => {
     if (!vaultPath) return;
-
-    const loadCounts = async () => {
+    const load = async () => {
       try {
         const memos = await memoCommands.collectCalendarMemos(vaultPath);
         const today = getTodayString();
-        const todayMemos = memos.filter(m => m.date === today && !m.resolved);
-        const taskCount = todayMemos.filter(m => m.isTask).length;
-        const memoCount = todayMemos.filter(m => !m.isTask).length;
+        const tm = memos.filter(m => m.date === today && !m.resolved);
+        const taskCount = tm.filter(m => m.isTask).length;
+        const memoCount = tm.filter(m => !m.isTask).length;
         setCounts({ taskCount, memoCount, total: taskCount + memoCount });
       } catch (e) {
         console.error('Failed to load memo counts:', e);
       }
     };
-
-    loadCounts();
+    load();
   }, [vaultPath, calendarRefreshTrigger]);
 
   return counts;
