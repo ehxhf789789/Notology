@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, lazy, Suspense } from 'react';
-import { PanelLeftOpen, PanelRightOpen } from 'lucide-react';
+import { PanelRightOpen } from 'lucide-react';
 import { AppInitializer } from '../stores/appStore';
 import { ToastContainer } from '../../features/shared/Toast';
 import { NasDeletionsBanner } from '../../features/sync_v2/components/NasDeletionsBanner';
@@ -16,8 +16,6 @@ import {
   useLanguage,
   useShowSearch,
   useShowHoverPanel,
-  useShowSidebar,
-  useSidebarAnimState,
   useHoverPanelAnimState,
   useSidebarWidth,
   useSidebarCollapsed,
@@ -83,9 +81,7 @@ function AppLayout() {
   // UI state (individual Zustand subscriptions - only re-renders when specific value changes)
   const showSearch = useShowSearch();
   const showHoverPanel = useShowHoverPanel();
-  const showSidebar = useShowSidebar();
   const sidebarCollapsed = useSidebarCollapsed();
-  const sidebarAnimState = useSidebarAnimState();
   const hoverPanelAnimState = useHoverPanelAnimState();
 
   // Modal state
@@ -374,27 +370,19 @@ function AppLayout() {
       {/* Trash panel — opens via store flag (toast button / settings / etc.). */}
       <TrashPanel />
       <div className="app-layout">
-        {/* Left Sidebar with slide animation.
-            Stage 5.0.3b: when sidebarCollapsed is true, width locks to
-            SIDEBAR_ICON_WIDTH and the divider/resize hides — only the
-            collapse toggle in the footer expands it back. */}
-        <div className={`sidebar-wrapper ${showSidebar ? 'open' : 'closed'} ${sidebarAnimState}${sidebarCollapsed ? ' sidebar-wrapper--icon-only' : ''}`} style={{ width: showSidebar || sidebarAnimState === 'closing' ? (sidebarCollapsed ? SIDEBAR_ICON_WIDTH : sidebarWidth) : undefined }}>
-          {showSidebar || sidebarAnimState === 'closing' ? (
-            <>
-              <Sidebar />
-              {!sidebarCollapsed && <div className="divider" onMouseDown={startResize} />}
-            </>
-          ) : (
-            <div className="sidebar-collapsed-bar">
-              <button
-                className="sidebar-collapsed-toggle"
-                onClick={() => uiActions.setShowSidebar(true)}
-                title={t('sidebarToggle', language)}
-              >
-                <PanelLeftOpen size={18} />
-              </button>
-            </div>
-          )}
+        {/* Left Sidebar. Stage 5.0.3b-simplify (2026-05-15): hidden-mode
+            collapsed-bar removed — HanBin smoke test surfaced that two
+            independent collapse axes (showSidebar = hidden, sidebarCollapsed
+            = icon-only) were duplicative. Single state: sidebarCollapsed
+            toggles between expanded (sidebarWidth) and icon-only
+            (SIDEBAR_ICON_WIDTH). Width transition still animated via
+            existing sidebar-wrapper animation class. */}
+        <div
+          className={`sidebar-wrapper open${sidebarCollapsed ? ' sidebar-wrapper--icon-only' : ''}`}
+          style={{ width: sidebarCollapsed ? SIDEBAR_ICON_WIDTH : sidebarWidth }}
+        >
+          <Sidebar />
+          {!sidebarCollapsed && <div className="divider" onMouseDown={startResize} />}
         </div>
         <div className="editor-area">
           <Slot name="editor-banner" />

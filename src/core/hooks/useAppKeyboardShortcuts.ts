@@ -11,8 +11,8 @@ import {
   useNoteTemplates,
   useContainerConfigs,
   useLanguage,
-  useShowSidebar,
   useShowHoverPanel,
+  useUIStore,
 } from '../stores/zustand';
 import { createNoteWithTemplate } from '../stores/appActions';
 import { DEFAULT_SHORTCUTS, getActiveKeys, parseShortcut } from '../utils/shortcuts';
@@ -41,7 +41,6 @@ export function useAppKeyboardShortcuts() {
   const noteTemplates = useNoteTemplates();
   const containerConfigs = useContainerConfigs();
   const language = useLanguage();
-  const showSidebar = useShowSidebar();
   const showHoverPanel = useShowHoverPanel();
 
   // Stable action references
@@ -248,10 +247,14 @@ export function useAppKeyboardShortcuts() {
         return;
       }
 
-      // Toggle sidebar (Ctrl+ArrowLeft)
+      // Toggle sidebar (Ctrl+ArrowLeft) — Stage 5.0.3b-simplify (2026-05-15):
+      // semantic now = collapse toggle (expanded ↔ icon-only). The legacy
+      // hidden mode was removed because two collapse axes (hide vs icon-only)
+      // created duplicate UI surface that confused users (one button each).
       if (checkShortcut('toggleSidebar')) {
         e.preventDefault();
-        uiActions.setShowSidebar(!showSidebar);
+        const collapsed = useUIStore.getState().sidebarCollapsed;
+        uiActions.setSidebarCollapsed(!collapsed);
         return;
       }
 
@@ -284,5 +287,5 @@ export function useAppKeyboardShortcuts() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [vaultPath, customShortcuts, showSidebar, showHoverPanel, selectedContainer, noteTemplates, containerConfigs, language, openHoverFile, refreshFileTree, incrementSearchRefresh]);
+  }, [vaultPath, customShortcuts, showHoverPanel, selectedContainer, noteTemplates, containerConfigs, language, openHoverFile, refreshFileTree, incrementSearchRefresh]);
 }

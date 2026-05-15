@@ -19,7 +19,7 @@ import {
   useFileTree,
   hoverActions,
   uiActions,
-  useShowSidebar,
+  useSidebarCollapsed,
   useShowHoverPanel,
   useLanguage,
 } from '../../core/stores/zustand';
@@ -84,7 +84,7 @@ function fuzzyScore(needle: string, haystack: string): number {
 export function CommandPalette() {
   const language = useLanguage();
   const fileTree = useFileTree();
-  const showSidebar = useShowSidebar();
+  const sidebarCollapsed = useSidebarCollapsed();
   const showHoverPanel = useShowHoverPanel();
 
   const [open, setOpen] = useState(false);
@@ -137,8 +137,8 @@ export function CommandPalette() {
         label: t('cmdToggleSidebar', language),
         icon: <PanelLeftClose size={14} />,
         shortcut: ['Ctrl', 'ArrowLeft'],
-        matchText: t('cmdToggleSidebar', language) + ' sidebar 사이드바',
-        onSelect: () => uiActions.setShowSidebar(!showSidebar),
+        matchText: t('cmdToggleSidebar', language) + ' sidebar 사이드바 축소',
+        onSelect: () => uiActions.setSidebarCollapsed(!sidebarCollapsed),
       },
       {
         type: 'command',
@@ -151,7 +151,7 @@ export function CommandPalette() {
       },
     ];
     return cmds;
-  }, [language, showSidebar, showHoverPanel]);
+  }, [language, sidebarCollapsed, showHoverPanel]);
 
   /** All notes in vault (memoized — flatten + matchText only when tree changes). */
   const allNotes = useMemo<PaletteNote[]>(() => {

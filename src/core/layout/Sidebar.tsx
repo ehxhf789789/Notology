@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Search, Plus, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Slot } from '../infrastructure/slotRegistry';
 import {
   useVaultPath,
   useFileTree,
   useSelectedContainer,
 } from '../stores/zustand';
-import { useShowSearch, useShowSidebar, useSidebarCollapsed, useUIStore, uiActions } from '../stores/uiStore';
+import { useShowSearch, useSidebarCollapsed, useUIStore, uiActions } from '../stores/uiStore';
 import { IconButton, Tooltip } from '../../design-system/components';
 import { useContainerConfigs, vaultConfigActions } from '../../features/vault-config/stores/vaultConfigStore';
 import { modalActions } from '../../features/modals/stores/modalStore';
@@ -28,7 +28,6 @@ function Sidebar() {
 
   // ========== ZUSTAND UI STATE ==========
   const showSearch = useShowSearch();
-  const showSidebar = useShowSidebar();
   const sidebarCollapsed = useSidebarCollapsed();
   const containerConfigs = useContainerConfigs();
   const language = useSettingsStore(s => s.language);
@@ -214,11 +213,13 @@ function Sidebar() {
         <div className="sidebar-header">
           <div className="sidebar-header-left">
             <button
-              className={`sidebar-toggle-btn ${showSidebar ? '' : 'collapsed'}`}
-              onClick={() => uiActions.setShowSidebar(!showSidebar)}
-              title={showSidebar ? t('close', language) : t('open', language)}
+              className={`sidebar-toggle-btn ${sidebarCollapsed ? 'collapsed' : ''}`}
+              onClick={() => uiActions.setSidebarCollapsed(!sidebarCollapsed)}
+              title={sidebarCollapsed ? t('sidebarExpand', language) : t('sidebarCollapse', language)}
+              aria-label={sidebarCollapsed ? t('sidebarExpand', language) : t('sidebarCollapse', language)}
+              aria-pressed={sidebarCollapsed}
             >
-              {showSidebar ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+              {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             </button>
           </div>
           {!sidebarCollapsed && (
@@ -312,18 +313,6 @@ function Sidebar() {
               <Slot name="sidebar-footer-status" />
             </>
           )}
-          <Tooltip
-            content={sidebarCollapsed ? t('sidebarExpand', language) : t('sidebarCollapse', language)}
-            placement={sidebarCollapsed ? 'right' : 'top'}
-          >
-            <IconButton
-              icon={sidebarCollapsed ? <ChevronsRight size={14} strokeWidth={2} /> : <ChevronsLeft size={14} strokeWidth={2} />}
-              aria-label={sidebarCollapsed ? t('sidebarExpand', language) : t('sidebarCollapse', language)}
-              variant="ghost"
-              size="sm"
-              onClick={() => uiActions.setSidebarCollapsed(!sidebarCollapsed)}
-            />
-          </Tooltip>
           <button
             className="sidebar-footer-btn settings-btn"
             onClick={() => setShowSettings(true)}
