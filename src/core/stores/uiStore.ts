@@ -33,6 +33,14 @@ const loadRightPanelTab = (): RightPanelTab => {
   return DEFAULT_RIGHT_PANEL_TAB;
 };
 
+const loadSidebarCollapsed = (): boolean => {
+  try {
+    return localStorage.getItem('notology-sidebar-collapsed') === '1';
+  } catch {
+    return false;
+  }
+};
+
 // Track animation timeouts to prevent memory leaks on rapid toggling
 let sidebarAnimTimeout: ReturnType<typeof setTimeout> | null = null;
 let hoverPanelAnimTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -46,6 +54,8 @@ interface UIState {
   sidebarAnimState: 'idle' | 'opening' | 'closing';
   hoverPanelAnimState: 'idle' | 'opening' | 'closing';
   sidebarWidth: number;
+  /** Stage 5.0.3b: when true, sidebar renders icon-only at SIDEBAR_ICON_WIDTH. */
+  sidebarCollapsed: boolean;
   rightPanelTab: RightPanelTab;
 
   // Actions
@@ -54,8 +64,11 @@ interface UIState {
   setShowSidebar: (show: boolean) => void;
   setShowHoverPanel: (show: boolean) => void;
   setSidebarWidth: (width: number) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
   setRightPanelTab: (tab: RightPanelTab) => void;
 }
+
+export const SIDEBAR_ICON_WIDTH = 52;
 
 export const useUIStore = create<UIState>()(
   subscribeWithSelector((set, get) => ({
@@ -67,6 +80,7 @@ export const useUIStore = create<UIState>()(
     sidebarAnimState: 'idle',
     hoverPanelAnimState: 'idle',
     sidebarWidth: loadSidebarWidth(),
+    sidebarCollapsed: loadSidebarCollapsed(),
     rightPanelTab: loadRightPanelTab(),
 
     // Show search (mutually exclusive with calendar)
@@ -147,6 +161,15 @@ export const useUIStore = create<UIState>()(
         localStorage.setItem('notology-right-panel-tab', tab);
       } catch {}
     },
+
+    // Toggle sidebar icon-only mode with persistence
+    setSidebarCollapsed: (collapsed: boolean) => {
+      if (collapsed === get().sidebarCollapsed) return;
+      set({ sidebarCollapsed: collapsed });
+      try {
+        localStorage.setItem('notology-sidebar-collapsed', collapsed ? '1' : '0');
+      } catch {}
+    },
   }))
 );
 
@@ -158,6 +181,7 @@ export const useShowSidebar = () => useUIStore((s) => s.showSidebar);
 export const useSidebarAnimState = () => useUIStore((s) => s.sidebarAnimState);
 export const useHoverPanelAnimState = () => useUIStore((s) => s.hoverPanelAnimState);
 export const useSidebarWidth = () => useUIStore((s) => s.sidebarWidth);
+export const useSidebarCollapsed = () => useUIStore((s) => s.sidebarCollapsed);
 export const useRightPanelTab = () => useUIStore((s) => s.rightPanelTab);
 
 // Actions (stable references)
@@ -167,5 +191,6 @@ export const uiActions = {
   setShowSidebar: (show: boolean) => useUIStore.getState().setShowSidebar(show),
   setShowHoverPanel: (show: boolean) => useUIStore.getState().setShowHoverPanel(show),
   setSidebarWidth: (width: number) => useUIStore.getState().setSidebarWidth(width),
+  setSidebarCollapsed: (collapsed: boolean) => useUIStore.getState().setSidebarCollapsed(collapsed),
   setRightPanelTab: (tab: RightPanelTab) => useUIStore.getState().setRightPanelTab(tab),
 };

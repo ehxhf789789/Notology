@@ -20,6 +20,8 @@ import {
   useSidebarAnimState,
   useHoverPanelAnimState,
   useSidebarWidth,
+  useSidebarCollapsed,
+  SIDEBAR_ICON_WIDTH,
   uiActions,
 } from '../stores/zustand';
 import { useSearchIndexing } from '../stores/refreshStore';
@@ -81,6 +83,7 @@ function AppLayout() {
   const showSearch = useShowSearch();
   const showHoverPanel = useShowHoverPanel();
   const showSidebar = useShowSidebar();
+  const sidebarCollapsed = useSidebarCollapsed();
   const sidebarAnimState = useSidebarAnimState();
   const hoverPanelAnimState = useHoverPanelAnimState();
 
@@ -370,12 +373,15 @@ function AppLayout() {
       {/* Trash panel — opens via store flag (toast button / settings / etc.). */}
       <TrashPanel />
       <div className="app-layout">
-        {/* Left Sidebar with slide animation */}
-        <div className={`sidebar-wrapper ${showSidebar ? 'open' : 'closed'} ${sidebarAnimState}`} style={{ width: showSidebar || sidebarAnimState === 'closing' ? sidebarWidth : undefined }}>
+        {/* Left Sidebar with slide animation.
+            Stage 5.0.3b: when sidebarCollapsed is true, width locks to
+            SIDEBAR_ICON_WIDTH and the divider/resize hides — only the
+            collapse toggle in the footer expands it back. */}
+        <div className={`sidebar-wrapper ${showSidebar ? 'open' : 'closed'} ${sidebarAnimState}${sidebarCollapsed ? ' sidebar-wrapper--icon-only' : ''}`} style={{ width: showSidebar || sidebarAnimState === 'closing' ? (sidebarCollapsed ? SIDEBAR_ICON_WIDTH : sidebarWidth) : undefined }}>
           {showSidebar || sidebarAnimState === 'closing' ? (
             <>
               <Sidebar />
-              <div className="divider" onMouseDown={startResize} />
+              {!sidebarCollapsed && <div className="divider" onMouseDown={startResize} />}
             </>
           ) : (
             <div className="sidebar-collapsed-bar">

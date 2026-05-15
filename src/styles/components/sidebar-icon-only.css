@@ -1,0 +1,45 @@
+/* ============================================================
+   Sidebar — icon-only collapsed mode (Stage 5.0.3b)
+   ------------------------------------------------------------
+   Activated by .sidebar--icon-only on <aside class="sidebar">.
+   Width locked to var(--sidebar-icon-width) by App.tsx inline
+   style. FolderTree + RibbonBar hidden; only the rail of
+   icons (new folder / search / right-panel toggle) shows.
+
+   Coordinates with .sidebar-wrapper--icon-only on the parent
+   wrapper to suppress the resize divider.
+   ============================================================ */
+
+.sidebar-wrapper--icon-only .divider {
+  display: none;
+}
+
+.sidebar--icon-only {
+  width: 100%;
+}
+
+/* Header: just the back-toggle button when collapsed (no actions row) */
+.sidebar--icon-only .sidebar-header {
+  justify-content: center;
+  padding: var(--space-xs);
+}
+
+.sidebar-icon-rail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-xs);
+  overflow-y: auto;
+}
+
+/* Footer in icon-only mode: vertical stack, only collapse-toggle +
+   settings + sync-status slot remain visible (vault button hidden
+   via JSX conditional). */
+.sidebar--icon-only .sidebar-footer {
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-xs);
+}

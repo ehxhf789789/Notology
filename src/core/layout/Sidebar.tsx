@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
+import { Search, Plus, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen, PanelRightOpen, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Slot } from '../infrastructure/slotRegistry';
 import {
   useVaultPath,
   useFileTree,
   useSelectedContainer,
 } from '../stores/zustand';
-import { useShowSearch, useShowSidebar, useShowHoverPanel, uiActions } from '../stores/uiStore';
+import { useShowSearch, useShowSidebar, useShowHoverPanel, useSidebarCollapsed, uiActions } from '../stores/uiStore';
 import { IconButton, Tooltip } from '../../design-system/components';
 import { useContainerConfigs, vaultConfigActions } from '../../features/vault-config/stores/vaultConfigStore';
 import { modalActions } from '../../features/modals/stores/modalStore';
@@ -30,6 +30,7 @@ function Sidebar() {
   const showSearch = useShowSearch();
   const showSidebar = useShowSidebar();
   const showHoverPanel = useShowHoverPanel();
+  const sidebarCollapsed = useSidebarCollapsed();
   const containerConfigs = useContainerConfigs();
   const language = useSettingsStore(s => s.language);
 
@@ -194,7 +195,7 @@ function Sidebar() {
 
   return (
     <>
-      <aside className="sidebar">
+      <aside className={`sidebar${sidebarCollapsed ? ' sidebar--icon-only' : ''}`}>
         {/* Sidebar Header */}
         <div className="sidebar-header">
           <div className="sidebar-header-left">
@@ -206,24 +207,67 @@ function Sidebar() {
               {showSidebar ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
             </button>
           </div>
-          <div className="sidebar-actions">
-            <button
-              className="sidebar-action-btn"
-              onClick={() => setShowNewContainer(!showNewContainer)}
-              title={t('newFolder', language)}
-              disabled={!vaultPath}
-            >
-              <Plus size={18} strokeWidth={2} />
-            </button>
-            <button
-              className={`sidebar-action-btn ${showSearch ? 'active' : ''}`}
-              onClick={() => uiActions.setShowSearch(true)}
-              title={t('search', language)}
-              disabled={!vaultPath}
-            >
-              <Search size={16} strokeWidth={2} />
-            </button>
-            <Tooltip content={t('rightPanelToggle', language)} placement="bottom">
+          {!sidebarCollapsed && (
+            <div className="sidebar-actions">
+              <button
+                className="sidebar-action-btn"
+                onClick={() => setShowNewContainer(!showNewContainer)}
+                title={t('newFolder', language)}
+                disabled={!vaultPath}
+              >
+                <Plus size={18} strokeWidth={2} />
+              </button>
+              <button
+                className={`sidebar-action-btn ${showSearch ? 'active' : ''}`}
+                onClick={() => uiActions.setShowSearch(true)}
+                title={t('search', language)}
+                disabled={!vaultPath}
+              >
+                <Search size={16} strokeWidth={2} />
+              </button>
+              <Tooltip content={t('rightPanelToggle', language)} placement="bottom">
+                <IconButton
+                  icon={<PanelRightOpen size={16} strokeWidth={2} />}
+                  aria-label={t('rightPanelToggle', language)}
+                  variant="ghost"
+                  size="md"
+                  pressed={showHoverPanel}
+                  disabled={!vaultPath}
+                  onClick={() => uiActions.setShowHoverPanel(!showHoverPanel)}
+                />
+              </Tooltip>
+            </div>
+          )}
+        </div>
+
+        {sidebarCollapsed ? (
+          /* ── Icon-only collapsed mode (Stage 5.0.3b) ── */
+          <nav className="sidebar-icon-rail">
+            <Tooltip content={t('newFolder', language)} placement="right">
+              <IconButton
+                icon={<Plus size={18} strokeWidth={2} />}
+                aria-label={t('newFolder', language)}
+                variant="ghost"
+                size="md"
+                disabled={!vaultPath}
+                onClick={() => {
+                  uiActions.setSidebarCollapsed(false);
+                  setShowNewContainer(true);
+                }}
+              />
+            </Tooltip>
+            <Tooltip content={t('search', language)} placement="right">
+              <IconButton
+                icon={<Search size={16} strokeWidth={2} />}
+                aria-label={t('search', language)}
+                variant="ghost"
+                size="md"
+                pressed={showSearch}
+                disabled={!vaultPath}
+                onClick={() => uiActions.setShowSearch(true)}
+              />
+            </Tooltip>
+            <Tooltip content={t('rightPanelToggle', language)} placement="right">
               <IconButton
                 icon={<PanelRightOpen size={16} strokeWidth={2} />}
                 aria-label={t('rightPanelToggle', language)}
@@ -234,42 +278,60 @@ function Sidebar() {
                 onClick={() => uiActions.setShowHoverPanel(!showHoverPanel)}
               />
             </Tooltip>
-          </div>
-        </div>
+          </nav>
+        ) : (
+          <>
+            {/* Unified Container and Folder Tree */}
+            <nav className="sidebar-content">
+              {vaultPath ? (
+                <FolderTree
+                  containers={containers}
+                  rootContainer={rootContainer}
+                  onRootContainerChange={setRootContainer}
+                  onNewSubfolder={handleNewSubfolderClick}
+                />
+              ) : (
+                <div className="sidebar-empty">
+                  <button className="open-vault-btn" onClick={() => openVault()}>
+                    {t('openVault', language)}
+                  </button>
+                  <p className="sidebar-empty-text">{t('noVaultOpen', language)}</p>
+                </div>
+              )}
+            </nav>
 
-        {/* Unified Container and Folder Tree */}
-        <nav className="sidebar-content">
-          {vaultPath ? (
-            <FolderTree
-              containers={containers}
-              rootContainer={rootContainer}
-              onRootContainerChange={setRootContainer}
-              onNewSubfolder={handleNewSubfolderClick}
-            />
-          ) : (
-            <div className="sidebar-empty">
-              <button className="open-vault-btn" onClick={() => openVault()}>
-                {t('openVault', language)}
-              </button>
-              <p className="sidebar-empty-text">{t('noVaultOpen', language)}</p>
-            </div>
-          )}
-        </nav>
+            {/* Ribbon Bar */}
+            {vaultPath && <RibbonBar />}
+          </>
+        )}
 
-        {/* Ribbon Bar */}
-        {vaultPath && <RibbonBar />}
-
-        {/* Sidebar Footer - Vault name + sync status + settings */}
+        {/* Sidebar Footer — vault button + sync status + settings + collapse toggle */}
         <div className="sidebar-footer">
-          <button
-            className="sidebar-footer-btn vault-btn"
-            onClick={() => modalActions.setShowVaultSelectorModal(true)}
-            title={t('openVault', language)}
+          {!sidebarCollapsed && (
+            <>
+              <button
+                className="sidebar-footer-btn vault-btn"
+                onClick={() => modalActions.setShowVaultSelectorModal(true)}
+                title={t('openVault', language)}
+              >
+                <FolderClosed size={14} strokeWidth={2} />
+                <span className="sidebar-footer-btn-text">{vaultName || t('openVault', language)}</span>
+              </button>
+              <Slot name="sidebar-footer-status" />
+            </>
+          )}
+          <Tooltip
+            content={sidebarCollapsed ? t('sidebarExpand', language) : t('sidebarCollapse', language)}
+            placement={sidebarCollapsed ? 'right' : 'top'}
           >
-            <FolderClosed size={14} strokeWidth={2} />
-            <span className="sidebar-footer-btn-text">{vaultName || t('openVault', language)}</span>
-          </button>
-          <Slot name="sidebar-footer-status" />
+            <IconButton
+              icon={sidebarCollapsed ? <ChevronsRight size={14} strokeWidth={2} /> : <ChevronsLeft size={14} strokeWidth={2} />}
+              aria-label={sidebarCollapsed ? t('sidebarExpand', language) : t('sidebarCollapse', language)}
+              variant="ghost"
+              size="sm"
+              onClick={() => uiActions.setSidebarCollapsed(!sidebarCollapsed)}
+            />
+          </Tooltip>
           <button
             className="sidebar-footer-btn settings-btn"
             onClick={() => setShowSettings(true)}

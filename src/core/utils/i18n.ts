@@ -486,6 +486,8 @@ const ko: Record<string, string> = {
   rightPanelEmptyDesc: '이 탭에 표시될 내용은 아직 등록되지 않았습니다.',
   rightPanelEmptyPerNoteTitle: '활성 노트 없음',
   rightPanelEmptyPerNoteDesc: '노트를 열면 이 탭에서 해당 노트의 내용을 확인할 수 있습니다.',
+  sidebarCollapse: '사이드바 축소 (아이콘만)',
+  sidebarExpand: '사이드바 펼치기',
 
   // ── Note template editor ──
   templateIconNote: '노트',
@@ -1574,6 +1576,8 @@ const en: Record<string, string> = {
   rightPanelEmptyDesc: 'No content has been registered for this tab yet.',
   rightPanelEmptyPerNoteTitle: 'No active note',
   rightPanelEmptyPerNoteDesc: 'Open a note to see its content here.',
+  sidebarCollapse: 'Collapse sidebar (icons only)',
+  sidebarExpand: 'Expand sidebar',
 
   // ── Note template editor ──
   templateIconNote: 'Note',

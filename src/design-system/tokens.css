@@ -226,9 +226,10 @@
   /* ============================================================
      TIER 3 — COMPONENT (one-off, opt-in)
      ============================================================ */
-  --titlebar-height: 36px;
+  --titlebar-height: 32px;  /* plan §4.1: minimal 32px (was 36) */
   --toolbar-height:  44px;
   --statusbar-height: 26px;
+  --sidebar-icon-width: 52px;  /* plan §4.1: collapsed-icon-only sidebar */
   --modal-radius:    var(--radius-pop);
 
   /* ============================================================
