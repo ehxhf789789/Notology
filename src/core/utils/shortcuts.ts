@@ -37,20 +37,24 @@ export const DEFAULT_SHORTCUTS: ShortcutBinding[] = [
   { id: 'codeBlock', labelKey: 'scCodeBlock', category: 'block', defaultKeys: 'Ctrl+Shift+E' },
   { id: 'horizontalRule', labelKey: 'scHorizontalRule', category: 'block', defaultKeys: 'Ctrl+Shift+-' },
 
-  // System
-  { id: 'save', labelKey: 'scSave', category: 'system', defaultKeys: 'Ctrl+S' },
+  // System (Stage 5.0.4a — dead bindings removed: save / toggleMemo / toggleMetadata)
   { id: 'undo', labelKey: 'scUndo', category: 'system', defaultKeys: 'Ctrl+Z' },
   { id: 'redo', labelKey: 'scRedo', category: 'system', defaultKeys: 'Ctrl+Shift+Z' },
-  { id: 'deleteNote', labelKey: 'scDeleteNote', category: 'system', defaultKeys: 'Ctrl+D' },
-  { id: 'toggleMemo', labelKey: 'scToggleMemo', category: 'system', defaultKeys: 'Ctrl+M' },
-  { id: 'toggleMetadata', labelKey: 'scToggleMetadata', category: 'system', defaultKeys: 'Ctrl+Shift+M' },
+  { id: 'deleteNote', labelKey: 'scDeleteNote', category: 'system', defaultKeys: 'Ctrl+Shift+Delete' },
 
-  // Navigation
+  // Navigation (Stage 5.0.4a — Ctrl+K = command palette, Ctrl+Shift+C calendar removed)
   { id: 'newNote', labelKey: 'scNewNote', category: 'navigation', defaultKeys: 'Ctrl+N' },
+  { id: 'newFolder', labelKey: 'scNewFolder', category: 'navigation', defaultKeys: 'Ctrl+Shift+N' },
+  { id: 'commandPalette', labelKey: 'scCommandPalette', category: 'navigation', defaultKeys: 'Ctrl+K' },
   { id: 'search', labelKey: 'scSearch', category: 'navigation', defaultKeys: 'Ctrl+Shift+F' },
-  { id: 'calendar', labelKey: 'scCalendar', category: 'navigation', defaultKeys: 'Ctrl+Shift+C' },
+  { id: 'settings', labelKey: 'scSettings', category: 'navigation', defaultKeys: 'Ctrl+,' },
   { id: 'toggleSidebar', labelKey: 'scToggleSidebar', category: 'navigation', defaultKeys: 'Ctrl+ArrowLeft' },
   { id: 'toggleRightPanel', labelKey: 'scToggleRightPanel', category: 'navigation', defaultKeys: 'Ctrl+ArrowRight' },
+  { id: 'focusRightPanelTab1', labelKey: 'scFocusRightPanelTab1', category: 'navigation', defaultKeys: 'Alt+1' },
+  { id: 'focusRightPanelTab2', labelKey: 'scFocusRightPanelTab2', category: 'navigation', defaultKeys: 'Alt+2' },
+  { id: 'focusRightPanelTab3', labelKey: 'scFocusRightPanelTab3', category: 'navigation', defaultKeys: 'Alt+3' },
+  { id: 'focusRightPanelTab4', labelKey: 'scFocusRightPanelTab4', category: 'navigation', defaultKeys: 'Alt+4' },
+  { id: 'focusRightPanelTab5', labelKey: 'scFocusRightPanelTab5', category: 'navigation', defaultKeys: 'Alt+5' },
 ];
 
 export function getActiveKeys(binding: ShortcutBinding): string {

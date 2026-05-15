@@ -7,7 +7,7 @@ import {
   useFileTree,
   useSelectedContainer,
 } from '../stores/zustand';
-import { useShowSearch, useShowSidebar, useShowHoverPanel, useSidebarCollapsed, uiActions } from '../stores/uiStore';
+import { useShowSearch, useShowSidebar, useShowHoverPanel, useSidebarCollapsed, useUIStore, uiActions } from '../stores/uiStore';
 import { IconButton, Tooltip } from '../../design-system/components';
 import { useContainerConfigs, vaultConfigActions } from '../../features/vault-config/stores/vaultConfigStore';
 import { modalActions } from '../../features/modals/stores/modalStore';
@@ -38,12 +38,27 @@ function Sidebar() {
   const vaultName = vaultPath ? vaultPath.split(/[/\\]/).filter(Boolean).pop() : '';
   const [showSettings, setShowSettings] = useState(false);
 
-  // Listen for 'open-settings' custom event (from sync_v2 popover etc.)
+  // Listen for 'open-settings' custom event (from sync_v2 popover, Ctrl+, etc.)
   useEffect(() => {
     const handler = () => setShowSettings(true);
     window.addEventListener('open-settings', handler);
     return () => window.removeEventListener('open-settings', handler);
   }, []);
+
+  // Listen for 'open-new-folder' (Ctrl+Shift+N) — Stage 5.0.4a.
+  // If sidebar is collapsed (icon-only), expand it first so the input modal
+  // has visible context. Skip if no vault open.
+  useEffect(() => {
+    const handler = () => {
+      if (!vaultPath) return;
+      if (useUIStore.getState().sidebarCollapsed) {
+        uiActions.setSidebarCollapsed(false);
+      }
+      setShowNewContainer(true);
+    };
+    window.addEventListener('open-new-folder', handler);
+    return () => window.removeEventListener('open-new-folder', handler);
+  }, [vaultPath]);
 
   const [showNewContainer, setShowNewContainer] = useState(false);
   const [newContainerName, setNewContainerName] = useState('');

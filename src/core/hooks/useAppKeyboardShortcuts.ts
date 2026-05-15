@@ -214,17 +214,37 @@ export function useAppKeyboardShortcuts() {
         return;
       }
 
-      // Search (Ctrl+Shift+F)
-      if (checkShortcut('search') || (e.ctrlKey && e.key === 'k' && !e.shiftKey && !e.altKey)) {
+      // Command palette (Ctrl+K) — Stage 5.0.4a
+      if (checkShortcut('commandPalette')) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('open-command-palette'));
+        return;
+      }
+
+      // Search (Ctrl+Shift+F). Ctrl+K alias removed in 5.0.4a — it now opens the
+      // command palette above instead.
+      if (checkShortcut('search')) {
         e.preventDefault();
         uiActions.setShowSearch(true);
         return;
       }
 
-      // Calendar (Ctrl+Shift+C) - now opens right panel which contains calendar
-      if (checkShortcut('calendar')) {
+      // Settings (Ctrl+,) — Stage 5.0.4a. Reuses existing 'open-settings'
+      // event consumed by Sidebar.tsx so the modal opens regardless of where
+      // the shortcut fires.
+      if (checkShortcut('settings')) {
         e.preventDefault();
-        uiActions.setShowHoverPanel(true);
+        window.dispatchEvent(new CustomEvent('open-settings'));
+        return;
+      }
+
+      // New folder (Ctrl+Shift+N) — Stage 5.0.4a. Reuses Sidebar's new-container
+      // flow via custom event so any focused surface can open the dialog.
+      if (checkShortcut('newFolder')) {
+        e.preventDefault();
+        if (vaultPath) {
+          window.dispatchEvent(new CustomEvent('open-new-folder'));
+        }
         return;
       }
 
@@ -239,6 +259,43 @@ export function useAppKeyboardShortcuts() {
       if (checkShortcut('toggleRightPanel')) {
         e.preventDefault();
         uiActions.setShowHoverPanel(!showHoverPanel);
+        return;
+      }
+
+      // Focus right-panel tabs (Alt+1..5) — Stage 5.0.4a.
+      // Opens the right panel if it's closed, then activates the requested tab.
+      const PANEL_TAB_MAP = {
+        focusRightPanelTab1: 'calendar',
+        focusRightPanelTab2: 'tags',
+        focusRightPanelTab3: 'comments',
+        focusRightPanelTab4: 'outline',
+        focusRightPanelTab5: 'metadata',
+      } as const;
+      for (const [shortcutId, tabId] of Object.entries(PANEL_TAB_MAP)) {
+        if (checkShortcut(shortcutId)) {
+          e.preventDefault();
+          if (!showHoverPanel) uiActions.setShowHoverPanel(true);
+          uiActions.setRightPanelTab(tabId as 'calendar' | 'tags' | 'comments' | 'outline' | 'metadata');
+          return;
+        }
+      }
+
+      // DEV ONLY: Open mobile test window. Stage 5.0.4a moves these from
+      // Ctrl+Shift+M/T → Ctrl+Alt+Shift+M/T so they no longer collide with the
+      // removed-but-still-recognizable user keys.
+      if (
+        import.meta.env.DEV &&
+        e.ctrlKey && e.altKey && e.shiftKey &&
+        (e.key === 'M' || e.key === 'T' || e.key === 'm' || e.key === 't')
+      ) {
+        e.preventDefault();
+        const device = e.key.toUpperCase() === 'T' ? 'tablet' : 'phone';
+        import('@tauri-apps/api/core').then(({ invoke }) => {
+          invoke('open_mobile_test_window', {
+            vaultPath: vaultPath || null,
+            device,
+          }).catch(console.error);
+        });
         return;
       }
     };

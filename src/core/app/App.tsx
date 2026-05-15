@@ -52,6 +52,7 @@ import RenameDialog from '../../features/modals/RenameDialog';
 import { ConnectionVaultSelector } from '../../features/connection/components/ConnectionVaultSelector';
 import UpdateChecker from '../../features/shared/UpdateChecker';
 import LoadingScreen from '../../features/shared/LoadingScreen';
+import { CommandPalette } from '../../features/command-palette';
 import { useDragDropListener } from '../hooks/useDragDrop';
 import { initAttachmentStoreSubscriptions } from '../../features/sync_v2/stores/attachmentStore';
 import { useAppKeyboardShortcuts } from '../hooks/useAppKeyboardShortcuts';
@@ -438,6 +439,7 @@ function AppLayout() {
       <UpdateChecker />
       <MigrationModal />
       <FaststartMigrationModal />
+      <CommandPalette />
     </div>
   );
 }
