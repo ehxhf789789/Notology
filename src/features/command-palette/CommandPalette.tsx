@@ -10,11 +10,6 @@ import {
 import {
   Search,
   Settings as SettingsIcon,
-  CalendarDays,
-  Tag,
-  MessageSquare,
-  ListTree,
-  FileText,
   PanelLeftClose,
   PanelRightOpen,
   FileText as FileIcon,
@@ -151,68 +146,8 @@ export function CommandPalette() {
         label: t('cmdToggleRightPanel', language),
         icon: <PanelRightOpen size={14} />,
         shortcut: ['Ctrl', 'ArrowRight'],
-        matchText: t('cmdToggleRightPanel', language) + ' right panel 우측',
+        matchText: t('cmdToggleRightPanel', language) + ' right panel 우측 캘린더',
         onSelect: () => uiActions.setShowHoverPanel(!showHoverPanel),
-      },
-      {
-        type: 'command',
-        id: 'tabCalendar',
-        label: t('cmdTabCalendar', language),
-        icon: <CalendarDays size={14} />,
-        shortcut: ['Alt', '1'],
-        matchText: t('cmdTabCalendar', language) + ' calendar 캘린더',
-        onSelect: () => {
-          if (!showHoverPanel) uiActions.setShowHoverPanel(true);
-          uiActions.setRightPanelTab('calendar');
-        },
-      },
-      {
-        type: 'command',
-        id: 'tabTags',
-        label: t('cmdTabTags', language),
-        icon: <Tag size={14} />,
-        shortcut: ['Alt', '2'],
-        matchText: t('cmdTabTags', language) + ' tags 태그',
-        onSelect: () => {
-          if (!showHoverPanel) uiActions.setShowHoverPanel(true);
-          uiActions.setRightPanelTab('tags');
-        },
-      },
-      {
-        type: 'command',
-        id: 'tabComments',
-        label: t('cmdTabComments', language),
-        icon: <MessageSquare size={14} />,
-        shortcut: ['Alt', '3'],
-        matchText: t('cmdTabComments', language) + ' comments 코멘트 메모',
-        onSelect: () => {
-          if (!showHoverPanel) uiActions.setShowHoverPanel(true);
-          uiActions.setRightPanelTab('comments');
-        },
-      },
-      {
-        type: 'command',
-        id: 'tabOutline',
-        label: t('cmdTabOutline', language),
-        icon: <ListTree size={14} />,
-        shortcut: ['Alt', '4'],
-        matchText: t('cmdTabOutline', language) + ' outline 아웃라인',
-        onSelect: () => {
-          if (!showHoverPanel) uiActions.setShowHoverPanel(true);
-          uiActions.setRightPanelTab('outline');
-        },
-      },
-      {
-        type: 'command',
-        id: 'tabMetadata',
-        label: t('cmdTabMetadata', language),
-        icon: <FileText size={14} />,
-        shortcut: ['Alt', '5'],
-        matchText: t('cmdTabMetadata', language) + ' metadata 메타데이터',
-        onSelect: () => {
-          if (!showHoverPanel) uiActions.setShowHoverPanel(true);
-          uiActions.setRightPanelTab('metadata');
-        },
       },
     ];
     return cmds;

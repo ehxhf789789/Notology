@@ -262,24 +262,6 @@ export function useAppKeyboardShortcuts() {
         return;
       }
 
-      // Focus right-panel tabs (Alt+1..5) — Stage 5.0.4a.
-      // Opens the right panel if it's closed, then activates the requested tab.
-      const PANEL_TAB_MAP = {
-        focusRightPanelTab1: 'calendar',
-        focusRightPanelTab2: 'tags',
-        focusRightPanelTab3: 'comments',
-        focusRightPanelTab4: 'outline',
-        focusRightPanelTab5: 'metadata',
-      } as const;
-      for (const [shortcutId, tabId] of Object.entries(PANEL_TAB_MAP)) {
-        if (checkShortcut(shortcutId)) {
-          e.preventDefault();
-          if (!showHoverPanel) uiActions.setShowHoverPanel(true);
-          uiActions.setRightPanelTab(tabId as 'calendar' | 'tags' | 'comments' | 'outline' | 'metadata');
-          return;
-        }
-      }
-
       // DEV ONLY: Open mobile test window. Stage 5.0.4a moves these from
       // Ctrl+Shift+M/T → Ctrl+Alt+Shift+M/T so they no longer collide with the
       // removed-but-still-recognizable user keys.

@@ -5,9 +5,13 @@ const MIN_SIDEBAR_WIDTH = 200;
 const MAX_SIDEBAR_WIDTH = 500;
 const DEFAULT_SIDEBAR_WIDTH = 280;
 
-export const RIGHT_PANEL_TABS = ['calendar', 'tags', 'comments', 'outline', 'metadata'] as const;
+/* Stage 5.0.3a-rework (2026-05-15) — RightPanel reverted to single-surface
+   Calendar; 4 per-note tabs (Tags/Comments/Outline/Metadata) were a design
+   mistake (per-note panels belong inside hover windows, not the main right
+   panel). The const + type remain as a no-op stub in case 5.0.7 introduces
+   a different tab structure that wants the same name. */
+export const RIGHT_PANEL_TABS = ['calendar'] as const;
 export type RightPanelTab = (typeof RIGHT_PANEL_TABS)[number];
-const DEFAULT_RIGHT_PANEL_TAB: RightPanelTab = 'calendar';
 
 // Load sidebar width from localStorage
 const loadSidebarWidth = (): number => {
@@ -21,16 +25,6 @@ const loadSidebarWidth = (): number => {
     }
   } catch {}
   return DEFAULT_SIDEBAR_WIDTH;
-};
-
-const loadRightPanelTab = (): RightPanelTab => {
-  try {
-    const stored = localStorage.getItem('notology-right-panel-tab');
-    if (stored && (RIGHT_PANEL_TABS as readonly string[]).includes(stored)) {
-      return stored as RightPanelTab;
-    }
-  } catch {}
-  return DEFAULT_RIGHT_PANEL_TAB;
 };
 
 const loadSidebarCollapsed = (): boolean => {
@@ -56,7 +50,6 @@ interface UIState {
   sidebarWidth: number;
   /** Stage 5.0.3b: when true, sidebar renders icon-only at SIDEBAR_ICON_WIDTH. */
   sidebarCollapsed: boolean;
-  rightPanelTab: RightPanelTab;
 
   // Actions
   setShowSearch: (show: boolean) => void;
@@ -65,7 +58,6 @@ interface UIState {
   setShowHoverPanel: (show: boolean) => void;
   setSidebarWidth: (width: number) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
-  setRightPanelTab: (tab: RightPanelTab) => void;
 }
 
 export const SIDEBAR_ICON_WIDTH = 52;
@@ -81,7 +73,6 @@ export const useUIStore = create<UIState>()(
     hoverPanelAnimState: 'idle',
     sidebarWidth: loadSidebarWidth(),
     sidebarCollapsed: loadSidebarCollapsed(),
-    rightPanelTab: loadRightPanelTab(),
 
     // Show search (mutually exclusive with calendar)
     setShowSearch: (show: boolean) => {
@@ -154,14 +145,6 @@ export const useUIStore = create<UIState>()(
       } catch {}
     },
 
-    // Set right-panel active tab with persistence
-    setRightPanelTab: (tab: RightPanelTab) => {
-      set({ rightPanelTab: tab });
-      try {
-        localStorage.setItem('notology-right-panel-tab', tab);
-      } catch {}
-    },
-
     // Toggle sidebar icon-only mode with persistence
     setSidebarCollapsed: (collapsed: boolean) => {
       if (collapsed === get().sidebarCollapsed) return;
@@ -182,7 +165,6 @@ export const useSidebarAnimState = () => useUIStore((s) => s.sidebarAnimState);
 export const useHoverPanelAnimState = () => useUIStore((s) => s.hoverPanelAnimState);
 export const useSidebarWidth = () => useUIStore((s) => s.sidebarWidth);
 export const useSidebarCollapsed = () => useUIStore((s) => s.sidebarCollapsed);
-export const useRightPanelTab = () => useUIStore((s) => s.rightPanelTab);
 
 // Actions (stable references)
 export const uiActions = {
@@ -192,5 +174,4 @@ export const uiActions = {
   setShowHoverPanel: (show: boolean) => useUIStore.getState().setShowHoverPanel(show),
   setSidebarWidth: (width: number) => useUIStore.getState().setSidebarWidth(width),
   setSidebarCollapsed: (collapsed: boolean) => useUIStore.getState().setSidebarCollapsed(collapsed),
-  setRightPanelTab: (tab: RightPanelTab) => useUIStore.getState().setRightPanelTab(tab),
 };

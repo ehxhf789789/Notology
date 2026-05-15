@@ -104,11 +104,8 @@ export {
   useHoverPanelAnimState,
   useSidebarWidth,
   useSidebarCollapsed,
-  useRightPanelTab,
   uiActions,
-  RIGHT_PANEL_TABS,
   SIDEBAR_ICON_WIDTH,
-  type RightPanelTab,
 } from '../uiStore';
 
 export {

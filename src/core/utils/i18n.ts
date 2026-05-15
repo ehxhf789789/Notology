@@ -474,18 +474,8 @@ const ko: Record<string, string> = {
   prevMonth: '이전 달',
   nextMonth: '다음 달',
 
-  // ── Right Panel (Stage 5.0.3a) ──
-  rightPanelTabsLabel: '우측 패널 탭',
-  rightPanelCalendar: '캘린더',
-  rightPanelTags: '태그',
-  rightPanelComments: '코멘트',
-  rightPanelOutline: '아웃라인',
-  rightPanelMetadata: '메타데이터',
+  // ── Right Panel (Stage 5.0.3a-rework — single Calendar surface) ──
   rightPanelToggle: '우측 패널 열기 / 닫기',
-  rightPanelEmptyTitle: '표시할 항목이 없습니다',
-  rightPanelEmptyDesc: '이 탭에 표시될 내용은 아직 등록되지 않았습니다.',
-  rightPanelEmptyPerNoteTitle: '활성 노트 없음',
-  rightPanelEmptyPerNoteDesc: '노트를 열면 이 탭에서 해당 노트의 내용을 확인할 수 있습니다.',
   sidebarCollapse: '사이드바 축소 (아이콘만)',
   sidebarExpand: '사이드바 펼치기',
 
@@ -982,11 +972,6 @@ const ko: Record<string, string> = {
   scCalendar: '캘린더',
   scToggleSidebar: '사이드바 토글',
   scToggleRightPanel: '오른쪽 패널 토글',
-  scFocusRightPanelTab1: '오른쪽 패널 — 캘린더',
-  scFocusRightPanelTab2: '오른쪽 패널 — 태그',
-  scFocusRightPanelTab3: '오른쪽 패널 — 코멘트',
-  scFocusRightPanelTab4: '오른쪽 패널 — 아웃라인',
-  scFocusRightPanelTab5: '오른쪽 패널 — 메타데이터',
 
   // ── Command palette (Stage 5.0.4a) ──
   commandPaletteAriaLabel: '명령어 팔레트',
@@ -998,12 +983,7 @@ const ko: Record<string, string> = {
   cmdSearch: '전체 검색',
   cmdSettings: '설정 열기',
   cmdToggleSidebar: '사이드바 토글',
-  cmdToggleRightPanel: '오른쪽 패널 토글',
-  cmdTabCalendar: '오른쪽 패널 — 캘린더 탭',
-  cmdTabTags: '오른쪽 패널 — 태그 탭',
-  cmdTabComments: '오른쪽 패널 — 코멘트 탭',
-  cmdTabOutline: '오른쪽 패널 — 아웃라인 탭',
-  cmdTabMetadata: '오른쪽 패널 — 메타데이터 탭',
+  cmdToggleRightPanel: '오른쪽 패널 토글 (캘린더)',
 
   // ── Shortcut category labels ──
   scCatText: '텍스트',
@@ -1589,18 +1569,8 @@ const en: Record<string, string> = {
   prevMonth: 'Previous month',
   nextMonth: 'Next month',
 
-  // ── Right Panel (Stage 5.0.3a) ──
-  rightPanelTabsLabel: 'Right panel tabs',
-  rightPanelCalendar: 'Calendar',
-  rightPanelTags: 'Tags',
-  rightPanelComments: 'Comments',
-  rightPanelOutline: 'Outline',
-  rightPanelMetadata: 'Metadata',
+  // ── Right Panel (Stage 5.0.3a-rework — single Calendar surface) ──
   rightPanelToggle: 'Toggle right panel',
-  rightPanelEmptyTitle: 'Nothing to show',
-  rightPanelEmptyDesc: 'No content has been registered for this tab yet.',
-  rightPanelEmptyPerNoteTitle: 'No active note',
-  rightPanelEmptyPerNoteDesc: 'Open a note to see its content here.',
   sidebarCollapse: 'Collapse sidebar (icons only)',
   sidebarExpand: 'Expand sidebar',
 
@@ -2097,11 +2067,6 @@ const en: Record<string, string> = {
   scCalendar: 'Calendar',
   scToggleSidebar: 'Toggle Sidebar',
   scToggleRightPanel: 'Toggle Right Panel',
-  scFocusRightPanelTab1: 'Right Panel — Calendar',
-  scFocusRightPanelTab2: 'Right Panel — Tags',
-  scFocusRightPanelTab3: 'Right Panel — Comments',
-  scFocusRightPanelTab4: 'Right Panel — Outline',
-  scFocusRightPanelTab5: 'Right Panel — Metadata',
 
   // ── Command palette (Stage 5.0.4a) ──
   commandPaletteAriaLabel: 'Command palette',
@@ -2113,12 +2078,7 @@ const en: Record<string, string> = {
   cmdSearch: 'Search vault',
   cmdSettings: 'Open settings',
   cmdToggleSidebar: 'Toggle sidebar',
-  cmdToggleRightPanel: 'Toggle right panel',
-  cmdTabCalendar: 'Right panel — Calendar tab',
-  cmdTabTags: 'Right panel — Tags tab',
-  cmdTabComments: 'Right panel — Comments tab',
-  cmdTabOutline: 'Right panel — Outline tab',
-  cmdTabMetadata: 'Right panel — Metadata tab',
+  cmdToggleRightPanel: 'Toggle right panel (calendar)',
 
   // ── Shortcut category labels ──
   scCatText: 'Text',

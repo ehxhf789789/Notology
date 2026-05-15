@@ -1,10 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import {
   CalendarDays,
-  Tag,
-  MessageSquare,
-  ListTree,
-  FileText,
   ChevronLeft,
   ChevronRight,
   PanelRightClose,
@@ -17,13 +13,32 @@ import { refreshActions } from '../stores/refreshStore';
 import { hoverActions } from '../../features/hover-windows/stores/hoverStore';
 import { useCalendarRefreshTrigger } from '../stores/refreshStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { useUIStore, useRightPanelTab, uiActions, type RightPanelTab } from '../stores/uiStore';
-import { Slot, SlotRegistry } from '../infrastructure/slotRegistry';
+import { useUIStore } from '../stores/uiStore';
 import { t, tf } from '../utils/i18n';
 import { loadComments, saveComments } from '../../features/comments/comments';
 import { notifyMemoChanged } from '../utils/windowSync';
 import type { CalendarMemo, CalendarViewMode } from '../types';
-import { Tabs, TabList, Tab, TabPanel, EmptyState, IconButton, Tooltip } from '../../design-system/components';
+import { IconButton } from '../../design-system/components';
+
+/* ============================================================
+   Stage 5.0.3a-rework (2026-05-15)
+   ------------------------------------------------------------
+   5.0.3a originally introduced a 5-tab layout (Calendar / Tags /
+   Comments / Outline / Metadata) here. HanBin's smoke test
+   showed the 4 per-note tabs were structurally empty in the main
+   window context — per-note panels live inside hover windows
+   (TagPanel + CommentPanel in HoverEditor.tsx). The tab-row was
+   a design mistake.
+
+   This file is now back to a single surface — the vault-wide
+   calendar / task aggregate, same shape as pre-5.0.3a but with
+   the 5.0.3a improvements (extracted calendar logic) preserved.
+
+   Per-note panels stay where they were before 5.0.3a:
+     Tags / Comments → hover window header icon buttons (existing)
+     Outline         → planned for 5.0.4b in hover window header
+     Metadata        → TagPanel's existing yaml mode (no separate UI)
+   ============================================================ */
 
 interface RightPanelProps {
   width: number;
@@ -40,7 +55,6 @@ const getTodayString = (): string => formatDate(new Date());
 const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
   const language = useSettingsStore(s => s.language);
   const setShowHoverPanel = useUIStore(s => s.setShowHoverPanel);
-  const activeTab = useRightPanelTab();
 
   return (
     <div className="right-panel" style={{ width }}>
@@ -69,35 +83,7 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
         />
       </header>
 
-      <Tabs
-        value={activeTab}
-        onChange={(v) => uiActions.setRightPanelTab(v as RightPanelTab)}
-        className="right-panel-tabs"
-      >
-        <TabList aria-label={t('rightPanelTabsLabel', language)} className="right-panel-tablist">
-          <Tab value="calendar" icon={<CalendarDays size={14} />} title={t('rightPanelCalendar', language)}>
-            {t('rightPanelCalendar', language)}
-          </Tab>
-          <Tab value="tags"     icon={<Tag size={14} />}          title={t('rightPanelTags', language)}>
-            {t('rightPanelTags', language)}
-          </Tab>
-          <Tab value="comments" icon={<MessageSquare size={14} />} title={t('rightPanelComments', language)}>
-            {t('rightPanelComments', language)}
-          </Tab>
-          <Tab value="outline"  icon={<ListTree size={14} />}     title={t('rightPanelOutline', language)}>
-            {t('rightPanelOutline', language)}
-          </Tab>
-          <Tab value="metadata" icon={<FileText size={14} />}     title={t('rightPanelMetadata', language)}>
-            {t('rightPanelMetadata', language)}
-          </Tab>
-        </TabList>
-
-        <TabPanel value="calendar"><CalendarTabContent /></TabPanel>
-        <TabPanel value="tags"><SlotOrEmpty name="right-panel-tags" perNote /></TabPanel>
-        <TabPanel value="comments"><SlotOrEmpty name="right-panel-comments" perNote /></TabPanel>
-        <TabPanel value="outline"><SlotOrEmpty name="right-panel-outline" perNote /></TabPanel>
-        <TabPanel value="metadata"><SlotOrEmpty name="right-panel-metadata" perNote /></TabPanel>
-      </Tabs>
+      <CalendarSurface />
     </div>
   );
 });
@@ -105,40 +91,11 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
 export default RightPanel;
 
 /* ============================================================
-   Slot-or-EmptyState wrapper for per-note tabs
-   ------------------------------------------------------------
-   Renders any feature components registered under the given
-   slot name. If none are registered, falls back to an
-   EmptyState explaining the panel is per-note.
+   CalendarSurface — vault-wide aggregate calendar + memo list.
+   Lifted from pre-5.0.3a RightPanel; 5.0.3a-rework restores it
+   as the single surface.
    ============================================================ */
-interface SlotOrEmptyProps {
-  name: string;
-  perNote?: boolean;
-}
-function SlotOrEmpty({ name, perNote }: SlotOrEmptyProps) {
-  const entries = SlotRegistry._getSnapshot(name);
-  const language = useSettingsStore(s => s.language);
-
-  if (entries.length > 0) {
-    return <div className="right-panel-tab-content"><Slot name={name} /></div>;
-  }
-
-  return (
-    <div className="right-panel-tab-content right-panel-tab-empty">
-      <EmptyState
-        title={t(perNote ? 'rightPanelEmptyPerNoteTitle' : 'rightPanelEmptyTitle', language)}
-        description={t(perNote ? 'rightPanelEmptyPerNoteDesc' : 'rightPanelEmptyDesc', language)}
-      />
-    </div>
-  );
-}
-
-/* ============================================================
-   CalendarTabContent — the original RightPanel.tsx calendar
-   surface, lifted into its own component so it composes
-   inside the new tab-row layout.
-   ============================================================ */
-function CalendarTabContent() {
+function CalendarSurface() {
   const vaultPath = useVaultPath();
   const calendarRefreshTrigger = useCalendarRefreshTrigger();
   const language = useSettingsStore(s => s.language);
@@ -252,7 +209,7 @@ function CalendarTabContent() {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   return (
-    <div className="right-panel-tab-content right-panel-calendar-tab">
+    <>
       <div className="right-panel-calendar">
         <div className="right-panel-calendar-nav">
           <button onClick={() => changeMonth(-1)} className="right-panel-nav-btn" aria-label={t('prevMonth', language)}>
@@ -347,7 +304,7 @@ function CalendarTabContent() {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

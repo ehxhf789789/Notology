@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, lazy, Suspense } from 'react';
-import { PanelLeftOpen } from 'lucide-react';
+import { PanelLeftOpen, PanelRightOpen } from 'lucide-react';
 import { AppInitializer } from '../stores/appStore';
 import { ToastContainer } from '../../features/shared/Toast';
 import { NasDeletionsBanner } from '../../features/sync_v2/components/NasDeletionsBanner';
@@ -408,16 +408,32 @@ function AppLayout() {
             </div>
           )}
         </div>
-        {/* Right Panel with slide animation */}
-        <div className={`hover-panel-wrapper ${showHoverPanel ? 'open' : 'closed'} ${hoverPanelAnimState}`} style={{ width: showHoverPanel || hoverPanelAnimState === 'closing' ? HOVER_PANEL_WIDTH : undefined }}>
-          {(showHoverPanel || hoverPanelAnimState === 'closing') && (
+        {/* Right Panel with slide animation. Stage 5.0.3a-rework
+            (2026-05-15) restored the collapsed-bar with toggle button
+            — see report 5_0_3_a_rework.md §4. Width adjusts between
+            collapsed (~48px strip) and open (HOVER_PANEL_WIDTH). */}
+        <div
+          className={`hover-panel-wrapper ${showHoverPanel ? 'open' : 'closed'} ${hoverPanelAnimState}`}
+          style={{
+            width: showHoverPanel || hoverPanelAnimState === 'closing'
+              ? HOVER_PANEL_WIDTH
+              : undefined,
+          }}
+        >
+          {showHoverPanel || hoverPanelAnimState === 'closing' ? (
             <RightPanel width={HOVER_PANEL_WIDTH} />
+          ) : (
+            <div className="hover-panel-collapsed-bar">
+              <button
+                className="hover-panel-collapsed-toggle"
+                onClick={() => uiActions.setShowHoverPanel(true)}
+                title={t('rightPanelToggle', language)}
+                aria-label={t('rightPanelToggle', language)}
+              >
+                <PanelRightOpen size={18} />
+              </button>
+            </div>
           )}
-          {/* Right panel collapsed state: render nothing.
-              CollapsedHoverBar removed — native OS taskbar handles
-              minimized hovers; hover lifecycle stays bound to main via
-              explicit chain-close (App.tsx onCloseRequested + lib.rs
-              MainCloseRequested handler). */}
         </div>
       </div>
       <HoverEditorLayer />

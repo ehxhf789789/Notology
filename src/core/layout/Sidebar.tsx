@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen, PanelRightOpen, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Search, Plus, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { Slot } from '../infrastructure/slotRegistry';
 import {
   useVaultPath,
   useFileTree,
   useSelectedContainer,
 } from '../stores/zustand';
-import { useShowSearch, useShowSidebar, useShowHoverPanel, useSidebarCollapsed, useUIStore, uiActions } from '../stores/uiStore';
+import { useShowSearch, useShowSidebar, useSidebarCollapsed, useUIStore, uiActions } from '../stores/uiStore';
 import { IconButton, Tooltip } from '../../design-system/components';
 import { useContainerConfigs, vaultConfigActions } from '../../features/vault-config/stores/vaultConfigStore';
 import { modalActions } from '../../features/modals/stores/modalStore';
@@ -29,7 +29,6 @@ function Sidebar() {
   // ========== ZUSTAND UI STATE ==========
   const showSearch = useShowSearch();
   const showSidebar = useShowSidebar();
-  const showHoverPanel = useShowHoverPanel();
   const sidebarCollapsed = useSidebarCollapsed();
   const containerConfigs = useContainerConfigs();
   const language = useSettingsStore(s => s.language);
@@ -240,17 +239,6 @@ function Sidebar() {
               >
                 <Search size={16} strokeWidth={2} />
               </button>
-              <Tooltip content={t('rightPanelToggle', language)} placement="bottom">
-                <IconButton
-                  icon={<PanelRightOpen size={16} strokeWidth={2} />}
-                  aria-label={t('rightPanelToggle', language)}
-                  variant="ghost"
-                  size="md"
-                  pressed={showHoverPanel}
-                  disabled={!vaultPath}
-                  onClick={() => uiActions.setShowHoverPanel(!showHoverPanel)}
-                />
-              </Tooltip>
             </div>
           )}
         </div>
@@ -280,17 +268,6 @@ function Sidebar() {
                 pressed={showSearch}
                 disabled={!vaultPath}
                 onClick={() => uiActions.setShowSearch(true)}
-              />
-            </Tooltip>
-            <Tooltip content={t('rightPanelToggle', language)} placement="right">
-              <IconButton
-                icon={<PanelRightOpen size={16} strokeWidth={2} />}
-                aria-label={t('rightPanelToggle', language)}
-                variant="ghost"
-                size="md"
-                pressed={showHoverPanel}
-                disabled={!vaultPath}
-                onClick={() => uiActions.setShowHoverPanel(!showHoverPanel)}
               />
             </Tooltip>
           </nav>

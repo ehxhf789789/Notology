@@ -50,11 +50,6 @@ export const DEFAULT_SHORTCUTS: ShortcutBinding[] = [
   { id: 'settings', labelKey: 'scSettings', category: 'navigation', defaultKeys: 'Ctrl+,' },
   { id: 'toggleSidebar', labelKey: 'scToggleSidebar', category: 'navigation', defaultKeys: 'Ctrl+ArrowLeft' },
   { id: 'toggleRightPanel', labelKey: 'scToggleRightPanel', category: 'navigation', defaultKeys: 'Ctrl+ArrowRight' },
-  { id: 'focusRightPanelTab1', labelKey: 'scFocusRightPanelTab1', category: 'navigation', defaultKeys: 'Alt+1' },
-  { id: 'focusRightPanelTab2', labelKey: 'scFocusRightPanelTab2', category: 'navigation', defaultKeys: 'Alt+2' },
-  { id: 'focusRightPanelTab3', labelKey: 'scFocusRightPanelTab3', category: 'navigation', defaultKeys: 'Alt+3' },
-  { id: 'focusRightPanelTab4', labelKey: 'scFocusRightPanelTab4', category: 'navigation', defaultKeys: 'Alt+4' },
-  { id: 'focusRightPanelTab5', labelKey: 'scFocusRightPanelTab5', category: 'navigation', defaultKeys: 'Alt+5' },
 ];
 
 export function getActiveKeys(binding: ShortcutBinding): string {
