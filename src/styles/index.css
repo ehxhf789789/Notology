@@ -68,6 +68,7 @@
 @import './features/sync.css';
 @import './features/sync-v2.css';
 @import './features/command-palette.css';
+@import './features/slash-command.css';
 
 /* ── Metadata ── */
 @import './metadata/yaml-editor.css';

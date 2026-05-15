@@ -985,6 +985,22 @@ const ko: Record<string, string> = {
   cmdToggleSidebar: '사이드바 토글',
   cmdToggleRightPanel: '오른쪽 패널 토글 (캘린더)',
 
+  // ── Slash palette commands (Stage 5.0.4b-1) ──
+  slashH1: '제목 1',
+  slashH2: '제목 2',
+  slashH3: '제목 3',
+  slashBulletList: '글머리 기호 목록',
+  slashOrderedList: '번호 매기기 목록',
+  slashTaskList: '체크리스트',
+  slashQuote: '인용',
+  slashDivider: '구분선',
+  slashWikiLink: '위키 링크',
+  slashAttachment: '첨부파일',
+  slashInlineCode: '인라인 코드',
+  slashCodeBlock: '코드 블록',
+  slashMathInline: '수식 (인라인)',
+  slashMathBlock: '수식 (블록)',
+
   // ── Shortcut category labels ──
   scCatText: '텍스트',
   scCatHeading: '제목',
@@ -2079,6 +2095,22 @@ const en: Record<string, string> = {
   cmdSettings: 'Open settings',
   cmdToggleSidebar: 'Toggle sidebar',
   cmdToggleRightPanel: 'Toggle right panel (calendar)',
+
+  // ── Slash palette commands (Stage 5.0.4b-1) ──
+  slashH1: 'Heading 1',
+  slashH2: 'Heading 2',
+  slashH3: 'Heading 3',
+  slashBulletList: 'Bullet list',
+  slashOrderedList: 'Numbered list',
+  slashTaskList: 'Task list',
+  slashQuote: 'Quote',
+  slashDivider: 'Divider',
+  slashWikiLink: 'Wiki link',
+  slashAttachment: 'Attachment',
+  slashInlineCode: 'Inline code',
+  slashCodeBlock: 'Code block',
+  slashMathInline: 'Math (inline)',
+  slashMathBlock: 'Math (block)',
 
   // ── Shortcut category labels ──
   scCatText: 'Text',

@@ -42,8 +42,10 @@ import LinkCard from './extensions/LinkCard';
 import WikiLinkSuggestion from './extensions/WikiLinkSuggestion';
 import { MathInline, MathBlock, MathTrigger } from './extensions/MathExtension';
 import { MathCursorPlugin } from './extensions/MathCursorPlugin';
+import { SlashCommand } from './extensions/SlashCommand';
 import 'katex/dist/katex.min.css';
 import { createWikiLinkSuggestion } from '../../features/suggestions/wikiLinkSuggestion';
+import { createSlashCommandSuggestion } from '../../features/slash-command';
 import type { FileNode } from '../types';
 
 // Create lowlight instance and register languages manually
@@ -199,6 +201,9 @@ export function getEditorExtensions(options: EditorConfigOptions) {
     MathBlock,
     MathTrigger,
     MathCursorPlugin,
+    SlashCommand.configure({
+      suggestion: createSlashCommandSuggestion(),
+    }),
     LinkCard, // Put LinkCard BEFORE Markdown for higher paste priority
     Markdown.configure({
       html: true, // Preserve HTML elements (including indent attributes)

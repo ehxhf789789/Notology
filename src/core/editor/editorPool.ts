@@ -48,8 +48,10 @@ import { MathCursorPlugin } from './extensions/MathCursorPlugin';
 import 'katex/dist/katex.min.css';
 import WikiLinkSuggestion from './extensions/WikiLinkSuggestion';
 import AttachmentSuggestion from './extensions/AttachmentSuggestion';
+import { SlashCommand } from './extensions/SlashCommand';
 import { createWikiLinkSuggestion } from '../../features/suggestions/wikiLinkSuggestion';
 import { createAttachmentSuggestion } from '../../features/suggestions/attachmentSuggestion';
+import { createSlashCommandSuggestion } from '../../features/slash-command';
 import type { FileNode } from '../types';
 
 const DEV = import.meta.env.DEV;
@@ -302,6 +304,9 @@ class EditorPool {
       MathBlock,
       MathTrigger,
       MathCursorPlugin,
+      SlashCommand.configure({
+        suggestion: createSlashCommandSuggestion(),
+      }),
       LinkCard,
       Markdown.configure({
         html: true,

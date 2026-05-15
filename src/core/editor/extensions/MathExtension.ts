@@ -551,10 +551,32 @@ export const MathBlock = Node.create({
 // ═══════════════════════════════════════
 const MATH_TRIGGER_KEY = new PluginKey('mathTrigger');
 
+// Stage 5.0.4b-1 (2026-05-15): the `$` and `$$` text triggers were a
+// constant source of false positives — `$5,000`, `$100 / item`, Korean
+// IME composition all activated math inadvertently. Per HanBin sign-off,
+// math is now entered exclusively via the `/` slash palette:
+//     /수식 (인라인) → mathInline atom
+//     /수식 (블록)   → mathBlock atom
+// The MathTrigger extension is preserved as a no-op so the existing
+// import in editorConfig.ts / editorPool.ts keeps working without edit.
+// The disabled implementation lives below in `disabledMathTriggerPlugins`
+// for reference — if 5.0.4b-2 surfaces a need to bring back a *guarded*
+// version (e.g. only inside an already-open math node) the code is here.
 export const MathTrigger = Extension.create({
   name: 'mathTrigger',
 
   addProseMirrorPlugins() {
+    return [];
+  },
+});
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// PRESERVED FOR REFERENCE — Pre-5.0.4b-1 ProseMirror plugin set that
+// converted typed `$` into math nodes via debounce-after-300ms + handled
+// `$$` for block math + tracked CJK IME composition. Re-enable by
+// returning this from MathTrigger.addProseMirrorPlugins above.
+const _disabledMathTriggerPluginsFactory = () => {
+  return () => {
     let pendingDollar: { pos: number; timeout: ReturnType<typeof setTimeout> } | null = null;
     let composing = false;
 
@@ -720,5 +742,7 @@ export const MathTrigger = Extension.create({
         },
       }),
     ];
-  },
-});
+  };
+};
+/* eslint-enable @typescript-eslint/no-unused-vars */
+void _disabledMathTriggerPluginsFactory;
