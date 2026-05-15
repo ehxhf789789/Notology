@@ -1,7 +1,7 @@
 # Stage 5.0.4-pre — Command & Shortcut Audit
 
 **Date**: 2026-05-15
-**Status**: 📋 Audit complete — awaiting HanBin sign-off on the new map before 5.0.4 implementation begins
+**Status**: ✅ Audit complete + HanBin sign-off received (24 decisions via 6 AskUserQuestion batches). 5.0.4 implementation can begin.
 **Parent plan**: [`STAGE_5_0_DESIGN_SYSTEM_PLAN.md`](../STAGE_5_0_DESIGN_SYSTEM_PLAN.md) §18a (Q3 requirement)
 **Predecessor**: [5.0.3b — TitleBar + Sidebar collapse](./5_0_3_b.md) (commit `bff4442`)
 **Blocks**: 5.0.4 (editor redesign) — see plan §18a
@@ -322,18 +322,194 @@ When 5.0.4 lands, the editor work must include:
 
 ---
 
-## 6. HanBin sign-off questions
+## 6. HanBin sign-off (2026-05-15) — answers received
 
-Before 5.0.4 implementation begins, please confirm:
+Q1–Q24 answered via AskUserQuestion (6 batches × 4 questions). Decisions:
 
-1. **`Ctrl+K` = command palette (NOT search)** — agree? (plan default = yes)
-2. **`Ctrl+Shift+F` = search (no more Ctrl+K alias)** — agree?
-3. **Remove `Ctrl+Shift+C` calendar binding** entirely (right-panel toggle covers it)? Or keep with renamed ID `focusCalendarTab`?
-4. **`Ctrl+,` = settings** (VS Code parity) — agree?
-5. **`Ctrl+D` delete-note** — keep as-is, or move to `Ctrl+Shift+Delete` for safety?
-6. **DEV mobile-test shortcuts** — change to `Ctrl+Alt+Shift+M/T` to free `Ctrl+Shift+M` for `toggleMetadata`?
-7. **Hover-window Esc/Ctrl+W** — include in 5.0.4 scope, or defer to 5.0.9?
-8. **`Ctrl+S` save binding** — remove from `DEFAULT_SHORTCUTS` list (it's dead), or wire to "saving…" indicator flash?
+### 6.1 Top-level shortcut mapping (agreed)
+
+| Decision | Answer |
+|---|---|
+| **`Ctrl+K` semantic** | Command palette (file jump + commands + recent). NOT search. |
+| **`Ctrl+Shift+F`** | Vault search (kept; drop `Ctrl+K` alias). |
+| **`Ctrl+Shift+C` calendar** | **Remove entirely.** Right-panel toggle (`Ctrl+→`) + Sidebar button (5.0.3a) cover it. |
+| **`Ctrl+,` settings** | **Add.** VS Code / Slack / Discord / macOS parity. |
+| **`Ctrl+D` delete-note** | **Move to `Ctrl+Shift+Delete`** for safety (avoid Ctrl+B/I/E mis-key). |
+| **`Ctrl+P` quick switcher** | Don't add. `Ctrl+K` unified palette (file + commands). |
+| **`Ctrl+F`** | Browser native (in-page find) — not overridden. |
+| **`Ctrl+Shift+N` new folder** | **Add.** Windows Explorer / Notion parity. |
+| **`Ctrl+S` (dead)** | Remove from DEFAULT_SHORTCUTS. |
+| **`Ctrl+M` (dead toggleMemo)** | **Repurpose as hover-window Comments toggle** (see §7). Remove from app-level. |
+| **`Ctrl+Shift+M` (dead toggleMetadata)** | Remove from DEFAULT_SHORTCUTS. Free for DEV-mode keep (see DEV row). |
+| **DEV mobile test** | Move to `Ctrl+Alt+Shift+M/T` (4-modifier; was Ctrl+Shift+M/T). |
+
+### 6.2 Editor + slash palette (5.0.4 scope)
+
+| Decision | Answer |
+|---|---|
+| **Editor toolbar default** | OFF + Settings opt-in. Slash + bubble menu + shortcuts cover 95%. |
+| **`/` slash palette structure** | **1-level flat** with search filter (no sub-menus). |
+| **Slash palette category order** | Decide during 5.0.4 prototype. HanBin will pick from Notion / Notology / frequency patterns then. |
+| **Bubble menu items** | Bold / Italic / Link / Heading▾ / Highlight (5 buttons). |
+
+### 6.3 Navigation + UI conventions
+
+| Decision | Answer |
+|---|---|
+| **Mac `Cmd` handling** | OS detection + UI label dynamic. Display `⌘ K` on macOS, `Ctrl+K` on Windows/Linux. KeyboardHint primitive gains OS-aware logic. |
+| **`Esc` consistency** | **Priority order** (Floating-UI's `useDismiss` already drives this). Modal > Popover > ContextMenu > Search > Selection > no-op. |
+| **Shortcut cheatsheet** | Settings → Keyboard Shortcuts tab only (no separate `?` modal). |
+| **FileTree (Sidebar) keyboard nav** | **Add.** ↑/↓ navigate, ←/→ collapse/expand, Enter open in hover, F2 rename, Delete confirm-delete. |
+
+### 6.4 Right panel + tab navigation
+
+| Decision | Answer |
+|---|---|
+| **Right-panel tab jump shortcuts** | **`Alt+1`–`Alt+5`** for Calendar / Tags / Comments / Outline / Metadata. Implicit: opens right panel if closed. |
+| **Hover-window close shortcuts (Esc / Ctrl+W)** | Defer to **5.0.9** (HoverWindowChrome primitive). 5.0.4 doesn't consume these keys. |
+
+### 6.5 Search UI restructure (Q22-25 — affects 5.0.7)
+
+| Decision | Answer |
+|---|---|
+| **Search tabs** | **3 tabs**: Notes (unified) / Attachments / Graph. Frontmatter + Content + Details merge into "Notes" with filter chips. |
+| **Details tab role** | Repurpose as **property filter + bulk edit** view (Notion-DB style). Not deleted. |
+| **Graph location** | Keep inside Search panel (current). Not moved to separate view. |
+| **Outline** | Build in **5.0.4** (editor sub-stage). Register as `right-panel-outline` slot. |
+
+---
+
+## 7. Hover-window per-note shortcuts — NEW (HanBin 2026-05-15)
+
+HanBin emphasised: shortcuts that act on the **focused hover window's note** must be distinct from the main app's right-panel shortcuts. The hover-window's Comments and Tags panels are per-note (the note rendered in that hover); the main right-panel is vault-wide aggregate.
+
+### 7.1 New routing rule
+
+Pressed shortcut → look at most-recently-focused window:
+- **Hover window focused** → hover-scoped shortcuts (Ctrl+M / Ctrl+T) act on that hover's note.
+- **Main window focused** → main-scoped shortcuts (Alt+1–5 for right-panel tabs).
+
+If hover focused but its note doesn't support the requested panel (e.g. attachment file with no comments panel), the shortcut is a no-op (NOT routed to main).
+
+### 7.2 Hover-scoped bindings
+
+| Shortcut | Action | Notes |
+|---|---|---|
+| **`Ctrl+M`** | Toggle Comments (memo/task) panel on focused hover's note | Reuses key from removed dead `toggleMemo`. Scope rename: `toggleHoverComments`. |
+| **`Ctrl+T`** | Toggle Tags panel on focused hover's note | New. Scope: `toggleHoverTags`. |
+
+### 7.3 Comments panel initial state
+
+| Decision | Answer |
+|---|---|
+| **Mode on open (task vs memo)** | **Remember last-used per note.** Persist in localStorage (`notology-hover-comments-mode-{noteId}` or via frontmatter `_uiMode`). |
+
+### 7.4 Implementation notes
+
+- `useAppKeyboardShortcuts.ts` gets a focused-hover detection: subscribe to `hoverStore` selector that exposes `lastFocusedWindowId`.
+- `commentHandlers.setShowComments(!showComments)` already exists on hover state — wire the keybinding to it directly.
+- Same for `setShowTags`. Both already part of `useNoteCommentHandlers`.
+- `Alt+1–5` (main right-panel) and `Ctrl+M`/`Ctrl+T` (hover) coexist: routing decides based on focus.
+- DEV note: this is the first time shortcuts route by window focus rather than global. Need to ensure `e.preventDefault()` runs at the right level (window-level listener catches first; routing happens inside).
+
+---
+
+## 8. Implementation checklist (replaces old §5)
+
+Concrete changes needed when 5.0.4 lands:
+
+**`shortcuts.ts` — DEFAULT_SHORTCUTS edits**:
+
+```ts
+// REMOVE (dead or replaced):
+- { id: 'save',           defaultKeys: 'Ctrl+S' }
+- { id: 'calendar',       defaultKeys: 'Ctrl+Shift+C' }
+- { id: 'toggleMemo',     defaultKeys: 'Ctrl+M' }       // → repurposed in §7
+- { id: 'toggleMetadata', defaultKeys: 'Ctrl+Shift+M' }
+
+// RENAME (keep key, change ID):
+  { id: 'newNote',          defaultKeys: 'Ctrl+N' }
+  // search drops 'Ctrl+K' alias inside handler — id stays
+  { id: 'search',           defaultKeys: 'Ctrl+Shift+F' }
+
+// ADD:
++ { id: 'commandPalette',        defaultKeys: 'Ctrl+K' }
++ { id: 'settings',              defaultKeys: 'Ctrl+,' }
++ { id: 'newFolder',             defaultKeys: 'Ctrl+Shift+N' }
++ { id: 'deleteNote',            defaultKeys: 'Ctrl+Shift+Delete' }  // moved from Ctrl+D
++ { id: 'focusRightPanelTab1',   defaultKeys: 'Alt+1' }   // Calendar
++ { id: 'focusRightPanelTab2',   defaultKeys: 'Alt+2' }   // Tags
++ { id: 'focusRightPanelTab3',   defaultKeys: 'Alt+3' }   // Comments
++ { id: 'focusRightPanelTab4',   defaultKeys: 'Alt+4' }   // Outline
++ { id: 'focusRightPanelTab5',   defaultKeys: 'Alt+5' }   // Metadata
++ { id: 'toggleHoverComments',   defaultKeys: 'Ctrl+M' }    // hover-scoped
++ { id: 'toggleHoverTags',       defaultKeys: 'Ctrl+T' }    // hover-scoped
+```
+
+DEV-only (not in DEFAULT_SHORTCUTS — gated by `import.meta.env.DEV`):
+- `Ctrl+Alt+Shift+M` → mobile-test phone
+- `Ctrl+Alt+Shift+T` → mobile-test tablet
+
+**`useAppKeyboardShortcuts.ts` — handler edits**:
+- Remove `Ctrl+K` alias in `search` branch
+- Add `commandPalette`, `settings`, `newFolder`, `focusRightPanelTab1..5` branches
+- Move `deleteNote` shortcut from `Ctrl+D` to `Ctrl+Shift+Delete`
+- Add focused-hover-window detection + `toggleHoverComments` / `toggleHoverTags` branches that route via `hoverStore.lastFocusedWindowId`
+- Update DEV gates to require `e.altKey` for mobile test windows
+
+**`<KeyboardHint>` primitive** ([src/design-system/components/KeyboardHint.tsx](../../../src/design-system/components/KeyboardHint.tsx)):
+- Add OS detection (`navigator.platform.includes('Mac')`)
+- On macOS, display `⌘` instead of `Ctrl`; `⌥` instead of `Alt`; `⇧` instead of `Shift`
+- Existing key-name `DISPLAY` map already handles arrow / escape; extend for `Cmd` → `⌘`
+
+**`<FileTree>` primitive** ([src/features/folder-tree/FolderTree.tsx](../../../src/features/folder-tree/FolderTree.tsx)):
+- Add keyboard navigation handlers (↑/↓/←/→/Enter/F2/Delete)
+- Manage `aria-selected` + tabindex for active row
+- 5.0.4 includes this since plan §4 explicitly assigns it to App-shell work
+
+**`<CommandPalette>` new component** (`src/features/command-palette/`):
+- Uses `<Popover>` or full-screen modal (Cmd-K style)
+- Filtered list: notes + commands + recent
+- KeyboardHint chip on each row
+
+**`/` slash palette** — new TipTap SuggestionExtension in `src/core/editor/extensions/SlashCommand.ts`:
+- 1-level flat list (HanBin Q12 confirmed)
+- Category order TBD during prototype (HanBin Q4 deferred)
+- Reuses 5.0.2b `<Popover>` for floating chrome
+
+**Hover-window slot registration** (Outline tab activation):
+- `right-panel-outline` slot subscribes to focused hover's note heading tree
+- Click jumps within that hover's editor
+
+---
+
+## 9. HanBin smoke-test checklist (after 5.0.4 lands)
+
+When 5.0.4 implementation commits, HanBin should verify:
+
+1. Press `/` in editor → slash palette opens, type-ahead works
+2. Press `Ctrl+K` → command palette opens (NOT search)
+3. Press `Ctrl+Shift+F` → search panel opens
+4. Press `Ctrl+,` → Settings modal opens
+5. Press `Ctrl+Shift+N` → new folder dialog
+6. Press `Ctrl+D` → does nothing (no longer bound)
+7. Press `Ctrl+Shift+Delete` → delete-note confirm
+8. Press `Alt+1` → right panel opens (if closed) + Calendar tab active
+9. Focus a hover window → press `Ctrl+M` → that hover's Comments panel toggles
+10. Focus a hover window → press `Ctrl+T` → that hover's Tags panel toggles
+11. macOS: Settings shortcuts list shows `⌘ K` / `⌘ ,` / etc.
+12. FileTree row focused → ↑/↓/F2/Delete all work
+13. Settings → Keyboard Shortcuts tab → all 30+ bindings listed correctly
+
+---
+
+## 10. Open items deferred to 5.0.4 prototype
+
+These were left "decide during implementation" per HanBin:
+- Slash palette category order (Q4)
+- Bubble menu item set if HanBin changes mind during prototype (Q20)
+
+Both are visual/UX details that benefit from actually seeing the prototype.
 
 ---
 
@@ -348,11 +524,12 @@ in 5.0.4 implementation commits after HanBin signs off on §6 above.
 
 ---
 
-## 8. Next sub-stage entry conditions
+## 11. Next sub-stage entry conditions
 
-5.0.4 implementation can begin when:
-- HanBin answers the 8 questions in §6
-- Final shortcut map agreed
-- (Implicit) `<CommandPalette>` design accepted as part of 5.0.4 scope
+**Met** — all sign-off questions answered in §6. Ready for 5.0.4 implementation.
 
-Estimated 5.0.4 sessions: 3 (was 2 in plan §14, +1 for command audit / palette per plan §18b).
+Estimated 5.0.4 sessions: **3+** (was 2 in plan §14, +1 for command audit / palette per plan §18b, possibly +1 for Outline panel + hover routing complexity discovered here). Suggested split:
+
+- **5.0.4a** — `<CommandPalette>` + shortcut map migration (`shortcuts.ts` + `useAppKeyboardShortcuts.ts` rewrite) + KeyboardHint OS detection. Pure infrastructure, low UX risk.
+- **5.0.4b** — `/` slash palette + bubble menu + toolbar OFF default + Outline panel slot.
+- **5.0.4c** (if needed) — FileTree keyboard navigation + hover-window focus routing + smoke test.
