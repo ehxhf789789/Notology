@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Editor } from '@tiptap/core';
 import { fileCommands } from '../../core/services/tauriCommands';
 import { contentCacheActions } from '../content-cache/stores/contentCacheStore';
-import type { NoteFrontmatter, NoteComment, CanvasData, HoverWindow } from '../../core/types';
+import type { NoteFrontmatter, NoteComment, SketchData, HoverWindow } from '../../core/types';
 import { loadComments } from '../comments/comments';
 import { preprocessWikiLinks } from '../../core/utils/wikiLinkPreprocess';
 import type { ConflictState } from './useConflictResolution';
@@ -21,7 +21,7 @@ export interface UseContentLoaderParams {
   setFrontmatter: React.Dispatch<React.SetStateAction<NoteFrontmatter | null>>;
   setBody: React.Dispatch<React.SetStateAction<string>>;
   setIsDirty: React.Dispatch<React.SetStateAction<boolean>>;
-  setCanvasData: React.Dispatch<React.SetStateAction<CanvasData>>;
+  setSketchData: React.Dispatch<React.SetStateAction<SketchData>>;
   setComments: React.Dispatch<React.SetStateAction<NoteComment[]>>;
   setConflictState: React.Dispatch<React.SetStateAction<ConflictState | null>>;
   setExternalReloadNotice: React.Dispatch<React.SetStateAction<boolean>>;
@@ -49,7 +49,7 @@ export function useContentLoader({
   setFrontmatter,
   setBody,
   setIsDirty,
-  setCanvasData,
+  setSketchData,
   setComments,
   setConflictState,
   setExternalReloadNotice,
@@ -88,12 +88,12 @@ export function useContentLoader({
       updateHoverWindow(win.id, { noteType: fm.type.toLowerCase() });
     }
 
-    if (fm?.canvas) {
+    if ((fm as any)?.sketch || (fm as any)?.canvas) {
       try {
         const parsed = JSON.parse(cached.body || '{"nodes":[],"edges":[]}');
-        setCanvasData(parsed);
+        setSketchData(parsed);
       } catch {
-        setCanvasData({ nodes: [], edges: [] });
+        setSketchData({ nodes: [], edges: [] });
       }
       if (!cached.body || cached.body.trim() === '') {
         const initialJson = JSON.stringify({ nodes: [], edges: [] }, null, 2);
@@ -128,7 +128,7 @@ export function useContentLoader({
         }
       });
     }
-  }, [win.id, win.filePath, win.noteType, updateHoverWindow, saveFile, setFrontmatter, setBody, setIsDirty, setCanvasData, mtimeOnLoadRef, isLoadingRef, contentSetRef, pendingBodyRef, editorRef, resolveFilePathRef, logTiming]);
+  }, [win.id, win.filePath, win.noteType, updateHoverWindow, saveFile, setFrontmatter, setBody, setIsDirty, setSketchData, mtimeOnLoadRef, isLoadingRef, contentSetRef, pendingBodyRef, editorRef, resolveFilePathRef, logTiming]);
 
   // Load file - uses content cache for instant loading of recently viewed files
   useEffect(() => {
@@ -170,7 +170,7 @@ export function useContentLoader({
 
   // Set editor content when both editor and body are ready (fallback for async path)
   useEffect(() => {
-    if (!editor || !body || frontmatter?.canvas) return;
+    if (!editor || !body || ((frontmatter as any)?.sketch || (frontmatter as any)?.canvas)) return;
     if (contentSetRef.current) return;
 
     const setContentStart = performance.now();
@@ -179,7 +179,7 @@ export function useContentLoader({
     isLoadingRef.current = false;
     contentSetRef.current = true;
     logTiming(`Editor setContent (fallback) (${(performance.now() - setContentStart).toFixed(1)}ms)`);
-  }, [editor, body, frontmatter?.canvas, contentSetRef, isLoadingRef, logTiming]);
+  }, [editor, body, (frontmatter as any)?.sketch, (frontmatter as any)?.canvas, contentSetRef, isLoadingRef, logTiming]);
 
   // Reload content when contentReloadTrigger changes
   const prevReloadTriggerRef = useRef(win.contentReloadTrigger);
@@ -200,19 +200,41 @@ export function useContentLoader({
         log(`[HoverEditor] Suppressing re-trigger -- conflict resolved ${msSinceResolved}ms ago`);
         return;
       }
-      log('[HoverEditor] External change detected while editing -- showing conflict UI');
+      // Suppress if own save completed recently (within 5s)
+      const msSinceLastSave = Date.now() - ((mtimeOnLoadRef as any).__lastUpdateAt || 0);
+      if (msSinceLastSave < 5000) {
+        log(`[HoverEditor] Suppressing -- own save ${msSinceLastSave}ms ago`);
+        return;
+      }
+      // Content-based conflict detection: compare disk vs what we last saved.
+      // If disk still has our content → no external change → suppress.
       const currentContent = (editor.storage as any).markdown?.getMarkdown() || '';
-      fileCommands.getFileMtime(win.filePath).then(mtime => {
-        setConflictState({
-          myContent: currentContent,
-          myFrontmatter: { ...frontmatter! },
-          externalMtime: mtime,
+      import('../../core/services/tauriCommands').then(({ fileCommands: fc }) => {
+        fc.readFile(win.filePath).then(diskFile => {
+          const diskBody = diskFile.body ?? '';
+          // Use body state as proxy for "last saved/loaded content"
+          if (diskBody.trim() === body.trim()) {
+            log('[HoverEditor] Disk matches last loaded content -- suppressing conflict');
+            fc.getFileMtime(win.filePath).then(m => { mtimeOnLoadRef.current = m; });
+            return;
+          }
+          // Real conflict: someone else changed the file
+          log('[HoverEditor] Real external content change -- showing conflict UI');
+          fc.getFileMtime(win.filePath).then(mtime => {
+            setConflictState({
+              myContent: currentContent,
+              myFrontmatter: { ...frontmatter! },
+              externalMtime: mtime,
+            });
+          });
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+            saveTimeoutRef.current = null;
+          }
+        }).catch(() => {
+          log('[HoverEditor] Cannot read file for conflict check -- suppressing');
         });
       });
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
       return;
     }
 
@@ -227,7 +249,7 @@ export function useContentLoader({
     contentCacheActions.invalidateContent(win.filePath);
     contentCacheActions.getContent(win.filePath)
       .then(cached => {
-        const currentBody = frontmatter?.canvas ? body : ((editor?.storage as any).markdown?.getMarkdown() || body);
+        const currentBody = ((frontmatter as any)?.sketch || (frontmatter as any)?.canvas) ? body : ((editor?.storage as any).markdown?.getMarkdown() || body);
         if (cached.body === currentBody) {
           log('[HoverEditor] Phantom change detected (mtime changed but content identical) -- skipping reload');
           fileCommands.getFileMtime(win.filePath).then(m => { mtimeOnLoadRef.current = m; });
@@ -244,12 +266,12 @@ export function useContentLoader({
         setExternalReloadNotice(true);
         setTimeout(() => setExternalReloadNotice(false), 3000);
 
-        if (fm?.canvas) {
+        if ((fm as any)?.sketch || (fm as any)?.canvas) {
           try {
             const parsed = JSON.parse(cached.body || '{"nodes":[],"edges":[]}');
-            setCanvasData(parsed);
+            setSketchData(parsed);
           } catch {
-            setCanvasData({ nodes: [], edges: [] });
+            setSketchData({ nodes: [], edges: [] });
           }
         } else {
           if (editor) {

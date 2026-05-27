@@ -25,10 +25,4 @@
 .tiptap-editor pre code .hljs-section { color: var(--code-function); font-weight: bold; }
 .tiptap-editor pre code .hljs-meta { color: var(--code-comment); }
 
-/* Blockquote */
-.tiptap-editor blockquote {
-  border-left: 3px solid var(--sep);
-  padding-left: 14px;
-  margin: 8px 0;
-  color: var(--tx-2);
-}
+/* Blockquote — main styles in editor.css */

@@ -6,6 +6,24 @@
    All rules use Tier 2 design tokens only.
    ============================================================ */
 
+/* v5.4 (2026-05-15) — strip Tippy's default dark wrapper so only our
+   `.slash-palette` styling shows. HanBin: "검은색 배경 테두리" was the
+   Tippy default `.tippy-box` background (dark grey) sitting BEHIND our
+   light palette content. Mirrors the override the wikilink + attachment
+   popovers already had. */
+.tippy-box[data-theme~='slash-command'] {
+  background-color: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.tippy-box[data-theme~='slash-command'] .tippy-content {
+  padding: 0 !important;
+}
+.tippy-box[data-theme~='slash-command'] .tippy-arrow {
+  display: none !important;
+}
+
 .slash-palette {
   display: flex;
   flex-direction: column;
@@ -20,6 +38,42 @@
   box-shadow: var(--shadow-modal);
   padding: var(--space-xs);
   outline: none;
+}
+
+/* v5.3 (2026-05-15) — visible search affordance at the top of the palette.
+   Shows the typed query (or a placeholder hint when empty) so users see
+   that their typing IS filtering the list. */
+.slash-palette__search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--bdr-1);
+  margin-bottom: var(--space-xs);
+  font-size: var(--fs-body);
+  color: var(--tx-2);
+  position: sticky;
+  top: 0;
+  background: var(--bg-elev-2);
+  z-index: 1;
+}
+.slash-palette__search-icon {
+  flex-shrink: 0;
+  color: var(--tx-3);
+}
+.slash-palette__search-query {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono, monospace);
+  color: var(--tx-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slash-palette__search-query--empty {
+  color: var(--tx-3);
+  font-family: inherit;
+  font-style: italic;
 }
 
 .slash-palette__row {

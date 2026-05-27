@@ -333,6 +333,18 @@ export const IndentExtension = Extension.create({
         // For regular paragraphs, use hanging indent
         return editor.commands.setHangingIndent();
       },
+      // 2026-05-25 (HanBin) — Escape blurs the editor so the next Tab
+      // exits to the next focusable element (standard a11y pattern;
+      // VS Code / Obsidian / Notion all do this). Tab inside the editor
+      // remains bound to indent (above) because Korean/English writers
+      // expect Tab to mean "indent paragraph" while typing. The combo
+      // Tab-then-stuck-forever was the user complaint; Esc → Tab is
+      // the canonical exit ramp.
+      'Escape': () => {
+        const { editor } = this;
+        editor.commands.blur();
+        return true;
+      },
     };
   },
 });

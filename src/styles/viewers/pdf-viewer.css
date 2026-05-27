@@ -17,6 +17,10 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  /* 5.0.9d — promoted from inline `style={{ overflow: 'hidden' }}` in
+     HoverPdfViewer. Suppresses double scrollbars: the native PDF
+     toolbar provides its own scroll affordance. */
+  overflow: hidden;
 }
 
 /* The click-absorber overlay was removed in round 11 — chrome:// nav
@@ -62,7 +66,7 @@
 }
 
 .pdfjs-toolbar-btn:hover:not(:disabled) {
-  background-color: color-mix(in srgb, var(--c-blue, #3b82f6) 14%, transparent);
+  background-color: color-mix(in srgb, var(--tx-1) 14%, transparent);
   color: var(--tx-1, #f3f4f6);
 }
 
@@ -72,8 +76,8 @@
 }
 
 .pdfjs-toolbar-btn.active {
-  background-color: color-mix(in srgb, var(--c-blue, #3b82f6) 22%, transparent);
-  border-color: color-mix(in srgb, var(--c-blue, #3b82f6) 60%, transparent);
+  background-color: color-mix(in srgb, var(--tx-1) 22%, transparent);
+  border-color: color-mix(in srgb, var(--tx-1) 60%, transparent);
   color: var(--tx-1, #f3f4f6);
 }
 

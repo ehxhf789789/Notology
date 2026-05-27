@@ -4,6 +4,7 @@ use tauri::Emitter;
 
 use crate::SearchState;
 use crate::search::{SearchIndex, NoteFilter, NoteMetadata, RelationshipData, GraphData, SearchResult as IndexSearchResult};
+#[cfg(desktop)]
 use crate::search::watcher::VaultWatcher;
 use crate::memo::MemoIndex;
 use crate::core::types::VaultIntegrityResult;
@@ -26,7 +27,8 @@ pub async fn init_search_index(
             } else {
                 log::info!("[init_search_index] Vault changed from {:?} to {}, reinitializing", search_state.vault_path, vault_path);
                 search_state.index = None;
-                search_state._watcher = None;
+                #[cfg(desktop)]
+                { search_state._watcher = None; }
                 search_state.memo_index = None;
                 search_state.vault_path = None;
             }
@@ -79,6 +81,7 @@ pub async fn init_search_index(
     let _ = app.emit("search-index-ready", ());
     log::info!("[init_search_index] Emitted search-index-ready event");
 
+    #[cfg(desktop)]
     let watcher = match VaultWatcher::start(&vault_path, Arc::clone(&index), app) {
         Ok(w) => Some(w),
         Err(e) => {
@@ -100,7 +103,8 @@ pub async fn init_search_index(
 
     {
         let mut search_state = state.lock().map_err(|e| e.to_string())?;
-        search_state._watcher = watcher;
+        #[cfg(desktop)]
+        { search_state._watcher = watcher; }
         search_state.memo_index = Some(memo_index);
         search_state.vault_path = Some(vault_path.clone());
         search_state.init_in_progress = false;
@@ -118,7 +122,8 @@ pub async fn reset_search_state(
     let mut search_state = state.lock().map_err(|e| e.to_string())?;
     log::info!("[reset_search_state] Clearing search state");
     search_state.index = None;
-    search_state._watcher = None;
+    #[cfg(desktop)]
+    { search_state._watcher = None; }
     search_state.memo_index = None;
     search_state.init_in_progress = false;
     Ok(())
@@ -134,7 +139,8 @@ pub async fn clear_search_index(
     {
         let mut search_state = state.lock().map_err(|e| e.to_string())?;
         search_state.index = None;
-        search_state._watcher = None;
+        #[cfg(desktop)]
+        { search_state._watcher = None; }
         search_state.memo_index = None;
     }
 

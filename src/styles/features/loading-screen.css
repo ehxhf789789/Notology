@@ -7,7 +7,7 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: var(--bg-primary, #1a1a2e);
+  background: var(--bg-app);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -43,9 +43,9 @@
 .loading-spinner {
   width: 48px;
   height: 48px;
-  border: 3px solid rgba(96, 165, 250, 0.15);
-  border-top: 3px solid var(--accent-primary, #60a5fa);
-  border-radius: var(--radius-full);
+  border: 3px solid color-mix(in srgb, var(--tx-1) 15%, transparent);
+  border-top: 3px solid var(--tx-1);
+  border-radius: var(--r-pill);
   margin: 0 auto 24px;
   animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
@@ -62,43 +62,44 @@
 .loading-text {
   font-size: 28px;
   font-weight: 700;
-  color: var(--text-primary, #e0e0e0);
-  margin-bottom: var(--space-6);
+  color: var(--tx-1);
+  margin-bottom: var(--sp-3);
   letter-spacing: -0.5px;
 }
 
 .loading-status {
-  font-size: var(--font-lg);
-  color: var(--text-muted, #888);
+  font-size: var(--fs-14);
+  color: var(--tx-3);
   min-height: 20px;
 }
 
 .loading-slow {
-  margin-top: var(--space-10);
+  margin-top: var(--sp-5);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--sp-3);
   animation: fadeIn 0.3s ease;
 }
 
 .loading-slow-text {
-  font-size: var(--font-base);
-  color: var(--text-muted, #888);
+  font-size: var(--fs-13);
+  color: var(--tx-3);
 }
 
 .loading-skip-btn {
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   padding: 6px 16px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color, #444);
-  background: var(--bg-secondary, #2a2a2a);
-  color: var(--text-primary, #eee);
+  border-radius: var(--r-8);
+  /* 2026-05-22 — iOS hairline (was 1 px). */
+  border: 0.5px solid var(--sep-l);
+  background: var(--bg-base);
+  color: var(--tx-1);
   cursor: pointer;
-  transition: background var(--duration-fast), border-color var(--duration-fast);
+  transition: background var(--dur-150), border-color var(--dur-150);
 }
 
 .loading-skip-btn:hover {
-  background: var(--bg-tertiary, #333);
-  border-color: var(--text-muted, #666);
+  background: var(--bg-elevated);
+  border-color: var(--tx-3);
 }

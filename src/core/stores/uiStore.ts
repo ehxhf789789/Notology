@@ -56,7 +56,13 @@ interface UIState {
   setShowCalendar: (show: boolean) => void;
   setShowSidebar: (show: boolean) => void;
   setShowHoverPanel: (show: boolean) => void;
-  setSidebarWidth: (width: number) => void;
+  /**
+   * Stage 5.0.3b-simplify follow-up (2026-05-15): drag-resize was imprecise
+   * because every mousemove triggered a synchronous localStorage write.
+   * `persist=false` lets the resize loop skip the I/O — call once with
+   * `persist=true` on mouseup to commit the final width.
+   */
+  setSidebarWidth: (width: number, persist?: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
 }
 
@@ -75,10 +81,19 @@ export const useUIStore = create<UIState>()(
     sidebarCollapsed: loadSidebarCollapsed(),
 
     // Show search (mutually exclusive with calendar)
+    // v22 (HanBin 2026-05-23) — entering search mode clears the selected
+    // container so the sidebar doesn't show a stale "currently focused"
+    // highlight on the container the user was just in. Search is a
+    // VAULT-WIDE view; pointing back at one container would mislead.
     setShowSearch: (show: boolean) => {
       set({ showSearch: show });
       if (show) {
         set({ showCalendar: false });
+        // Lazy import to avoid circular dep — fileTreeActions lives in
+        // fileTreeStore which imports settings.
+        import('./fileTreeStore').then(({ fileTreeActions }) => {
+          fileTreeActions.setSelectedContainer(null);
+        }).catch(() => { /* defensive — actions not loaded */ });
       }
     },
 
@@ -136,13 +151,19 @@ export const useUIStore = create<UIState>()(
       }
     },
 
-    // Set sidebar width with persistence
-    setSidebarWidth: (width: number) => {
+    // Set sidebar width. `persist=false` (used during drag) skips the
+    // localStorage write — call once with `persist=true` (default) on mouseup
+    // to commit. Without this, mousemove triggered a sync I/O write on every
+    // event (~100×/sec), causing visible lag in the drag-resize loop.
+    setSidebarWidth: (width: number, persist: boolean = true) => {
       const clampedWidth = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, width));
+      if (clampedWidth === get().sidebarWidth) return;
       set({ sidebarWidth: clampedWidth });
-      try {
-        localStorage.setItem('notology-sidebar-width', String(clampedWidth));
-      } catch {}
+      if (persist) {
+        try {
+          localStorage.setItem('notology-sidebar-width', String(clampedWidth));
+        } catch {}
+      }
     },
 
     // Toggle sidebar icon-only mode with persistence
@@ -172,6 +193,6 @@ export const uiActions = {
   setShowCalendar: (show: boolean) => useUIStore.getState().setShowCalendar(show),
   setShowSidebar: (show: boolean) => useUIStore.getState().setShowSidebar(show),
   setShowHoverPanel: (show: boolean) => useUIStore.getState().setShowHoverPanel(show),
-  setSidebarWidth: (width: number) => useUIStore.getState().setSidebarWidth(width),
+  setSidebarWidth: (width: number, persist?: boolean) => useUIStore.getState().setSidebarWidth(width, persist),
   setSidebarCollapsed: (collapsed: boolean) => useUIStore.getState().setSidebarCollapsed(collapsed),
 };

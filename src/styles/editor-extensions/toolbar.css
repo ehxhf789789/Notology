@@ -1,9 +1,15 @@
-/* ===== Editor Toolbar ===== */
+/* ===== Editor Toolbar =====
+   v5.5 (2026-05-16) — HanBin: collapsed strip had no visible separator
+   so it read as part of the content. Expanded had 0.5px hairline that
+   barely showed. Both states now use a visible 1px --bdr-1 bottom border
+   matching the popover IA family. Active/hover states swapped from solid
+   --c-blue (aggressive) to --bg-sel + --c-blue text (subtle, on-family). */
 
 .editor-toolbar-wrapper {
   position: relative;
   flex-shrink: 0;
   min-height: 16px;
+  border-bottom: 1px solid var(--bdr-1);
 }
 
 .editor-toolbar-wrapper.visible {
@@ -22,10 +28,11 @@
   justify-content: center;
   color: var(--tx-3);
   opacity: 0.4;
+  transition: opacity var(--dur-150) ease, background-color var(--dur-150) ease;
 }
 
 .editor-toolbar-toggle:hover {
-  opacity: 0.8;
+  opacity: 0.9;
   background: var(--bg-hover);
 }
 
@@ -33,9 +40,9 @@
   display: flex;
   align-items: center;
   padding: 6px 12px;
-  background: var(--bg-app);
-  border-bottom: 0.5px solid var(--sep-l);
-  gap: var(--space-2);
+  background: var(--bg-elev-1);
+  /* wrapper now owns the bottom border so collapsed + expanded share the divider */
+  gap: var(--sp-1);
   flex-shrink: 0;
 }
 
@@ -51,22 +58,22 @@
   justify-content: center;
   color: var(--tx-3);
   opacity: 0.5;
-  margin-right: var(--space-4);
+  margin-right: var(--sp-2);
   flex-shrink: 0;
 }
 
 .editor-toolbar-toggle-close:hover {
   opacity: 1;
   background: var(--bg-hover);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
 }
 
 .editor-toolbar-group {
   display: flex;
   align-items: center;
   gap: 1px;
-  padding-right: var(--space-3);
-  margin-right: var(--space-2);
+  padding-right: var(--sp-2);
+  margin-right: var(--sp-1);
   border-right: 0.5px solid var(--sep-l);
   position: relative;
 }
@@ -84,35 +91,33 @@
   border: none;
   color: var(--tx-2);
   cursor: pointer;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   padding: 0;
   flex-shrink: 0;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
 }
 
 .editor-toolbar-btn:hover {
   background: var(--bg-hover);
   color: var(--tx-1);
-  transform: translateY(-1px);
-}
-
-.editor-toolbar-btn:active {
-  transform: translateY(0);
+  /* removed translateY jitter on hover (HanBin v5.5) — felt janky; pure
+     background change is calmer and matches popover row hover behavior */
 }
 
 .editor-toolbar-btn.active {
-  background: var(--c-blue);
-  color: #111;
-  box-shadow: var(--sh-sm);
+  /* v5.5: subtle accent tint instead of solid blue. Same visual signal
+     (selected) but no longer competes with heading-bar blue. */
+  background: var(--bg-sel);
+  color: var(--tx-1);
 }
 
 .editor-toolbar-btn.btn-small {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   width: 28px;
 }
 
@@ -124,14 +129,16 @@
   position: absolute;
   top: 100%;
   left: 0;
-  margin-top: var(--space-2);
-  background: var(--bg-elevated);
-  border: 0.5px solid var(--sep);
-  border-radius: var(--radius-md);
-  box-shadow: var(--sh-md);
+  margin-top: var(--sp-1);
+  /* v5.5: unified popover IA — same bg / border / radius / shadow
+     as slash-palette + wikilink + attachment + context-menu */
+  background: var(--bg-elev-2);
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-pop);
+  box-shadow: var(--shadow-modal);
   z-index: var(--z-toast);
   min-width: 100px;
-  padding: var(--space-2);
+  padding: var(--space-xs);
   animation: dropdownFadeIn 0.15s ease;
 }
 
@@ -153,38 +160,40 @@
   background: none;
   border: none;
   color: var(--tx-1);
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   text-align: left;
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: all var(--duration-fast) ease;
+  border-radius: var(--r-6);
+  transition: all var(--dur-150) ease;
 }
 
 .editor-toolbar-dropdown-item:hover {
-  background: var(--c-blue);
-  color: #111;
+  /* v5.5: --bg-hover matches editor-context-menu + popover rows
+     (was --c-blue solid which clashed with new design family) */
+  background: var(--bg-hover);
+  color: var(--tx-1);
 }
 
-/* Table Grid Selector */
+/* Table Grid Selector — v5.5 unified popover tokens */
 .table-grid-selector {
   position: absolute;
   top: 100%;
   left: 0;
-  margin-top: var(--space-2);
-  background: var(--bg-elevated);
-  border: 0.5px solid var(--sep);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--sh-lg);
+  margin-top: var(--sp-1);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-pop);
+  box-shadow: var(--shadow-modal);
   z-index: var(--z-toast);
-  padding: var(--space-5);
+  padding: var(--sp-3);
   animation: dropdownFadeIn 0.15s ease;
 }
 
 .table-grid-size {
   text-align: center;
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-2);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--sp-2);
   font-weight: 600;
   letter-spacing: 0.5px;
 }
@@ -204,28 +213,28 @@
   width: 18px;
   height: 18px;
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
   background: transparent;
 }
 
 .table-grid-cell:hover,
 .table-grid-cell.active {
-  background: var(--c-blue);
-  border-color: var(--c-blue);
+  background: var(--tx-1);
+  border-color: var(--tx-1);
   transform: scale(1.05);
 }
 
 /* Toolbar text styles */
 .toolbar-text {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   font-weight: 600;
   letter-spacing: -0.5px;
 }
 
 .toolbar-text-small {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   font-weight: 500;
 }
 

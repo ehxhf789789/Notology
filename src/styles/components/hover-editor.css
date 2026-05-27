@@ -13,13 +13,21 @@
  */
 
 .hover-editor {
+  /* 2026-05-22 — iOS-style chrome:
+     - border 2 px → 1 px (was visually heavy, matched neither toolbar
+       nor table tones from the rest of the app).
+     - shadow `--sh-lg` → `--sh-md` (one tier softer, more "elevated
+       card" than "modal screaming for attention").
+     - radius `--r-12` → `--r-10` (slightly tighter corner = more
+       compact silhouette without losing the iOS-style softness).
+  */
   position: fixed;
   top: 0;
   left: 0;
   background-color: var(--bg-base);
-  border: 2px solid var(--sep);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--sh-lg);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-10, 10px);
+  box-shadow: var(--sh-md);
   display: flex;
   flex-direction: column;
   overflow: visible;
@@ -41,8 +49,11 @@
 }
 
 @keyframes hover-window-flash {
-  0% { box-shadow: var(--sh-lg), 0 0 0 3px var(--c-blue); }
-  100% { box-shadow: var(--sh-lg); }
+  /* 2026-05-22 — neutral flash (was blue 3 px ring). Brief 2 px tx-1
+     halo gives the same "focus arrived" cue without the accent color
+     bursting on every focus event. */
+  0% { box-shadow: var(--sh-md), 0 0 0 2px color-mix(in srgb, var(--tx-1) 30%, transparent); }
+  100% { box-shadow: var(--sh-md); }
 }
 
 /* Animation states — visuals driven by Web Animations API (runAnimation()) */
@@ -149,14 +160,25 @@
 .hover-editor.contact-type .hover-editor-header { background-color: var(--contact-header); border-bottom-color: var(--contact-border); }
 .hover-editor.setup-type .hover-editor-header { background-color: var(--setup-header); border-bottom-color: var(--setup-border); }
 
-/* Custom color header override */
+/* Stage 5.0.5a v18 (2026-05-16, HanBin) — theme-aware custom color overrides.
+   Previously the header recipe was `color-mix(template-color 20%, #2d2d2d)`
+   which hardcoded a dark base — fine in dark mode, wrong in light mode
+   (header turned brown while body stayed pale → tone mismatch). Built-in
+   `--{type}-header` tokens use rgba alpha-blending so the theme background
+   shows through; we mirror that with `color-mix(..., transparent)`. Now both
+   header and body layer onto whatever theme surface is behind them, giving
+   consistent tinting across light/dark mode. The header carries a stronger
+   alpha (18%) than the body (6%) to preserve the visual hierarchy. */
 .hover-editor.has-custom-color .hover-editor-header {
-  background-color: color-mix(in srgb, var(--template-color) 20%, #2d2d2d) !important;
+  background-color: color-mix(in srgb, var(--template-color) 18%, transparent) !important;
   border-bottom-color: var(--template-color) !important;
+}
+.hover-editor.has-custom-color .hover-editor-body {
+  background-color: color-mix(in srgb, var(--template-color) 6%, transparent) !important;
 }
 
 .hover-editor-title {
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   color: var(--tx-1);
   font-weight: 500;
   overflow: hidden;
@@ -168,7 +190,7 @@
 .hover-editor-header-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   flex-shrink: 0;
 }
 
@@ -176,11 +198,11 @@
   background: none;
   border: none;
   color: var(--tx-3);
-  font-size: var(--font-xl);
+  font-size: var(--fs-16);
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
 }
 
 .hover-editor-fm-toggle:hover {
@@ -189,7 +211,11 @@
 }
 
 .hover-editor-fm-toggle.active {
-  color: var(--c-blue);
+  /* 2026-05-22 — neutral active (was blue tint). The toggle reads as
+     "this panel is open" via contrast: darker text + soft bg-hover
+     fill. Matches the rest of the iOS-style active-state pattern. */
+  color: var(--tx-1);
+  background-color: var(--bg-hover);
 }
 
 .hover-editor-close,
@@ -198,14 +224,14 @@
   background: none;
   border: none;
   color: var(--tx-3);
-  font-size: var(--font-2xl);
+  font-size: var(--fs-20);
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
   /* GPU acceleration for instant response */
   will-change: transform, opacity;
   transform: translateZ(0);
-  transition: color var(--duration-fast) ease;
+  transition: color var(--dur-150) ease;
 }
 
 .hover-editor-close:hover,
@@ -237,7 +263,7 @@
   display: flex;
   align-items: center;
   padding: 0 8px;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   z-index: var(--z-titlebar);
   overflow-x: auto;
 }
@@ -246,23 +272,23 @@
   display: flex;
   align-items: center;
   background-color: var(--bg-elevated);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   padding: 0 4px 0 8px;
   height: 28px;
   max-width: 180px;
   min-width: 80px;
-  gap: var(--space-2);
+  gap: var(--sp-1);
 }
 
 .minimized-window-btn {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--sp-2);
   background: none;
   border: none;
   color: var(--tx-2);
   cursor: pointer;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   padding: 0;
   overflow: hidden;
   flex: 1;
@@ -273,7 +299,7 @@
 }
 
 .minimized-window-icon {
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   flex-shrink: 0;
 }
 
@@ -288,14 +314,14 @@
   border: none;
   color: var(--tx-3);
   cursor: pointer;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   padding: 2px 4px;
   line-height: 1;
   flex-shrink: 0;
 }
 
 .minimized-window-close:hover {
-  color: #e74856;
+  color: var(--c-red);
 }
 
 /* Minimized Window Template Type Colors */
@@ -346,22 +372,22 @@
 .hover-windows-panel-header-left {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-2);
 }
 
 .hover-windows-panel-title {
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--tx-1);
 }
 
 .hover-windows-panel-count {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   font-weight: 600;
-  background: rgba(100, 150, 255, 0.2);
-  color: #a0c4ff;
+  background: color-mix(in srgb, var(--tx-1) 20%, transparent);
+  color: var(--tx-1);
   padding: 2px 8px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-12);
 }
 
 .hover-windows-panel-close {
@@ -372,10 +398,10 @@
   height: 24px;
   background: none;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-3);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
 }
 
 .hover-windows-panel-close:hover {
@@ -390,7 +416,7 @@
 }
 
 .hover-windows-section {
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--sp-3);
 }
 
 .hover-windows-section-header {
@@ -398,19 +424,19 @@
   align-items: center;
   justify-content: space-between;
   padding: 4px 16px;
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--sp-1);
 }
 
 .hover-windows-section-title {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   font-weight: 500;
   color: var(--tx-3);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.5px;
 }
 
 .hover-windows-section-count {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
 }
 
@@ -424,7 +450,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px 6px 16px;
-  transition: background var(--duration-fast) ease, opacity var(--duration-fast) ease, border-color var(--duration-fast) ease;
+  transition: background var(--dur-150) ease, opacity var(--dur-150) ease, border-color var(--dur-150) ease;
   position: relative;
   border-left: 3px solid transparent;
   /* Entrance animation */
@@ -448,7 +474,7 @@
 }
 
 .hover-window-item.minimized:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-hover);
   opacity: 0.7;
 }
 
@@ -458,24 +484,24 @@
 }
 
 .hover-window-item.active:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-hover);
 }
 
 /* Focused state - full opacity, highlighted border */
 .hover-window-item.focused {
   opacity: 1;
-  border-left-color: rgba(100, 150, 255, 0.8);
-  background: rgba(100, 150, 255, 0.08);
+  border-left-color: var(--tx-1);
+  background: color-mix(in srgb, var(--tx-1) 8%, transparent);
 }
 
 .hover-window-item.focused:hover {
-  background: rgba(100, 150, 255, 0.12);
+  background: color-mix(in srgb, var(--tx-1) 12%, transparent);
 }
 
 .hover-window-item-btn {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   flex: 1;
   background: none;
   border: none;
@@ -486,7 +512,7 @@
   /* Click optimization */
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  transition: transform var(--duration-fast) ease;
+  transition: transform var(--dur-150) ease;
   will-change: transform;
 }
 
@@ -510,7 +536,7 @@
 }
 
 .hover-window-item-icon.emoji-icon {
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
 }
 
 .hover-window-item-icon.lucide-icon {
@@ -526,7 +552,7 @@
 
 .hover-window-item-name {
   flex: 1;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-2);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -540,9 +566,9 @@
 .hover-window-item-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--sp-1);
   opacity: 0;
-  transition: opacity var(--duration-fast) ease;
+  transition: opacity var(--dur-150) ease;
 }
 
 .hover-window-item:hover .hover-window-item-actions {
@@ -557,10 +583,10 @@
   height: 22px;
   background: none;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-3);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
   /* GPU acceleration */
   will-change: transform;
   transform: translateZ(0);
@@ -578,8 +604,8 @@
 }
 
 .hover-window-item-action.hover-window-item-close:hover {
-  background: rgba(232, 72, 85, 0.2);
-  color: #e84855;
+  background: color-mix(in srgb, var(--c-red) 20%, transparent);
+  color: var(--c-red);
 }
 
 /* Hover Window Item Template Type Colors */
@@ -615,7 +641,7 @@
   justify-content: center;
   padding: 24px 16px;
   color: var(--tx-3);
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
 }
 
 /* ========================================
@@ -634,7 +660,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 8px 8px 8px 10px;
   background-color: var(--bg-app);
   border-bottom: 0.5px solid var(--sep-l);
   flex-shrink: 0;
@@ -643,7 +669,7 @@
 .right-panel-header-left {
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--sp-3);
 }
 
 .right-panel-today-icon {
@@ -653,10 +679,10 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, rgba(100, 150, 255, 0.2) 0%, rgba(100, 150, 255, 0.1) 100%);
-  border: 1px solid rgba(100, 150, 255, 0.3);
-  border-radius: var(--radius-lg);
-  color: #6496ff;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tx-1) 20%, transparent) 0%, color-mix(in srgb, var(--tx-1) 10%, transparent) 100%);
+  border: 1px solid color-mix(in srgb, var(--tx-1) 30%, transparent);
+  border-radius: var(--r-12);
+  color: var(--tx-1);
 }
 
 .right-panel-today-icon svg {
@@ -666,10 +692,10 @@
 }
 
 .right-panel-today-day {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 700;
-  margin-top: var(--space-3);
-  color: #a0c4ff;
+  margin-top: var(--sp-2);
+  color: var(--tx-1);
 }
 
 .right-panel-today-info {
@@ -679,13 +705,13 @@
 }
 
 .right-panel-today-label {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--tx-1);
 }
 
 .right-panel-today-date {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
 }
 
@@ -697,10 +723,10 @@
   height: 24px;
   background: none;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-3);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
 }
 
 .right-panel-close:hover {
@@ -713,8 +739,20 @@
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  padding: var(--space-4);
+  padding: var(--sp-2);
+  padding-bottom: var(--sp-3);
+  overflow: visible;
+}
+
+/* 2026-05-26 (HanBin) — day layout takes the full panel height so the
+   24-hour timeline can scroll internally. Memo list below is hidden
+   in day mode (TSX side) since the timeline already lists the
+   selected date's content. Fixes "일로 변환할 경우 아래가 잘림". */
+.right-panel-calendar.is-day-layout {
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
+  padding-bottom: var(--sp-2);
 }
 
 .right-panel-calendar-nav {
@@ -732,10 +770,10 @@
   height: 24px;
   background: none;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-3);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
 }
 
 .right-panel-nav-btn:hover {
@@ -744,7 +782,7 @@
 }
 
 .right-panel-month {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--tx-1);
 }
@@ -757,12 +795,12 @@
 .right-panel-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: var(--space-1);
-  margin-bottom: var(--space-2);
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-1);
 }
 
 .right-panel-weekday {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   font-weight: 500;
   color: var(--tx-3);
   text-align: center;
@@ -772,7 +810,7 @@
 .right-panel-days {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: var(--space-1);
+  gap: var(--sp-1);
 }
 
 .right-panel-day {
@@ -781,9 +819,9 @@
   align-items: center;
   justify-content: center;
   padding: 4px 2px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
-  transition: background var(--duration-fast) ease;
+  transition: background var(--dur-150) ease;
   position: relative;
   aspect-ratio: 1;
 }
@@ -797,17 +835,17 @@
 }
 
 .right-panel-day.today {
-  background-color: rgba(100, 150, 255, 0.15);
+  background-color: color-mix(in srgb, var(--tx-1) 15%, transparent);
 }
 
 .right-panel-day.today .right-panel-day-number {
-  color: #6496ff;
+  color: var(--tx-1);
   font-weight: 600;
 }
 
 .right-panel-day.selected {
-  background-color: rgba(100, 150, 255, 0.25);
-  outline: 1px solid rgba(100, 150, 255, 0.5);
+  background-color: color-mix(in srgb, var(--tx-1) 25%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--tx-1) 50%, transparent);
 }
 
 .right-panel-day.has-memos .right-panel-day-number {
@@ -815,7 +853,7 @@
 }
 
 .right-panel-day-number {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-2);
   line-height: 1;
 }
@@ -823,11 +861,145 @@
 .right-panel-day-count {
   font-size: 8px;
   font-weight: 600;
-  color: #6496ff;
-  background: rgba(100, 150, 255, 0.2);
+  color: var(--tx-1);
+  background: color-mix(in srgb, var(--tx-1) 20%, transparent);
   padding: 1px 4px;
-  border-radius: var(--radius-md);
-  margin-top: var(--space-1);
+  border-radius: var(--r-8);
+  margin-top: var(--sp-1);
+}
+
+/* ============================================================
+   5.0.7d-followup (2026-05-26, HanBin) — Day view + chip stripe + Popover
+   ------------------------------------------------------------
+   layout toggle (SegmentedControl) sits between month-nav and grid,
+   chip stripe replaces the count badge inside each day cell,
+   Day view shows a 24-hour timeline of the selected date,
+   day-cell Popover renders the same memo list as the bottom panel
+   (HanBin sign-off: 공존 — popover + list are both available).
+   ============================================================ */
+
+.right-panel-calendar-layout-toggle {
+  padding: 0 var(--sp-2) var(--sp-2);
+  display: flex;
+  justify-content: center;
+}
+
+/* Chip stripe on each month-grid day cell — replaces the old single
+   `.right-panel-day-count` badge. Stripes are 2px horizontal bars
+   stacked vertically; task = accent color, memo = neutral tx-3. */
+.right-panel-day-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  align-items: stretch;
+  margin-top: 2px;
+}
+.right-panel-day-chip {
+  height: 2px;
+  border-radius: 1px;
+  background: var(--tx-3);
+}
+.right-panel-day-chip.is-task {
+  background: var(--c-accent, color-mix(in srgb, var(--tx-1) 60%, transparent));
+}
+.right-panel-day-chip.is-memo {
+  background: color-mix(in srgb, var(--tx-3) 70%, transparent);
+}
+.right-panel-day-chip-more {
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--tx-3);
+  text-align: right;
+  line-height: 1;
+}
+
+/* Day-cell Popover content: same item shape as the main memo list. */
+.right-panel-day-popover {
+  min-width: 220px;
+  max-width: 320px;
+  background: var(--bg-elev-2);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+  padding: var(--sp-2);
+  box-shadow: var(--shadow-pop);
+}
+.right-panel-day-popover__header {
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--tx-2);
+  padding: 0 var(--sp-1) var(--sp-1);
+  border-bottom: 0.5px solid var(--sep-l);
+  margin-bottom: var(--sp-1);
+}
+.right-panel-day-popover__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.right-panel-day-popover__empty {
+  font-size: var(--fs-12);
+  color: var(--tx-3);
+  padding: var(--sp-2) var(--sp-1);
+  text-align: center;
+}
+
+/* Day view: 24-hour timeline of the selected date.
+   - `__no-time` group sits at the top (HanBin: 시간 미정 → 맨 위).
+   - `__row` per hour. Empty rows render as ghost lines so the user
+     still sees the timeline structure. */
+.right-panel-day-timeline {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--sp-2);
+}
+.right-panel-day-timeline__no-time {
+  border-bottom: 0.5px solid var(--sep-l);
+  padding-bottom: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.right-panel-day-timeline__label {
+  font-size: var(--fs-11);
+  font-weight: 600;
+  color: var(--tx-3);
+  padding: var(--sp-1) 0;
+  letter-spacing: 0.02em;
+}
+.right-panel-day-timeline__hours {
+  display: flex;
+  flex-direction: column;
+}
+.right-panel-day-timeline__row {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: var(--sp-1);
+  min-height: 22px;
+  align-items: flex-start;
+  border-top: 0.5px solid color-mix(in srgb, var(--sep-l) 60%, transparent);
+  padding: 2px 0;
+}
+.right-panel-day-timeline__row.is-empty {
+  min-height: 18px;
+}
+.right-panel-day-timeline__row.is-empty .right-panel-day-timeline__hour-label {
+  opacity: 0.5;
+}
+.right-panel-day-timeline__hour-label {
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+}
+.right-panel-day-timeline__hour-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 /* Divider */
@@ -844,7 +1016,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: var(--space-4);
+  padding: var(--sp-2);
   overflow: hidden;
 }
 
@@ -852,27 +1024,27 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: var(--space-4);
+  padding-bottom: var(--sp-2);
   flex-shrink: 0;
 }
 
 .right-panel-memo-toggle {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--sp-1);
 }
 
 .right-panel-toggle-btn {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   padding: 4px 8px;
   background: none;
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-sm);
+  border-radius: var(--r-6);
+  font-size: var(--fs-11);
   color: var(--tx-3);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
 }
 
 .right-panel-toggle-btn:hover {
@@ -881,37 +1053,37 @@
 }
 
 .right-panel-toggle-btn.active {
-  background-color: rgba(100, 150, 255, 0.15);
-  border-color: rgba(100, 150, 255, 0.4);
-  color: #7b9fd4;
+  background-color: color-mix(in srgb, var(--tx-1) 15%, transparent);
+  border-color: color-mix(in srgb, var(--tx-1) 40%, transparent);
+  color: var(--tx-1);
 }
 
 .right-panel-toggle-badge {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   font-weight: 600;
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
-  border-radius: var(--radius-lg);
-  background-color: rgba(100, 150, 255, 0.3);
-  color: #7b9fd4;
+  border-radius: var(--r-12);
+  background-color: color-mix(in srgb, var(--tx-1) 30%, transparent);
+  color: var(--tx-1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: var(--space-1);
+  margin-left: var(--sp-1);
 }
 
 .right-panel-toggle-btn.active .right-panel-toggle-badge {
-  background-color: rgba(100, 150, 255, 0.5);
+  background-color: color-mix(in srgb, var(--tx-1) 50%, transparent);
 }
 
 .right-panel-memo-count {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   font-weight: 600;
   color: var(--tx-3);
   background: var(--bg-hover);
   padding: 2px 8px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-12);
 }
 
 .right-panel-memo-list {
@@ -919,18 +1091,18 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--sp-1);
 }
 
 .right-panel-memo-item {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-4);
-  padding: var(--space-4);
+  gap: var(--sp-2);
+  padding: var(--sp-2);
   background-color: var(--bg-app);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   cursor: pointer;
-  transition: background var(--duration-fast) ease;
+  transition: background var(--dur-150) ease;
 }
 
 .right-panel-memo-item:hover {
@@ -945,13 +1117,46 @@
   text-decoration: line-through;
 }
 
+/* 2026-05-26 (HanBin) — iOS-style native checkbox replacement.
+   Native + `accent-color` was small (14px) and tone-mismatched.
+   Custom appearance:none + 18px rounded square + checked tx-1 fill +
+   ::after svg checkmark in bg-base. Matches the `.comment-task-checkbox`
+   and `.calendar-memo-checkbox` patterns below for visual consistency. */
 .right-panel-memo-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
   flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  margin-top: var(--space-1);
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  background: transparent;
+  border: 1.5px solid color-mix(in srgb, var(--tx-1) 35%, transparent);
+  border-radius: 5px;
   cursor: pointer;
-  accent-color: #6496ff;
+  position: relative;
+  transition: background-color var(--dur-150) var(--ease-out),
+              border-color var(--dur-150) var(--ease-out);
+}
+.right-panel-memo-checkbox:hover {
+  border-color: color-mix(in srgb, var(--tx-1) 60%, transparent);
+}
+.right-panel-memo-checkbox:checked {
+  background: var(--tx-1);
+  border-color: var(--tx-1);
+}
+.right-panel-memo-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+  -webkit-mask-size: 12px;
+  mask-size: 12px;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  background-color: var(--bg-base);
 }
 
 .right-panel-memo-content {
@@ -960,7 +1165,7 @@
 }
 
 .right-panel-memo-text {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-1);
   line-height: 1.4;
   display: -webkit-box;
@@ -970,9 +1175,9 @@
 }
 
 .right-panel-memo-meta {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
-  margin-top: var(--space-2);
+  margin-top: var(--sp-1);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -984,7 +1189,7 @@
   justify-content: center;
   flex: 1;
   color: var(--tx-3);
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
 }
 
 /* Collapsed Right Panel Badge */
@@ -994,11 +1199,11 @@
   justify-content: center;
   min-width: 16px;
   height: 16px;
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   font-weight: 600;
-  background: rgba(100, 150, 255, 0.2);
-  color: #a0c4ff;
-  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--tx-1) 20%, transparent);
+  color: var(--tx-1);
+  border-radius: var(--r-12);
   padding: 0 4px;
 }
 
@@ -1007,7 +1212,7 @@
   background-color: var(--bg-hover);
   border-bottom: 0.5px solid var(--sep-l);
   font-family: "Consolas", "Monaco", monospace;
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   max-height: 150px;
   overflow-y: auto;
   flex-shrink: 0;
@@ -1022,24 +1227,24 @@
 
 /* Skeleton Loading UI */
 .hover-editor-skeleton {
-  padding: var(--space-8);
+  padding: var(--sp-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--sp-3);
 }
 
 .skeleton-line {
   height: 16px;
-  background: linear-gradient(90deg, #2a2a3a 25%, #3a3a4a 50%, #2a2a3a 75%);
+  background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-hover) 50%, var(--bg-elevated) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.5s infinite;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
 }
 
 .skeleton-title {
   width: 60%;
   height: 24px;
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--sp-2);
 }
 
 .skeleton-full {
@@ -1057,11 +1262,6 @@
 @keyframes skeleton-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
-}
-
-html[data-theme="light"] .skeleton-line {
-  background: linear-gradient(90deg, #e8e8e8 25%, #f5f5f5 50%, #e8e8e8 75%);
-  background-size: 200% 100%;
 }
 
 /* Disable interactions during drag/resize for performance */
@@ -1107,8 +1307,8 @@ html[data-theme="light"] .skeleton-line {
   right: 4px;
   width: 8px;
   height: 8px;
-  border-right: 2px solid #555;
-  border-bottom: 2px solid #555;
+  border-right: 2px solid var(--tx-3);
+  border-bottom: 2px solid var(--tx-3);
 }
 
 .hover-editor-search-section {

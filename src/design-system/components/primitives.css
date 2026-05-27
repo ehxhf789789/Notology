@@ -40,10 +40,7 @@
     transform var(--motion-fast) var(--ease-standard),
     box-shadow var(--motion-fast) var(--ease-standard);
 }
-.ds-btn:focus-visible {
-  outline: 2px solid var(--bdr-focus);
-  outline-offset: 2px;
-}
+/* :focus-visible — unified pseudo-element ring at end of file (2026-05-25). */
 .ds-btn:disabled,
 .ds-btn[aria-disabled='true'] {
   opacity: 0.5;
@@ -107,10 +104,7 @@
     color var(--motion-fast) var(--ease-standard),
     border-color var(--motion-fast) var(--ease-standard);
 }
-.ds-icon-btn:focus-visible {
-  outline: 2px solid var(--bdr-focus);
-  outline-offset: 2px;
-}
+/* :focus-visible — unified pseudo-element ring at end of file (2026-05-25). */
 .ds-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .ds-icon-btn--sm { width: 28px; height: 28px; }
@@ -143,11 +137,14 @@
    <Input> + <Textarea>
    ============================================================ */
 .ds-field {
+  /* 2026-05-22 — iOS-style hairline (1 px → 0.5 px `--sep-l`). Field
+     reads cleaner against the surrounding surface, matches the
+     toolbar/header/chip 0.5 px language. */
   display: inline-flex;
   align-items: center;
   width: 100%;
   background: var(--bg-input);
-  border: 1px solid var(--bdr-1);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--radius-md);
   transition:
     background var(--motion-fast) var(--ease-standard),
@@ -156,8 +153,12 @@
 }
 .ds-field:hover { background: var(--bg-input-hover); }
 .ds-field:focus-within {
-  border-color: var(--bdr-focus);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--bdr-focus) 30%, transparent);
+  /* 2026-05-22 — neutral focus (was blue border + halo). Hairline
+     deepens to `--sep` so keyboard focus is visible without the
+     "parameter-tinted accent" feeling. Outer 2 px halo retained but
+     in `--tx-1` 12 % so it's purely a contrast cue, not a color flag. */
+  border-color: var(--sep);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tx-1) 12%, transparent);
 }
 .ds-field--invalid {
   border-color: var(--c-danger);
@@ -207,6 +208,8 @@
 }
 .ds-textarea--no-resize { resize: none; }
 
+/* :focus-visible — unified pseudo-element ring at end of file (2026-05-25). */
+
 /* ============================================================
    <Checkbox> + <Radio> share a control surface
    ============================================================ */
@@ -249,10 +252,7 @@
 .ds-checkbox .ds-check__box { border-radius: var(--radius-sm); }
 .ds-radio    .ds-check__box { border-radius: var(--radius-pill); }
 
-.ds-check__input:focus-visible + .ds-check__box {
-  outline: 2px solid var(--bdr-focus);
-  outline-offset: 2px;
-}
+/* :focus-visible — unified pseudo-element ring at end of file (2026-05-25). */
 
 /* checked state */
 .ds-check__input:checked + .ds-check__box {
@@ -346,12 +346,13 @@
 .ds-toggle--sm .ds-toggle__thumb { width: 12px; height: 12px; }
 .ds-toggle--md .ds-toggle__thumb { width: 16px; height: 16px; }
 
-.ds-toggle__input:focus-visible + .ds-toggle__track {
-  outline: 2px solid var(--bdr-focus);
-  outline-offset: 2px;
-}
+/* :focus-visible — unified pseudo-element ring at end of file (2026-05-25). */
+/* v22 (HanBin 2026-05-23) — checked state uses --tx-1 (theme-neutral
+   dark/light token chain) instead of --c-accent (blue). Aligns with the
+   "no blue for control states" rule applied across the app — accent is
+   reserved for actual primary CTAs (Save, Apply, Login), not toggles. */
 .ds-toggle__input:checked + .ds-toggle__track {
-  background: var(--c-accent);
+  background: var(--tx-1);
 }
 .ds-toggle--sm .ds-toggle__input:checked + .ds-toggle__track .ds-toggle__thumb {
   transform: translateX(12px);
@@ -523,10 +524,7 @@
 .ds-card--interactive:active {
   transform: translateY(0.5px);
 }
-.ds-card--interactive:focus-visible {
-  outline: 2px solid var(--bdr-focus);
-  outline-offset: 2px;
-}
+/* :focus-visible — unified pseudo-element ring at end of file (2026-05-25). */
 .ds-card--selected {
   border-color: var(--c-accent);
   background: var(--bg-sel);
@@ -644,10 +642,7 @@
   stroke: var(--bdr-1);
   stroke-width: 1;
 }
-.ds-popover:focus-visible {
-  outline: 2px solid var(--bdr-focus);
-  outline-offset: 2px;
-}
+/* :focus-visible — unified pseudo-element ring at end of file (2026-05-25). */
 
 /* ============================================================
    <Dialog>  — modal with overlay + focus trap
@@ -755,6 +750,7 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+/* :focus-visible — unified pseudo-element ring at end of file (2026-05-25). */
 .ds-menu__item:hover:not(:disabled),
 .ds-menu__item--active {
   background: var(--bg-hover);
@@ -833,10 +829,7 @@
   background: var(--bg-hover);
 }
 .ds-tabs__tab:disabled { opacity: 0.5; cursor: not-allowed; }
-.ds-tabs__tab:focus-visible {
-  outline: 2px solid var(--bdr-focus);
-  outline-offset: -2px;
-}
+/* :focus-visible — unified pseudo-element ring at end of file (2026-05-25). */
 .ds-tabs__tab--selected {
   color: var(--c-accent);
 }
@@ -864,10 +857,7 @@
 }
 .ds-tabs__tab-icon { display: inline-flex; align-items: center; }
 .ds-tabs__panel { outline: none; }
-.ds-tabs__panel:focus-visible {
-  outline: 2px solid var(--bdr-focus);
-  outline-offset: 2px;
-}
+/* :focus-visible — unified pseudo-element ring at end of file (2026-05-25). */
 
 /* ============================================================
    <SegmentedControl>
@@ -912,10 +902,7 @@
   box-shadow: var(--shadow-pop);
 }
 .ds-seg__btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.ds-seg__btn:focus-visible {
-  outline: 2px solid var(--bdr-focus);
-  outline-offset: 2px;
-}
+/* :focus-visible — unified pseudo-element ring at end of file (2026-05-25). */
 .ds-seg__icon { display: inline-flex; align-items: center; }
 
 /* ============================================================
@@ -945,11 +932,11 @@
 .ds-select--lg { font-size: var(--fs-title);   padding: var(--space-md) var(--space-md); min-height: 40px; }
 
 .ds-select:hover:not(:disabled) { background: var(--bg-input-hover); }
-.ds-select[aria-expanded='true'],
-.ds-select:focus-visible {
+.ds-select[aria-expanded='true'] {
   border-color: var(--bdr-focus);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--bdr-focus) 30%, transparent);
 }
+/* :focus-visible — unified pseudo-element ring at end of file (2026-05-25). */
 .ds-select--invalid {
   border-color: var(--c-danger);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-danger) 30%, transparent);
@@ -1095,3 +1082,79 @@
   justify-content: center;
 }
 .ds-toast__close:hover { background: var(--bg-hover); color: var(--tx-1); }
+
+/* ============================================================
+   <PathDisplay> — 5.0.8d (minimal: monospace path + reveal action)
+   ============================================================ */
+.ds-path-display {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-input, var(--bg-elev-1));
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-md, 8px);
+}
+.ds-path-display__path {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: var(--fs-caption);
+  color: var(--tx-2);
+  word-break: break-all;
+  line-height: 1.5;
+  user-select: all;
+  -webkit-user-select: all;
+  background: transparent;
+}
+
+/* ============================================================
+   Unified focus ring — 전략 A (HanBin 2026-05-25)
+   ------------------------------------------------------------
+   완벽 통일: 모든 primitive의 :focus-visible는 같은 둥근 직사각형
+   ring으로 보인다. outline은 element의 border-radius를 자동 따라가서
+   컴포넌트별로 모양이 달라짐 (Button 6px round, Tab 0px square 등).
+   pseudo-element overlay로 모든 element의 본연 radius와 무관하게
+   동일한 ring shape (radius 8 / stroke 2 / offset 3)을 그린다.
+
+   ::before로 통일 (Checkbox 체크마크 + Tab selected indicator가 이미
+   ::after 사용 중이라 충돌 회피).
+   ============================================================ */
+.ds-btn:focus-visible,
+.ds-icon-btn:focus-visible,
+.ds-input:focus-visible,
+.ds-textarea:focus-visible,
+.ds-card--interactive:focus-visible,
+.ds-popover:focus-visible,
+.ds-menu__item:focus-visible,
+.ds-tabs__tab:focus-visible,
+.ds-tabs__panel:focus-visible,
+.ds-seg__btn:focus-visible,
+.ds-select:focus-visible,
+.ds-check__input:focus-visible + .ds-check__box,
+.ds-toggle__input:focus-visible + .ds-toggle__track {
+  outline: none;
+  position: relative;
+}
+
+.ds-btn:focus-visible::before,
+.ds-icon-btn:focus-visible::before,
+.ds-input:focus-visible::before,
+.ds-textarea:focus-visible::before,
+.ds-card--interactive:focus-visible::before,
+.ds-popover:focus-visible::before,
+.ds-menu__item:focus-visible::before,
+.ds-tabs__tab:focus-visible::before,
+.ds-tabs__panel:focus-visible::before,
+.ds-seg__btn:focus-visible::before,
+.ds-select:focus-visible::before,
+.ds-check__input:focus-visible + .ds-check__box::before,
+.ds-toggle__input:focus-visible + .ds-toggle__track::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 8px;
+  border: 2px solid var(--bdr-focus);
+  pointer-events: none;
+  z-index: 1;
+}

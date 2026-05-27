@@ -35,7 +35,7 @@ function detectFileType(path: string): HoverWindow['type'] {
   if (/^https?:\/\//i.test(path)) return 'web';
   if (/\.pdf$/i.test(path)) return 'pdf';
   if (/\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/i.test(path)) return 'image';
-  if (/\.(doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(path)) return 'document';
+  if (/\.(csv|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(path)) return 'document';
   if (/\.(json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|zsh|sql|lua|r|swift|kt|scala|zig|vue|svelte|astro|ini|conf|cfg|env|gitignore|dockerfile|makefile)$/i.test(path)) return 'code';
   return 'editor';
 }
@@ -602,7 +602,7 @@ export const hoverActions = {
   // Default: open in separate OS window (multi-window mode)
   // Automatically detects note type from content cache for taskbar icon
   // Legacy formats (doc, ppt, xls, hwp) open directly with external app
-  open: (path: string, noteType?: string) => {
+  open: (path: string, noteType?: string, opts?: { skipMigrationPrompt?: boolean }) => {
     // Legacy formats - open directly with external app, no viewer window
     const ext = path.toLowerCase().split('.').pop() || '';
     if (LEGACY_DIRECT_OPEN_EXTENSIONS.includes(ext)) {
@@ -618,6 +618,43 @@ export const hoverActions = {
       const frontmatter = useContentCacheStore.getState().getFrontmatter(path);
       type = frontmatter?.type as string | undefined;
     }
+
+    // 5.0.5a-migration B — intercept opens of notes whose frontmatter
+    // `type:` value doesn't match any registered template. Show the
+    // migration-prompt modal first; user can migrate or open as-is.
+    // Lazy-import to avoid a circular dep between hoverStore and the
+    // templates feature.
+    if (path.endsWith('.md') && type && !opts?.skipMigrationPrompt) {
+      void (async () => {
+        try {
+          const { isUnmatchedNoteType } = await import('../../templates/templateRegistryUtils');
+          if (isUnmatchedNoteType(type)) {
+            const { templateMigrationPromptActions } = await import('../../templates/templateMigrationPromptStore');
+            templateMigrationPromptActions.show({
+              path,
+              noteType: type ?? '',
+              onResolved: (action) => {
+                if (action === 'cancelled') return;
+                // Both 'migrated' and 'opened-as-is' resume the hover
+                // open flow with the prompt skipped. For 'migrated' the
+                // frontmatter type on disk has already been updated, so
+                // we re-read it from cache; for 'opened-as-is' we keep
+                // the original type.
+                const freshType = useContentCacheStore.getState().getFrontmatter(path)?.type as string | undefined;
+                openHoverWindow(path, vaultPath || undefined, freshType ?? type ?? undefined);
+              },
+            });
+          } else {
+            openHoverWindow(path, vaultPath || undefined, type);
+          }
+        } catch (e) {
+          console.warn('[hoverActions.open] migration check failed:', e);
+          openHoverWindow(path, vaultPath || undefined, type);
+        }
+      })();
+      return null;
+    }
+
     return openHoverWindow(path, vaultPath || undefined, type);
   },
   // Open as DOM overlay (legacy single-window mode)

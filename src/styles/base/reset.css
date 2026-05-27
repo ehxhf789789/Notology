@@ -3,7 +3,7 @@
 
 /* Background — html bg set by index.html (inline style for hover, CSS for main) */
 html, body { margin: 0; padding: 0; }
-body { background-color: var(--bg-primary, #1a1a1a); }
+body { background-color: var(--bg-app); }
 
 /* Font Settings */
 :root {
@@ -12,21 +12,24 @@ body { background-color: var(--bg-primary, #1a1a1a); }
 }
 
 html[data-font="default"] { --app-font: "Pretendard", "Malgun Gothic", "맑은 고딕", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
-html[data-font="nanum"] { --app-font: "NanumGothic", "나눔고딕", "Malgun Gothic", "맑은 고딕", sans-serif; }
+/* 2026-05-25 (HanBin) — `"Nanum Gothic"` (with space) is the family
+   name the bundled @fontsource/nanum-gothic package registers; legacy
+   `"NanumGothic"` is kept for users who manually installed the font
+   under that exact name. Without "Nanum Gothic" the bundled webfont
+   never matched, so the picker silently fell back to Malgun. */
+html[data-font="nanum"] { --app-font: "Nanum Gothic", "NanumGothic", "나눔고딕", "Malgun Gothic", "맑은 고딕", sans-serif; }
 html[data-font="noto"] { --app-font: "Noto Sans KR", "Malgun Gothic", "맑은 고딕", sans-serif; }
 html[data-font="malgun"] { --app-font: "Malgun Gothic", "맑은 고딕", "Gulim", "굴림", sans-serif; }
 html[data-font="custom"] { --app-font: var(--custom-font-family, "Malgun Gothic"), "Malgun Gothic", "맑은 고딕", sans-serif; }
 
-/* V2: Global focus-visible ring for keyboard accessibility */
-:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
+/* 2026-05-25 (HanBin) — global :focus-visible rules removed.
+   Design-system primitives (primitives.css + mobile.css) now own the
+   focus ring via a unified pseudo-element overlay (전략 A). The old
+   `box-shadow: var(--focus-ring)` global was painting a second ring
+   on top of the DS ring (and on raw native input/select/textarea),
+   producing the inconsistent "직사각형 / 둥근 / 가로줄" mix HanBin
+   reported on 2026-05-25.
 
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: none;
-  box-shadow: none;
-  border-color: var(--border-focus);
-}
+   Raw native elements (untouched by DS components) now inherit the
+   browser default focus outline — acceptable since all interactive
+   surfaces in the app go through DS primitives. */

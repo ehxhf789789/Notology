@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import ForceGraph from 'force-graph';
 import { listen } from '@tauri-apps/api/event';
 import { searchCommands, utilCommands } from '../../core/services/tauriCommands';
@@ -16,37 +17,45 @@ import { selectContainer } from '../../core/stores/appActions';
 import { t, tf } from '../../core/utils/i18n';
 import type { GraphData, GraphSettings } from '../../core/types';
 import { DEFAULT_GRAPH_SETTINGS } from '../../core/types';
-import { Settings } from 'lucide-react';
+import { Settings, Search as SearchIcon, X, FileText, Hash, Paperclip, Folder, Calendar, MessageSquare, Link2 } from 'lucide-react';
+import { Toggle } from '../../design-system/components/Toggle';
+import { resolveGraphColors, type GraphColorPalette } from './graph-colors';
 
-// Tag namespace → color mapping (matches CSS .search-tag.tag-* colors)
-const TAG_NAMESPACE_COLORS: Record<string, string> = {
+// 5.0.7c (2026-05-17, HanBin) — color resolver pattern. Force-Graph
+// renders to canvas, which can't consume CSS vars. We resolve theme-driven
+// colors via `resolveGraphColors()` and mutate these `let`-bound maps on
+// mount + on theme change inside `<GraphView>`. Canvas callbacks read from
+// the mutated maps, so re-paint immediately pulls the new palette.
+//
+// Initial values match the dark-mode fallbacks so first paint before the
+// resolver runs is still visually correct in the common case.
+let TAG_NAMESPACE_COLORS: Record<string, string> = {
   domain: '#a78bfa',
   who: '#22d3ee',
   org: '#fb923c',
   ctx: '#34d399',
 };
-const DEFAULT_TAG_COLOR = '#f59e0b'; // amber fallback
-const FOLDER_NOTE_COLOR = '#60a5fa'; // blue-400 — distinct container color
-
-// Note type → color mapping — matches CSS --*-color variables (App.css dark theme)
-// Keys are LOWERCASE — backend sends uppercase, so always .toLowerCase() before lookup
-const NOTE_TYPE_COLORS: Record<string, string> = {
-  note: '#a78bfa',      // --note-color (violet)
-  sketch: '#f472b6',    // --sketch-color (pink)
-  mtg: '#60a5fa',       // --mtg-color (blue)
-  sem: '#fb923c',       // --sem-color (orange)
-  event: '#f87171',     // --event-color (red)
-  ofa: '#34d399',       // --ofa-color (emerald)
-  paper: '#5eead4',     // --paper-color (teal)
-  lit: '#a3e635',       // --lit-color (lime)
-  data: '#fbbf24',      // --data-color (amber)
-  theo: '#818cf8',      // --theo-color (indigo)
-  contact: '#22d3ee',   // --contact-color (cyan)
-  setup: '#9ca3af',     // --setup-color (gray)
-  container: '#60a5fa', // same as folder note
-  task: '#f87171',      // same as event
-  adm: '#9ca3af',       // same as setup
+let DEFAULT_TAG_COLOR = '#f59e0b';
+let FOLDER_NOTE_COLOR = '#60a5fa';
+let NOTE_TYPE_COLORS: Record<string, string> = {
+  note: '#a78bfa', sketch: '#f472b6', mtg: '#60a5fa', sem: '#fb923c',
+  event: '#f87171', ofa: '#34d399', paper: '#5eead4', lit: '#a3e635',
+  data: '#fbbf24', theo: '#818cf8', contact: '#22d3ee', setup: '#9ca3af',
+  container: '#60a5fa', task: '#f87171', adm: '#9ca3af',
 };
+
+/** Apply a freshly resolved palette to the module-level color maps. */
+function applyPalette(p: GraphColorPalette) {
+  TAG_NAMESPACE_COLORS = { domain: p.tagDomain, who: p.tagWho, org: p.tagOrg, ctx: p.tagCtx };
+  DEFAULT_TAG_COLOR = p.tagFallback;
+  FOLDER_NOTE_COLOR = p.folderNote;
+  NOTE_TYPE_COLORS = {
+    note: p.note, sketch: p.sketch, mtg: p.mtg, sem: p.sem,
+    event: p.event, ofa: p.ofa, paper: p.paper, lit: p.lit,
+    data: p.data, theo: p.theo, contact: p.contact, setup: p.setup,
+    container: p.container, task: p.task, adm: p.adm,
+  };
+}
 
 interface GraphViewProps {
   containerPath?: string | null;
@@ -92,6 +101,11 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
   const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const isDarkRef = useRef(isDark);
   isDarkRef.current = isDark;
+  // 5.0.7c — refresh the module-level color maps whenever theme flips so
+  // subsequent canvas paints pick up the new palette. Initial run on mount.
+  useEffect(() => {
+    applyPalette(resolveGraphColors(isDark));
+  }, [isDark]);
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [loading, setLoading] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -106,6 +120,22 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
   // Selected note for highlight (single click selects, double click opens HoverEditor)
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+
+  // v22 (HanBin 2026-05-23) — screen-space position of the selected node's
+  // info-bubble. Updated each animation frame so the bubble follows the
+  // node as the force simulation jiggles or the user pans/zooms. null when
+  // no node is selected → info bubble is hidden.
+  const [nodeInfoPos, setNodeInfoPos] = useState<{ x: number; y: number } | null>(null);
+
+  // v22.4 (HanBin 2026-05-23) — local in-flight slider values. The store
+  // copy in `graphSettings.physics` is only written on slider RELEASE
+  // (mouseup/keyup) so the simulation doesn't churn through every
+  // intermediate value while the user is still dragging. The label readout
+  // and the thumb position track this local state for live feedback; the
+  // graph itself reorganizes once when the user lets go. Null = no
+  // pending drag, render the committed store value.
+  const [pendingCharge, setPendingCharge] = useState<number | null>(null);
+  const [pendingLinkDistance, setPendingLinkDistance] = useState<number | null>(null);
 
   // Stable ref for hoveredNodeId to avoid re-binding callbacks
   const hoveredNodeIdRef = useRef<string | null>(null);
@@ -134,6 +164,43 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
   // Stable ref for latest filtered data (used in callbacks without re-binding graph)
   const filteredDataRef = useRef<{ nodes: GraphNodeInternal[]; links: GraphLinkInternal[] }>({ nodes: [], links: [] });
 
+  // v22 (HanBin 2026-05-23) — track the selected node's screen position
+  // in an rAF loop so the info bubble follows the node smoothly during
+  // simulation, pan, and zoom. Stops when nothing is selected so we
+  // don't burn CPU continuously.
+  useEffect(() => {
+    const selId = selectedNoteId ?? selectedFolderNoteId ?? selectedAttachmentId ?? selectedTagId;
+    if (!selId) {
+      setNodeInfoPos(null);
+      return;
+    }
+    let rafId = 0;
+    let lastX = -1;
+    let lastY = -1;
+    const tick = () => {
+      const node = filteredDataRef.current.nodes.find(n => n.id === selId);
+      const g = graphRef.current;
+      if (node && g && typeof (g as { graph2ScreenCoords?: unknown }).graph2ScreenCoords === 'function') {
+        const nx = node.x;
+        const ny = node.y;
+        if (typeof nx === 'number' && typeof ny === 'number') {
+          const screen = (g as { graph2ScreenCoords: (x: number, y: number) => { x: number; y: number } })
+            .graph2ScreenCoords(nx, ny);
+          // Only setState when position actually changes ≥1 px to avoid
+          // useless re-renders during settled simulation.
+          if (Math.abs(screen.x - lastX) >= 1 || Math.abs(screen.y - lastY) >= 1) {
+            lastX = screen.x;
+            lastY = screen.y;
+            setNodeInfoPos({ x: screen.x, y: screen.y });
+          }
+        }
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [selectedNoteId, selectedFolderNoteId, selectedAttachmentId, selectedTagId]);
+
   // --- DATA LOADING ---
   const loadGraphData = useCallback(async () => {
     if (!searchReady || !vaultPath) return;
@@ -147,6 +214,20 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
         searchCommands.getGraphData(containerPath ?? null, graphSettings.showAttachments),
         timeoutPromise,
       ]);
+      // 2026-05-23 (HanBin) — diagnostic. User reported attachments
+      // toggle ON but count stays at 0. Log raw counts from backend so
+      // we can tell whether the data simply isn't there or whether the
+      // frontend filter pipeline is dropping it.
+      const attCount = data?.nodes?.filter((n: { nodeType?: string }) => n.nodeType === 'attachment').length ?? 0;
+      const noteCount = data?.nodes?.filter((n: { nodeType?: string }) => n.nodeType === 'note').length ?? 0;
+      console.log('[GraphView] loadGraphData:', {
+        containerPath: containerPath ?? '(vault-wide)',
+        showAttachments: graphSettings.showAttachments,
+        nodesTotal: data?.nodes?.length ?? 0,
+        notes: noteCount,
+        attachments: attCount,
+        edges: data?.edges?.length ?? 0,
+      });
       setGraphData(data);
     } catch (err) {
       console.error('[GraphView] Failed to load graph data:', err);
@@ -189,12 +270,25 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
     if (node.nodeType === 'attachment') return colors.attachment;
     // Folder notes (containers) get distinct color
     if (node.isFolderNote) return FOLDER_NOTE_COLOR;
+    // 5.0.5a-migration A — unmatched type → warning color. Notes whose
+    // frontmatter `type:` value isn't owned by any current template are
+    // legacy / pending migration; the graph paints them in the same
+    // warning tone the search list uses so the visual signal is
+    // consistent across surfaces.
+    const noteTypeLower = node.noteType?.toLowerCase() || '';
+    if (noteTypeLower) {
+      let registered = false;
+      for (const tpl of noteTemplates) {
+        const t = (tpl.frontmatter.type || '').toString().trim().toLowerCase();
+        if (t === noteTypeLower) { registered = true; break; }
+      }
+      if (!registered) return '#f97316'; // --c-warning fallback for canvas
+    }
     // Note node: priority order:
     // 1. User-set template customColor (from vault-config)
     // 2. Built-in noteType color map (per template type) — lowercase lookup
     // 3. Settings noteType override
     // 4. Default note color
-    const noteTypeLower = node.noteType?.toLowerCase() || '';
     const templateColor = getTemplateCustomColor(noteTypeLower, noteTemplates);
     if (templateColor) return templateColor;
     if (noteTypeLower && NOTE_TYPE_COLORS[noteTypeLower]) return NOTE_TYPE_COLORS[noteTypeLower];
@@ -268,7 +362,19 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
   const DOUBLE_CLICK_DELAY = 300; // ms
 
   // --- NODE CLICK → single click selects/highlights, double click navigates/opens ---
-  const handleNodeClick = useCallback((node: GraphNodeInternal) => {
+  const handleNodeClick = useCallback((node: GraphNodeInternal, event?: MouseEvent) => {
+    // v22.2 (HanBin 2026-05-23) — capture click position directly from the
+    // MouseEvent and convert to container-relative coords. This is the most
+    // reliable way to anchor the info bubble next to the node — much more
+    // robust than calling graph2ScreenCoords (which depends on force-graph
+    // exposing that method and on the simulation having stable node.x/y).
+    if (event && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setNodeInfoPos({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+    }
     const now = Date.now();
     const lastClick = lastClickRef.current;
 
@@ -344,6 +450,14 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
   // --- DESTROY and REBUILD graph ---
   const destroyGraph = useCallback(() => {
     if (graphRef.current) {
+      // v22 — remove custom wheel handler before destroying the graph so
+      // it doesn't leak between rebuilds (containerPath change, hot reload).
+      const canvasEl = containerRef.current?.querySelector('canvas') as
+        (HTMLCanvasElement & { __slowZoomHandler?: (e: WheelEvent) => void }) | null;
+      if (canvasEl?.__slowZoomHandler) {
+        canvasEl.removeEventListener('wheel', canvasEl.__slowZoomHandler, { capture: true } as EventListenerOptions);
+        delete canvasEl.__slowZoomHandler;
+      }
       graphRef.current._destructor();
       graphRef.current = null;
     }
@@ -626,8 +740,8 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
           container.style.cursor = node ? 'pointer' : 'default';
         }
       })
-      .onNodeClick((node: any) => {
-        handleNodeClick(node as GraphNodeInternal);
+      .onNodeClick((node: any, event: MouseEvent) => {
+        handleNodeClick(node as GraphNodeInternal, event);
       })
       .onBackgroundClick(() => {
         // Clear selections when clicking on empty space
@@ -662,6 +776,40 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
       .enablePanInteraction(true)
       .minZoom(0.1)
       .maxZoom(20);
+
+    // v22 (HanBin 2026-05-23) — slow the Ctrl+wheel zoom step. force-graph's
+    // default d3-zoom wheel handler scales by ~25% per tick which makes
+    // precision adjustment impossible. Capture wheel BEFORE d3-zoom (capture
+    // phase) and re-dispatch with deltaY divided by 4 so each tick is ~6%.
+    // Result: finer control without losing the same gesture (still wheel).
+    const canvasEl = containerRef.current?.querySelector('canvas');
+    if (canvasEl) {
+      const slowZoomHandler = (e: WheelEvent) => {
+        if (e.deltaY === 0) return;
+        // Don't interfere with non-zoom modifiers (Shift+wheel = horizontal pan).
+        e.stopPropagation();
+        e.preventDefault();
+        // v22.4 (HanBin 2026-05-23) — scrolling/zooming clears the focused
+        // node. The info bubble is anchored to a specific node position;
+        // when the user starts panning/zooming they're navigating, not
+        // inspecting that node anymore, so the bubble becomes stale
+        // noise. Clear all four selection slots in one shot.
+        setSelectedTagId(null);
+        setSelectedNoteId(null);
+        setSelectedFolderNoteId(null);
+        setSelectedAttachmentId(null);
+        const currentZoom = graph.zoom();
+        // Logarithmic step — each tick multiplies/divides by a factor close
+        // to 1, so zooming feels like a smooth ramp rather than discrete jumps.
+        const factor = Math.exp(-e.deltaY * 0.0015);
+        const nextZoom = Math.max(0.1, Math.min(20, currentZoom * factor));
+        graph.zoom(nextZoom, 100);  // 100ms transition for smoothness
+      };
+      canvasEl.addEventListener('wheel', slowZoomHandler, { capture: true, passive: false });
+      // Stash on element so cleanup effect can remove. Using a property
+      // avoids needing a separate ref or external state.
+      (canvasEl as HTMLCanvasElement & { __slowZoomHandler?: typeof slowZoomHandler }).__slowZoomHandler = slowZoomHandler;
+    }
 
     // Set initial data if available
     const data = filteredDataRef.current;
@@ -728,7 +876,15 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
     }, 600);
   }, [filteredData, getNodeColor]);
 
-  // Effect 3: Update physics without recreating graph (slider changes preserve node positions)
+  // Effect 3: Update physics without recreating graph (slider changes preserve node positions).
+  // v22.3 (HanBin 2026-05-23) — slider was choppy because every onChange tick
+  // called d3ReheatSimulation() which sets alpha=1 (full restart). Each new
+  // tick interrupted the previous restart before it could settle, producing
+  // the snap-restart-snap cycle the user described as "buggy".
+  // Fix: apply force values immediately (cheap, no visual effect alone), then
+  // debounce the reheat by 220ms so the simulation only restarts once after
+  // the user pauses or releases the slider.
+  const physicsReheatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const graph = graphRef.current;
     if (!graph) return;
@@ -742,7 +898,20 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
     const center = graph.d3Force('center');
     if (center && typeof center.strength === 'function') center.strength(centerStrength);
 
-    graph.d3ReheatSimulation();
+    if (physicsReheatTimerRef.current) {
+      clearTimeout(physicsReheatTimerRef.current);
+    }
+    physicsReheatTimerRef.current = setTimeout(() => {
+      if (graphRef.current) graphRef.current.d3ReheatSimulation();
+      physicsReheatTimerRef.current = null;
+    }, 220);
+
+    return () => {
+      if (physicsReheatTimerRef.current) {
+        clearTimeout(physicsReheatTimerRef.current);
+        physicsReheatTimerRef.current = null;
+      }
+    };
   }, [graphSettings.physics]);
 
   // Force re-render on hover/search-highlight/selected-tag/selected-folder-note/selected-attachment change (for dim/highlight effect)
@@ -804,8 +973,11 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
     <div className="graph-view-container">
       <div ref={containerRef} className="graph-view-canvas" />
 
-      {/* Search bar */}
+      {/* Search bar — v22 (HanBin 2026-05-23) iOS-style pill input with
+          search icon + clear-X button. Live filter overlay shows match
+          count when query is non-empty. */}
       <div className="graph-search-bar">
+        <SearchIcon size={14} strokeWidth={2} className="graph-search-bar__icon" aria-hidden="true" />
         <input
           type="text"
           className="graph-search-input"
@@ -813,64 +985,146 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
           value={searchQuery}
           onChange={e => handleSearchNode(e.target.value)}
         />
+        {searchQuery && (
+          <button
+            type="button"
+            className="graph-search-bar__clear"
+            onClick={() => handleSearchNode('')}
+            title={t('clear', language)}
+            aria-label={t('clear', language)}
+          >
+            <X size={12} strokeWidth={2} />
+          </button>
+        )}
+        {searchQuery && (() => {
+          const q = searchQuery.toLowerCase();
+          const matches = filteredData.nodes.filter(n => n.label.toLowerCase().includes(q)).length;
+          return (
+            <span className="graph-search-bar__count" aria-live="polite">
+              {matches}
+            </span>
+          );
+        })()}
       </div>
 
       {/* Settings toggle */}
       <button
-        className="graph-settings-toggle"
+        className={`graph-settings-toggle${showSettings ? ' is-active' : ''}`}
         onClick={() => setShowSettings(!showSettings)}
         title={t('graphSettings', language)}
+        aria-pressed={showSettings}
       >
-        <Settings size={16} />
+        <Settings size={14} strokeWidth={2} />
       </button>
 
-      {/* Settings panel */}
+      {/* Settings panel — v22 redesign with DS Toggle + neutral colors */}
       {showSettings && (
         <div className="graph-settings-panel">
-          <div className="graph-settings-title">{t('graphSettings', language)}</div>
-
-          <div className="graph-settings-section">
-            <label className="graph-settings-label">
-              <input
-                type="checkbox"
-                checked={graphSettings.showTags}
-                onChange={e => updateSettings({ showTags: e.target.checked })}
-              />
-              {t('showTags', language)}
-            </label>
-            <label className="graph-settings-label">
-              <input
-                type="checkbox"
-                checked={graphSettings.showAttachments}
-                onChange={e => updateSettings({ showAttachments: e.target.checked })}
-              />
-              {t('showAttachments', language)}
-            </label>
+          <div className="graph-settings-panel__header">
+            <span>{t('graphSettings', language)}</span>
+            <button
+              type="button"
+              className="graph-settings-panel__close"
+              onClick={() => setShowSettings(false)}
+              title={t('close', language)}
+              aria-label={t('close', language)}
+            >
+              <X size={12} strokeWidth={2} />
+            </button>
           </div>
 
-          <div className="graph-settings-section">
-            <div className="graph-settings-subtitle">{t('physics', language)}</div>
+          <div className="graph-settings-panel__group">
+            <div className="graph-settings-panel__row">
+              <span className="graph-settings-panel__row-label">{t('showTags', language)}</span>
+              <Toggle
+                size="sm"
+                checked={graphSettings.showTags}
+                onChange={e => updateSettings({ showTags: e.currentTarget.checked })}
+                aria-label={t('showTags', language)}
+              />
+            </div>
+            <div className="graph-settings-panel__row">
+              <span className="graph-settings-panel__row-label">{t('showAttachments', language)}</span>
+              <Toggle
+                size="sm"
+                checked={graphSettings.showAttachments}
+                onChange={e => updateSettings({ showAttachments: e.currentTarget.checked })}
+                aria-label={t('showAttachments', language)}
+              />
+            </div>
+          </div>
+
+          <div className="graph-settings-panel__divider" />
+
+          <div className="graph-settings-panel__group">
+            <div className="graph-settings-panel__group-label">{t('physics', language)}</div>
+            {/* v22.4 (HanBin 2026-05-23) — defer-on-release pattern.
+                onChange writes to pendingCharge / pendingLinkDistance
+                (local state, no graph re-render). The thumb + readout
+                follow the local value so the slider remains responsive,
+                but the d3 simulation only reorganizes once when the user
+                lets go (onMouseUp / onTouchEnd / onKeyUp commits to the
+                store, which triggers Effect 3 a single time). Eliminates
+                the mid-drag "exploding nodes" rebound the user saw. */}
             <div className="graph-settings-slider-row">
-              <span>{t('chargeStrength', language)}</span>
+              <span className="graph-settings-slider-row__label">{t('chargeStrength', language)}</span>
               <input
                 type="range"
+                className="graph-settings-slider"
                 min="-300"
                 max="-10"
-                value={graphSettings.physics.chargeStrength}
-                onChange={e => updateSettings({ physics: { ...graphSettings.physics, chargeStrength: Number(e.target.value) } })}
+                value={pendingCharge ?? graphSettings.physics.chargeStrength}
+                onChange={e => setPendingCharge(Number(e.target.value))}
+                onMouseUp={() => {
+                  if (pendingCharge !== null) {
+                    updateSettings({ physics: { ...graphSettings.physics, chargeStrength: pendingCharge } });
+                    setPendingCharge(null);
+                  }
+                }}
+                onTouchEnd={() => {
+                  if (pendingCharge !== null) {
+                    updateSettings({ physics: { ...graphSettings.physics, chargeStrength: pendingCharge } });
+                    setPendingCharge(null);
+                  }
+                }}
+                onKeyUp={() => {
+                  if (pendingCharge !== null) {
+                    updateSettings({ physics: { ...graphSettings.physics, chargeStrength: pendingCharge } });
+                    setPendingCharge(null);
+                  }
+                }}
               />
-              <span className="graph-settings-slider-value">{graphSettings.physics.chargeStrength}</span>
+              <span className="graph-settings-slider-row__value">{pendingCharge ?? graphSettings.physics.chargeStrength}</span>
             </div>
             <div className="graph-settings-slider-row">
-              <span>{t('linkDistance', language)}</span>
+              <span className="graph-settings-slider-row__label">{t('linkDistance', language)}</span>
               <input
                 type="range"
+                className="graph-settings-slider"
                 min="10"
                 max="200"
-                value={graphSettings.physics.linkDistance}
-                onChange={e => updateSettings({ physics: { ...graphSettings.physics, linkDistance: Number(e.target.value) } })}
+                value={pendingLinkDistance ?? graphSettings.physics.linkDistance}
+                onChange={e => setPendingLinkDistance(Number(e.target.value))}
+                onMouseUp={() => {
+                  if (pendingLinkDistance !== null) {
+                    updateSettings({ physics: { ...graphSettings.physics, linkDistance: pendingLinkDistance } });
+                    setPendingLinkDistance(null);
+                  }
+                }}
+                onTouchEnd={() => {
+                  if (pendingLinkDistance !== null) {
+                    updateSettings({ physics: { ...graphSettings.physics, linkDistance: pendingLinkDistance } });
+                    setPendingLinkDistance(null);
+                  }
+                }}
+                onKeyUp={() => {
+                  if (pendingLinkDistance !== null) {
+                    updateSettings({ physics: { ...graphSettings.physics, linkDistance: pendingLinkDistance } });
+                    setPendingLinkDistance(null);
+                  }
+                }}
               />
-              <span className="graph-settings-slider-value">{graphSettings.physics.linkDistance}</span>
+              <span className="graph-settings-slider-row__value">{pendingLinkDistance ?? graphSettings.physics.linkDistance}</span>
             </div>
           </div>
 
@@ -883,12 +1137,120 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
         </div>
       )}
 
-      {/* Legend bar - shows note types present in current graph */}
+      {/* Node info panel — v22.1 speech-bubble. Floats next to the
+          focused node and tracks it during simulation / pan / zoom via
+          the rAF loop above (sets nodeInfoPos). Tail arrow on the left
+          edge points at the node. */}
+      {(() => {
+        const selId = selectedNoteId ?? selectedFolderNoteId ?? selectedAttachmentId ?? selectedTagId;
+        if (!selId) return null;
+        const node = filteredData.nodes.find(n => n.id === selId);
+        if (!node) return null;
+        // Count connections
+        const connections = filteredData.links.filter(l => {
+          const s = typeof l.source === 'string' ? l.source : l.source.id;
+          const t = typeof l.target === 'string' ? l.target : l.target.id;
+          return s === selId || t === selId;
+        }).length;
+        const TypeIconComp = node.nodeType === 'tag' ? Hash
+          : node.nodeType === 'attachment' ? Paperclip
+          : node.isFolderNote ? Folder
+          : FileText;
+        const typeLabel = node.nodeType === 'tag' ? t('tag', language)
+          : node.nodeType === 'attachment' ? t('attachment', language)
+          : node.isFolderNote ? t('folderNote', language)
+          : (node.noteType || t('noteType', language)).toUpperCase();
+        // Portal to body + position:fixed so the bubble escapes
+        // .graph-view-container's overflow:hidden and stacks above
+        // RightPanel / Calendar regardless of sibling z-index.
+        // nodeInfoPos is container-relative (from graph2ScreenCoords /
+        // event.clientX - rect.left); add containerRect offset to convert
+        // back into viewport coordinates.
+        const containerRect = containerRef.current?.getBoundingClientRect();
+        const panel = (
+          <div
+            className="graph-node-info"
+            style={nodeInfoPos && containerRect
+              ? {
+                  // 24px right offset clears typical node radius; -16px top
+                  // anchors the bubble's pointer near node's vertical center.
+                  left: Math.max(8, Math.min(window.innerWidth - 296, nodeInfoPos.x + containerRect.left + 24)),
+                  top: Math.max(8, nodeInfoPos.y + containerRect.top - 16),
+                  right: 'auto',
+                }
+              : undefined
+            }
+          >
+            <div className="graph-node-info__header">
+              <TypeIconComp size={14} strokeWidth={2} className="graph-node-info__type-icon" />
+              <span className="graph-node-info__title" title={node.label}>{node.label}</span>
+              <button
+                type="button"
+                className="graph-node-info__close"
+                onClick={() => {
+                  setSelectedNoteId(null);
+                  setSelectedFolderNoteId(null);
+                  setSelectedAttachmentId(null);
+                  setSelectedTagId(null);
+                }}
+                title={t('close', language)}
+                aria-label={t('close', language)}
+              >
+                <X size={12} strokeWidth={2} />
+              </button>
+            </div>
+            <div className="graph-node-info__meta">
+              <div className="graph-node-info__meta-row">
+                <span className="graph-node-info__meta-label">{t('type', language)}</span>
+                <span className="graph-node-info__meta-value">{typeLabel}</span>
+              </div>
+              {node.path && (
+                <div className="graph-node-info__meta-row">
+                  <span className="graph-node-info__meta-label">{t('path', language)}</span>
+                  <span className="graph-node-info__meta-value" title={node.path}>{node.path}</span>
+                </div>
+              )}
+              <div className="graph-node-info__meta-row">
+                <Link2 size={11} strokeWidth={2} className="graph-node-info__meta-icon" aria-hidden="true" />
+                <span className="graph-node-info__meta-label">{t('connections', language)}</span>
+                <span className="graph-node-info__meta-value">{connections}</span>
+              </div>
+              {(node.memoCount ?? 0) > 0 && (
+                <div className="graph-node-info__meta-row">
+                  <MessageSquare size={11} strokeWidth={2} className="graph-node-info__meta-icon" aria-hidden="true" />
+                  <span className="graph-node-info__meta-label">{t('memos', language)}</span>
+                  <span className="graph-node-info__meta-value">{node.memoCount}</span>
+                </div>
+              )}
+              {(node.taskCount ?? 0) > 0 && (
+                <div className="graph-node-info__meta-row">
+                  <Calendar size={11} strokeWidth={2} className="graph-node-info__meta-icon" aria-hidden="true" />
+                  <span className="graph-node-info__meta-label">{t('tasks', language)}</span>
+                  <span className="graph-node-info__meta-value">
+                    {node.taskCount}
+                    {node.hasUnresolvedTasks && ' •'}
+                  </span>
+                </div>
+              )}
+            </div>
+            {node.nodeType === 'note' && node.path && (
+              <button
+                type="button"
+                className="graph-node-info__open-btn"
+                onClick={() => hoverActions.open(node.path)}
+              >
+                {t('openInHoverWindow', language)}
+              </button>
+            )}
+          </div>
+        );
+        return createPortal(panel, document.body);
+      })()}
+
+      {/* Legend — v22 iOS-style chip bar (lower-left aligned with settings). */}
       <div className="graph-legend-bar">
         {(() => {
-          // Count folder notes separately
           const folderNoteCount = filteredData.nodes.filter(n => n.isFolderNote).length;
-          // Count by noteType (lowercase), excluding folder notes
           const typeCounts = new Map<string, number>();
           for (const n of filteredData.nodes) {
             if (n.nodeType === 'note' && !n.isFolderNote && n.noteType) {
@@ -899,34 +1261,36 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
           const items = Array.from(typeCounts.entries())
             .sort((a, b) => b[1] - a[1])
             .map(([type, count]) => (
-              <span key={type} className="graph-legend-item">
+              <span key={type} className="graph-legend-chip">
                 <span
-                  className="graph-legend-dot"
+                  className="graph-legend-chip__dot"
                   style={{ backgroundColor: NOTE_TYPE_COLORS[type] || graphSettings.nodeColors.note }}
                 />
-                {type.toUpperCase()} ({count})
+                <span className="graph-legend-chip__label">{type.toUpperCase()}</span>
+                <span className="graph-legend-chip__count">{count}</span>
               </span>
             ));
-          // Prepend folder note legend
           if (folderNoteCount > 0) {
             items.unshift(
-              <span key="__folder__" className="graph-legend-item">
-                <span className="graph-legend-dot graph-legend-folder" style={{ backgroundColor: FOLDER_NOTE_COLOR }} />
-                {tf('folderLabel', language, { count: folderNoteCount })}
+              <span key="__folder__" className="graph-legend-chip">
+                <span className="graph-legend-chip__dot graph-legend-chip__dot--folder" style={{ backgroundColor: FOLDER_NOTE_COLOR }} />
+                <span className="graph-legend-chip__label">{tf('folderLabel', language, { count: folderNoteCount }).replace(/\s*\(\d+\)\s*$/, '')}</span>
+                <span className="graph-legend-chip__count">{folderNoteCount}</span>
               </span>
             );
           }
           return items;
         })()}
         {graphSettings.showTags && (
-          <span className="graph-legend-item">
-            <span className="graph-legend-dot graph-legend-diamond" style={{ backgroundColor: DEFAULT_TAG_COLOR }} />
-            TAG ({filteredData.nodes.filter(n => n.nodeType === 'tag').length})
+          <span className="graph-legend-chip">
+            <span className="graph-legend-chip__dot graph-legend-chip__dot--diamond" style={{ backgroundColor: DEFAULT_TAG_COLOR }} />
+            <span className="graph-legend-chip__label">TAG</span>
+            <span className="graph-legend-chip__count">{filteredData.nodes.filter(n => n.nodeType === 'tag').length}</span>
           </span>
         )}
       </div>
 
-      {/* Info bar */}
+      {/* Info bar — summary on lower-right edge */}
       <div className="graph-info-bar">
         <span>{tf('notesCount', language, { count: filteredData.nodes.filter(n => n.nodeType === 'note').length })}</span>
         {graphSettings.showTags && (

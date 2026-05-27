@@ -59,3 +59,25 @@ nul
 
 # Cargo local config
 .cargo/
+
+# Android signing
+*.keystore
+*.jks
+local.properties
+*.test_env.ps1
+notology_test_env.ps1
+
+# Tauri auto-generated mobile platform code (regenerated on build)
+src-tauri/gen/
+
+# Rust test build output (multi-GB; never commit)
+src-tauri/target_test/
+
+# Vault data (sensitive — user notes / sync state)
+src-tauri/.notology/
+
+# Release binaries (distribute via GitHub Releases, not git)
+releases/
+
+# Debug / listing artifacts
+src-tauri/*_listing.xml

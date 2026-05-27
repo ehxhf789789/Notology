@@ -21,6 +21,9 @@ export function UnregisteredNotesBanner() {
   const [count, setCount] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
   const [importedCount, setImportedCount] = useState(0);
+  // 2026-05-24 — live import progress emitted from Rust after each note's
+  // commit_version returns. Cleared whenever a new import starts.
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
 
   // On vault open / change → schedule a dry-run scan after sync engine warms up
   useEffect(() => {
@@ -68,12 +71,24 @@ export function UnregisteredNotesBanner() {
     return () => unlisten?.();
   }, []);
 
+  // Live import progress from Rust. Active for the duration of the
+  // importing phase only — reset when we leave that phase.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<{ current: number; total: number }>('remote-import:progress', (e) => {
+      setProgress(e.payload);
+    }).then(fn => { unlisten = fn; });
+    return () => unlisten?.();
+  }, []);
+
   const handleImport = useCallback(async () => {
+    setProgress({ current: 0, total: count });
     setState('importing');
     setErrorMsg('');
     try {
       const report = await conn.scanUnregisteredNotes(false);
       setImportedCount(report.newlyRegistered);
+      setProgress(null);
       setState('done');
       // Force file tree + search reindex so newly-imported notes appear immediately
       await fileTreeActions.refreshFileTree();
@@ -82,9 +97,10 @@ export function UnregisteredNotesBanner() {
       setTimeout(() => setState('dismissed'), 4000);
     } catch (e: any) {
       setErrorMsg(e?.toString() || '가져오기 실패');
+      setProgress(null);
       setState('error');
     }
-  }, []);
+  }, [count]);
 
   const handleDismiss = useCallback(() => setState('dismissed'), []);
 
@@ -148,10 +164,28 @@ export function UnregisteredNotesBanner() {
   }
 
   if (state === 'importing') {
+    const cur = progress?.current ?? 0;
+    const tot = progress?.total ?? count;
+    const pct = tot > 0 ? Math.round((cur / tot) * 100) : 0;
     return (
-      <div style={baseStyle}>
-        <CloudDownload size={18} style={{ color: '#3b82f6' }} />
-        <span>가져오는 중... ({count}개 노트)</span>
+      <div style={{ ...baseStyle, gap: 12 }}>
+        <CloudDownload size={18} style={{ color: '#3b82f6', flexShrink: 0 }} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span>가져오는 중... {cur} / {tot} 노트 ({pct}%)</span>
+          <div style={{
+            height: 4,
+            background: 'var(--bg-2, rgba(0,0,0,0.06))',
+            borderRadius: 2,
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              width: `${pct}%`,
+              height: '100%',
+              background: '#3b82f6',
+              transition: 'width 150ms linear',
+            }} />
+          </div>
+        </div>
       </div>
     );
   }

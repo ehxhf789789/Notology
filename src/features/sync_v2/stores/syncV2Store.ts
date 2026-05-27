@@ -13,6 +13,12 @@ interface SyncV2State {
   syncEnabled: boolean;
   conflicts: NoteWithConflicts[];
   lastReport: SyncReport | null;
+  /** 5.0.6o (2026-05-17, HanBin) — rolling window of recent sync cycles
+   *  for the activity popover's log. Newest first. Capped at MAX_HISTORY
+   *  so the store stays small (each report is ~few KB max). Reports with
+   *  zero activity (no pushes/pulls/conflicts/errors) are filtered out
+   *  before insertion — otherwise the every-5s idle polls flood the log. */
+  reportHistory: SyncReport[];
   showConflictList: boolean;
   /** note_id of the conflict being resolved, or null */
   resolvingNoteId: string | null;
@@ -51,6 +57,7 @@ export const useSyncV2Store = create<SyncV2State>()((set, get) => ({
   syncEnabled: true,
   conflicts: [],
   lastReport: null,
+  reportHistory: [],
   showConflictList: false,
   resolvingNoteId: null,
   pendingNasDeletionCount: 0,
@@ -63,10 +70,24 @@ export const useSyncV2Store = create<SyncV2State>()((set, get) => ({
   setLastReport: (lastReport) => set({ lastReport }),
 
   applyReport: (report) => {
-    set({
+    // 5.0.6o — record meaningful cycles into history. "Meaningful" =
+    // anything that actually moved data, hit a conflict, or errored.
+    // Idle polls (no work done) would otherwise drown the log.
+    const isMeaningful =
+      report.objects_uploaded > 0
+      || report.objects_downloaded > 0
+      || report.refs_pushed.length > 0
+      || report.refs_pulled.length > 0
+      || report.conflicts_detected > 0
+      || report.errors.length > 0;
+    const MAX_HISTORY = 10;
+    set((s) => ({
       lastReport: report,
       pendingNasDeletionCount: report.nas_deleted_pending ?? 0,
-    });
+      reportHistory: isMeaningful
+        ? [report, ...s.reportHistory].slice(0, MAX_HISTORY)
+        : s.reportHistory,
+    }));
     const silent = report.nas_deleted_trashed ?? 0;
     if (silent > 0) {
       import('../../shared/Toast').then(({ showToast }) => {

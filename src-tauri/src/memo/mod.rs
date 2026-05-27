@@ -129,7 +129,7 @@ impl MemoIndex {
                     .unwrap_or_else(|| comment["created"].as_str().unwrap_or(""))
                     .to_string(),
                 resolved: comment["resolved"].as_bool().unwrap_or(false),
-                task: comment.get("task").map(|task_obj| MemoTask {
+                task: comment.get("task").filter(|v| !v.is_null()).map(|task_obj| MemoTask {
                     summary: task_obj["summary"].as_str().unwrap_or("").to_string(),
                     due_date: task_obj.get("dueDate").and_then(|v| v.as_str()).map(String::from),
                     due_time: task_obj.get("dueTime").and_then(|v| v.as_str()).map(String::from),
@@ -347,7 +347,7 @@ impl MemoIndex {
                     .unwrap_or_else(|| comment["created"].as_str().unwrap_or(""))
                     .to_string(),
                 resolved: comment["resolved"].as_bool().unwrap_or(false),
-                task: comment.get("task").map(|task_obj| MemoTask {
+                task: comment.get("task").filter(|v| !v.is_null()).map(|task_obj| MemoTask {
                     summary: task_obj["summary"].as_str().unwrap_or("").to_string(),
                     due_date: task_obj.get("dueDate").and_then(|v| v.as_str()).map(String::from),
                     due_time: task_obj.get("dueTime").and_then(|v| v.as_str()).map(String::from),

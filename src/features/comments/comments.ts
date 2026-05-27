@@ -42,7 +42,15 @@ export async function saveComments(
       console.log(`[comments] Merged: local=${comments.length}, disk=${diskComments.length}, result=${commentsToSave.length}`);
     }
 
-    const commentsJson = JSON.stringify(commentsToSave, null, 2);
+    // Sanitize: strip null/undefined task fields to prevent Rust null misdetection
+    const sanitized = commentsToSave.map(c => {
+      if (c.task === null || c.task === undefined) {
+        const { task, ...rest } = c;
+        return rest;
+      }
+      return c;
+    });
+    const commentsJson = JSON.stringify(sanitized, null, 2);
     const newMtime = await memoCommands.writeComments(notePath, commentsJson);
 
     // Index memos after saving

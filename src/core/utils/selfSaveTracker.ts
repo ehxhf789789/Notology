@@ -1,30 +1,24 @@
 /**
  * Self-save tracker: prevents file watcher from triggering "external change" dialogs
- * when the change was actually made by this app instance.
+ * when the change was actually made by this app instance or by sync.
  *
- * Uses event-count matching instead of timestamps, making it network-speed agnostic.
- * Each save registers expectedEvents: 2 (atomic rename + potential NAS metadata update).
- * Watcher events decrement the counter. External changes have no pending counter.
+ * Uses time-window suppression: any watcher event for a file within SUPPRESS_WINDOW_MS
+ * of a self-save is suppressed. This is more robust than event counting because
+ * the number of watcher events per file operation varies by platform and NAS config.
  */
 
 const DEV = import.meta.env.DEV;
 const log = DEV ? console.log.bind(console) : () => {};
-const warn = DEV ? console.warn.bind(console) : () => {};
 
-interface PendingSelfSave {
-  /** Number of watcher events still expected for this file.
-   *  Starts at 2 per save (atomic rename + potential Synology mtime update).
-   *  Decremented on each matching watcher event. Removed when it reaches 0. */
-  expectedEvents: number;
-  /** Timestamp when the save was registered. Used ONLY for fallback cleanup. */
-  registeredAt: number;
-}
+/** Time window (ms) after a self-save during which watcher events are suppressed.
+ *  3 seconds covers: atomic rename, NAS metadata update, Synology Drive sync events. */
+const SUPPRESS_WINDOW_MS = 3_000;
 
-const pendingSelfSaves = new Map<string, PendingSelfSave>();
+/** Maximum age of a tracker entry before cleanup (memory leak prevention). */
+const MAX_ENTRY_AGE_MS = 60_000;
 
-// Safety net: remove stale entries that were never matched by watcher events.
-// This is NOT the matching mechanism — just prevents memory leaks.
-const FALLBACK_TIMEOUT_MS = 60_000;
+/** Map of normalized file path → timestamp of the most recent self-save. */
+const selfSaveTimes = new Map<string, number>();
 
 function normalize(filePath: string): string {
   return filePath.replace(/\\/g, '/');
@@ -33,44 +27,33 @@ function normalize(filePath: string): string {
 /**
  * Mark a file as just saved by this app instance.
  * Call this immediately after successfully writing a file.
- * Registers 2 expected watcher events (atomic rename + NAS sync metadata update).
  */
 export function markAsSelfSaved(filePath: string): void {
   const normalized = normalize(filePath);
-  const existing = pendingSelfSaves.get(normalized);
-  if (existing) {
-    existing.expectedEvents += 2;
-    existing.registeredAt = Date.now();
-  } else {
-    pendingSelfSaves.set(normalized, {
-      expectedEvents: 2,
-      registeredAt: Date.now(),
-    });
-  }
+  selfSaveTimes.set(normalized, Date.now());
 
-  if (pendingSelfSaves.size > 50) {
-    cleanupStalePendingSaves();
+  if (selfSaveTimes.size > 100) {
+    cleanupStaleEntries();
   }
 }
 
 /**
- * Consume a self-save event for a file. Returns true if this watcher event
- * corresponds to a pending self-save (and should be suppressed).
- * This is destructive — each call decrements the counter.
+ * Check if a watcher event for this file should be suppressed
+ * (i.e., the file was self-saved within the suppression window).
  */
-function consumeSelfSave(filePath: string): boolean {
+function isSelfSaved(filePath: string): boolean {
   const normalized = normalize(filePath);
-  const entry = pendingSelfSaves.get(normalized);
-  if (!entry) return false;
+  const saveTime = selfSaveTimes.get(normalized);
+  if (!saveTime) return false;
 
-  entry.expectedEvents -= 1;
-  const fileName = normalized.split('/').pop() || normalized;
-  log(`[SelfSaveTracker] Consumed self-save event: "${fileName}" (${entry.expectedEvents} remaining)`);
-
-  if (entry.expectedEvents <= 0) {
-    pendingSelfSaves.delete(normalized);
+  const age = Date.now() - saveTime;
+  if (age < SUPPRESS_WINDOW_MS) {
+    return true;
   }
-  return true;
+
+  // Outside window — clean up entry
+  selfSaveTimes.delete(normalized);
+  return false;
 }
 
 /**
@@ -78,11 +61,8 @@ function consumeSelfSave(filePath: string): boolean {
  * (i.e., files that were NOT recently self-saved).
  */
 export function filterExternalChanges(filePaths: string[]): string[] {
-  // Clean up stale entries before matching to prevent over-accumulated counters
-  // from rapid saves from suppressing genuine external changes.
-  cleanupStalePendingSaves();
   log(`[SelfSaveTracker] Watcher event: ${filePaths.length} files`, filePaths.map(p => p.split(/[/\\]/).pop()));
-  const result = filePaths.filter(path => !consumeSelfSave(path));
+  const result = filePaths.filter(path => !isSelfSaved(path));
   if (result.length < filePaths.length) {
     log(`[SelfSaveTracker] Filtered: ${filePaths.length} → ${result.length} (${filePaths.length - result.length} self-saves removed)`);
   }
@@ -90,15 +70,13 @@ export function filterExternalChanges(filePaths: string[]): string[] {
 }
 
 /**
- * Remove entries older than FALLBACK_TIMEOUT_MS.
- * Safety net only — not part of the matching logic.
+ * Remove entries older than MAX_ENTRY_AGE_MS.
  */
-function cleanupStalePendingSaves(): void {
+function cleanupStaleEntries(): void {
   const now = Date.now();
-  for (const [path, entry] of pendingSelfSaves.entries()) {
-    if (now - entry.registeredAt >= FALLBACK_TIMEOUT_MS) {
-      warn(`[SelfSaveTracker] Removing stale entry: "${path}" (${entry.expectedEvents} unclaimed events)`);
-      pendingSelfSaves.delete(path);
+  for (const [path, time] of selfSaveTimes.entries()) {
+    if (now - time >= MAX_ENTRY_AGE_MS) {
+      selfSaveTimes.delete(path);
     }
   }
 }
@@ -107,5 +85,12 @@ function cleanupStalePendingSaves(): void {
  * Clear all tracked self-saves (useful for testing or vault switch).
  */
 export function clearSelfSaveTracker(): void {
-  pendingSelfSaves.clear();
+  selfSaveTimes.clear();
 }
+
+// ============================================================
+// Sync-active flag: suppresses file watcher hover refresh during sync
+// ============================================================
+let _syncActive = false;
+export function setSyncActive(active: boolean): void { _syncActive = active; }
+export function isSyncActive(): boolean { return _syncActive; }

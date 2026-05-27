@@ -7,23 +7,23 @@
 }
 
 .faceted-tag-editor-loading {
-  padding: var(--space-8);
+  padding: var(--sp-4);
   text-align: center;
   color: var(--tx-3);
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
 }
 
 .faceted-tag-editor-title {
-  font-size: var(--font-xl);
+  font-size: var(--fs-16);
   font-weight: 600;
-  color: var(--c-blue);
+  color: var(--tx-1);
   margin: 0 0 16px 0;
-  padding-bottom: var(--space-4);
+  padding-bottom: var(--sp-2);
   border-bottom: 0.5px solid var(--sep-l);
 }
 
 .facet-group {
-  margin-bottom: var(--space-10);
+  margin-bottom: var(--sp-5);
   position: relative;
 }
 
@@ -31,17 +31,17 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--sp-2);
 }
 
 .facet-label {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-md);
+  gap: var(--sp-1);
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--tx-2);
-  margin-right: var(--space-4);
+  margin-right: var(--sp-2);
 }
 
 .facet-icon {
@@ -50,7 +50,7 @@
 }
 
 .facet-description {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
   font-weight: normal;
 }
@@ -59,16 +59,16 @@
   padding: 4px 12px;
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-2);
   cursor: pointer;
-  font-size: var(--font-base);
-  transition: all var(--duration-normal);
+  font-size: var(--fs-13);
+  transition: all var(--dur-200);
 }
 
 .facet-add-btn:hover {
-  background-color: var(--c-blue);
-  border-color: var(--c-blue);
+  background-color: var(--tx-1);
+  border-color: var(--tx-1);
   color: #fff;
 }
 
@@ -79,11 +79,11 @@
 .facet-tags {
   display: flex;
   flex-wrap: nowrap;
-  gap: var(--space-3);
+  gap: var(--sp-2);
   padding: 6px 8px;
   background-color: var(--bg-app);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   min-height: 34px;
   overflow-x: auto;
   overflow-y: hidden;
@@ -107,11 +107,11 @@
   right: 4px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
   background: var(--bg-elevated);
   padding: 1px 6px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-12);
   border: 0.5px solid var(--sep-l);
   pointer-events: none;
   z-index: 1;
@@ -122,193 +122,193 @@
 .tag-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   padding: 2px 8px;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-base);
-  font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
-  transition: background-color var(--duration-fast);
+  border-radius: var(--r-6);
+  font-size: var(--fs-13);
+  font-family: var(--app-font, "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif);
+  transition: background-color var(--dur-150);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 /* Namespace colors — identical to .search-tag.tag-* for visual consistency */
 .tag-chip.tag-domain {
-  background-color: rgba(139, 92, 246, 0.15);
-  color: #a78bfa;
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  background-color: color-mix(in srgb, var(--c-purple) 15%, transparent);
+  color: var(--c-purple);
+  border: 1px solid color-mix(in srgb, var(--c-purple) 30%, transparent);
 }
 .tag-chip.tag-who {
-  background-color: rgba(34, 211, 238, 0.15);
-  color: #22d3ee;
-  border: 1px solid rgba(34, 211, 238, 0.3);
+  background-color: color-mix(in srgb, var(--c-teal) 15%, transparent);
+  color: var(--c-teal);
+  border: 1px solid color-mix(in srgb, var(--c-teal) 30%, transparent);
 }
 .tag-chip.tag-org {
-  background-color: rgba(251, 146, 60, 0.15);
-  color: #fb923c;
-  border: 1px solid rgba(251, 146, 60, 0.3);
+  background-color: color-mix(in srgb, var(--c-orange) 15%, transparent);
+  color: var(--c-orange);
+  border: 1px solid color-mix(in srgb, var(--c-orange) 30%, transparent);
 }
 .tag-chip.tag-ctx {
-  background-color: rgba(52, 211, 153, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(52, 211, 153, 0.3);
+  background-color: color-mix(in srgb, var(--c-green) 15%, transparent);
+  color: var(--c-green);
+  border: 1px solid color-mix(in srgb, var(--c-green) 30%, transparent);
 }
 
-.tag-chip.tag-domain:hover { background-color: rgba(139, 92, 246, 0.28); }
-.tag-chip.tag-who:hover    { background-color: rgba(34, 211, 238, 0.28); }
-.tag-chip.tag-org:hover    { background-color: rgba(251, 146, 60, 0.28); }
-.tag-chip.tag-ctx:hover    { background-color: rgba(52, 211, 153, 0.28); }
+.tag-chip.tag-domain:hover { background-color: color-mix(in srgb, var(--c-purple) 28%, transparent); }
+.tag-chip.tag-who:hover    { background-color: color-mix(in srgb, var(--c-teal) 28%, transparent); }
+.tag-chip.tag-org:hover    { background-color: color-mix(in srgb, var(--c-orange) 28%, transparent); }
+.tag-chip.tag-ctx:hover    { background-color: color-mix(in srgb, var(--c-green) 28%, transparent); }
 
 /* Light mode — darker text for contrast on white backgrounds */
 html[data-theme="light"] .tag-chip.tag-domain,
 html[data-theme="light"] .search-tag.tag-domain {
-  background-color: rgba(139, 92, 246, 0.10);
-  color: #7c3aed;
-  border-color: rgba(139, 92, 246, 0.25);
+  background-color: color-mix(in srgb, var(--c-purple) 10%, transparent);
+  color: var(--c-purple);
+  border-color: color-mix(in srgb, var(--c-purple) 25%, transparent);
 }
 html[data-theme="light"] .tag-chip.tag-who,
 html[data-theme="light"] .search-tag.tag-who {
-  background-color: rgba(6, 182, 212, 0.10);
-  color: #0891b2;
-  border-color: rgba(6, 182, 212, 0.25);
+  background-color: color-mix(in srgb, var(--c-teal) 10%, transparent);
+  color: var(--c-teal);
+  border-color: color-mix(in srgb, var(--c-teal) 25%, transparent);
 }
 html[data-theme="light"] .tag-chip.tag-org,
 html[data-theme="light"] .search-tag.tag-org {
-  background-color: rgba(234, 88, 12, 0.10);
-  color: #ea580c;
-  border-color: rgba(234, 88, 12, 0.25);
+  background-color: color-mix(in srgb, var(--c-orange) 10%, transparent);
+  color: var(--c-orange);
+  border-color: color-mix(in srgb, var(--c-orange) 25%, transparent);
 }
 html[data-theme="light"] .tag-chip.tag-ctx,
 html[data-theme="light"] .search-tag.tag-ctx {
-  background-color: rgba(16, 185, 129, 0.10);
-  color: #059669;
-  border-color: rgba(16, 185, 129, 0.25);
+  background-color: color-mix(in srgb, var(--c-green) 10%, transparent);
+  color: var(--c-green);
+  border-color: color-mix(in srgb, var(--c-green) 25%, transparent);
 }
-html[data-theme="light"] .tag-chip.tag-domain:hover { background-color: rgba(139, 92, 246, 0.18); }
-html[data-theme="light"] .tag-chip.tag-who:hover    { background-color: rgba(6, 182, 212, 0.18); }
-html[data-theme="light"] .tag-chip.tag-org:hover    { background-color: rgba(234, 88, 12, 0.18); }
-html[data-theme="light"] .tag-chip.tag-ctx:hover    { background-color: rgba(16, 185, 129, 0.18); }
+html[data-theme="light"] .tag-chip.tag-domain:hover { background-color: color-mix(in srgb, var(--c-purple) 18%, transparent); }
+html[data-theme="light"] .tag-chip.tag-who:hover    { background-color: color-mix(in srgb, var(--c-teal) 18%, transparent); }
+html[data-theme="light"] .tag-chip.tag-org:hover    { background-color: color-mix(in srgb, var(--c-orange) 18%, transparent); }
+html[data-theme="light"] .tag-chip.tag-ctx:hover    { background-color: color-mix(in srgb, var(--c-green) 18%, transparent); }
 
 /* System theme (prefers-color-scheme: light) */
 @media (prefers-color-scheme: light) {
   html[data-theme="system"] .tag-chip.tag-domain,
   html[data-theme="system"] .search-tag.tag-domain {
-    background-color: rgba(139, 92, 246, 0.10);
-    color: #7c3aed;
-    border-color: rgba(139, 92, 246, 0.25);
+    background-color: color-mix(in srgb, var(--c-purple) 10%, transparent);
+    color: var(--c-purple);
+    border-color: color-mix(in srgb, var(--c-purple) 25%, transparent);
   }
   html[data-theme="system"] .tag-chip.tag-who,
   html[data-theme="system"] .search-tag.tag-who {
-    background-color: rgba(6, 182, 212, 0.10);
-    color: #0891b2;
-    border-color: rgba(6, 182, 212, 0.25);
+    background-color: color-mix(in srgb, var(--c-teal) 10%, transparent);
+    color: var(--c-teal);
+    border-color: color-mix(in srgb, var(--c-teal) 25%, transparent);
   }
   html[data-theme="system"] .tag-chip.tag-org,
   html[data-theme="system"] .search-tag.tag-org {
-    background-color: rgba(234, 88, 12, 0.10);
-    color: #ea580c;
-    border-color: rgba(234, 88, 12, 0.25);
+    background-color: color-mix(in srgb, var(--c-orange) 10%, transparent);
+    color: var(--c-orange);
+    border-color: color-mix(in srgb, var(--c-orange) 25%, transparent);
   }
   html[data-theme="system"] .tag-chip.tag-ctx,
   html[data-theme="system"] .search-tag.tag-ctx {
-    background-color: rgba(16, 185, 129, 0.10);
-    color: #059669;
-    border-color: rgba(16, 185, 129, 0.25);
+    background-color: color-mix(in srgb, var(--c-green) 10%, transparent);
+    color: var(--c-green);
+    border-color: color-mix(in srgb, var(--c-green) 25%, transparent);
   }
-  html[data-theme="system"] .tag-chip.tag-domain:hover { background-color: rgba(139, 92, 246, 0.18); }
-  html[data-theme="system"] .tag-chip.tag-who:hover    { background-color: rgba(6, 182, 212, 0.18); }
-  html[data-theme="system"] .tag-chip.tag-org:hover    { background-color: rgba(234, 88, 12, 0.18); }
-  html[data-theme="system"] .tag-chip.tag-ctx:hover    { background-color: rgba(16, 185, 129, 0.18); }
+  html[data-theme="system"] .tag-chip.tag-domain:hover { background-color: color-mix(in srgb, var(--c-purple) 18%, transparent); }
+  html[data-theme="system"] .tag-chip.tag-who:hover    { background-color: color-mix(in srgb, var(--c-teal) 18%, transparent); }
+  html[data-theme="system"] .tag-chip.tag-org:hover    { background-color: color-mix(in srgb, var(--c-orange) 18%, transparent); }
+  html[data-theme="system"] .tag-chip.tag-ctx:hover    { background-color: color-mix(in srgb, var(--c-green) 18%, transparent); }
 }
 
-/* Light mode — blue accent elements (#7aa2f7, #6496ff, #a0c4ff, #8ab4f8 → #2563eb) */
+/* Light mode — blue accent elements */
 html[data-theme="light"] .titlebar-action-btn.active {
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
-  border-color: rgba(37, 99, 235, 0.3);
+  background: color-mix(in srgb, var(--tx-1) 10%, transparent);
+  color: var(--tx-1);
+  border-color: color-mix(in srgb, var(--tx-1) 30%, transparent);
 }
 html[data-theme="light"] .hover-panel-badge {
-  background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
+  background: color-mix(in srgb, var(--tx-1) 12%, transparent);
+  color: var(--tx-1);
 }
 html[data-theme="light"] .titlebar-action-btn.active .hover-panel-badge {
-  background: rgba(37, 99, 235, 0.2);
+  background: color-mix(in srgb, var(--tx-1) 20%, transparent);
   color: #fff;
 }
 html[data-theme="light"] .right-panel-toggle-btn.active {
-  background-color: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.35);
-  color: #2563eb;
+  background-color: color-mix(in srgb, var(--tx-1) 10%, transparent);
+  border-color: color-mix(in srgb, var(--tx-1) 35%, transparent);
+  color: var(--tx-1);
 }
 html[data-theme="light"] .right-panel-toggle-badge {
-  background-color: rgba(59, 130, 246, 0.15);
-  color: #2563eb;
+  background-color: color-mix(in srgb, var(--tx-1) 15%, transparent);
+  color: var(--tx-1);
 }
 html[data-theme="light"] .right-panel-toggle-btn.active .right-panel-toggle-badge {
-  background-color: rgba(59, 130, 246, 0.25);
+  background-color: color-mix(in srgb, var(--tx-1) 25%, transparent);
 }
 html[data-theme="light"] .hover-panel-collapsed-badge {
-  background: rgba(59, 130, 246, 0.2);
-  color: #2563eb;
+  background: color-mix(in srgb, var(--tx-1) 20%, transparent);
+  color: var(--tx-1);
 }
 html[data-theme="light"] .right-panel-today-icon {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(37, 99, 235, 0.06) 100%);
-  border-color: rgba(37, 99, 235, 0.25);
-  color: #2563eb;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tx-1) 12%, transparent) 0%, color-mix(in srgb, var(--tx-1) 6%, transparent) 100%);
+  border-color: color-mix(in srgb, var(--tx-1) 25%, transparent);
+  color: var(--tx-1);
 }
 html[data-theme="light"] .right-panel-today-day {
-  color: #2563eb;
+  color: var(--tx-1);
 }
 html[data-theme="light"] .right-panel-day-count {
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.1);
+  color: var(--tx-1);
+  background: color-mix(in srgb, var(--tx-1) 10%, transparent);
 }
 html[data-theme="light"] .right-panel-collapsed-badge {
-  background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
+  background: color-mix(in srgb, var(--tx-1) 12%, transparent);
+  color: var(--tx-1);
 }
 html[data-theme="light"] .search-details-type {
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.1);
+  color: var(--tx-1);
+  background: color-mix(in srgb, var(--tx-1) 10%, transparent);
 }
 html[data-theme="light"] .hover-windows-panel-count {
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.1);
+  color: var(--tx-1);
+  background: color-mix(in srgb, var(--tx-1) 10%, transparent);
 }
 html[data-theme="light"] .settings-note-template-prefix {
-  color: #4338ca;
-  background-color: rgba(67, 56, 202, 0.08);
+  color: var(--c-indigo);
+  background-color: color-mix(in srgb, var(--c-indigo) 8%, transparent);
 }
 html[data-theme="light"] .context-menu-type-prefix {
-  color: #4338ca;
-  background-color: rgba(67, 56, 202, 0.08);
+  color: var(--c-indigo);
+  background-color: color-mix(in srgb, var(--c-indigo) 8%, transparent);
 }
 html[data-theme="light"] .context-menu-check {
-  color: #2563eb;
+  color: var(--tx-1);
 }
 html[data-theme="light"] .container-type-badge {
-  color: #4338ca;
-  background-color: rgba(67, 56, 202, 0.08);
+  color: var(--c-indigo);
+  background-color: color-mix(in srgb, var(--c-indigo) 8%, transparent);
 }
 html[data-theme="light"] .ribbon-btn-prefix {
-  color: #4338ca;
+  color: var(--c-indigo);
 }
 /* Light mode — Storage container colors */
 html[data-theme="light"] .container-tree-item.storage {
-  color: #0891b2;
+  color: var(--c-teal);
 }
 html[data-theme="light"] .folder-icon.container.storage,
 html[data-theme="light"] .folder-icon.container.storage.expanded,
 html[data-theme="light"] .folder-icon.container.storage.has-children {
-  color: #0891b2;
+  color: var(--c-teal);
 }
 html[data-theme="light"] .container-type-icon-wrapper.storage {
-  background: linear-gradient(135deg, rgba(8, 145, 178, 0.2), rgba(8, 145, 178, 0.08));
-  color: #0891b2;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c-teal) 20%, transparent), color-mix(in srgb, var(--c-teal) 8%, transparent));
+  color: var(--c-teal);
 }
 html[data-theme="light"] .container-type-selector-item-v2.storage:hover {
-  border-color: #0891b2;
-  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.15);
+  border-color: var(--c-teal);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--c-teal) 15%, transparent);
 }
 
 /* Light mode — divider */
@@ -318,114 +318,114 @@ html[data-theme="light"] .divider {
 }
 html[data-theme="light"] .divider:hover,
 html[data-theme="light"] .divider:active {
-  background-color: var(--accent-color, var(--c-blue));
+  background-color: var(--tx-1);
   width: 3px;
 }
 
 /* Light mode — vault selector */
 html[data-theme="light"] .vault-selector-btn:hover {
-  border-color: #4a7fd8;
+  border-color: color-mix(in srgb, var(--tx-1) 70%, black);
 }
 html[data-theme="light"] .vault-selector-btn-primary {
-  border-color: #4a7fd8;
+  border-color: color-mix(in srgb, var(--tx-1) 70%, black);
 }
 html[data-theme="light"] .vault-selector-btn-primary:hover {
-  border-color: #3b6fc0;
+  border-color: color-mix(in srgb, var(--tx-1) 60%, black);
 }
 html[data-theme="light"] .vault-selector-btn-secondary:hover {
-  border-color: #4a7fd8;
+  border-color: color-mix(in srgb, var(--tx-1) 70%, black);
 }
 html[data-theme="light"] .vault-selector-icon {
-  color: #3b6fc0;
+  color: color-mix(in srgb, var(--tx-1) 60%, black);
 }
 html[data-theme="light"] .vault-selector-recent-item:hover {
-  border-color: #4a7fd8;
+  border-color: color-mix(in srgb, var(--tx-1) 70%, black);
 }
 html[data-theme="light"] .vault-selector-recent-item.current {
-  background: #d0e4ff;
-  border-color: #4a7fd8;
-  color: #1a365d;
+  background: color-mix(in srgb, var(--tx-1) 18%, white);
+  border-color: color-mix(in srgb, var(--tx-1) 70%, black);
+  color: color-mix(in srgb, var(--tx-1) 80%, black);
 }
 html[data-theme="light"] .vault-selector-recent-item.current:hover {
-  background: #d0e4ff;
-  border-color: #4a7fd8;
-  color: #1a365d;
+  background: color-mix(in srgb, var(--tx-1) 18%, white);
+  border-color: color-mix(in srgb, var(--tx-1) 70%, black);
+  color: color-mix(in srgb, var(--tx-1) 80%, black);
 }
 html[data-theme="light"] .vault-selector-recent-item.current .vault-selector-recent-icon,
 html[data-theme="light"] .vault-selector-recent-item.current .vault-selector-recent-name,
 html[data-theme="light"] .vault-selector-recent-item.current .vault-selector-recent-path {
-  color: #1a365d;
+  color: color-mix(in srgb, var(--tx-1) 80%, black);
 }
 html[data-theme="light"] .vault-selector-current-badge {
   background: rgba(0, 0, 0, 0.1);
-  color: #1a365d;
+  color: color-mix(in srgb, var(--tx-1) 80%, black);
 }
 html[data-theme="light"] .vault-selector-delete-btn:hover {
-  background: #fde8e8;
-  border-color: #e53e3e;
-  color: #c53030;
+  background: color-mix(in srgb, var(--c-red) 10%, white);
+  border-color: var(--c-red);
+  color: color-mix(in srgb, var(--c-red) 80%, black);
 }
 html[data-theme="light"] .vault-selector-recent-icon {
-  color: #3b6fc0;
+  color: color-mix(in srgb, var(--tx-1) 60%, black);
 }
 html[data-theme="light"] .vault-selector-logo {
-  filter: drop-shadow(0 2px 8px rgba(59, 111, 192, 0.15));
+  filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--tx-1) 15%, transparent));
 }
 
 /* Light mode — base tag and badge overrides */
 html[data-theme="light"] .search-tag {
-  background-color: #e2e8f0;
-  color: #4a5568;
+  background-color: var(--bg-input);
+  color: var(--tx-2);
 }
 html[data-theme="light"] .folder-tree-item.selected .folder-note-count,
 html[data-theme="light"] .container-tree-item.selected .folder-note-count,
 html[data-theme="light"] .container-tree-item.root-active .folder-note-count {
   background-color: rgba(0, 0, 0, 0.1);
-  color: #444;
+  color: var(--tx-2);
 }
 html[data-theme="light"] .search-tag-empty {
-  color: #999;
+  color: var(--tx-3);
 }
 @media (prefers-color-scheme: light) {
   html[data-theme="system"] .search-tag {
-    background-color: #e2e8f0;
-    color: #4a5568;
+    background-color: var(--bg-input);
+    color: var(--tx-2);
   }
   html[data-theme="system"] .folder-tree-item.selected .folder-note-count,
   html[data-theme="system"] .container-tree-item.selected .folder-note-count,
   html[data-theme="system"] .container-tree-item.root-active .folder-note-count {
     background-color: rgba(0, 0, 0, 0.1);
-    color: #444;
+    color: var(--tx-2);
   }
   html[data-theme="system"] .search-tag-empty {
-    color: #999;
+    color: var(--tx-3);
   }
   /* System theme — blue accent elements */
   html[data-theme="system"] .titlebar-action-btn.active {
-    background: rgba(37, 99, 235, 0.1); color: #2563eb; border-color: rgba(37, 99, 235, 0.3);
+    background: color-mix(in srgb, var(--tx-1) 10%, transparent); color: var(--tx-1); border-color: color-mix(in srgb, var(--tx-1) 30%, transparent);
   }
-  html[data-theme="system"] .hover-panel-badge { background: rgba(37, 99, 235, 0.12); color: #2563eb; }
-  html[data-theme="system"] .titlebar-action-btn.active .hover-panel-badge { background: rgba(37, 99, 235, 0.2); color: #fff; }
+  html[data-theme="system"] .hover-panel-badge { background: color-mix(in srgb, var(--tx-1) 12%, transparent); color: var(--tx-1); }
+  html[data-theme="system"] .titlebar-action-btn.active .hover-panel-badge { background: color-mix(in srgb, var(--tx-1) 20%, transparent); color: #fff; }
   html[data-theme="system"] .right-panel-toggle-btn.active {
-    background-color: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.35); color: #2563eb;
+    background-color: color-mix(in srgb, var(--tx-1) 10%, transparent); border-color: color-mix(in srgb, var(--tx-1) 35%, transparent); color: var(--tx-1);
   }
-  html[data-theme="system"] .right-panel-toggle-badge { background-color: rgba(59, 130, 246, 0.15); color: #2563eb; }
-  html[data-theme="system"] .right-panel-toggle-btn.active .right-panel-toggle-badge { background-color: rgba(59, 130, 246, 0.25); }
-  html[data-theme="system"] .hover-panel-collapsed-badge { background: rgba(59, 130, 246, 0.2); color: #2563eb; }
+  html[data-theme="system"] .right-panel-toggle-badge { background-color: color-mix(in srgb, var(--tx-1) 15%, transparent); color: var(--tx-1); }
+  html[data-theme="system"] .right-panel-toggle-btn.active .right-panel-toggle-badge { background-color: color-mix(in srgb, var(--tx-1) 25%, transparent); }
+  html[data-theme="system"] .hover-panel-collapsed-badge { background: color-mix(in srgb, var(--tx-1) 20%, transparent); color: var(--tx-1); }
   html[data-theme="system"] .right-panel-today-icon {
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(37, 99, 235, 0.06) 100%);
-    border-color: rgba(37, 99, 235, 0.25); color: #2563eb;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--tx-1) 12%, transparent) 0%, color-mix(in srgb, var(--tx-1) 6%, transparent) 100%);
+    border-color: color-mix(in srgb, var(--tx-1) 25%, transparent); color: var(--tx-1);
   }
-  html[data-theme="system"] .right-panel-today-day { color: #2563eb; }
-  html[data-theme="system"] .right-panel-day-count { color: #2563eb; background: rgba(37, 99, 235, 0.1); }
-  html[data-theme="system"] .right-panel-collapsed-badge { background: rgba(37, 99, 235, 0.12); color: #2563eb; }
-  html[data-theme="system"] .search-details-type { color: #2563eb; background: rgba(37, 99, 235, 0.1); }
-  html[data-theme="system"] .hover-windows-panel-count { color: #2563eb; background: rgba(37, 99, 235, 0.1); }
-  html[data-theme="system"] .settings-note-template-prefix { color: #4338ca; background-color: rgba(67, 56, 202, 0.08); }
-  html[data-theme="system"] .context-menu-type-prefix { color: #4338ca; background-color: rgba(67, 56, 202, 0.08); }
-  html[data-theme="system"] .context-menu-check { color: #2563eb; }
-  html[data-theme="system"] .container-type-badge { color: #4338ca; background-color: rgba(67, 56, 202, 0.08); }
-  html[data-theme="system"] .ribbon-btn-prefix { color: #4338ca; }
+  html[data-theme="system"] .right-panel-today-day { color: var(--tx-1); }
+  html[data-theme="system"] .right-panel-day-count { color: var(--tx-1); background: color-mix(in srgb, var(--tx-1) 10%, transparent); }
+  html[data-theme="system"] .right-panel-collapsed-badge { background: color-mix(in srgb, var(--tx-1) 12%, transparent); color: var(--tx-1); }
+  html[data-theme="system"] .search-details-type { color: var(--tx-1); background: color-mix(in srgb, var(--tx-1) 10%, transparent); }
+  html[data-theme="system"] .hover-windows-panel-count { color: var(--tx-1); background: color-mix(in srgb, var(--tx-1) 10%, transparent); }
+  html[data-theme="system"] .settings-note-template-prefix { color: var(--c-indigo); background-color: color-mix(in srgb, var(--c-indigo) 8%, transparent); }
+  html[data-theme="system"] .context-menu-type-prefix { color: var(--c-indigo); background-color: color-mix(in srgb, var(--c-indigo) 8%, transparent); }
+  html[data-theme="system"] .context-menu-check { color: var(--tx-1); }
+  html[data-theme="system"] .container-type-badge { color: var(--c-indigo); background-color: color-mix(in srgb, var(--c-indigo) 8%, transparent); }
+  html[data-theme="system"] .ribbon-btn-prefix { color: var(--c-indigo); }
   /* System theme — divider */
   html[data-theme="system"] .divider {
     background-color: var(--sep-l);
@@ -433,33 +433,33 @@ html[data-theme="light"] .search-tag-empty {
   }
   html[data-theme="system"] .divider:hover,
   html[data-theme="system"] .divider:active {
-    background-color: var(--accent-color, var(--c-blue));
+    background-color: var(--tx-1);
     width: 3px;
   }
   /* System theme — vault selector */
-  html[data-theme="system"] .vault-selector-btn:hover { border-color: #4a7fd8; }
-  html[data-theme="system"] .vault-selector-btn-primary { border-color: #4a7fd8; }
-  html[data-theme="system"] .vault-selector-btn-primary:hover { border-color: #3b6fc0; }
-  html[data-theme="system"] .vault-selector-btn-secondary:hover { border-color: #4a7fd8; }
-  html[data-theme="system"] .vault-selector-icon { color: #3b6fc0; }
-  html[data-theme="system"] .vault-selector-recent-item:hover { border-color: #4a7fd8; }
+  html[data-theme="system"] .vault-selector-btn:hover { border-color: color-mix(in srgb, var(--tx-1) 70%, black); }
+  html[data-theme="system"] .vault-selector-btn-primary { border-color: color-mix(in srgb, var(--tx-1) 70%, black); }
+  html[data-theme="system"] .vault-selector-btn-primary:hover { border-color: color-mix(in srgb, var(--tx-1) 60%, black); }
+  html[data-theme="system"] .vault-selector-btn-secondary:hover { border-color: color-mix(in srgb, var(--tx-1) 70%, black); }
+  html[data-theme="system"] .vault-selector-icon { color: color-mix(in srgb, var(--tx-1) 60%, black); }
+  html[data-theme="system"] .vault-selector-recent-item:hover { border-color: color-mix(in srgb, var(--tx-1) 70%, black); }
   html[data-theme="system"] .vault-selector-recent-item.current {
-    background: #d0e4ff; border-color: #4a7fd8; color: #1a365d;
+    background: color-mix(in srgb, var(--tx-1) 18%, white); border-color: color-mix(in srgb, var(--tx-1) 70%, black); color: color-mix(in srgb, var(--tx-1) 80%, black);
   }
   html[data-theme="system"] .vault-selector-recent-item.current:hover {
-    background: #d0e4ff; border-color: #4a7fd8; color: #1a365d;
+    background: color-mix(in srgb, var(--tx-1) 18%, white); border-color: color-mix(in srgb, var(--tx-1) 70%, black); color: color-mix(in srgb, var(--tx-1) 80%, black);
   }
   html[data-theme="system"] .vault-selector-recent-item.current .vault-selector-recent-icon,
   html[data-theme="system"] .vault-selector-recent-item.current .vault-selector-recent-name,
   html[data-theme="system"] .vault-selector-recent-item.current .vault-selector-recent-path {
-    color: #1a365d;
+    color: color-mix(in srgb, var(--tx-1) 80%, black);
   }
-  html[data-theme="system"] .vault-selector-current-badge { background: rgba(0,0,0,0.1); color: #1a365d; }
+  html[data-theme="system"] .vault-selector-current-badge { background: rgba(0,0,0,0.1); color: color-mix(in srgb, var(--tx-1) 80%, black); }
   html[data-theme="system"] .vault-selector-delete-btn:hover {
-    background: #fde8e8; border-color: #e53e3e; color: #c53030;
+    background: color-mix(in srgb, var(--c-red) 10%, white); border-color: var(--c-red); color: color-mix(in srgb, var(--c-red) 80%, black);
   }
-  html[data-theme="system"] .vault-selector-recent-icon { color: #3b6fc0; }
-  html[data-theme="system"] .vault-selector-logo { filter: drop-shadow(0 2px 8px rgba(59,111,192,0.15)); }
+  html[data-theme="system"] .vault-selector-recent-icon { color: color-mix(in srgb, var(--tx-1) 60%, black); }
+  html[data-theme="system"] .vault-selector-logo { filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--tx-1) 15%, transparent)); }
 }
 
 .tag-label {
@@ -471,11 +471,11 @@ html[data-theme="light"] .search-tag-empty {
   border: none;
   color: inherit;
   cursor: pointer;
-  font-size: var(--font-xl);
+  font-size: var(--fs-16);
   line-height: 1;
   padding: 0 0 0 2px;
   opacity: 0.5;
-  transition: opacity var(--duration-fast), color var(--duration-fast);
+  transition: opacity var(--dur-150), color var(--dur-150);
 }
 
 .tag-remove-btn:hover {

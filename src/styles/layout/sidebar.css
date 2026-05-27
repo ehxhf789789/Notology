@@ -5,9 +5,9 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 8px 12px;
-  background-color: var(--bg-secondary, #252526);
-  border-right: 1px solid var(--border-color, #3c3c3c);
+  padding: var(--sp-2) var(--sp-3);
+  background-color: var(--bg-base);
+  border-right: 0.5px solid var(--sep-l);
   flex-shrink: 0;
 }
 
@@ -19,24 +19,24 @@
   height: 24px;
   background: none;
   border: none;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted, #888);
+  border-radius: var(--r-6);
+  color: var(--tx-3);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) var(--ease-out);
 }
 
 .sidebar-collapsed-toggle:hover {
-  background: var(--bg-hover, rgba(255, 255, 255, 0.1));
-  color: var(--text-primary, #fff);
+  background: var(--bg-hover);
+  color: var(--tx-1);
 }
 
 /* Minimized windows in collapsed sidebar */
 .sidebar-collapsed-minimized {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
+  gap: var(--sp-1);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
   border-top: 0.5px solid var(--sep-l);
 }
 
@@ -48,9 +48,9 @@
   height: 32px;
   background: transparent;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) var(--ease-out);
   opacity: 0.7;
 }
 
@@ -60,7 +60,7 @@
 }
 
 .sidebar-collapsed-minimized-icon {
-  font-size: var(--font-xl);
+  font-size: var(--fs-16);
   line-height: 1;
 }
 
@@ -69,7 +69,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 12px;
+  padding: var(--sp-2) var(--sp-3);
   width: 48px;
   background-color: var(--bg-base);
   border-left: 0.5px solid var(--sep-l);
@@ -86,10 +86,10 @@
   padding: 0;
   background: none;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-3);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) var(--ease-out);
 }
 
 .hover-panel-collapsed-toggle:hover {
@@ -101,12 +101,12 @@
   position: absolute;
   top: -4px;
   right: -6px;
-  font-size: var(--font-xs);
+  font-size: var(--fs-10);
   font-weight: 600;
-  background: rgba(100, 150, 255, 0.6);
-  color: #fff;
-  padding: 0px 4px;
-  border-radius: var(--radius-lg);
+  background: var(--tx-1);
+  color: var(--bg-base);
+  padding: 0 var(--sp-1);
+  border-radius: var(--r-pill);
   min-width: 14px;
   text-align: center;
 }
@@ -116,10 +116,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  gap: var(--sp-1);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 0.5px solid var(--sep-l);
   width: 100%;
 }
 
@@ -131,14 +131,14 @@
   height: 26px;
   background: transparent;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--r-6);
   cursor: pointer;
   position: relative;
   /* Smooth transitions - GPU accelerated */
   transition:
-    opacity var(--duration-normal) cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    transform var(--duration-normal) cubic-bezier(0.25, 0.46, 0.45, 0.94),
-    background-color var(--duration-fast) ease;
+    opacity var(--dur-200) var(--ease-out),
+    transform var(--dur-200) var(--ease-out),
+    background-color var(--dur-150) var(--ease-out);
   will-change: opacity, transform;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
@@ -195,27 +195,27 @@
 }
 
 .hover-panel-collapsed-window-btn.minimized:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-hover);
   opacity: 0.7;
 }
 
 /* Active state - medium opacity, subtle border */
 .hover-panel-collapsed-window-btn.active {
   opacity: 0.75;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 0.5px solid var(--sep-l);
 }
 
 .hover-panel-collapsed-window-btn.active:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-hover);
   opacity: 0.9;
 }
 
 /* Focused state - full opacity, bright border, highlight effect */
 .hover-panel-collapsed-window-btn.focused {
   opacity: 1;
-  border: 1px solid rgba(100, 150, 255, 0.6);
-  background: rgba(100, 150, 255, 0.15);
-  box-shadow: 0 0 6px rgba(100, 150, 255, 0.3);
+  border: 0.5px solid color-mix(in srgb, var(--tx-1) 60%, transparent);
+  background: color-mix(in srgb, var(--tx-1) 15%, transparent);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--tx-1) 30%, transparent);
 }
 
 .hover-panel-collapsed-window-btn.focused::before {
@@ -226,13 +226,13 @@
   transform: translateY(-50%);
   width: 3px;
   height: 16px;
-  background: rgba(100, 150, 255, 0.8);
-  border-radius: var(--radius-xs);
+  background: var(--tx-1);
+  border-radius: var(--r-4);
 }
 
 .hover-panel-collapsed-window-btn.focused:hover {
-  background: rgba(100, 150, 255, 0.2);
-  border-color: rgba(100, 150, 255, 0.8);
+  background: color-mix(in srgb, var(--tx-1) 20%, transparent);
+  border-color: var(--tx-1);
 }
 
 /* Custom color override for window buttons */
@@ -256,7 +256,7 @@
 }
 
 .hover-panel-collapsed-window-icon {
-  font-size: var(--font-xl);
+  font-size: var(--fs-16);
   line-height: 1;
 }
 
@@ -272,17 +272,24 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: var(--bg-secondary, #252526);
+  background-color: var(--bg-base);
   flex-shrink: 0;
   overflow: hidden;
+  /* 2026-05-23 (HanBin) — collapsed-mode boundary upgrade.
+     Without an explicit right-edge hairline the sidebar bled into the
+     editor area at the 52px icon-only width (no .divider rendered),
+     leaving the right wall looking unfinished. A single 0.5px sep-l
+     line restores the iOS-style chrome edge regardless of collapse
+     state and matches the header/footer hairlines. */
+  border-right: 0.5px solid var(--sep-l);
 }
 
 .sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border-color, #3c3c3c);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 0.5px solid var(--sep-l);
   flex-shrink: 0;
 }
 
@@ -299,28 +306,28 @@
   height: 24px;
   background: none;
   border: none;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted, #888);
+  border-radius: var(--r-6);
+  color: var(--tx-3);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) var(--ease-out);
 }
 
 .sidebar-toggle-btn:hover {
-  background: var(--bg-hover, rgba(255, 255, 255, 0.1));
-  color: var(--text-primary, #fff);
+  background: var(--bg-hover);
+  color: var(--tx-1);
 }
 
 .sidebar-section-label {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-secondary, #bbbbbb);
+  text-transform: none;
+  color: var(--tx-3);
   letter-spacing: 0.8px;
 }
 
 .sidebar-actions {
   display: flex;
-  gap: var(--space-1);
+  gap: 2px;
 }
 
 .sidebar-action-btn {
@@ -331,15 +338,17 @@
   height: 24px;
   border: none;
   background: transparent;
-  color: var(--text-secondary, #cccccc);
+  color: var(--tx-2);
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-lg);
+  border-radius: var(--r-6);
+  font-size: var(--fs-14);
   padding: 0;
+  transition: all var(--dur-150) var(--ease-out);
 }
 
 .sidebar-action-btn:hover:not(:disabled) {
-  background-color: var(--bg-hover, #3c3c3c);
+  background-color: var(--bg-hover);
+  color: var(--tx-1);
 }
 
 .sidebar-action-btn:disabled {
@@ -348,31 +357,31 @@
 }
 
 .sidebar-action-btn.active {
-  color: var(--accent-color, var(--c-blue));
+  color: var(--tx-1);
 }
 
 /* Sidebar Input */
 .sidebar-input-row {
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--border-color, #3c3c3c);
+  padding: var(--sp-1) var(--sp-2);
+  border-bottom: 0.5px solid var(--sep-l);
   flex-shrink: 0;
 }
 
 .sidebar-input {
   width: 100%;
-  padding: 4px 8px;
-  font-size: var(--font-base);
-  background-color: var(--bg-tertiary, #3c3c3c);
-  border: 1px solid var(--border-light, #5a5a5a);
-  border-radius: var(--radius-md);
-  color: var(--text-primary, #e0e0e0);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-13);
+  background-color: var(--bg-input);
+  border: none;
+  border-radius: var(--r-8);
+  color: var(--tx-1);
   outline: none;
-  transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
+  transition: box-shadow var(--dur-150) var(--ease-out);
 }
 
 .sidebar-input:focus {
-  border-color: var(--accent-color, var(--c-blue));
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+  border-color: var(--sep);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tx-1) 12%, transparent);
 }
 
 /* Sidebar Content */
@@ -387,61 +396,85 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
-  gap: var(--space-6);
+  padding: var(--sp-8) var(--sp-4);
+  gap: var(--sp-4);
 }
 
 .open-vault-btn {
-  padding: 8px 16px;
-  font-size: var(--font-md);
-  background-color: var(--c-blue);
+  padding: var(--sp-2) var(--sp-4);
+  min-height: 34px;
+  font-size: var(--fs-13);
+  background-color: var(--btn-primary-bg);
   border: none;
-  border-radius: var(--radius-sm);
-  color: #ffffff;
+  border-radius: var(--r-8);
+  color: var(--btn-primary-fg);
   cursor: pointer;
   font-weight: 500;
+  transition: filter var(--dur-150) var(--ease-out);
 }
 
 .open-vault-btn:hover {
-  background-color: var(--color-link-hover);
+  filter: brightness(1.1);
 }
 
 .sidebar-empty-text {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-3);
 }
 
-/* Sidebar Footer (Vault & Settings) */
+/* Sidebar Footer (Vault & Settings)
+   2026-05-23 (HanBin) — iOS-style redesign. Previous version used a
+   contrasting `var(--bg-app)` fill that created an obvious gray strip
+   against the sidebar's `--bg-base`, which the user flagged as visually
+   jarring ("회색 배경에 이부분만 튀니까 상당히 거슬림"). New approach:
+     • Same surface as sidebar (transparent → inherits bg-base)
+     • Hairline top separator only (no fill differentiation)
+     • Compact 28px controls with ghost-button vocabulary so the row
+       reads as toolbar furniture, not a distinct dock.
+     • Vault button: subdued tx-2 text, single-line ellipsis, hover
+       reveals a bg-hover tint matching the rest of the sidebar.
+     • Settings: square ghost icon button on the right edge. */
 .sidebar-footer {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 8px 8px;
+  gap: 2px;
+  padding: 6px 6px;
   border-top: 0.5px solid var(--sep-l);
   flex-shrink: 0;
-  background-color: var(--bg-app);
+  background: transparent;
 }
 
 .sidebar-footer-btn {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: 6px 10px;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
   border: none;
   background: transparent;
   color: var(--tx-2);
   cursor: pointer;
-  border-radius: var(--radius-md);
-  font-size: var(--font-base);
+  border-radius: var(--r-6);
+  font-size: var(--fs-12);
+  font-family: var(--app-font, inherit);
+  font-weight: 500;
+  transition: background var(--dur-150) var(--ease-out), color var(--dur-150) var(--ease-out);
 }
 
 .sidebar-footer-btn:hover {
   background-color: var(--bg-hover);
+  color: var(--tx-1);
 }
 
 .sidebar-footer-btn.vault-btn {
   flex: 1;
   min-width: 0;
+  color: var(--tx-1);
+}
+
+.sidebar-footer-btn.vault-btn svg {
+  color: var(--tx-3);
+  flex-shrink: 0;
 }
 
 .sidebar-footer-btn-text {
@@ -450,8 +483,115 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: 0.005em;
 }
 
 .sidebar-footer-btn.settings-btn {
-  padding: 6px 8px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  justify-content: center;
+  color: var(--tx-3);
+}
+
+.sidebar-footer-btn.settings-btn:hover {
+  color: var(--tx-1);
+}
+
+/* ============================================================
+   New Container / New Folder modal (2026-05-22, HanBin).
+   Was rendered without any CSS at all — JSX uses `.new-container-modal`
+   classes that no stylesheet defined, so the dialog showed as raw
+   browser-default inputs/buttons stacked vertically (see HanBin's
+   screenshots). Now styled to the iOS-style pattern:
+     - Modal box on the global `.modal-overlay` backdrop
+     - Hairline border, popover-radius, modal shadow
+     - Pill-ish input with neutral focus (no blue ring)
+     - Ghost cancel + neutral primary create
+   ============================================================ */
+/* Chrome from .modal-shell. Bespoke rule keeps only sizing. */
+.new-container-modal {
+  width: min(360px, 92vw);
+}
+
+.new-container-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 10px;
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--tx-1);
+  border-bottom: 0.5px solid var(--sep-l);
+}
+
+.new-container-modal-input {
+  margin: 12px 14px;
+  padding: 0 12px;
+  height: 32px;
+  font-size: var(--fs-13);
+  font-family: inherit;
+  color: var(--tx-1);
+  background: var(--bg-input, var(--bg-base));
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+  outline: none;
+  transition: border-color var(--dur-150) ease, box-shadow var(--dur-150) ease;
+}
+.new-container-modal-input:focus,
+.new-container-modal-input:focus-visible {
+  outline: none;
+  border-color: var(--sep);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tx-1) 12%, transparent);
+}
+.new-container-modal-input::placeholder {
+  color: var(--tx-3);
+}
+
+.new-container-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 10px;
+}
+
+.new-container-modal-btn {
+  height: 30px;
+  padding: 0 14px;
+  font-size: var(--fs-12);
+  font-family: inherit;
+  font-weight: 500;
+  border-radius: var(--r-6);
+  cursor: pointer;
+  transition: background var(--dur-150) ease, color var(--dur-150) ease;
+}
+
+.new-container-modal-btn.cancel {
+  background: transparent;
+  border: none;
+  color: var(--tx-2);
+}
+.new-container-modal-btn.cancel:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+.new-container-modal-btn.create {
+  background: var(--btn-primary-bg);
+  border: none;
+  color: var(--btn-primary-fg);
+}
+.new-container-modal-btn.create:hover {
+  background: var(--btn-primary-bg-hover);
+}
+.new-container-modal-btn.create:disabled {
+  background: var(--bg-hover);
+  color: var(--tx-3);
+  cursor: not-allowed;
+}
+
+@keyframes modalEnter {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }

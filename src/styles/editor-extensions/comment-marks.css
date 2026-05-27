@@ -20,7 +20,7 @@
 
 /* Comment highlight in editor */
 .comment-highlight {
-  background: rgba(187, 154, 247, 0.2);
-  border-bottom: 2px solid #bb9af7;
+  background: color-mix(in srgb, var(--c-purple) 20%, transparent);
+  border-bottom: 2px solid var(--c-purple);
   cursor: pointer;
 }

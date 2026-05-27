@@ -37,7 +37,7 @@ export function useNoteComments({
     const result = await saveComments(filePath, updated, commentsMtimeRef.current);
     commentsMtimeRef.current = result.mtime;
     if (result.comments !== updated) setComments(result.comments);
-    refreshActions.incrementSearchRefresh();
+    refreshActions.batchRefresh({ search: true, calendar: true });
     onRefreshCalendar?.();
     notifyMemoChanged(filePath).catch(() => {});
   }, [comments, filePath, onRefreshCalendar]);
@@ -48,7 +48,7 @@ export function useNoteComments({
     const result = await saveComments(filePath, updated, commentsMtimeRef.current);
     commentsMtimeRef.current = result.mtime;
     if (result.comments !== updated) setComments(result.comments);
-    refreshActions.incrementSearchRefresh();
+    refreshActions.batchRefresh({ search: true, calendar: true });
     onRefreshCalendar?.();
     notifyMemoChanged(filePath).catch(() => {});
   }, [comments, filePath, onRefreshCalendar]);
@@ -59,7 +59,7 @@ export function useNoteComments({
     const result = await saveComments(filePath, updated, commentsMtimeRef.current);
     commentsMtimeRef.current = result.mtime;
     if (result.comments !== updated) setComments(result.comments);
-    refreshActions.incrementSearchRefresh();
+    refreshActions.batchRefresh({ search: true, calendar: true });
     onRefreshCalendar?.();
     notifyMemoChanged(filePath).catch(() => {});
   }, [comments, filePath, onRefreshCalendar]);
@@ -70,7 +70,7 @@ export function useNoteComments({
     const result = await saveComments(filePath, updated, commentsMtimeRef.current);
     commentsMtimeRef.current = result.mtime;
     if (result.comments !== updated) setComments(result.comments);
-    refreshActions.incrementSearchRefresh();
+    refreshActions.batchRefresh({ search: true, calendar: true });
     onRefreshCalendar?.();
     notifyMemoChanged(filePath).catch(() => {});
   }, [comments, filePath, onRefreshCalendar]);

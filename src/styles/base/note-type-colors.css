@@ -85,6 +85,13 @@
   --sketch-bg-hover: rgba(244, 114, 182, 0.12);
   --sketch-border: rgba(244, 114, 182, 0.6);
   --sketch-header: rgba(244, 114, 182, 0.15);
+
+  /* ENTITY - 개체 (사람/기관 통합, Teal — 새 3-template) */
+  --entity-color: #14b8a6;
+  --entity-bg: rgba(20, 184, 166, 0.06);
+  --entity-bg-hover: rgba(20, 184, 166, 0.12);
+  --entity-border: rgba(20, 184, 166, 0.6);
+  --entity-header: rgba(20, 184, 166, 0.15);
 }
 
 /* ============================================================ */
@@ -174,6 +181,13 @@ html[data-theme="light"] {
   --sketch-bg-hover: rgba(219, 39, 119, 0.15);
   --sketch-border: rgba(219, 39, 119, 0.5);
   --sketch-header: rgba(219, 39, 119, 0.12);
+
+  /* ENTITY - 개체 (Teal - darker for light mode) */
+  --entity-color: #0d9488;
+  --entity-bg: rgba(13, 148, 136, 0.08);
+  --entity-bg-hover: rgba(13, 148, 136, 0.15);
+  --entity-border: rgba(13, 148, 136, 0.5);
+  --entity-header: rgba(13, 148, 136, 0.12);
 }
 
 @media (prefers-color-scheme: light) {

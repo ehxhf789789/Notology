@@ -181,7 +181,7 @@ function BulkTagModal({ paths, language, onClose, onComplete }: BulkTagModalProp
 
   return createPortal(
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bulk-tag-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-shell bulk-tag-modal" onClick={(e) => e.stopPropagation()}>
         <div className="bulk-tag-modal-header">
           <h3>{t('bulkTagTitle', language)}</h3>
           <span className="bulk-tag-modal-count">

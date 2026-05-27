@@ -1,15 +1,86 @@
 /**
  * ConnectedDevicesPanel — Settings tab showing all registered devices.
- * Registered via SettingsRegistry in connection/index.ts.
+ * Registered via SettingsRegistry in connection/index.ts as "보관소 상태"
+ * (renamed from "연결된 기기" per HanBin 5.0.6d).
+ *
+ * 5.0.6j (2026-05-17, HanBin) — rewrite for Settings UX consistency:
+ *   • i18n — Korean-only strings replaced with t() + tf() (en added)
+ *   • emoji device icons (📱/💻) → lucide Smartphone/Laptop
+ *   • native confirm() → modalActions.showConfirmDelete (matches the
+ *     template-delete confirmation pattern)
+ *   • inline-styled remove button → design-system <Button variant="danger" size="sm">
+ *   • inline-style device cards → .vault-status-* CSS classes
+ *   • status indicator uses theme tokens (--c-success/--c-warning/--c-danger)
+ *     so dark/light modes both work without literal hex
  */
 import { useState, useEffect, useCallback } from 'react';
+import { Smartphone, Laptop, AlertCircle, Info } from 'lucide-react';
 import * as conn from '../connectionCommands';
 import type { DeviceInfo } from '../types';
+import { t, tf, type LanguageSetting } from '../../../core/utils/i18n';
+import { useLanguage } from '../../../core/stores/settingsStore';
+import { modalActions } from '../../modals/stores/modalStore';
+import { Button } from '../../../design-system/components';
 
 const HEARTBEAT_INTERVAL_SEC = 10;
 const STALE_THRESHOLD_SEC = HEARTBEAT_INTERVAL_SEC * 3; // 30s
 
+/** Status info now resolves through i18n + theme tokens, not literal Korean
+ *  strings + hex. Color names are CSS var keys that themes.css defines for
+ *  both modes. */
+type StatusTone = 'success' | 'warning' | 'danger' | 'neutral';
+
+function computeStatus(device: DeviceInfo, lang: LanguageSetting): { label: string; tone: StatusTone } {
+  const isOffline = String(device.status || '').toLowerCase() === 'offline';
+  if (isOffline) {
+    return {
+      label: device.logoutAt
+        ? tf('vaultStatusOfflineSinceLogout', lang, { when: formatRelative(device.logoutAt, lang) })
+        : t('vaultStatusOffline', lang),
+      tone: 'neutral',
+    };
+  }
+
+  const sinceMs = Date.now() - new Date(device.lastSeenAt).getTime();
+  const sinceSec = sinceMs / 1000;
+
+  if (sinceSec < STALE_THRESHOLD_SEC) {
+    return { label: t('vaultStatusActive', lang), tone: 'success' };
+  }
+  if (sinceSec < 300) {
+    return {
+      label: tf('vaultStatusMinutesAgo', lang, { count: String(Math.ceil(sinceSec / 60)) }),
+      tone: 'warning',
+    };
+  }
+  if (sinceSec < 86400) {
+    return {
+      label: tf('vaultStatusHoursAgo', lang, { count: String(Math.ceil(sinceSec / 3600)) }),
+      tone: 'danger',
+    };
+  }
+  return {
+    label: tf('vaultStatusLastSeen', lang, { when: formatRelative(device.lastSeenAt, lang) }),
+    tone: 'neutral',
+  };
+}
+
+function formatRelative(iso: string, lang: LanguageSetting): string {
+  try {
+    const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (sec < 60) return t('vaultStatusJustNow', lang);
+    const min = Math.floor(sec / 60);
+    if (min < 60) return tf('vaultStatusMinAgo', lang, { min: String(min) });
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return tf('vaultStatusHrAgo', lang, { hr: String(hr) });
+    return tf('vaultStatusDayAgo', lang, { day: String(Math.floor(hr / 24)) });
+  } catch {
+    return '';
+  }
+}
+
 export function ConnectedDevicesPanel() {
+  const language = useLanguage();
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [selfDeviceId, setSelfDeviceId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,176 +107,142 @@ export function ConnectedDevicesPanel() {
     return () => clearInterval(interval);
   }, [load]);
 
-  const handleDelete = useCallback(async (deviceId: string) => {
+  const handleDelete = useCallback((deviceId: string, hostname: string) => {
     const isSelf = deviceId === selfDeviceId;
-    const msg = isSelf
-      ? '이 기기를 NAS에서 제거합니다. 다음 실행 시 새 ID로 재등록됩니다.'
-      : '이 기기를 NAS에서 제거합니다.';
-    if (!confirm(msg)) return;
+    const warning = isSelf
+      ? t('vaultStatusRemoveConfirmSelf', language)
+      : t('vaultStatusRemoveConfirmOther', language);
 
-    try {
-      await conn.deleteConnectedDevice(deviceId);
-      if (isSelf) {
-        await conn.logout(true);
-        // Force reload to show login screen
-        window.location.reload();
-      } else {
-        load();
-      }
-    } catch (e: any) {
-      setError(e?.toString() || 'Failed to delete device');
-    }
-  }, [selfDeviceId, load]);
+    modalActions.showConfirmDelete(
+      hostname,
+      'file',
+      async () => {
+        try {
+          await conn.deleteConnectedDevice(deviceId);
+          if (isSelf) {
+            await conn.logout(true);
+            window.location.reload();
+          } else {
+            load();
+          }
+        } catch (e: any) {
+          setError(e?.toString() || 'Failed to delete device');
+        }
+      },
+      undefined,
+      { warningOverride: warning },
+    );
+  }, [selfDeviceId, load, language]);
 
   if (!devices.length && !isLoading) {
     return (
-      <div className="settings-section">
-        <h3 className="settings-section-title">연결된 기기</h3>
-        {error && <div className="nas-error">{error}</div>}
-        <div className="settings-row-info">
-          <span className="settings-label">동기화 엔진이 활성화되지 않았습니다.</span>
-        </div>
+      <div className="settings-panel">
+        <section className="settings-section">
+          {error && (
+            <div className="settings-row vault-status-error">
+              <AlertCircle size={14} />
+              <span>{error}</span>
+            </div>
+          )}
+          <div className="vault-status-empty">{t('vaultStatusEmpty', language)}</div>
+        </section>
       </div>
     );
   }
 
   return (
-    <div className="settings-section">
-      <h3 className="settings-section-title">연결된 기기</h3>
-      {error && <div className="nas-error" style={{ marginBottom: 8 }}>{error}</div>}
-      {isLoading && devices.length === 0 && (
-        <div style={{ padding: 16, textAlign: 'center', color: 'var(--tx-3)' }}>로딩 중...</div>
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {devices.map(d => {
-          const isSelf = d.deviceId === selfDeviceId;
-          const statusInfo = computeStatus(d);
-          return (
-            <div
-              key={d.deviceId}
-              className="connected-device-card"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '12px 14px',
-                background: 'var(--bg-1)',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-              }}
-            >
-              <span style={{ fontSize: 22, flexShrink: 0 }}>{d.os === 'android' || d.os === 'ios' ? '📱' : '💻'}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <strong style={{
-                    fontSize: 14,
-                    color: 'var(--tx-1)',
-                    fontWeight: 600,
-                  }}>
-                    {d.hostname}
-                  </strong>
-                  {isSelf && (
-                    <span style={{
-                      fontSize: 10,
-                      padding: '2px 8px',
-                      borderRadius: 999,
-                      background: '#3b82f6',
-                      color: '#ffffff',
-                      fontWeight: 700,
-                      letterSpacing: 0.3,
-                      lineHeight: 1.4,
-                      boxShadow: '0 1px 2px rgba(59, 130, 246, 0.3)',
-                    }}>현재</span>
-                  )}
+    <div className="settings-panel">
+      <section className="settings-section">
+        {error && (
+          <div className="vault-status-error">
+            <AlertCircle size={14} />
+            <span>{error}</span>
+          </div>
+        )}
+        {isLoading && devices.length === 0 && (
+          <div className="vault-status-loading">{t('vaultStatusLoading', language)}</div>
+        )}
+        <div className="vault-status-list">
+          {devices.map(d => {
+            const isSelf = d.deviceId === selfDeviceId;
+            const statusInfo = computeStatus(d, language);
+            const isMobile = d.os === 'android' || d.os === 'ios';
+            const isOffline = String(d.status || '').toLowerCase() === 'offline';
+            const DeviceIcon = isMobile ? Smartphone : Laptop;
+            const kindLabel = isMobile
+              ? t('vaultStatusKindMobile', language)
+              : t('vaultStatusKindDesktop', language);
+            // Pretty heartbeat tooltip — drives the dot's `title` so a hover
+            // surfaces "last heartbeat: 2026-05-17 14:23:01" for diagnostics
+            // without putting the wall clock into the visible meta row.
+            let heartbeatTip = '';
+            try {
+              heartbeatTip = tf('vaultStatusHeartbeatTip', language, {
+                when: new Date(d.lastSeenAt).toLocaleString(),
+              });
+            } catch { /* malformed timestamp — skip the tooltip */ }
+            return (
+              <div
+                key={d.deviceId}
+                className={`vault-status-card${isSelf ? ' is-self' : ''}${isOffline ? ' is-offline' : ''}`}
+                data-kind={isMobile ? 'mobile' : 'desktop'}
+              >
+                <span className="vault-status-card__icon" aria-hidden="true">
+                  <DeviceIcon size={20} strokeWidth={1.75} />
+                </span>
+                <div className="vault-status-card__body">
+                  <div className="vault-status-card__title-row">
+                    <strong className="vault-status-card__name">{d.hostname}</strong>
+                    <span
+                      className="vault-status-card__kind-badge"
+                      data-kind={isMobile ? 'mobile' : 'desktop'}
+                    >
+                      {kindLabel}
+                    </span>
+                    {isOffline && (
+                      <span className="vault-status-card__offline-badge">
+                        {t('vaultStatusOfflinePill', language)}
+                      </span>
+                    )}
+                    {isSelf && (
+                      <span className="vault-status-card__self-badge">
+                        {t('vaultStatusSelfBadge', language)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="vault-status-card__meta">
+                    <span
+                      className="vault-status-card__status"
+                      title={heartbeatTip || undefined}
+                    >
+                      <span
+                        className="vault-status-card__dot"
+                        data-tone={statusInfo.tone}
+                        aria-hidden="true"
+                      />
+                      <span>{statusInfo.label}</span>
+                    </span>
+                    <span className="vault-status-card__platform">{d.os} · v{d.appVersion}</span>
+                  </div>
                 </div>
-                <div style={{
-                  fontSize: 12,
-                  color: 'var(--tx-2)',
-                  display: 'flex',
-                  gap: 12,
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: '50%',
-                      background: statusInfo.color,
-                      display: 'inline-block',
-                      boxShadow: `0 0 4px ${statusInfo.color}`,
-                    }} />
-                    <span style={{ color: 'var(--tx-1)' }}>{statusInfo.label}</span>
-                  </span>
-                  <span style={{ color: 'var(--tx-3)' }}>{d.os} · v{d.appVersion}</span>
-                </div>
+                {!isSelf && (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleDelete(d.deviceId, d.hostname)}
+                  >
+                    {t('vaultStatusRemoveBtn', language)}
+                  </Button>
+                )}
               </div>
-              {/* Self device cannot be removed here — use vault selector's "연결 해제" instead */}
-              {!isSelf && (
-                <button
-                  className="nas-btn-sm danger"
-                  onClick={() => handleDelete(d.deviceId)}
-                  style={{ flexShrink: 0 }}
-                >
-                  제거
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div style={{
-        marginTop: 12,
-        padding: '8px 12px',
-        fontSize: 11,
-        color: 'var(--tx-3)',
-        lineHeight: 1.5,
-      }}>
-        💡 이 기기를 NAS 연결에서 해제하려면 보관소 선택창의 <strong>[연결 해제]</strong> 버튼을 사용하세요.
-        다른 기기는 위 <strong>[제거]</strong> 버튼으로 정리할 수 있습니다.
-      </div>
+            );
+          })}
+        </div>
+        <div className="vault-status-footer">
+          <Info size={12} aria-hidden="true" />
+          <span>{t('vaultStatusFooterHint', language)}</span>
+        </div>
+      </section>
     </div>
   );
-}
-
-function computeStatus(device: DeviceInfo): { label: string; color: string } {
-  // Backend serializes enum as camelCase ("online"/"offline"). Compare case-insensitively.
-  const isOffline = String(device.status || '').toLowerCase() === 'offline';
-  if (isOffline) {
-    return {
-      label: device.logoutAt ? `${formatRelative(device.logoutAt)} 종료` : '오프라인',
-      color: '#888',
-    };
-  }
-
-  const sinceMs = Date.now() - new Date(device.lastSeenAt).getTime();
-  const sinceSec = sinceMs / 1000;
-
-  if (sinceSec < STALE_THRESHOLD_SEC) {
-    return { label: '활동 중', color: '#4caf50' };
-  }
-  if (sinceSec < 300) {
-    return { label: `${Math.ceil(sinceSec / 60)}분 전 활동`, color: '#ff9800' };
-  }
-  if (sinceSec < 86400) {
-    return {
-      label: `${Math.ceil(sinceSec / 3600)}시간 전 (비정상 종료 추정)`,
-      color: '#f44336',
-    };
-  }
-  return { label: `${formatRelative(device.lastSeenAt)} 마지막`, color: '#888' };
-}
-
-function formatRelative(iso: string): string {
-  try {
-    const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-    if (sec < 60) return '방금';
-    const min = Math.floor(sec / 60);
-    if (min < 60) return `${min}분 전`;
-    const hr = Math.floor(min / 60);
-    if (hr < 24) return `${hr}시간 전`;
-    return `${Math.floor(hr / 24)}일 전`;
-  } catch {
-    return '';
-  }
 }

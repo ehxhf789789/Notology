@@ -1,84 +1,12 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::core::types::{AttachmentInfo, AttachmentFileInfo};
+use crate::core::types::AttachmentInfo;
 
-#[tauri::command]
-pub fn read_attachment_folder(att_folder_path: String, query: String) -> Result<Vec<AttachmentFileInfo>, String> {
-    let dir_path = Path::new(&att_folder_path);
-    if !dir_path.exists() || !dir_path.is_dir() {
-        return Ok(Vec::new());
-    }
-
-    let lower_query = query.to_lowercase();
-    let mut results: Vec<AttachmentFileInfo> = Vec::new();
-
-    const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"];
-
-    fn collect_files(
-        dir: &Path,
-        base_path: &Path,
-        query: &str,
-        image_exts: &[&str],
-        results: &mut Vec<AttachmentFileInfo>,
-    ) -> Result<(), String> {
-        let entries = fs::read_dir(dir).map_err(|e| e.to_string())?;
-
-        for entry in entries {
-            let entry = entry.map_err(|e| e.to_string())?;
-            let entry_path = entry.path();
-            let file_name = entry.file_name().to_string_lossy().to_string();
-
-            if file_name.starts_with('.') {
-                continue;
-            }
-
-            // Skip system files (not user attachments)
-            const SYSTEM_FILES: &[&str] = &["comments.json"];
-            if SYSTEM_FILES.contains(&file_name.as_str()) {
-                continue;
-            }
-
-            if entry_path.is_dir() {
-                collect_files(&entry_path, base_path, query, image_exts, results)?;
-            } else if entry_path.is_file() {
-                let relative_path = entry_path
-                    .strip_prefix(base_path)
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|_| file_name.clone());
-
-                if query.is_empty() || relative_path.to_lowercase().contains(query) {
-                    let mtime = entry.metadata()
-                        .ok()
-                        .and_then(|m| m.modified().ok())
-                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                        .map(|d| d.as_secs())
-                        .unwrap_or(0);
-
-                    let ext = entry_path.extension()
-                        .map(|e| e.to_string_lossy().to_lowercase())
-                        .unwrap_or_default();
-                    let is_image = image_exts.contains(&ext.as_str());
-
-                    results.push(AttachmentFileInfo {
-                        file_name: relative_path.clone(),
-                        path: relative_path,
-                        is_image,
-                        mtime,
-                    });
-                }
-            }
-        }
-        Ok(())
-    }
-
-    collect_files(dir_path, dir_path, &lower_query, IMAGE_EXTENSIONS, &mut results)?;
-
-    results.sort_by(|a, b| b.mtime.cmp(&a.mtime));
-    results.truncate(15);
-
-    Ok(results)
-}
+// HanBin 2026-05-14: `read_attachment_folder` + `AttachmentFileInfo` removed
+// here. The `//` attachment-recall command in the editor used to enumerate
+// per-note `_att/` folders via that command; it now reads from the in-memory
+// AttachmentRef index (`useAttachmentStore.listForNote`). No remaining caller.
 
 #[tauri::command]
 pub fn search_att(vault_path: String, query: String) -> Result<Vec<AttachmentInfo>, String> {
@@ -168,6 +96,12 @@ fn search_att_recursive(
     Ok(())
 }
 
+/// Deprecated 2026-05-20 — desktop migrated to the AttachmentRef store
+/// (`useAttachmentStore`) in `features/sync_v2/stores/attachmentStore.ts`,
+/// which the AttachmentsTab v2 component reads directly. Mobile
+/// (`src/features/mobile/views/SearchView.tsx`) still calls this
+/// filesystem-walk path; it'll be migrated separately, and this command
+/// can be removed at that point. Don't add new call sites.
 #[tauri::command]
 pub async fn search_attachments(
     vault_path: String,
@@ -313,11 +247,12 @@ pub async fn search_attachments(
         let (is_linked, linked_note_path) = if is_linked_in_md {
             (true, actual_note_path.clone())
         } else {
-            let mut found_in_canvas: Option<PathBuf> = None;
+            let mut found_in_sketch: Option<PathBuf> = None;
 
-            let check_canvas_nodes = |content: &str, is_md_file: bool| -> bool {
+            let check_sketch_nodes = |content: &str, is_md_file: bool| -> bool {
                 let json_str = if is_md_file {
-                    if !content.contains("canvas: true") && !content.contains("canvas:true") {
+                    if !content.contains("canvas: true") && !content.contains("canvas:true")
+                        && !content.contains("sketch: true") && !content.contains("sketch:true") {
                         return false;
                     }
                     if let Some(start) = content.find("---") {
@@ -334,8 +269,8 @@ pub async fn search_attachments(
                     content
                 };
 
-                if let Ok(canvas_json) = serde_json::from_str::<serde_json::Value>(json_str) {
-                    if let Some(nodes) = canvas_json.get("nodes").and_then(|n| n.as_array()) {
+                if let Ok(sketch_json) = serde_json::from_str::<serde_json::Value>(json_str) {
+                    if let Some(nodes) = sketch_json.get("nodes").and_then(|n| n.as_array()) {
                         for node in nodes {
                             if node.get("type").and_then(|t| t.as_str()) == Some("file") {
                                 if let Some(node_file_path) = node.get("file").and_then(|f| f.as_str()) {
@@ -362,7 +297,7 @@ pub async fn search_attachments(
                 false
             };
 
-            for canvas_entry in WalkDir::new(&vault)
+            for sketch_entry in WalkDir::new(&vault)
                 .into_iter()
                 .filter_map(|e| e.ok())
                 .filter(|e| {
@@ -373,23 +308,23 @@ pub async fn search_attachments(
                     ext.eq_ignore_ascii_case("canvas") || ext.eq_ignore_ascii_case("md")
                 })
             {
-                if let Ok(file_content) = std::fs::read_to_string(canvas_entry.path()) {
-                    let ext = canvas_entry.path().extension().and_then(|x| x.to_str()).unwrap_or("");
+                if let Ok(file_content) = std::fs::read_to_string(sketch_entry.path()) {
+                    let ext = sketch_entry.path().extension().and_then(|x| x.to_str()).unwrap_or("");
                     let is_md = ext.eq_ignore_ascii_case("md");
 
-                    if is_md && !file_content.contains("canvas:") {
+                    if is_md && !file_content.contains("canvas:") && !file_content.contains("sketch:") {
                         continue;
                     }
 
-                    if check_canvas_nodes(&file_content, is_md) {
-                        found_in_canvas = Some(canvas_entry.path().to_path_buf());
+                    if check_sketch_nodes(&file_content, is_md) {
+                        found_in_sketch = Some(sketch_entry.path().to_path_buf());
                         break;
                     }
                 }
             }
 
-            if let Some(canvas_path) = found_in_canvas {
-                (true, canvas_path)
+            if let Some(sketch_path) = found_in_sketch {
+                (true, sketch_path)
             } else {
                 (false, actual_note_path.clone())
             }
@@ -646,7 +581,11 @@ pub async fn delete_attachments_with_links(paths: Vec<String>) -> Result<(usize,
                     println!("[DEBUG delete_attachments_with_links] Content len: {} -> {}", content.len(), cleaned_content.len());
 
                     if cleaned_content != content {
-                        match fs::write(&note_path, &cleaned_content) {
+                        // P1 #5 (HanBin 2026-05-24) — use atomic_write_file
+                        // for NAS resilience. Vanilla fs::write fails
+                        // on Synology Drive file locks; atomic_write_file
+                        // retries 5x with 50ms backoff.
+                        match crate::core::file_io::atomic_write_file(&note_path, cleaned_content.as_bytes()) {
                             Ok(_) => {
                                 println!("[DEBUG delete_attachments_with_links] Successfully wrote updated note");
                                 links_removed_count += total_matches;

@@ -336,6 +336,53 @@ pub fn reconcile(store: &AttachmentStore) -> Result<ReconcileReport, String> {
                 .or_default()
                 .insert(target.to_lowercase());
         }
+
+        // Round 2 R6 (HanBin 2026-05-22): also count sketch/canvas node file
+        // refs as chips. Without this, an attachment referenced only by a
+        // sketch (canvas) node looks orphan to the sweep and gets deleted,
+        // leaving a broken node on the canvas.
+        let sketch_refs = crate::features::sync_v2::sketch_scan::scan_sketch_refs(content);
+        if !sketch_refs.is_empty() {
+            // 2026-05-23 (HanBin) — diagnostic. User report: a sketch note
+            // referencing HWP/XLSX/PDF chips shows "첨부파일 없음" when
+            // filtered by that note's path in the Attachments tab. We log
+            // each sketch's extracted refs + the match outcome so we can
+            // see exactly where the chain breaks (extraction vs matching).
+            let mut matched: Vec<String> = Vec::new();
+            let mut unmatched: Vec<String> = Vec::new();
+            for sketch_ref in &sketch_refs {
+                let key = sketch_ref.to_lowercase();
+                let looks_att = looks_like_attachment(sketch_ref)
+                    || refs_by_name.contains_key(&key);
+                if !looks_att {
+                    unmatched.push(sketch_ref.clone());
+                    continue;
+                }
+                if refs_by_name.contains_key(&key) {
+                    matched.push(sketch_ref.clone());
+                } else {
+                    // Looks like an attachment by extension but no ref
+                    // exists with this original_name — a "broken" sketch
+                    // node. Still recorded so the chip-presence check
+                    // works on the (note,name) tuple (it'll fall under
+                    // dummy_chips in the report).
+                    unmatched.push(sketch_ref.clone());
+                }
+                chips_by_note
+                    .entry(nid.clone())
+                    .or_default()
+                    .insert(key);
+            }
+            log::info!(
+                "[attachment_reconcile] sketch {:?} (nid={}): extracted={} matched_to_ref={} unmatched={} (unmatched sample: {:?})",
+                path.file_name().and_then(|s| s.to_str()).unwrap_or(""),
+                nid,
+                sketch_refs.len(),
+                matched.len(),
+                unmatched.len(),
+                unmatched.iter().take(5).collect::<Vec<_>>()
+            );
+        }
     }
 
     // 3. dummy_chips: chip in note but no ref by that name.
@@ -480,12 +527,47 @@ pub fn reconcile_apply(
         }
     }
 
-    // 3. Fix missing_ref_links: append note_id to ref's linked_notes.
+    // 3. Fix missing_ref_links — B-model (HanBin 2026-05-24).
+    //
+    // Previous behavior: `store.link_to_note(att_id, note_id)` → appended
+    // the note_id to the existing ref's `linked_notes`. This created the
+    // "shared ref" anti-pattern: a single AttachmentRef owned by multiple
+    // notes, leading to cross-note coupling (deleting note A could affect
+    // note B's chip resolution, multi-device sync race conditions on the
+    // shared linked_notes JSON, etc.).
+    //
+    // New behavior: `store.clone_ref_for_note(att_id, note_id)` → creates
+    // a fresh AttachmentRef with a new attachment_id, reusing the source
+    // ref's CAS blob via hardlink. The new ref has `linked_notes=[note_id]`
+    // (length 1, B-model invariant). Disk usage stays identical (blob is
+    // sha256-deduplicated), but each note owns its own ref + display copy.
+    //
+    // Idempotency: if the note_id ALREADY has a ref for the same sha
+    // (i.e. user already explicitly imported the file in this note),
+    // skip the clone — that ref will surface via the existing reconcile
+    // pass on the next run. We detect this by checking `list_for_note`.
     for m in &report.missing_ref_links {
-        match store.link_to_note(&m.attachment_id, &m.note_id) {
-            Ok(()) => outcome.missing_links_added += 1,
+        // Skip if this note already has a ref pointing at the same blob.
+        let src_sha = store
+            .get_by_id(&m.attachment_id)
+            .map(|r| r.sha256.clone());
+        let already_has_blob = match &src_sha {
+            Some(sha) => store
+                .list_for_note(&m.note_id)
+                .iter()
+                .any(|r| r.sha256 == *sha),
+            None => false,
+        };
+        if already_has_blob {
+            // Treat as a no-op success — the user's intent is already
+            // satisfied by an existing per-note ref.
+            outcome.missing_links_added += 1;
+            continue;
+        }
+        match store.clone_ref_for_note(&m.attachment_id, &m.note_id) {
+            Ok(_new_ref) => outcome.missing_links_added += 1,
             Err(e) => outcome.errors.push(format!(
-                "link {} to {}: {}",
+                "clone_ref {} for note {}: {}",
                 m.attachment_id, m.note_id, e
             )),
         }
@@ -522,8 +604,27 @@ pub fn reconcile_apply_auto(
     let mut stale_unlinked = 0usize;
     let mut orphaned_refs = 0usize;
 
+    // B-model (HanBin 2026-05-24): clone refs per-note instead of
+    // appending notes to a shared ref. Same rationale + idempotency rule
+    // as `reconcile_apply` (see comments there). Auto-path silently
+    // skips on errors — the manual flow surfaces them in `outcome.errors`.
     for m in &report.missing_ref_links {
-        if store.link_to_note(&m.attachment_id, &m.note_id).is_ok() {
+        let src_sha = store.get_by_id(&m.attachment_id).map(|r| r.sha256.clone());
+        let already_has_blob = match &src_sha {
+            Some(sha) => store
+                .list_for_note(&m.note_id)
+                .iter()
+                .any(|r| r.sha256 == *sha),
+            None => false,
+        };
+        if already_has_blob {
+            missing_added += 1;
+            continue;
+        }
+        if store
+            .clone_ref_for_note(&m.attachment_id, &m.note_id)
+            .is_ok()
+        {
             missing_added += 1;
         }
     }
@@ -559,13 +660,31 @@ pub fn reconcile_apply_auto(
 /// Back-compat alias for the previous narrower auto-apply that only
 /// touched missing_ref_links. Kept so existing tests still build; new
 /// callers should prefer `reconcile_apply_auto`.
+///
+/// B-model (HanBin 2026-05-24): also switched to `clone_ref_for_note`.
+/// Same logic as the `reconcile_apply` and `reconcile_apply_auto` paths.
 pub fn reconcile_apply_safe(
     store: &mut AttachmentStore,
     report: &ReconcileReport,
 ) -> Result<usize, String> {
     let mut added = 0usize;
     for m in &report.missing_ref_links {
-        if store.link_to_note(&m.attachment_id, &m.note_id).is_ok() {
+        let src_sha = store.get_by_id(&m.attachment_id).map(|r| r.sha256.clone());
+        let already_has_blob = match &src_sha {
+            Some(sha) => store
+                .list_for_note(&m.note_id)
+                .iter()
+                .any(|r| r.sha256 == *sha),
+            None => false,
+        };
+        if already_has_blob {
+            added += 1;
+            continue;
+        }
+        if store
+            .clone_ref_for_note(&m.attachment_id, &m.note_id)
+            .is_ok()
+        {
             added += 1;
         }
     }
@@ -701,8 +820,14 @@ mod tests {
         assert!(store.get_by_id(&out.attachment_ref.attachment_id).is_none());
     }
 
+    /// 2026-05-24 (HanBin) — B-model: a chip in note B referencing an
+    /// attachment owned by note A must trigger CLONING (new per-note ref
+    /// for note B reusing the same CAS blob), NOT appending B to A's
+    /// linked_notes. The original ref stays unchanged with linked_notes
+    /// = [noteA]; a new ref appears with linked_notes = [noteB] and the
+    /// same sha256.
     #[test]
-    fn reconcile_apply_adds_missing_link() {
+    fn reconcile_apply_clones_ref_for_missing_link_b_model() {
         let (tmp, mut store) = mk_vault();
         let src = tmp.path().join("source.pdf");
         std::fs::write(&src, b"data").unwrap();
@@ -713,9 +838,132 @@ mod tests {
         write_note_with_id(tmp.path(), "noteB.md", "20260513000002", "[[doc.pdf]]");
         let report = reconcile(&store).unwrap();
         let outcome = reconcile_apply(&mut store, &report).unwrap();
-        assert_eq!(outcome.missing_links_added, 1);
-        let r = store.get_by_id(&out.attachment_ref.attachment_id).unwrap();
-        assert!(r.linked_notes.contains(&"20260513000002".to_string()));
+        assert_eq!(outcome.missing_links_added, 1, "expected 1 missing→clone");
+        // ── B-model invariants ──
+        // 1. Original ref unchanged: still only owned by noteA.
+        let original = store.get_by_id(&out.attachment_ref.attachment_id).unwrap();
+        assert_eq!(original.linked_notes, vec!["20260513000001".to_string()]);
+        // 2. Exactly 2 refs total now (original + clone), both with the
+        //    same sha256 (blob shared).
+        let refs_for_sha: Vec<_> = store
+            .all_refs()
+            .filter(|r| r.sha256 == original.sha256)
+            .collect();
+        assert_eq!(refs_for_sha.len(), 2, "expected 1 source + 1 clone");
+        // 3. noteB's clone has length-1 linked_notes pointing at noteB,
+        //    and a different attachment_id from the source.
+        let clone = refs_for_sha
+            .iter()
+            .find(|r| r.attachment_id != out.attachment_ref.attachment_id)
+            .expect("clone ref not found");
+        assert_eq!(clone.linked_notes, vec!["20260513000002".to_string()]);
+        assert_ne!(clone.attachment_id, original.attachment_id);
+        // 4. CAS dedup intact: same blob path on disk.
+        assert_eq!(clone.sha256, original.sha256);
+    }
+
+    /// 2026-05-24 (HanBin) — B-model: same-name + same-content drag-in
+    /// scenario. User drags video.mp4 to noteA, then drags ANOTHER copy
+    /// of video.mp4 (sha-identical) to noteB. Each `add_attachment` call
+    /// produces a NEW ref (per-call invariant), CAS dedups the blob,
+    /// each note ends up owning its own per-note ref. No cross-linking.
+    #[test]
+    fn b_model_drag_in_same_name_two_notes_each_get_own_ref() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("video.mp4");
+        std::fs::write(&src, b"video bytes").unwrap();
+
+        let a = store
+            .add_attachment(&src, "video.mp4", "20260524000001")
+            .unwrap();
+        let b = store
+            .add_attachment(&src, "video.mp4", "20260524000002")
+            .unwrap();
+
+        // Two distinct refs.
+        assert_ne!(a.attachment_ref.attachment_id, b.attachment_ref.attachment_id);
+        // Each owns exactly one note.
+        assert_eq!(a.attachment_ref.linked_notes, vec!["20260524000001".to_string()]);
+        assert_eq!(b.attachment_ref.linked_notes, vec!["20260524000002".to_string()]);
+        // Blob shared via sha256 (CAS dedup).
+        assert_eq!(a.attachment_ref.sha256, b.attachment_ref.sha256);
+        assert!(b.was_deduped, "second import should hit blob dedup");
+        // Display paths must differ — second got collision suffix.
+        assert_ne!(a.attachment_ref.display_path, b.attachment_ref.display_path);
+        // Both blobs accessible on disk (display hardlinks both alive).
+        let a_disp = tmp.path().join(&a.attachment_ref.display_path);
+        let b_disp = tmp.path().join(&b.attachment_ref.display_path);
+        assert!(a_disp.is_file());
+        assert!(b_disp.is_file());
+    }
+
+    /// 2026-05-24 (HanBin) — B-model: full delete cascade test. After
+    /// the drag-in-twice scenario above, deleting noteA's ref must NOT
+    /// affect noteB's ref. The shared CAS blob stays alive (noteB still
+    /// references it). After deleting BOTH refs, the blob is swept.
+    #[test]
+    fn b_model_delete_one_ref_does_not_affect_sibling_with_shared_blob() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("video.mp4");
+        std::fs::write(&src, b"video bytes").unwrap();
+        let a = store
+            .add_attachment(&src, "video.mp4", "noteA")
+            .unwrap();
+        let b = store
+            .add_attachment(&src, "video.mp4", "noteB")
+            .unwrap();
+        let sha = a.attachment_ref.sha256.clone();
+        let blob = store.cas_path(&sha);
+        assert!(blob.is_file(), "blob present after two imports");
+
+        // Delete noteA's ref.
+        store.delete_attachment(&a.attachment_ref.attachment_id).unwrap();
+
+        // noteB's ref untouched.
+        let b_after = store.get_by_id(&b.attachment_ref.attachment_id).unwrap();
+        assert_eq!(b_after.linked_notes, vec!["noteB".to_string()]);
+        // Blob still alive (noteB still references via same sha).
+        assert!(blob.is_file(), "blob must survive while sibling ref exists");
+
+        // Delete noteB's ref too.
+        store.delete_attachment(&b.attachment_ref.attachment_id).unwrap();
+        assert!(!blob.is_file(), "blob swept after last ref deleted");
+    }
+
+    /// 2026-05-24 (HanBin) — B-model invariant: every AttachmentRef must
+    /// own exactly one note (length-1 linked_notes). Re-running reconcile
+    /// after the clone must NOT keep cloning (idempotency).
+    #[test]
+    fn reconcile_b_model_invariant_one_note_per_ref() {
+        let (tmp, mut store) = mk_vault();
+        let src = tmp.path().join("source.pdf");
+        std::fs::write(&src, b"data").unwrap();
+        store
+            .add_attachment(&src, "doc.pdf", "20260513000001")
+            .unwrap();
+        write_note_with_id(tmp.path(), "noteA.md", "20260513000001", "[[doc.pdf]]");
+        write_note_with_id(tmp.path(), "noteB.md", "20260513000002", "[[doc.pdf]]");
+        write_note_with_id(tmp.path(), "noteC.md", "20260513000003", "[[doc.pdf]]");
+
+        // Pass 1: should clone twice (B and C each get their own ref).
+        let r1 = reconcile(&store).unwrap();
+        let o1 = reconcile_apply(&mut store, &r1).unwrap();
+        assert_eq!(o1.missing_links_added, 2, "pass 1: B and C each cloned");
+
+        // Pass 2: idempotent — nothing to do.
+        let r2 = reconcile(&store).unwrap();
+        let o2 = reconcile_apply(&mut store, &r2).unwrap();
+        assert_eq!(o2.missing_links_added, 0, "pass 2 should be no-op");
+
+        // Final state: 3 refs, each owned by exactly one note.
+        let all_refs: Vec<_> = store.all_refs().collect();
+        assert_eq!(all_refs.len(), 3);
+        for r in &all_refs {
+            assert_eq!(r.linked_notes.len(), 1, "ref {} has {} notes (must be 1)", r.attachment_id, r.linked_notes.len());
+        }
+        // All share the same blob (CAS dedup).
+        let sha = &all_refs[0].sha256;
+        assert!(all_refs.iter().all(|r| r.sha256 == *sha));
     }
 
     /// Regression: ref claims a real frontmatter id and the note body has

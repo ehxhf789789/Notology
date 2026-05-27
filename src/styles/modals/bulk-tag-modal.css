@@ -2,16 +2,11 @@
    Bulk Tag Modal
    ============================================ */
 
+/* Chrome (bg/border/radius/shadow/flex column/overflow/animation) comes
+   from .modal-shell. Bespoke rule keeps only width/height bounds. */
 .bulk-tag-modal {
-  background-color: var(--bg-app);
-  border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--sh-lg);
   width: 400px;
   max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
 }
 
 .bulk-tag-modal-header {
@@ -21,13 +16,13 @@
 
 .bulk-tag-modal-header h3 {
   margin: 0 0 4px;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   font-weight: 600;
   color: var(--tx-1);
 }
 
 .bulk-tag-modal-count {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-2);
 }
 
@@ -40,13 +35,13 @@
 .bulk-tag-ns-tab {
   flex: 1;
   padding: 8px 4px;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-2);
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
   cursor: pointer;
-  transition: color var(--duration-fast), border-color var(--duration-fast);
+  transition: color var(--dur-150), border-color var(--dur-150);
   text-align: center;
 }
 
@@ -66,13 +61,13 @@
 .bulk-tag-input {
   width: 100%;
   padding: 8px 12px;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   color: var(--tx-1);
   background-color: var(--bg-base);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   outline: none;
-  transition: border-color var(--duration-fast);
+  transition: border-color var(--dur-150);
 }
 
 .bulk-tag-input:focus {
@@ -90,7 +85,7 @@
   top: 100%;
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   box-shadow: var(--sh-md);
   max-height: 200px;
   overflow-y: auto;
@@ -101,48 +96,48 @@
   display: block;
   width: 100%;
   padding: 6px 10px;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-1);
   background: none;
   border: none;
   text-align: left;
   cursor: pointer;
-  transition: background-color var(--duration-fast);
+  transition: background-color var(--dur-150);
 }
 
 .bulk-tag-suggestion-item:hover,
 .bulk-tag-suggestion-item.selected {
   background-color: var(--accent-primary);
-  color: #111;
+  color: #fff;
 }
 
 .bulk-tag-selected-list {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--sp-2);
   padding: 4px 16px 12px;
 }
 
 .bulk-tag-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   padding: 3px 8px;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-base);
+  border-radius: var(--r-6);
+  font-size: var(--fs-13);
   white-space: nowrap;
 }
 
 .bulk-tag-chip-ns {
   opacity: 0.6;
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
 }
 
 .bulk-tag-chip-remove {
   background: none;
   border: none;
   color: inherit;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   cursor: pointer;
   padding: 0 2px;
   opacity: 0.5;
@@ -157,20 +152,20 @@
 .bulk-tag-modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   padding: 12px 16px;
   border-top: 0.5px solid var(--sep-l);
 }
 
 .bulk-tag-cancel-btn {
   padding: 6px 16px;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   color: var(--tx-2);
   background: none;
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
-  transition: background-color var(--duration-fast);
+  transition: background-color var(--dur-150);
 }
 
 .bulk-tag-cancel-btn:hover {
@@ -179,13 +174,13 @@
 
 .bulk-tag-apply-btn {
   padding: 6px 16px;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   color: #fff;
   background-color: var(--accent-primary);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
-  transition: opacity var(--duration-fast);
+  transition: opacity var(--dur-150);
 }
 
 .bulk-tag-apply-btn:hover {

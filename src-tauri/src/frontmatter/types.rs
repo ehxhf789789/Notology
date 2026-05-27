@@ -1,34 +1,24 @@
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 
-// Custom deserializer for NoteType to accept both uppercase and lowercase
+// HOTFIX (2026-05-17, HanBin) — user-defined templates use custom
+// frontmatter `type` values (e.g. "TEST4") that the strict enum
+// rejected at deserialize time, breaking the 5.0.5a-migration "convert
+// to template" flow. `Custom(String)` accepts any uppercase-coerced
+// label; built-in variants stay so existing match sites (mod.rs default
+// NOTE, suggestions.rs PAPER/THEO branches) keep compiling unchanged.
+//
+// Always stored in uppercase to match the file-on-disk convention
+// (frontmatter writers + the frontend templateStore both emit upper).
 fn deserialize_note_type<'de, D>(deserializer: D) -> Result<NoteType, D::Error>
 where
     D: Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
-    match s.to_uppercase().as_str() {
-        "NOTE" => Ok(NoteType::NOTE),
-        "MTG" => Ok(NoteType::MTG),
-        "PAPER" => Ok(NoteType::PAPER),
-        "THEO" => Ok(NoteType::THEO),
-        "TASK" => Ok(NoteType::TASK),
-        "LIT" => Ok(NoteType::LIT),
-        "EVENT" => Ok(NoteType::EVENT),
-        "CONTACT" => Ok(NoteType::CONTACT),
-        "CONTAINER" => Ok(NoteType::CONTAINER),
-        "ADM" => Ok(NoteType::ADM),
-        "OFA" => Ok(NoteType::OFA),
-        "SEM" => Ok(NoteType::SEM),
-        "DATA" => Ok(NoteType::DATA),
-        "SETUP" => Ok(NoteType::SETUP),
-        "SKETCH" => Ok(NoteType::SKETCH),
-        _ => Err(serde::de::Error::unknown_variant(&s, &["NOTE", "MTG", "PAPER", "THEO", "TASK", "LIT", "EVENT", "CONTACT", "CONTAINER", "ADM", "OFA", "SEM", "DATA", "SETUP", "SKETCH"])),
-    }
+    Ok(NoteType::from_string(&s))
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
-#[serde(rename_all = "UPPERCASE")]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NoteType {
     NOTE,
     MTG,
@@ -45,6 +35,71 @@ pub enum NoteType {
     DATA,
     SETUP,
     SKETCH,
+    /// User-defined template type (e.g. "TEST4", "PROJECT", etc.).
+    /// Always uppercase-stored to match the on-disk convention.
+    Custom(String),
+}
+
+impl NoteType {
+    /// Parse a frontmatter `type:` string into a NoteType. Unknown values
+    /// fall through to `Custom(uppercase)` so user-defined templates work.
+    pub fn from_string(s: &str) -> Self {
+        match s.to_uppercase().as_str() {
+            "NOTE" => Self::NOTE,
+            "MTG" => Self::MTG,
+            "PAPER" => Self::PAPER,
+            "THEO" => Self::THEO,
+            "TASK" => Self::TASK,
+            "LIT" => Self::LIT,
+            "EVENT" => Self::EVENT,
+            "CONTACT" => Self::CONTACT,
+            "CONTAINER" => Self::CONTAINER,
+            "ADM" => Self::ADM,
+            "OFA" => Self::OFA,
+            "SEM" => Self::SEM,
+            "DATA" => Self::DATA,
+            "SETUP" => Self::SETUP,
+            "SKETCH" => Self::SKETCH,
+            other => Self::Custom(other.to_string()),
+        }
+    }
+
+    /// Round-trip string form — what gets written into the YAML
+    /// frontmatter on disk. Built-in variants serialize to their name;
+    /// Custom carries its own label verbatim.
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::NOTE => "NOTE",
+            Self::MTG => "MTG",
+            Self::PAPER => "PAPER",
+            Self::THEO => "THEO",
+            Self::TASK => "TASK",
+            Self::LIT => "LIT",
+            Self::EVENT => "EVENT",
+            Self::CONTACT => "CONTACT",
+            Self::CONTAINER => "CONTAINER",
+            Self::ADM => "ADM",
+            Self::OFA => "OFA",
+            Self::SEM => "SEM",
+            Self::DATA => "DATA",
+            Self::SETUP => "SETUP",
+            Self::SKETCH => "SKETCH",
+            Self::Custom(s) => s.as_str(),
+        }
+    }
+}
+
+impl Serialize for NoteType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Emit as a plain string (uppercase). Without this manual impl,
+        // `Custom(String)` would serialize as `{"Custom":"TEST4"}`,
+        // which yaml-writes into the file as a nested map and breaks
+        // round-trip.
+        serializer.serialize_str(self.as_str())
+    }
 }
 
 impl<'de> Deserialize<'de> for NoteType {
@@ -112,7 +167,12 @@ pub struct Relation {
     pub strength: Option<f32>, // 0.0-1.0
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+// 11th hotfix (2026-05-18, HanBin) — Q1 cleanup: source/method/status
+// removed. The official tag taxonomy is 4 facets: domain · who · org · ctx
+// (matches TagInputSection on the frontend). Legacy notes with the dropped
+// facets are auto-folded into `ctx` by `deserialize_tags` below to preserve
+// user data while moving to the slimmer schema.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FacetedTags {
     #[serde(default)]
     pub domain: Vec<String>,
@@ -122,29 +182,23 @@ pub struct FacetedTags {
     pub org: Vec<String>,
     #[serde(default)]
     pub ctx: Vec<String>,
-    #[serde(default)]
-    pub source: Vec<String>,
-    #[serde(default)]
-    pub method: Vec<String>,
-    #[serde(default)]
-    pub status: Vec<String>,
 }
 
-impl Default for FacetedTags {
-    fn default() -> Self {
-        Self {
-            domain: Vec::new(),
-            who: Vec::new(),
-            org: Vec::new(),
-            ctx: Vec::new(),
-            source: Vec::new(),
-            method: Vec::new(),
-            status: Vec::new(),
-        }
-    }
-}
-
-// Custom deserializer to handle legacy tags format (simple array)
+// Custom deserializer for the `tags:` field.
+//
+// 11th hotfix (2026-05-18, HanBin) — now does two jobs that were previously
+// either stubbed out or punted to a "next session" backlog:
+//
+//   1. **Legacy 7-facet → 4-facet fold (Q1).** If a note's `tags:` mapping
+//      still carries source/method/status arrays from before the cleanup,
+//      their items are appended to `ctx` (deduped) so no user data
+//      disappears at next read. Subsequent saves emit only 4 facets,
+//      naturally pruning the legacy keys from disk over time.
+//
+//   2. **Legacy flat array → faceted (Q2).** A `tags: ['foo','who/bar']`
+//      style array (pre-faceted vaults) is bucketed by `<facet>/` prefix
+//      into the matching facet; un-prefixed entries fall into `ctx`. This
+//      lets old vaults open without manual migration.
 fn deserialize_tags<'de, D>(deserializer: D) -> Result<FacetedTags, D::Error>
 where
     D: Deserializer<'de>,
@@ -154,13 +208,72 @@ where
 
     let value = Value::deserialize(deserializer)?;
 
-    match value {
-        // New format: object with faceted fields
-        Value::Mapping(_) => {
-            FacetedTags::deserialize(value).map_err(Error::custom)
+    fn push_unique(bucket: &mut Vec<String>, item: String) {
+        if !item.is_empty() && !bucket.contains(&item) {
+            bucket.push(item);
         }
-        // Legacy format: simple array (ignore and return default)
-        Value::Sequence(_) => Ok(FacetedTags::default()),
+    }
+
+    match value {
+        // New format: object with faceted fields. May carry legacy
+        // source/method/status keys from before the Q1 cleanup — fold
+        // those into ctx instead of dropping them.
+        Value::Mapping(map) => {
+            let mut tags = FacetedTags::default();
+            for (k, v) in map {
+                let key = k.as_str().unwrap_or("").to_string();
+                let items: Vec<String> = match v {
+                    Value::Sequence(seq) => seq
+                        .into_iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .filter(|s| !s.is_empty())
+                        .collect(),
+                    Value::Null => Vec::new(),
+                    _ => continue,
+                };
+                let target = match key.as_str() {
+                    "domain" => &mut tags.domain,
+                    "who" => &mut tags.who,
+                    "org" => &mut tags.org,
+                    // ctx + dropped facets all fold into ctx.
+                    "ctx" | "source" | "method" | "status" => &mut tags.ctx,
+                    _ => continue,
+                };
+                for item in items {
+                    push_unique(target, item);
+                }
+            }
+            Ok(tags)
+        }
+        // Legacy flat array. Bucket by `<facet>/` prefix; un-prefixed → ctx.
+        Value::Sequence(seq) => {
+            let mut tags = FacetedTags::default();
+            for raw in seq {
+                let Some(s) = raw.as_str() else { continue };
+                let s = s.trim();
+                if s.is_empty() {
+                    continue;
+                }
+                if let Some(rest) = s.strip_prefix("domain/") {
+                    push_unique(&mut tags.domain, rest.to_string());
+                } else if let Some(rest) = s.strip_prefix("who/") {
+                    push_unique(&mut tags.who, rest.to_string());
+                } else if let Some(rest) = s.strip_prefix("org/") {
+                    push_unique(&mut tags.org, rest.to_string());
+                } else if let Some(rest) = s.strip_prefix("ctx/") {
+                    push_unique(&mut tags.ctx, rest.to_string());
+                } else if let Some(rest) = s.strip_prefix("source/")
+                    .or_else(|| s.strip_prefix("method/"))
+                    .or_else(|| s.strip_prefix("status/"))
+                {
+                    // Dropped facets in legacy array form → also fold to ctx.
+                    push_unique(&mut tags.ctx, rest.to_string());
+                } else {
+                    push_unique(&mut tags.ctx, s.to_string());
+                }
+            }
+            Ok(tags)
+        }
         // Empty or null: return default
         Value::Null => Ok(FacetedTags::default()),
         _ => Err(Error::custom("Invalid tags format")),

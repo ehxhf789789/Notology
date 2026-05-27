@@ -102,12 +102,18 @@ impl AttachmentTier {
     /// Returns `Other` for unknown extensions; caller decides whether to accept.
     pub fn from_extension(ext: &str) -> Self {
         match ext {
-            "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" => Self::Image,
+            "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "bmp" | "ico" => Self::Image,
             "pdf" => Self::Pdf,
-            "hwpx" | "docx" | "pptx" | "xlsx" => Self::Document,
-            "csv" => Self::Csv,
-            "mp4" | "mov" | "webm" => Self::Video,
-            "mp3" | "wav" | "m4a" => Self::Audio,
+            // 2026-05-24 (HanBin) — stress test caught .hwp missing.
+            // Legacy Hancom format very common in Korean vaults (HanBin's
+            // own vault has 114 .hwp files). Without this, hwp files are
+            // classified Other and rejected by P9/P4 detectors → silent
+            // migration loss for Korean users. Also added .doc/.ppt/.xls
+            // legacy MS Office (Notology document-viewer already handles).
+            "hwp" | "hwpx" | "doc" | "docx" | "ppt" | "pptx" | "xls" | "xlsx" => Self::Document,
+            "csv" | "tsv" => Self::Csv,
+            "mp4" | "mov" | "webm" | "mkv" | "avi" => Self::Video,
+            "mp3" | "wav" | "m4a" | "ogg" | "flac" => Self::Audio,
             _ => Self::Other,
         }
     }
@@ -133,18 +139,27 @@ impl AttachmentTier {
             "webp" => "image/webp",
             "svg" => "image/svg+xml",
             "bmp" => "image/bmp",
+            "ico" => "image/x-icon",
             "pdf" => "application/pdf",
+            "hwp" => "application/x-hwp",
             "hwpx" => "application/vnd.hancom.hwpx",
+            "doc" => "application/msword",
             "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "ppt" => "application/vnd.ms-powerpoint",
             "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "xls" => "application/vnd.ms-excel",
             "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "csv" => "text/csv",
+            "csv" | "tsv" => "text/csv",
             "mp4" => "video/mp4",
             "mov" => "video/quicktime",
             "webm" => "video/webm",
+            "mkv" => "video/x-matroska",
+            "avi" => "video/x-msvideo",
             "mp3" => "audio/mpeg",
             "wav" => "audio/wav",
             "m4a" => "audio/mp4",
+            "ogg" => "audio/ogg",
+            "flac" => "audio/flac",
             _ => "application/octet-stream",
         }
     }

@@ -31,7 +31,19 @@ export function useSyncV2Events() {
 
       unlisteners.push(await listen('sync_v2:conflict_detected', () => {
         syncV2Actions.refreshConflicts();
-        showToast({ type: 'warning', title: 'Conflict detected', description: 'Review in sync panel' });
+        // PART 8 (2026-05-14): deep-link the discovery toast straight into
+        // the ConflictListModal so the user can act in one click instead of
+        // hunting for the sidebar status indicator.
+        showToast({
+          type: 'warning',
+          title: 'Conflict detected',
+          description: 'Multiple devices edited the same note.',
+          duration: 8000,
+          action: {
+            label: 'Resolve',
+            onClick: () => syncV2Actions.openConflictList(),
+          },
+        });
       }));
 
       // NAS reachability transitions emitted by offline_monitor.

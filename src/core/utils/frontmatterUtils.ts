@@ -144,9 +144,6 @@ export function getFlatTags(tags: FacetedTags): string[] {
     ...(tags.who || []),
     ...(tags.org || []),
     ...(tags.ctx || []),
-    ...(tags.source || []),
-    ...(tags.method || []),
-    ...(tags.status || []),
   ];
 }
 

@@ -13,6 +13,7 @@ import { useUIStore } from '../../core/stores/uiStore';
 import type { HoverWindow } from '../../core/types';
 import { t } from '../../core/utils/i18n';
 import { getNoteTypeFromFileName, getTemplateCustomColor } from '../content-cache/noteTypeHelpers';
+import { EmptyState } from '../../design-system/components';
 
 interface HoverWindowsPanelProps {
   width: number;
@@ -222,9 +223,10 @@ const HoverWindowsPanel = memo(function HoverWindowsPanel({ width }: HoverWindow
 
         {/* Empty state */}
         {hoverCount === 0 && (
-          <div className="hover-windows-empty">
-            <p>{t('noOpenWindows', language)}</p>
-          </div>
+          <EmptyState
+            icon={<FileText size={24} strokeWidth={1.5} />}
+            title={t('noOpenWindows', language)}
+          />
         )}
       </div>
     </div>

@@ -1,0 +1,122 @@
+/* Sketch Node Context Menu */
+.sketch-context-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-top);
+}
+
+.sketch-context-menu {
+  position: fixed;
+  background: var(--bg-base);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-12);
+  box-shadow: var(--sh-lg);
+  min-width: 180px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  z-index: var(--z-top);
+  padding: 8px 0;
+  animation: contextMenuFadeIn 0.15s ease-out;
+}
+
+@keyframes contextMenuFadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sketch-context-section {
+  padding: 8px 12px;
+}
+
+.sketch-context-label {
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  margin-bottom: var(--sp-2);
+  text-transform: none;
+  letter-spacing: 0.5px;
+}
+
+.sketch-context-colors {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.sketch-context-color-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-6);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--dur-150), border-color var(--dur-150);
+}
+
+.sketch-context-color-btn:hover {
+  transform: scale(1.1);
+}
+
+.sketch-context-color-btn.active {
+  border-color: var(--tx-1);
+}
+
+.sketch-context-shapes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-1);
+}
+
+.sketch-context-shape-btn {
+  padding: var(--sp-2);
+  background: var(--bg-elevated);
+  border: 2px solid transparent;
+  border-radius: var(--r-6);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tx-2);
+  transition: background-color var(--dur-150), border-color var(--dur-150), color var(--dur-150);
+}
+
+.sketch-context-shape-btn:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+.sketch-context-shape-btn.active {
+  border-color: var(--tx-1);
+  color: var(--tx-1);
+}
+
+.sketch-context-divider {
+  height: 1px;
+  background: var(--sep-l);
+  margin: 4px 0;
+}
+
+.sketch-context-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--tx-1);
+  font-size: var(--fs-13);
+  cursor: pointer;
+  transition: background-color var(--dur-150);
+}
+
+.sketch-context-item:hover {
+  background: var(--bg-hover);
+}
+
+.sketch-context-item.delete {
+  color: var(--c-red);
+}
+
+.sketch-context-item.delete:hover {
+  background: var(--color-danger-bg);
+}

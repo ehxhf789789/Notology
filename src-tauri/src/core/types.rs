@@ -29,13 +29,6 @@ pub struct AttachmentInfo {
     pub conflict_original: String,
 }
 
-#[derive(Serialize)]
-pub struct AttachmentFileInfo {
-    pub file_name: String,
-    pub path: String,
-    pub is_image: bool,
-    pub mtime: u64,
-}
 
 #[derive(Serialize)]
 pub struct BacklinkResult {
@@ -62,6 +55,12 @@ pub struct CalendarMemo {
     pub is_task: bool,
     pub resolved: bool,
     pub anchor_text: String,
+    /// 2026-05-26 (HanBin) — `HH:MM` from comment task.dueTime, or `None`
+    /// for memo / undated task. Drives Day-view 24-hour timeline placement
+    /// (RightPanel CalendarSurface). Frontend treats `null` as "시간 미정"
+    /// group at the top of the day.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub due_time: Option<String>,
 }
 
 #[derive(Serialize)]

@@ -278,6 +278,31 @@ Redesign: **single Note Wizard** per template, but built from primitive form com
 - For non-form templates (Note / Sketch / Data / Theory / etc.), the dialog has just a title input + create button (no per-template snowflake UI).
 - Sketch template still opens straight into canvas — but the canvas itself uses the new design system (tools panel, color picker, properties).
 
+### Legacy template migration (Stage 5.0.5a-migration, 2026-05-16 — HanBin)
+
+과거 버전 Notology 로 만들어진 보관소를 새 버전에서 열었을 때 호환 처리.
+
+**대상**: `frontmatter.type:` 값이 현재 등록된 어떤 NoteTemplate (default `tpl-*` 또는 user-added `note-custom-*`) 의 `frontmatter.type` 과도 일치하지 않는 노트들.
+
+**예시 시나리오**:
+- 이전 버전에서 `type: MTG` / `OFA` / `PAPER` / `SEM` / `EVENT` / `DATA` / `THEO` / `LIT` / `SETUP` 등 12종 templates 으로 작성된 노트
+- 새 3-template 시스템 (`tpl-entity`/`tpl-document`/`tpl-sketch`) 에서는 이 type 값들이 어떤 신규 템플릿과도 매칭 안 됨
+- → "미확인 템플릿 (Unidentified Template)" 카테고리로 분류
+
+**구현 항목**:
+1. **감지**: `noteTypeCacheStore.refreshCache()` 가 frontmatter 스캔 시 unmatched type 들의 set 을 별도 추적
+2. **분류 UI**: TemplateSelector / 검색 결과 / `[[` 팝오버에 "미확인 템플릿" 그룹 표시 — 노트들은 정상 표시되되 어떤 신규 템플릿과도 묶이지 않음을 명시
+3. **마이그레이션 다이얼로그** (신규 컴포넌트, e.g., `TemplateMigrationModal.tsx`):
+   - 좌측: 미확인 type 들 + 각 type 별 노트 수
+   - 우측: 신규 템플릿 목록 (target picker)
+   - "MTG → Document" 식으로 매핑 후 일괄 변환 버튼
+   - 변환 작업: frontmatter 의 `type:` 값 + `cssclasses:` 갱신 (body 는 보존, sync_v2 commit 1회)
+   - Dry-run preview 지원
+4. **롤백 가능성**: 변환 전 사전 백업 (sync_v2 의 version history 활용) — 필요 시 이전 type 으로 되돌릴 수 있도록
+5. **Settings 진입점**: Settings → 템플릿 관리 → "마이그레이션 도구" 버튼
+
+**Plan 영향**: 5.0.5a 마지막 sub-stage 로 추가. β (NoteWizard) 이후, δ (legacy cleanup) 와 함께 진행. 예상 0.5세션.
+
 ---
 
 ## 7. Settings redesign (Stage 5.0.6)
@@ -472,6 +497,86 @@ This adds ~1 session to 5.0.4 (now estimated 3 sessions instead of 2). Total Sta
 - **5.0.4 (editor)**: 2 → 3 sessions (+1 for command/shortcut audit)
 - **5.0.10 (mobile)**: 1 → 5 sessions (+4 for full rewrite)
 - **Stage 5.0 total**: 14 → ~19 sessions (still per-sub-stage shippable; HanBin can pause / re-prioritize between sub-stages)
+
+---
+
+## 18c. Post-5.0.4b audit delta (2026-05-15)
+
+Triggered by HanBin during 5.0.4b execution: "hover 윈도우의 노트 임베딩, 텍스트 작성 영역을 전체 더 상세하게 뜯어서 플랜 갱신해. 현재 세부 기능 및 편집 구조가 모두 파악이 안된 것 같은데?"
+
+Three parallel deep audits (embedding atoms, text-writing extensions, HoverEditor host) surfaced 5 structural gaps the original 5.0.4b scope did not capture. Audit map persisted in [project-hover-editor-audit memory](../../../memory/project_hover_editor_audit.md).
+
+### Gaps surfaced
+
+1. **Atom UX inconsistency across the 4 atom types** (MediaEmbed, WikiLink, Math, LinkCard) — different delete patterns (× button vs context-menu vs Backspace-only), different selection rings (outline vs border vs background), different click behaviors (NodeSelection vs URL-open). HanBin smoke test: audio embed × overlapped controls; clicking between embeds didn't position cursor.
+2. **Cursor edge-zone landing** — adjacent inline atoms in one paragraph confuse `posAtCoords`, snapping caret to the nearest atom instead of returning the in-between position. MediaEmbed's `stopEvent` was over-aggressive (fixed in 5.0.4b-2c); same root cause likely affects math + wikilink + linkcard.
+3. **LinkCard markdown round-trip MISSING** — no `addStorage.markdown.serialize`. Notes containing URL cards lose them on markdown export/re-import. Critical for vault portability.
+4. **Slash palette completeness** — `/callout` and `/table` missing despite both being standard block primitives.
+5. **Per-note panel ad-hoc layout** — Tags/Comments panels render in right-sidebar OR below-section depending on `folderPath`; Outline panel never built (5.0.4b-4 carry-over); Metadata folded into TagPanel YAML mode (poor discoverability).
+
+### HanBin sign-off (2026-05-15)
+
+| Q | Decision |
+|---|---|
+| Atom delete pattern unification | **Context-menu only** (WikiLink pattern). Remove × from MediaEmbed and LinkCard. All atoms use right-click delete. Reduces visual noise per HanBin's "단순함" principle; trades some discoverability. |
+| LinkCard markdown syntax | **HTML fallback** mirroring Math's 2-layer defense (`<div data-link-card data-url=… data-title=…>` + patched serializer + getMarkdown regex recovery). Vault data preservation guaranteed; not Obsidian-compatible (acceptable). |
+| Per-note panel scope | **Outline panel build** (header `<ListTree>` icon — already in carry-over list) **+ panel layout unify** (sidebar/section ad-hoc split removed). Metadata stays folded into TagPanel YAML mode for now (not in scope). |
+
+### New / revised sub-stages
+
+| Sub-stage | Title | Scope | Sessions |
+|---|---|---|---|
+| ~~5.0.4b-2a~~ | Math DnD + IME + Enter | ✅ landed | — |
+| ~~5.0.4b-2b~~ | Slash-attachment listener | ✅ landed | — |
+| ~~5.0.4b-2c~~ | MediaEmbed `stopEvent` narrow | ✅ landed (partial — cursor edge-zone still pending) | — |
+| **5.0.4b-2d** (NEW) | **Atom UX unification** — remove × buttons from MediaEmbed/LinkCard; route all atom delete through context-menu (WikiLink pattern); uniform selection ring style across atoms; explicit edge-zone click handling for cursor-adjacent placement on all 4 atom types | 0.5 |
+| **5.0.4b-2e** (NEW) | **LinkCard markdown serialize** — HTML-fallback syntax + 2-layer defense + round-trip test | 0.3 |
+| 5.0.4b-1.5 | WikiLink `[[` + MediaEmbed `![[` InputRule removal (deferred from 5.0.4b-1) | unchanged | 0.2 |
+| 5.0.4b-3 | Bubble menu + Toolbar OFF default + Settings opt-in toggle | unchanged | 0.5 |
+| 5.0.4b-4 (expanded) | **Per-note panel pass** — Outline panel build (header `<ListTree>` icon + heading-tree component with click-to-jump) + panel layout unification (remove sidebar/section ad-hoc split, settle on single placement) | 0.8 (was 0.3) |
+| **5.0.4b-5** (NEW) | **Slash palette completion** — `/callout` command (with type submenu: info/warning/error/success/note/tip) + `/table` command (rows×cols picker) | 0.3 |
+| 5.0.9 (expanded) | **Hover keyboard contract** — Esc/Ctrl+W close + Tab order through header buttons + aria-labels + shortcut hint badges | unchanged scope marker, +0.3 |
+
+### Revised 5.0.4b total estimate
+
+Original 5.0.4b allocated ~2 sessions inside 5.0.4. After this delta: ~3 additional sessions for 5.0.4b alone (-2d, -2e, -3, -4 expanded, -5). Stage 5.0 total revised from 19 → ~22 sessions.
+
+---
+
+## 18d. Input affordance IA (2026-05-15)
+
+Triggered by HanBin during 5.0.4b-2e wrap-up: "`/` 기능과 `//` 기능이 공존하는데, 일부러 그렇게 구현한건가? 방향을 명확하게 정해. `/` 기능으로 할 수 있는게 무엇인지 명확하게 정의하라고. 대충 만들면 기존의 우측 속성창이나, 상단의 편집툴바랑 중복되는게 너무 많잖아."
+
+The previous trigger-character design had overlap between `/`, `//`, top toolbar, and right panel for similar operations (especially attachment insertion, block transforms). This section defines the canonical role for each input affordance — anything outside these boundaries is a bug.
+
+### Canonical roles (zero overlap)
+
+| Affordance | Question it answers | Scope |
+|---|---|---|
+| `/` slash palette | "What block-level content do I insert/transform to?" | Headings, lists, quote, divider, callout (6 types), table, code (inline + block), math (inline + block), wiki link entry, attachment file picker. **23 items total.** Flat list, search-filterable. |
+| `[[` wiki-link suggestion | "Which note do I reference?" | Vault-wide `.md` autocomplete, full file tree traversal, search by name. Notes only. |
+| `//` attachment suggestion | "Which of THIS note's attachments do I reference?" | **Current-note-scoped** autocomplete (the note's own AttachmentRef list). Cross-note attachment reuse is intentionally not in this affordance — `//` is for "attach to this note's content". For *importing* new external files use `/attachment` (file picker). |
+| Bubble menu (text-selection) | "How do I style the selected text?" | Inline marks: bold, italic, code, highlight, strike, link. Default OFF top toolbar per Q3; opt-in via setting. |
+| `\` (inside math edit popup) | "Which LaTeX command?" | Math-token autocomplete. Only active inside math edit input. |
+| Cmd+K command palette | "Which app function do I invoke?" | App-level: search, settings, vault switch, toggle panels, theme. Not editor-content. |
+| Right panel | "What are this note's properties?" | Frontmatter + tags + metadata edit. **Never** content-block commands. |
+
+### Boundary rules (enforce or it overlaps)
+
+1. **`/` has no inline marks.** Bold/italic/etc. live in bubble menu — they're selection-based, not block-insert.
+2. **`/` has no app commands.** Settings/search/etc. live in Cmd+K.
+3. **`/` has no note properties.** Tags/frontmatter live in right panel.
+4. **`[[` and `//` have disjoint scopes.** `[[` shows vault-wide `.md` (notes); `//` shows current-note attachments only. Different sets, different intents.
+5. **`/attachment` (file picker) vs `//xyz` (autocomplete) are different verbs.** `/attachment` IMPORTS a new external file into the vault. `//xyz` REFERENCES an already-imported attachment. Both stay — they answer different questions.
+6. **Right panel never holds content commands.** Headings/lists/etc. never appear there.
+7. **Top toolbar default OFF.** When user opts in (Settings), it mirrors bubble menu + a subset of `/` — but the canonical affordances are bubble menu and `/`.
+
+### What was changed for 5.0.4b-IA
+
+- `//` AttachmentSuggestion: scope = current note's attachments (kept original behavior after a brief vault-wide experiment; HanBin reverted the direction — `//` is contextual to the note being edited, not a vault-wide browser).
+- `[[` WikiLinkSuggestion: confirmed already filters to `.md` only via `searchNotes()`, traverses entire vault, search-filterable. No change needed.
+- `/` slash palette: extended with `/callout` (6 types: info/warning/error/success/note/tip), `/table` (3×2 default). Flat list per HanBin Q12 (no nested submenus).
+- Plan §18d: this section, as the canonical reference for future input-affordance decisions.
 
 ---
 

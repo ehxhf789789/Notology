@@ -10,12 +10,19 @@
  * at the bottom. Each child fetch is one PROPFIND on the parent + one per
  * sub-collection to detect vault markers; we keep the depth at one to stay
  * snappy on Synology.
+ *
+ * 5.0.6k-2 (2026-05-17, HanBin) — full i18n + design-system primitives.
+ * Replaced ad-hoc <button className="nas-btn"> / <input className="nas-input">
+ * with Button/Input primitives and routed every Korean-only label through t().
  */
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Folder, FolderOpen, Package, ChevronRight, X, Plus, Check } from 'lucide-react';
+import { Folder, FolderOpen, Package, PackagePlus, ChevronRight, X, Plus, Check } from 'lucide-react';
 import * as conn from '../connectionCommands';
 import { useEscapeKey } from '../../shared/useEscapeKey';
+import { t } from '../../../core/utils/i18n';
+import { useLanguage } from '../../../core/stores/settingsStore';
+import { Button, Input } from '../../../design-system/components';
 
 /**
  * Two modes:
@@ -36,6 +43,13 @@ interface ExploreProps extends BaseProps {
   mode?: 'explore';
   onVaultOpen: (remotePath: string) => Promise<void>;
   onCreateVault: (parentPath: string, name: string) => Promise<void>;
+  /**
+   * Called when the user picks a legacy (non-Notology) folder via the
+   * "마이그레이션해서 열기" button. Implementation should bootstrap
+   * `.notology/` on NAS (e.g. via `sync_v2_create_vault`) and then enter
+   * the vault so the auto-detect modal can kick off the repair flow.
+   */
+  onMigrateAndOpen?: (remotePath: string, legacyKind: 'obsidian' | 'plainMd') => Promise<void>;
 }
 
 interface PickProps extends BaseProps {
@@ -46,6 +60,7 @@ interface PickProps extends BaseProps {
 type Props = ExploreProps | PickProps;
 
 export function NasFolderBrowser(props: Props) {
+  const lang = useLanguage();
   const { initialPath, onClose } = props;
   const mode = props.mode ?? 'explore';
   useEscapeKey(onClose);
@@ -64,12 +79,12 @@ export function NasFolderBrowser(props: Props) {
       setListing(result);
       setCurrentPath(result.path);
     } catch (e: any) {
-      setError(e?.toString() || '폴더를 불러올 수 없습니다');
+      setError(e?.toString() || t('nasBrowserLoadFailed', lang));
       setListing(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     load(initialPath || '/');
@@ -97,9 +112,24 @@ export function NasFolderBrowser(props: Props) {
     try {
       await (props as ExploreProps).onVaultOpen(path);
     } catch (e: any) {
-      setError(e?.toString() || '보관소를 열 수 없습니다');
+      setError(e?.toString() || t('nasBrowserOpenFailed', lang));
     }
-  }, [mode, props]);
+  }, [mode, props, lang]);
+
+  const handleMigrateLegacy = useCallback(async (
+    path: string,
+    legacyKind: 'obsidian' | 'plainMd',
+  ) => {
+    if (mode !== 'explore') return;
+    const exploreProps = props as ExploreProps;
+    if (!exploreProps.onMigrateAndOpen) return;
+    setError('');
+    try {
+      await exploreProps.onMigrateAndOpen(path, legacyKind);
+    } catch (e: any) {
+      setError(e?.toString() || t('nasBrowserMigrateFailed', lang));
+    }
+  }, [mode, props, lang]);
 
   const handleCreate = useCallback(async () => {
     if (mode !== 'explore') return;
@@ -112,11 +142,11 @@ export function NasFolderBrowser(props: Props) {
       setCreateName('');
       await load(currentPath);
     } catch (e: any) {
-      setError(e?.toString() || '보관소 생성 실패');
+      setError(e?.toString() || t('nasBrowserCreateFailed', lang));
     } finally {
       setCreateBusy(false);
     }
-  }, [mode, props, createName, currentPath, load]);
+  }, [mode, props, createName, currentPath, load, lang]);
 
   const handlePickPath = useCallback(() => {
     if (mode !== 'pick') return;
@@ -132,9 +162,14 @@ export function NasFolderBrowser(props: Props) {
       <div className="nas-browser-modal" onClick={e => e.stopPropagation()}>
         <div className="nas-browser-header">
           <div className="nas-browser-title">
-            {mode === 'pick' ? '보관소를 만들 위치 선택' : 'NAS 보관소 탐색'}
+            {mode === 'pick' ? t('nasBrowserTitlePick', lang) : t('nasBrowserTitleExplore', lang)}
           </div>
-          <button className="nas-browser-close" onClick={onClose} aria-label="닫기">
+          <button
+            className="nas-browser-close"
+            onClick={onClose}
+            aria-label={t('nasBrowserClose', lang)}
+            title={t('nasBrowserClose', lang)}
+          >
             <X size={18} />
           </button>
         </div>
@@ -155,69 +190,104 @@ export function NasFolderBrowser(props: Props) {
         </div>
 
         <div className="nas-browser-list">
-          {loading && <div className="nas-browser-loading">불러오는 중...</div>}
+          {loading && <div className="nas-browser-loading">{t('nasBrowserLoading', lang)}</div>}
           {!loading && error && <div className="nas-browser-error">{error}</div>}
           {!loading && !error && listing && listing.children.length === 0 && (
-            <div className="nas-browser-empty">이 폴더는 비어 있습니다.</div>
+            <div className="nas-browser-empty">{t('nasBrowserEmpty', lang)}</div>
           )}
-          {!loading && !error && listing && listing.children.map(child => (
-            <div
-              key={child.path}
-              className={`nas-browser-row ${child.isVault ? 'is-vault' : ''}`}
-            >
-              <button
-                className="nas-browser-row-main"
-                onClick={() => child.isCollection && navigateTo(child.path)}
-                disabled={!child.isCollection}
-              >
-                <span className="nas-browser-row-icon">
-                  {child.isVault ? <Package size={16} /> : child.isCollection ? <Folder size={16} /> : null}
-                </span>
-                <span className="nas-browser-row-name">{child.name}</span>
-                {child.isVault && (
-                  <span className="nas-browser-row-tag">보관소</span>
-                )}
-              </button>
-              {mode === 'explore' && child.isVault && (
+          {!loading && !error && listing && listing.children.map(child => {
+            const legacyKind = child.legacyKind;
+            const isLegacy = !child.isVault && !!legacyKind;
+            const legacyLabelKey = legacyKind === 'obsidian'
+              ? 'nasBrowserLegacyBadgeObsidian'
+              : 'nasBrowserLegacyBadgePlainMd';
+            const rowClass = `nas-browser-row ${child.isVault ? 'is-vault' : ''} ${isLegacy ? 'is-legacy' : ''}`.trim();
+            return (
+              <div key={child.path} className={rowClass}>
                 <button
-                  className="nas-browser-row-action"
-                  onClick={() => handleEnterVault(child.path)}
+                  className="nas-browser-row-main"
+                  onClick={() => child.isCollection && navigateTo(child.path)}
+                  disabled={!child.isCollection}
                 >
-                  <FolderOpen size={14} /> 열기
+                  <span className="nas-browser-row-icon">
+                    {child.isVault
+                      ? <Package size={16} />
+                      : isLegacy
+                        ? <PackagePlus size={16} />
+                        : child.isCollection ? <Folder size={16} /> : null}
+                  </span>
+                  <span className="nas-browser-row-name">{child.name}</span>
+                  {child.isVault && (
+                    <span className="nas-browser-row-tag">{t('nasBrowserVaultBadge', lang)}</span>
+                  )}
+                  {isLegacy && (
+                    <span className="nas-browser-row-tag is-legacy">{t(legacyLabelKey, lang)}</span>
+                  )}
                 </button>
-              )}
-            </div>
-          ))}
+                {mode === 'explore' && child.isVault && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<FolderOpen size={14} />}
+                    onClick={() => handleEnterVault(child.path)}
+                  >
+                    {t('nasBrowserOpenVault', lang)}
+                  </Button>
+                )}
+                {mode === 'explore' && isLegacy && legacyKind && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<PackagePlus size={14} />}
+                    onClick={() => handleMigrateLegacy(child.path, legacyKind)}
+                    title={t('nasBrowserMigrateAndOpenHint', lang)}
+                  >
+                    {t('nasBrowserMigrateAndOpen', lang)}
+                  </Button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {mode === 'explore' ? (
           <div className="nas-browser-footer">
-            <div className="nas-browser-footer-label">현재 위치에 보관소 생성:</div>
-            <input
-              className="nas-input"
+            <div className="nas-browser-footer-label">{t('nasBrowserFooterCreateLabel', lang)}</div>
+            <Input
+              className="nas-browser-footer-input"
               type="text"
-              placeholder="보관소 이름 (예: MyNotes)"
+              placeholder={t('nasBrowserCreatePlaceholder', lang)}
               value={createName}
               onChange={e => setCreateName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleCreate()}
               disabled={createBusy}
             />
-            <button
-              className="nas-btn primary"
-              onClick={handleCreate}
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Plus size={14} />}
+              loading={createBusy}
               disabled={!createName.trim() || createBusy}
+              onClick={handleCreate}
             >
-              <Plus size={14} /> {createBusy ? '생성 중...' : '생성'}
-            </button>
+              {createBusy ? t('nasBrowserCreating', lang) : t('nasBrowserCreate', lang)}
+            </Button>
           </div>
         ) : (
           <div className="nas-browser-footer">
-            <div className="nas-browser-footer-label">선택된 위치:</div>
+            <div className="nas-browser-footer-label">{t('nasBrowserFooterPickLabel', lang)}</div>
             <code className="nas-browser-pick-path">{currentPath}</code>
-            <button className="nas-btn" onClick={onClose}>취소</button>
-            <button className="nas-btn primary" onClick={handlePickPath}>
-              <Check size={14} /> 이 위치 사용
-            </button>
+            <Button variant="secondary" size="sm" onClick={onClose}>
+              {t('nasBrowserCancel', lang)}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Check size={14} />}
+              onClick={handlePickPath}
+            >
+              {t('nasBrowserPickConfirm', lang)}
+            </Button>
           </div>
         )}
       </div>

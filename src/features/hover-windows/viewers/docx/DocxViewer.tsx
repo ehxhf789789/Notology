@@ -314,7 +314,7 @@ export function DocxViewer({ data }: DocxViewerProps) {
 
   return (
     <div ref={containerRef} className="office-viewer-container docx-viewer">
-      <div className="docx-toolbar">
+      <div className="viewer-toolbar docx-toolbar">
         <div className="docx-page-indicator">
           {currentPage} / {pages.length}
         </div>

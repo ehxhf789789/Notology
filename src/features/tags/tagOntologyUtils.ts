@@ -203,7 +203,12 @@ export async function syncTagsFromIndex(vaultPath: string, ontology: TagOntology
       const namespace = tagId.substring(0, slashIndex);
       const label = tagId.substring(slashIndex + 1);
 
-      // Skip if namespace is not valid
+      // 11th hotfix (2026-05-18, HanBin) — narrowed back to the canonical
+      // 4 facets after the Rust-side Q1 cleanup. The wider 7-facet filter
+      // (introduced 2026-05-17 as a temporary safety net) is no longer
+      // needed: deserialize_tags now folds any legacy source/method/status
+      // entries into ctx on read, so the only namespaces reaching this
+      // function are the 4 we actually keep.
       if (!['domain', 'who', 'org', 'ctx'].includes(namespace)) continue;
 
       // Add to ontology definitions

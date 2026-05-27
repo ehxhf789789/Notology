@@ -36,10 +36,32 @@
 
 /* Footer in icon-only mode: vertical stack, only collapse-toggle +
    settings + sync-status slot remain visible (vault button hidden
-   via JSX conditional). */
+   via JSX conditional).
+   2026-05-23 (HanBin) — keep the same transparent background and
+   hairline top separator as expanded mode so the collapsed rail
+   reads as one continuous chrome surface, not a stacked sandwich.
+   Settings gear and sync chip become centered square ghosts. */
 .sidebar--icon-only .sidebar-footer {
   flex-direction: column;
   align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-xs);
+  gap: 4px;
+  padding: 6px 4px;
+}
+
+.sidebar--icon-only .sidebar-footer-btn.settings-btn {
+  width: 32px;
+  height: 32px;
+}
+
+.sidebar--icon-only .sync-status-indicator {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* Hide the text label when collapsed — only the dot matters in icon-only mode. */
+.sidebar--icon-only .sync-status-label,
+.sidebar--icon-only .sync-status-label--meta {
+  display: none;
 }

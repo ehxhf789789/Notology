@@ -919,6 +919,12 @@ pub fn run() {
             features::sync_v2::commands::sync_v2_signal_visibility,
             features::sync_v2::commands::sync_v2_signal_activity,
             features::sync_v2::commands::sync_v2_get_queue_count,
+            features::sync_v2::commands::sync_v2_list_pending,
+            features::sync_v2::commands::sync_v2_list_failed,
+            features::sync_v2::commands::sync_v2_retry_failed,
+            features::sync_v2::commands::sync_v2_retry_all_failed,
+            features::sync_v2::commands::sync_v2_clear_failed,
+            features::sync_v2::commands::sync_v2_count_failed,
             features::sync_v2::commands::sync_v2_set_realtime,
             features::sync_v2::commands::sync_v2_get_realtime,
             features::sync_v2::commands::sync_v2_scan_reconciliation,
@@ -945,9 +951,25 @@ pub fn run() {
             features::sync_v2::commands::attachment_reconcile_apply,
             features::sync_v2::commands::attachment_list_for_note,
             features::sync_v2::commands::attachment_list_all,
+            features::sync_v2::commands::note_id_index,
             features::sync_v2::commands::attachment_local_path,
             features::sync_v2::commands::attachment_migration_status,
             features::sync_v2::commands::attachment_migration_run,
+            // 2026-05-24 (HanBin) — vault_repair: 7-pattern legacy + drift fix.
+            features::sync_v2::commands::vault_repair_scan,
+            features::sync_v2::commands::vault_repair_apply,
+            features::sync_v2::commands::vault_repair_verify,
+            // Stage A — visibility + safety.
+            features::sync_v2::commands::vault_repair_status,
+            features::sync_v2::commands::vault_repair_cancel,
+            // Phase 1 B1+B2+B3 — snapshot + rollback infrastructure.
+            features::sync_v2::commands::vault_snapshot_create,
+            features::sync_v2::commands::vault_snapshot_list,
+            features::sync_v2::commands::vault_snapshot_restore,
+            features::sync_v2::commands::vault_snapshot_preview_restore,
+            features::sync_v2::commands::vault_snapshot_delete,
+            // Phase 5 B8 — sandbox clone for safe legacy migration testing.
+            features::sync_v2::commands::vault_sandbox_create,
             // WebDAV auth commands (M-4a)
             features::sync_v2::commands::webdav_test_connection,
             features::sync_v2::commands::webdav_login,

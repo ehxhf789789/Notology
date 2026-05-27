@@ -72,7 +72,7 @@ function ConfirmDeleteModal() {
 
   return (
     <div className="modal-overlay">
-      <div className="confirm-delete-modal">
+      <div className="modal-shell confirm-delete-modal">
         <div className="confirm-delete-header">
           {getHeaderText()}
         </div>

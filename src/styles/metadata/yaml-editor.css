@@ -10,23 +10,23 @@
 
 .yaml-editor-error {
   padding: 12px 16px;
-  background-color: #5a1e1e;
-  border: 1px solid #8b3434;
-  border-radius: var(--radius-sm);
-  color: #f48771;
-  font-size: var(--font-md);
-  margin-bottom: var(--space-8);
+  background-color: color-mix(in srgb, var(--c-red) 12%, var(--bg-base));
+  border: 0.5px solid color-mix(in srgb, var(--c-red) 30%, var(--sep-l));
+  border-radius: var(--r-6);
+  color: var(--c-red);
+  font-size: var(--fs-13);
+  margin-bottom: var(--sp-4);
 }
 
 .yaml-editor-textarea {
   flex: 1;
-  padding: var(--space-8);
+  padding: var(--sp-4);
   background-color: var(--bg-base);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-1);
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   line-height: 1.6;
   resize: none;
   white-space: pre;
@@ -36,19 +36,19 @@
 
 .yaml-editor-textarea:focus {
   outline: none;
-  border-color: var(--c-blue);
+  border-color: var(--tx-1);
 }
 
 .yaml-editor-hint {
-  margin-top: var(--space-8);
-  padding: var(--space-6);
+  margin-top: var(--sp-4);
+  padding: var(--sp-3);
   background-color: var(--bg-elevated);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-base);
+  border-radius: var(--r-6);
+  font-size: var(--fs-13);
   color: var(--tx-2);
   line-height: 1.5;
 }
 
 .yaml-editor-hint strong {
-  color: var(--c-blue);
+  color: var(--tx-1);
 }

@@ -15,7 +15,42 @@ export const WINDOW_EVENTS = {
   FILE_STATUS_RESPONSE: 'notology://file-status-response',
   MEMO_CHANGED: 'notology://memo-changed',
   SEARCH_INDEX_UPDATED: 'notology://search-index-updated',
+  /**
+   * v20 (2026-05-16, HanBin) — templates changed in any window. All other
+   * windows reload their templateStore. Without this, a hover window opened
+   * BEFORE the user creates a new template stays stuck with the old set.
+   */
+  TEMPLATES_CHANGED: 'notology://templates-changed',
 } as const;
+
+export interface TemplatesChangedPayload {
+  vaultPath: string;
+  /** Originating window — used by listeners to skip their own emits. */
+  windowLabel: string;
+  timestamp: number;
+}
+
+/** Broadcast that templates were created / edited / deleted in this window. */
+export async function notifyTemplatesChanged(vaultPath: string): Promise<void> {
+  const windowLabel = getCurrentWindow().label;
+  await emit(WINDOW_EVENTS.TEMPLATES_CHANGED, {
+    vaultPath,
+    windowLabel,
+    timestamp: Date.now(),
+  } as TemplatesChangedPayload);
+}
+
+/** Subscribe to template-change broadcasts from other windows. */
+export async function onTemplatesChanged(
+  handler: (payload: TemplatesChangedPayload) => void,
+): Promise<UnlistenFn> {
+  const myLabel = getCurrentWindow().label;
+  return listen<TemplatesChangedPayload>(WINDOW_EVENTS.TEMPLATES_CHANGED, (event) => {
+    // Skip our own emits — we already have the latest in-memory state.
+    if (event.payload.windowLabel === myLabel) return;
+    handler(event.payload);
+  });
+}
 
 // Payload types
 export interface FileOpenedPayload {

@@ -18,7 +18,7 @@ export function ResolveConfirmDialog({ noteId, branch, onConfirm, onCancel }: Pr
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="sync-v2-confirm-dialog" onClick={e => e.stopPropagation()}>
+      <div className="modal-shell sync-v2-confirm-dialog" onClick={e => e.stopPropagation()}>
         <div className="sync-v2-confirm-title">
           {ko ? '충돌 해결 확인' : 'Confirm Resolution'}
         </div>

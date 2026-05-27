@@ -16,57 +16,26 @@ import { RenameVaultDialog, DeleteVaultDialog } from './VaultLifecycleDialogs';
 import { OrphanCleanupDialog, type Orphan } from './OrphanCleanupDialog';
 import { syncV2Commands } from '../../sync_v2/syncV2Commands';
 import { useEscapeKey } from '../../shared/useEscapeKey';
+// 5.0.6k (2026-05-17, HanBin) — i18n + design-system primitives migration.
+// The vault selector was Korean-only with 23+ hardcoded strings + 28 .nas-*
+// CSS classes + zero design-system primitive consumption. This pass routes
+// every label through t()/tf() and replaces ad-hoc <button>/<input> with
+// Button/Input primitives. Theme-token compliance is automatic once the
+// primitives are in.
+import { t, tf } from '../../../core/utils/i18n';
+import { useLanguage } from '../../../core/stores/settingsStore';
+import { Button, Input, EmptyState } from '../../../design-system/components';
 
 interface Props {
   onVaultSelected: (localPath: string, vaultName: string) => void;
 }
 
-// Shared style for popover menu items (row "⋯", "+" button, connection pill).
-// Inline to keep this redesign self-contained; can be promoted to CSS later.
-const popoverItemStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  padding: '8px 10px',
-  background: 'transparent',
-  border: 'none',
-  fontSize: 13,
-  color: 'var(--tx-1)',
-  cursor: 'pointer',
-  borderRadius: 4,
-  textAlign: 'left',
-  width: '100%',
-};
-
-// Shared popover container style. Heavy shadow + thick border so the
-// popover reads as clearly elevated above the vault list it sits over.
-// `animation` uses an inline keyframe — keeps this file self-contained
-// without touching global CSS.
-const popoverPanelStyle: React.CSSProperties = {
-  position: 'absolute',
-  background: 'var(--bg-elevated)',
-  border: '1px solid var(--sep-o)',
-  borderRadius: 8,
-  boxShadow: '0 10px 28px rgba(0,0,0,0.28), 0 2px 6px rgba(0,0,0,0.15)',
-  zIndex: 100,
-  padding: 4,
-  display: 'flex',
-  flexDirection: 'column',
-  // Subtle fade + slight downward slide so the popover feels connected
-  // to the trigger button it just spawned from.
-  animation: 'notology-popover-in 120ms ease-out',
-};
-
-// Inject the keyframe once. Idempotent — re-running just no-ops.
-if (typeof document !== 'undefined' && !document.getElementById('notology-popover-anim')) {
-  const style = document.createElement('style');
-  style.id = 'notology-popover-anim';
-  style.textContent = `@keyframes notology-popover-in {
-    from { opacity: 0; transform: translateY(-4px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }`;
-  document.head.appendChild(style);
-}
+// 5.0.6m-2 (2026-05-17, HanBin) — popover shell + positioning moved to
+// .vault-popover-panel CSS (sync.css). Three positional variants exist:
+//   - `--connection` : drops down under the connection chip
+//   - `--row-more`   : drops up above a vault row's ⋯ trigger
+//   - `--add`        : drops up above the "+ 보관소 추가" tile, full-width
+// Item-level styling lives on .vault-popover-item (+ --danger).
 
 type Phase =
   | 'loading'
@@ -77,6 +46,8 @@ type Phase =
   | 'offline';
 
 export function ConnectionVaultSelector({ onVaultSelected }: Props) {
+  const language = useLanguage();
+  const ko = language === 'ko';
   const [phase, setPhase] = useState<Phase>('loading');
   const [status, setStatus] = useState<WebDavStatus | null>(null);
   const [vaults, setVaults] = useState<DiscoveredVault[]>([]);
@@ -185,26 +156,56 @@ export function ConnectionVaultSelector({ onVaultSelected }: Props) {
     }
   }, [phase, vaults, scanOrphans]);
 
-  // Global dismiss for popovers — Escape or click outside any popover.
-  // We use a simple data-popover marker on popover trigger/content so a
-  // click inside doesn't close it. Each popover state is reset together.
+  // Global dismiss for popovers — Escape, outside click, drag, or any
+  // window-focus loss.
+  // 5.0.6ag (2026-05-17, HanBin) — OS-level window drag (Tauri's
+  // `-webkit-app-region: drag` on the titlebar) doesn't fire HTML5
+  // `dragstart`, so the previous attempt didn't actually dismiss when
+  // the user moved the window. Three broader signals cover it now:
+  //   • window blur                   — focus moves elsewhere (drag-to-
+  //                                     other-app, alt-tab, etc.)
+  //   • Tauri window move event       — window position changes (the
+  //                                     exact "user is dragging me" signal)
+  //   • document mousedown on titlebar→ titlebar mousedown fires even
+  //                                     in the drag region; closes the
+  //                                     popover before the OS drag begins
   useEffect(() => {
     if (!rowMenuFor && !showAddPopover && !showConnPopover) return;
+    const dismissAll = () => {
+      setRowMenuFor(null);
+      setShowAddPopover(false);
+      setShowConnPopover(false);
+    };
     const handler = (e: MouseEvent | KeyboardEvent) => {
       if (e instanceof KeyboardEvent && e.key !== 'Escape') return;
       if (e instanceof MouseEvent) {
         const target = e.target as HTMLElement;
         if (target.closest('[data-popover]')) return;
       }
-      setRowMenuFor(null);
-      setShowAddPopover(false);
-      setShowConnPopover(false);
+      dismissAll();
     };
     window.addEventListener('keydown', handler);
     window.addEventListener('mousedown', handler);
+    window.addEventListener('dragstart', dismissAll, true);
+    window.addEventListener('blur', dismissAll);
+    // Tauri move event — fires while the user drags the window frame.
+    let unlisten: (() => void) | null = null;
+    let unlistenResize: (() => void) | null = null;
+    (async () => {
+      try {
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const w = getCurrentWindow();
+        unlisten = await w.onMoved(dismissAll);
+        unlistenResize = await w.onResized(dismissAll);
+      } catch {/* not in Tauri or API missing — non-fatal */}
+    })();
     return () => {
       window.removeEventListener('keydown', handler);
       window.removeEventListener('mousedown', handler);
+      window.removeEventListener('dragstart', dismissAll, true);
+      window.removeEventListener('blur', dismissAll);
+      unlisten?.();
+      unlistenResize?.();
     };
   }, [rowMenuFor, showAddPopover, showConnPopover]);
 
@@ -307,11 +308,53 @@ export function ConnectionVaultSelector({ onVaultSelected }: Props) {
     setError('');
     try {
       const result = await conn.openVaultFromPath(vault.remotePath);
+      // 5.0.6w (2026-05-17, HanBin) — remember last-opened time so the
+      // selector can show "마지막 사용 N분 전" on each card. Backend
+      // DiscoveredVault doesn't carry this; localStorage keyed by remote
+      // path is the lightest frontend-only fix.
+      try {
+        const key = 'notology:vaultLastOpened';
+        const raw = localStorage.getItem(key);
+        const map = raw ? JSON.parse(raw) as Record<string, string> : {};
+        map[vault.remotePath] = new Date().toISOString();
+        localStorage.setItem(key, JSON.stringify(map));
+      } catch {/* localStorage unavailable — non-fatal */}
       onVaultSelected(result.localPath, result.name);
     } catch (e: any) {
       setError(e?.toString() || 'Failed to open vault');
     }
   }, [onVaultSelected]);
+
+  // 5.0.6w — last-opened map for the per-card "마지막 사용" stamp.
+  // Read once at vaults-phase render; we don't need live updates here
+  // because the selector closes on selection.
+  const lastOpenedMap = (() => {
+    try {
+      const raw = localStorage.getItem('notology:vaultLastOpened');
+      return raw ? JSON.parse(raw) as Record<string, string> : {};
+    } catch { return {}; }
+  })();
+  function vaultRelative(iso: string | undefined, ko: boolean): string | null {
+    if (!iso) return null;
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return null;
+    const sec = Math.max(0, Math.floor((Date.now() - t) / 1000));
+    if (sec < 60) return ko ? '방금 사용' : 'just now';
+    const m = Math.floor(sec / 60);
+    if (m < 60) return ko ? `${m}분 전 사용` : `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return ko ? `${h}시간 전 사용` : `${h}h ago`;
+    const d = Math.floor(h / 24);
+    if (d < 7) return ko ? `${d}일 전 사용` : `${d}d ago`;
+    return ko ? '오래전 사용' : 'a while ago';
+  }
+  // Hash-based color for the vault avatar — same input always picks the
+  // same hue so a vault keeps its "color identity" across launches.
+  function vaultAvatarHue(seed: string): number {
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+    return h % 360;
+  }
 
   // ── Open create-vault dialog ──
   // Picks a sensible default parent path from cached scanRoot or first
@@ -365,7 +408,7 @@ export function ConnectionVaultSelector({ onVaultSelected }: Props) {
         <div className="nas-section nas-phase-enter">
           <div className="nas-loading">
             <div className="nas-loading-spinner" />
-            {phase === 'loading' ? '설정 확인 중...' : 'WebDAV 연결 중...'}
+            {phase === 'loading' ? t('vsLoadingConfig', language) : t('vsConnecting', language)}
           </div>
         </div>
       </div>
@@ -381,138 +424,106 @@ export function ConnectionVaultSelector({ onVaultSelected }: Props) {
           to put here yet. */}
       {phase === 'login' ? (
         <div className="nas-section">
-          <div className="nas-section-title"><Cloud size={16} /> WebDAV 연결</div>
+          <div className="nas-section-title"><Cloud size={16} /> {t('vsLoginTitle', language)}</div>
           <div className="nas-connect-card nas-phase-enter">
             <div className="nas-connect-form">
-              <input
-                className="nas-input"
+              <Input
                 type="text"
-                placeholder="https://nas.example.com:5006"
+                placeholder={t('vsLoginUrlPlaceholder', language)}
                 value={url}
                 onChange={e => setUrl(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                aria-label={t('vsLoginTitle', language)}
               />
-              <input
-                className="nas-input"
+              <Input
                 type="text"
-                placeholder="사용자명"
+                placeholder={t('vsLoginUsernamePlaceholder', language)}
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                aria-label={t('vsLoginUsernamePlaceholder', language)}
               />
-              <input
-                className="nas-input"
+              <Input
                 type="password"
-                placeholder="비밀번호"
+                placeholder={t('vsLoginPasswordPlaceholder', language)}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                aria-label={t('vsLoginPasswordPlaceholder', language)}
               />
               {error && <div className="nas-error">{error}</div>}
-              <button
-                className="nas-btn primary"
+              <Button
+                variant="primary"
                 onClick={handleLogin}
                 disabled={!url || !username || !password}
+                fullWidth
               >
-                연결
-              </button>
+                {t('vsLoginConnectBtn', language)}
+              </Button>
             </div>
           </div>
         </div>
       ) : phase === 'vaults' && (
-        // Outer flex pushes the pill to the right edge. The inner
-        // wrapper (which carries data-popover) is fit-content so empty
-        // space LEFT of the pill is still OUTSIDE for the dismiss
-        // handler — same anti-pattern as the [+ 보관소 추가] button below.
-        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 4px 6px' }}>
-        <div
-          style={{ position: 'relative', width: 'fit-content' }}
-          data-popover
-        >
+        // 5.0.6u — compact connection chip. Shrunk from a full-width row
+        // to an inline pill that reads "● user@host" so the vault grid
+        // gets the screen real estate. Click for disconnect popover.
+        <div className="vault-connection-chip" data-popover>
           <button
             type="button"
+            className="vault-connection-chip__btn"
             onClick={(e) => {
               e.stopPropagation();
-              // Mutex: close other popovers when opening this one.
               setShowAddPopover(false);
               setRowMenuFor(null);
               setShowConnPopover(prev => !prev);
             }}
-            title="WebDAV 연결 상태"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '4px 10px',
-              fontSize: 11,
-              background: 'var(--bg-base)',
-              border: '1px solid var(--sep-o)',
-              borderRadius: 999,
-              cursor: 'pointer',
-              color: 'var(--tx-1)',
-              maxWidth: 220,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
+            title={`${t('vsConnectedToNas', language)} · ${status?.username || username} · ${status?.url || url}`}
           >
-            <span style={{
-              width: 7, height: 7, borderRadius: '50%',
-              background: '#2ea043', flexShrink: 0,
-            }} />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {status?.label || status?.username || status?.url || url}
+            <span className="vault-connection-chip__dot" aria-hidden="true" />
+            <span className="vault-connection-chip__text">
+              {(status?.username || username)
+                ? `${status?.username || username} · ${stripProtocol(status?.url || url)}`
+                : stripProtocol(status?.url || url)}
             </span>
           </button>
           {showConnPopover && (
             <div
               data-popover
               onClick={e => e.stopPropagation()}
-              style={{
-                ...popoverPanelStyle,
-                top: '100%',
-                right: 4,
-                marginTop: 4,
-                minWidth: 260,
-                padding: 12,
-                display: 'block',
-              }}
+              className="vault-popover-panel vault-popover-panel--connection vault-connection-popover"
             >
-              <div style={{ fontSize: 11, color: 'var(--tx-2)', marginBottom: 2 }}>호스트</div>
-              <div style={{ fontSize: 12, color: 'var(--tx-1)', marginBottom: 10, wordBreak: 'break-all' }}>
-                {status?.url || url}
+              <div className="vault-connection-popover__field">
+                <div className="vault-connection-popover__label">{t('vsConnPopoverHost', language)}</div>
+                <div className="vault-connection-popover__value vault-connection-popover__value--wrap">
+                  {status?.url || url}
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--tx-2)', marginBottom: 2 }}>사용자</div>
-              <div style={{ fontSize: 12, color: 'var(--tx-1)', marginBottom: 12 }}>
-                {status?.username || username}
+              <div className="vault-connection-popover__field">
+                <div className="vault-connection-popover__label">{t('vsConnPopoverUser', language)}</div>
+                <div className="vault-connection-popover__value">
+                  {status?.username || username}
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => { setShowConnPopover(false); handleDisconnect(); }}
-                style={{
-                  ...popoverItemStyle,
-                  color: 'var(--tx-danger)',
-                  padding: '8px 10px',
-                  border: '1px solid var(--sep-o)',
-                  borderRadius: 4,
-                }}
+                className="vault-popover-item vault-popover-item--danger"
               >
-                <LogOut size={13} /> 연결 해제
+                <LogOut size={14} /> {t('vsConnPopoverDisconnect', language)}
               </button>
             </div>
           )}
-        </div>
         </div>
       )}
 
       {/* ── Offline Mode ── */}
       {phase === 'offline' && (
         <div className="nas-section nas-phase-enter">
-          <div className="nas-section-title">오프라인 모드</div>
-          <div className="nas-offline-warning">
-            WebDAV에 연결할 수 없습니다. 캐시된 보관소 목록이 없습니다.
-          </div>
-          <button className="nas-btn" onClick={() => setPhase('login')}>연결 수정</button>
+          <div className="nas-section-title">{t('vsOfflineTitle', language)}</div>
+          <div className="nas-offline-warning">{t('vsOfflineDesc', language)}</div>
+          <Button variant="secondary" onClick={() => setPhase('login')}>
+            {t('vsLoginConnectBtn', language)}
+          </Button>
         </div>
       )}
 
@@ -523,243 +534,205 @@ export function ConnectionVaultSelector({ onVaultSelected }: Props) {
               Dismissible per session. Shows only when orphans exist and the
               user hasn't dismissed it this entry. */}
           {orphans.length > 0 && !orphanBannerDismissed && (
-            <div
-              role="status"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '8px 12px',
-                margin: '0 0 10px',
-                background: 'var(--bg-base)',
-                border: '1px solid var(--sep-o)',
-                borderRadius: 6,
-                fontSize: 12,
-                color: 'var(--tx-1)',
-              }}
-            >
-              <Trash size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
-              <span style={{ flex: 1 }}>
-                NAS에 없는 로컬 캐시 폴더 <strong>{orphans.length}개</strong>가 있습니다.
+            <div role="status" className="vault-orphan-banner">
+              <Trash size={14} className="vault-orphan-banner__icon" />
+              <span className="vault-orphan-banner__text">
+                {tf('vsOrphanBanner', language, { count: String(orphans.length) })}
               </span>
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setShowOrphanDialog(true)}
-                style={{
-                  padding: '4px 10px',
-                  fontSize: 12,
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--sep-o)',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                  color: 'var(--tx-1)',
-                }}
               >
-                정리
-              </button>
+                {t('vsOrphanCleanBtn', language)}
+              </Button>
               <button
                 type="button"
                 onClick={() => setOrphanBannerDismissed(true)}
-                title="이번 세션에서 더 이상 표시하지 않습니다"
-                style={{
-                  padding: '4px 6px',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--tx-2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                aria-label="배너 닫기"
+                title={t('vsOrphanDismiss', language)}
+                className="vault-orphan-banner__dismiss"
+                aria-label={t('vsOrphanDismiss', language)}
               >
                 <X size={13} />
               </button>
             </div>
           )}
 
-          <div
-            style={{
-              // CRITICAL: width must hug the button (not stretch via flex)
-              // so empty space to its right counts as OUTSIDE for the
-              // dismiss handler. Previously the data-popover marker
-              // covered an invisible 456px-wide hit area and clicks to
-              // the right of the button kept the popover open.
-              display: 'inline-block',
-              width: 'fit-content',
-              padding: '4px 0 10px',
-              position: 'relative',
-            }}
-            data-popover
-          >
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                // Mutex: opening this popover closes the others. The
-                // outside-click handler doesn't run when the click target
-                // is inside any [data-popover], so we coordinate here.
-                setShowConnPopover(false);
-                setRowMenuFor(null);
-                setShowAddPopover(prev => !prev);
-              }}
-              title="보관소 추가"
-              aria-label="보관소 추가"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '5px 10px',
-                fontSize: 12,
-                background: 'var(--bg-base)',
-                border: '1px solid var(--sep-o)',
-                borderRadius: 6,
-                cursor: 'pointer',
-                color: 'var(--tx-1)',
-                width: 'fit-content',
-              }}
-            >
-              <Plus size={13} /> 보관소 추가
-            </button>
-            {showAddPopover && (
-              <div
-                data-popover
-                onClick={e => e.stopPropagation()}
-                role="menu"
-                style={{
-                  ...popoverPanelStyle,
-                  top: '100%',
-                  left: 0,
-                  marginTop: 6,
-                  minWidth: 180,
-                  padding: 2,
-                }}
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  style={popoverItemStyle}
-                  onClick={() => { setShowAddPopover(false); openCreateDialog(); }}
-                >
-                  <Plus size={13} /> 새 보관소 만들기
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  style={popoverItemStyle}
-                  onClick={() => { setShowAddPopover(false); openExploreBrowser(); }}
-                >
-                  <Search size={13} /> NAS에서 가져오기
-                </button>
-              </div>
-            )}
-          </div>
-
+          {/* 5.0.6u (2026-05-17, HanBin) — compact 2-column grid. Replaces
+              the vertical scroll of section labels + full-width rows. The
+              current vault sits in the first cell with a bigger emphasis
+              (full-row span if there's an odd count, otherwise just the
+              highlighted top-left tile); other vaults flow into the grid;
+              the "+ add" tile lives in the last cell. Section labels
+              dropped — visual emphasis tells you everything the labels
+              were saying twice. */}
           {vaults.length === 0 ? (
-            <div className="nas-empty-state">
-              <Package size={32} className="nas-empty-state-icon" />
-              <span className="nas-empty-state-text">
-                발견된 보관소가 없습니다.<br />
-                위 버튼으로 보관소를 생성하세요.
-              </span>
-            </div>
-          ) : (
-            <div className="nas-vault-list-section">
-              {vaults.map(v => {
-                const active = isActiveVault(v);
-                // The "active" vault here is the one whose sync engine is
-                // still running in the background. Closing the selector
-                // (cancel) returns the user to this vault. We can't
-                // rename/delete it without first tearing down the engine
-                // (Windows file handle locks), so the per-vault actions
-                // are disabled until the user picks a different vault.
-                const activeBadgeTitle = '취소 시 이 보관소로 돌아갑니다. 이름 변경·삭제는 다른 보관소로 전환한 뒤에 가능합니다.';
-                const blockedTitle = activeBadgeTitle;
-                return (
-                  <div
-                    key={v.remotePath}
-                    className={`nas-vault-item${active ? ' current' : ''}`}
+            <EmptyState
+              icon={<Package size={28} strokeWidth={1.5} />}
+              title={t('vsEmptyVaultsTitle', language)}
+              description={t('vsEmptyVaultsDesc', language)}
+            />
+          ) : (() => {
+            const currentVault = vaults.find(v => isActiveVault(v));
+            const otherVaults = vaults.filter(v => !isActiveVault(v));
+            const sortedVaults = currentVault ? [currentVault, ...otherVaults] : vaults;
+            const activeBadgeTitle = t('vsVaultRowReturnHint', language);
+            const renderVaultCard = (v: DiscoveredVault) => {
+              const isCurrent = isActiveVault(v);
+              // 5.0.6w — vault identity at a glance: hue from path hash
+              // + initial letter avatar. Same vault = same color across
+              // launches. Current vault overrides with --c-blue so it
+              // ties to the global "active" signal.
+              const hue = vaultAvatarHue(v.remotePath);
+              const initial = (v.name.trim()[0] || '?').toUpperCase();
+              const avatarStyle: React.CSSProperties = isCurrent
+                ? {}
+                : {
+                    background: `hsl(${hue} 70% 92% / 0.7)`,
+                    color: `hsl(${hue} 70% 32%)`,
+                  };
+              const lastOpened = vaultRelative(lastOpenedMap[v.remotePath], ko);
+              return (
+                <div
+                  key={v.remotePath}
+                  className={`vault-card${isCurrent ? ' vault-card--current' : ''}`}
+                  data-popover
+                >
+                  <button
+                    type="button"
+                    className="vault-card__main"
                     onClick={() => handleSelectVault(v)}
+                    title={t('vsVaultCardOpen', language)}
                   >
-                    <span className="nas-vault-icon"><Package size={16} /></span>
-                    <div className="nas-vault-info">
-                      <span className="nas-vault-name">
-                        {v.name}
-                        {active && (
-                          <span className="nas-vault-current-badge" title={activeBadgeTitle}>
-                            ↩ 복귀
-                          </span>
+                    <span className="vault-card__avatar" style={avatarStyle} aria-hidden="true">
+                      {isCurrent ? <Package size={18} /> : initial}
+                    </span>
+                    <span className="vault-card__body">
+                      <span className="vault-card__name">{v.name}</span>
+                      <span className="vault-card__meta">
+                        <span className="vault-card__path">{v.remotePath}</span>
+                        {lastOpened && (
+                          <>
+                            <span className="vault-card__meta-sep">·</span>
+                            <span className="vault-card__last-opened">{lastOpened}</span>
+                          </>
                         )}
                       </span>
-                      <span className="nas-vault-path">{v.remotePath}</span>
-                    </div>
-                    <div
-                      className="nas-vault-actions-inline"
-                      style={{ position: 'relative' }}
-                      data-popover
-                    >
+                    </span>
+                    {isCurrent && (
+                      <span className="vault-card__current-badge" title={activeBadgeTitle}>
+                        {t('vsCurrentVault', language)}
+                      </span>
+                    )}
+                  </button>
+                  {!isCurrent && (
+                    <span className="vault-card__actions">
                       <button
                         type="button"
-                        className="nas-vault-action-btn"
-                        title={active ? blockedTitle : '더 보기'}
+                        className="vault-card__more-btn"
+                        title={t('vsVaultCardMore', language)}
+                        aria-label={t('vsVaultCardMore', language)}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (active) return;
-                          // Mutex: close other popovers when opening row menu.
                           setShowAddPopover(false);
                           setShowConnPopover(false);
                           setRowMenuFor(prev => prev === v.remotePath ? null : v.remotePath);
                         }}
-                        disabled={lifecyclePreparing || active}
-                        aria-label="더 보기"
+                        disabled={lifecyclePreparing}
                       >
-                        <MoreHorizontal size={14} />
+                        <MoreHorizontal size={13} />
                       </button>
                       {rowMenuFor === v.remotePath && (
                         <div
                           data-popover
                           onClick={e => e.stopPropagation()}
                           role="menu"
-                          style={{
-                            ...popoverPanelStyle,
-                            top: '100%',
-                            right: 0,
-                            marginTop: 6,
-                            minWidth: 150,
-                            padding: 2,
-                          }}
+                          className="vault-popover-panel vault-popover-panel--row-more vault-popover-list"
                         >
                           <button
                             type="button"
-                            className="nas-popover-item"
+                            role="menuitem"
+                            className="vault-popover-item"
                             onClick={(e) => {
                               e.stopPropagation();
                               setRowMenuFor(null);
                               openLifecycleAction(v, 'rename');
                             }}
-                            style={popoverItemStyle}
                           >
-                            <Edit3 size={13} /> 이름 변경
+                            <Edit3 size={14} /> {t('vsVaultRowRename', language)}
                           </button>
                           <button
                             type="button"
-                            className="nas-popover-item danger"
+                            role="menuitem"
+                            className="vault-popover-item vault-popover-item--danger"
                             onClick={(e) => {
                               e.stopPropagation();
                               setRowMenuFor(null);
                               openLifecycleAction(v, 'delete');
                             }}
-                            style={{ ...popoverItemStyle, color: 'var(--tx-danger)' }}
                           >
-                            <Trash2 size={13} /> 보관소 삭제
+                            <Trash2 size={14} /> {t('vsVaultRowDelete', language)}
                           </button>
                         </div>
                       )}
+                    </span>
+                  )}
+                </div>
+              );
+            };
+            return (
+              <div className="vault-grid">
+                {sortedVaults.map(renderVaultCard)}
+                {/* + add tile lives in the grid's last cell, not a stranded
+                    row below. Dashed border = "available slot". Popover
+                    opens upward so it never clips the window bottom. */}
+                <div className="vault-grid__add" data-popover>
+                  <button
+                    type="button"
+                    className="vault-add-card"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowConnPopover(false);
+                      setRowMenuFor(null);
+                      setShowAddPopover(prev => !prev);
+                    }}
+                    title={t('vsAddVaultBtn', language)}
+                    aria-label={t('vsAddVaultBtn', language)}
+                    aria-haspopup="menu"
+                    aria-expanded={showAddPopover}
+                  >
+                    <span className="vault-add-card__icon"><Plus size={18} strokeWidth={2} /></span>
+                    <span className="vault-add-card__name">{t('vsAddVaultBtn', language)}</span>
+                  </button>
+                  {showAddPopover && (
+                    <div
+                      data-popover
+                      onClick={e => e.stopPropagation()}
+                      role="menu"
+                      className="vault-popover-panel vault-popover-panel--add vault-popover-list"
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="vault-popover-item"
+                        onClick={() => { setShowAddPopover(false); openCreateDialog(); }}
+                      >
+                        <Plus size={14} /> {t('vsAddOptionCreate', language)}
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="vault-popover-item"
+                        onClick={() => { setShowAddPopover(false); openExploreBrowser(); }}
+                      >
+                        <Search size={14} /> {t('vsAddOptionImport', language)}
+                      </button>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {error && <div className="nas-error">{error}</div>}
         </div>
@@ -778,6 +751,16 @@ export function ConnectionVaultSelector({ onVaultSelected }: Props) {
           onCreateVault={async (parentPath, name) => {
             const cleanParent = parentPath.replace(/\/+$/, '') || '';
             const remotePath = cleanParent ? `${cleanParent}/${name}` : `/${name}`;
+            const result = await conn.createVault(remotePath);
+            setShowBrowser(false);
+            onVaultSelected(result.localPath, result.name);
+          }}
+          onMigrateAndOpen={async (remotePath, _legacyKind) => {
+            // Legacy bootstrap = same as create_vault. It writes
+            // .notology/vault.json into the existing folder, turning it
+            // into a Notology vault. The vault-repair auto-detect modal
+            // fires 3s after vault open and picks up the legacy patterns
+            // (Obsidian wikilinks/attachments, plain-md tree, etc.).
             const result = await conn.createVault(remotePath);
             setShowBrowser(false);
             onVaultSelected(result.localPath, result.name);
@@ -901,40 +884,41 @@ function CreateVaultDialog({
   parentPath, name, creating, error,
   onChangeName, onChooseLocation, onCancel, onSubmit,
 }: CreateVaultDialogProps) {
+  const language = useLanguage();
   useEscapeKey(() => { if (!creating) onCancel(); });
   return createPortal(
     <div className="nas-browser-overlay" onClick={onCancel}>
-      <div className="nas-browser-modal" onClick={e => e.stopPropagation()} style={{ width: 'min(480px, 90vw)' }}>
+      <div className="nas-browser-modal vault-create-dialog" onClick={e => e.stopPropagation()}>
         <div className="nas-browser-header">
-          <div className="nas-browser-title">새 보관소 생성</div>
-          <button className="nas-browser-close" onClick={onCancel} aria-label="닫기">
+          <div className="nas-browser-title">{t('vsCreateDialogTitle', language)}</div>
+          <button className="nas-browser-close" onClick={onCancel} aria-label={t('close', language)}>
             <X size={18} />
           </button>
         </div>
 
-        <div style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="vault-create-dialog__body">
           <div>
-            <div className="nas-browser-footer-label" style={{ marginBottom: 6 }}>위치</div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="nas-browser-footer-label vault-create-dialog__field-label">{t('vsCreateDialogLocation', language)}</div>
+            <div className="vault-create-dialog__location-row">
               <code className="nas-browser-pick-path">{parentPath}</code>
-              <button className="nas-btn" onClick={onChooseLocation} disabled={creating}>
-                위치 변경
-              </button>
+              <Button variant="secondary" size="sm" onClick={onChooseLocation} disabled={creating}>
+                {t('vsCreateDialogChangeLocation', language)}
+              </Button>
             </div>
           </div>
 
           <div>
-            <div className="nas-browser-footer-label" style={{ marginBottom: 6 }}>보관소 이름</div>
-            <input
-              className="nas-input"
+            <div className="nas-browser-footer-label vault-create-dialog__field-label">{t('vsCreateDialogNameLabel', language)}</div>
+            <Input
               type="text"
-              placeholder="보관소 이름 (예: MyNotes)"
+              placeholder={t('vsCreateDialogNamePlaceholder', language)}
               value={name}
               onChange={e => onChangeName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && name.trim() && !creating && onSubmit()}
               autoFocus
               disabled={creating}
-              style={{ width: '100%' }}
+              className="vault-create-dialog__name-input"
+              aria-label={t('vsCreateDialogNameLabel', language)}
             />
           </div>
 
@@ -942,15 +926,19 @@ function CreateVaultDialog({
         </div>
 
         <div className="nas-browser-footer">
-          <div style={{ flex: 1 }} />
-          <button className="nas-btn" onClick={onCancel} disabled={creating}>취소</button>
-          <button
-            className="nas-btn primary"
+          <div className="vault-create-dialog__footer-spacer" />
+          <Button variant="secondary" onClick={onCancel} disabled={creating}>
+            {t('cancel', language)}
+          </Button>
+          <Button
+            variant="primary"
+            leftIcon={<Plus size={14} />}
             onClick={onSubmit}
             disabled={!name.trim() || creating}
+            loading={creating}
           >
-            <Plus size={14} /> {creating ? '생성 중...' : '보관소 생성'}
-          </button>
+            {creating ? t('vsCreateDialogSubmitting', language) : t('vsCreateDialogSubmit', language)}
+          </Button>
         </div>
       </div>
     </div>,
@@ -961,4 +949,11 @@ function CreateVaultDialog({
 /** Derive scan root from cached scanRoot or default "/" */
 function deriveScanRoot(cached?: string | null): string {
   return cached && cached !== '/' ? cached : '/';
+}
+
+/** 5.0.6u — render NAS hosts as `host:port` instead of full `https://host:port`
+ *  in the compact connection chip. The protocol is always WebDAV and adds
+ *  no information; dropping it lets `user · host:port` fit on one line. */
+function stripProtocol(u: string): string {
+  return u.replace(/^https?:\/\//, '');
 }

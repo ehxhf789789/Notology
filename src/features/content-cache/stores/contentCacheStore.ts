@@ -283,6 +283,15 @@ export const useContentCacheStore = create<ContentCacheState>()((set, get) => ({
 
   // Update cached content (after save)
   updateContent: (filePath: string, body: string, frontmatter: NoteFrontmatter | null, mtime?: number) => {
+    // Safety: never cache empty body over existing content (prevents data loss)
+    if ((!body || body.trim().length === 0)) {
+      const existing = get().cache.get(filePath);
+      if (existing && existing.body && existing.body.trim().length > 0) {
+        console.warn('[ContentCache] updateContent BLOCKED: refusing to overwrite non-empty body with empty content for', filePath.split(/[/\\]/).pop());
+        return;
+      }
+    }
+
     set((state) => {
       const cached = state.cache.get(filePath);
       if (!cached) return state;
@@ -321,9 +330,21 @@ export const useContentCacheStore = create<ContentCacheState>()((set, get) => ({
         return;
       }
 
-      const entryCount = Object.keys(parsed.entries).length;
+      // Validate entries: remove corrupted ones (null frontmatter with no body)
+      const validEntries: Record<string, PersistentCacheEntry> = {};
+      let removedCount = 0;
+      for (const [path, entry] of Object.entries(parsed.entries)) {
+        if (entry && entry.mtime > 0) {
+          validEntries[path] = entry;
+        } else {
+          removedCount++;
+        }
+      }
+      parsed.entries = validEntries;
+
+      const entryCount = Object.keys(validEntries).length;
       const elapsed = performance.now() - loadStart;
-      log(`[ContentCache] Loaded persistent cache: ${entryCount} entries in ${elapsed.toFixed(0)}ms`);
+      log(`[ContentCache] Loaded persistent cache: ${entryCount} entries in ${elapsed.toFixed(0)}ms${removedCount > 0 ? ` (removed ${removedCount} corrupted)` : ''}`);
 
       set({ persistentCache: parsed, vaultPath });
     } catch (err) {
@@ -348,6 +369,8 @@ export const useContentCacheStore = create<ContentCacheState>()((set, get) => ({
       const entries: Record<string, PersistentCacheEntry> = {};
 
       state.cache.forEach((content, filePath) => {
+        // Skip entries with no frontmatter and empty body (corrupted)
+        if (!content.frontmatter && (!content.body || content.body.trim().length === 0)) return;
         entries[filePath] = {
           mtime: content.mtime || content.timestamp,
           frontmatter: content.frontmatter,

@@ -9,6 +9,85 @@
   background-color: var(--bg-base);
 }
 
+/* v22.4 (HanBin 2026-05-23) — Unified Search hero header.
+   Replaces the earlier .search-scope-indicator pill which the user
+   ("상단에 공간을 활용해서 통합 검색이라는 것을 강조할만한 디자인") found
+   too small for the top space. iOS Settings / Files-style hero band:
+     • Library glyph in a 36px rounded square on the left
+     • Large title + muted "전체 보관소 · {vault}" sub-label stacked
+     • Hairline bottom matches .search-tabs so the chrome reads
+       continuously into the tab strip below.
+   Sits above the existing .search-tabs row. */
+.search-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 12px;
+  border-bottom: 0.5px solid var(--sep-l);
+  flex-shrink: 0;
+  background: var(--bg-base);
+}
+
+.search-hero__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-10, 10px);
+  background: var(--bg-elevated);
+  color: var(--tx-1);
+  flex-shrink: 0;
+}
+
+.search-hero__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.search-hero__title {
+  margin: 0;
+  font-size: var(--fs-16);
+  font-family: var(--app-font);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--tx-1);
+  line-height: 1.2;
+}
+
+.search-hero__scope {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-12);
+  font-family: var(--app-font);
+  color: var(--tx-3);
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.search-hero__sep {
+  color: var(--tx-4, var(--tx-3));
+  opacity: 0.6;
+}
+
+.search-hero__vault {
+  color: var(--tx-2);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Legacy scope-indicator pill — kept as a no-op so any cached markup
+   doesn't render an unstyled chip. Hidden because the new hero
+   replaces it. Remove in 5.0.13 once verified. */
+.search-scope-indicator { display: none; }
+
 .search-tabs {
   display: flex;
   align-items: center;
@@ -30,13 +109,13 @@
 }
 
 .search-tab.active {
-  color: var(--c-blue);
-  border-bottom-color: var(--c-blue);
+  color: var(--tx-1);
+  border-bottom-color: var(--tx-1);
 }
 
 .search-tab:hover:not(.active) {
   color: var(--tx-2);
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: var(--bg-hover);
 }
 
 .search-create-note-btn {
@@ -56,9 +135,9 @@
 }
 
 .search-create-note-btn:hover {
-  background-color: var(--c-blue);
-  border-color: var(--c-blue);
-  color: #111;
+  background-color: var(--tx-1);
+  border-color: var(--tx-1);
+  color: #fff;
 }
 
 .search-create-note-btn:active {
@@ -72,8 +151,13 @@
 .search-toolbar {
   display: flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 8px 10px;
   flex-shrink: 0;
+  /* 2026-05-22 — unify toolbar / chip bar / table header onto a single
+     neutral surface (iOS Files / Mail style). Search input pill stays
+     on its own bg-input shade so it floats over this tone. */
+  background: var(--bg-app);
+  border-bottom: 0.5px solid var(--sep-l);
 }
 
 .search-bar {
@@ -83,6 +167,117 @@
   gap: var(--sp-3);
 }
 
+/* 5.0.7a (2026-05-17) — search input + filter toggle now ride <Input> /
+   <IconButton> primitives, so the bespoke `.search-input` + `.search-filter-btn`
+   rules were dropped. Only the layout grow factor stays here so the input
+   span fills the toolbar. */
+.search-bar > .ds-field.search-bar__input {
+  flex: 1;
+}
+
+/* 2026-05-22 — search bar restyle (HanBin reference design). Pill
+   shape, near-invisible border at rest, focus brings the soft outline
+   ring back. Search-icon prefix + (×) clear suffix via DS Input slots. */
+.ds-field.search-bar__input {
+  border-color: transparent;
+  background: var(--bg-elevated, var(--bg-input));
+  border-radius: 999px;
+  padding-left: 4px;
+  padding-right: 4px;
+  min-height: 36px;
+}
+
+.ds-field.search-bar__input:hover {
+  background: var(--bg-input-hover);
+  border-color: var(--sep-l);
+}
+
+.ds-field.search-bar__input:focus-within {
+  /* HanBin: no blue focus ring at all — input is borderless even when
+     focused. Field stays neutral; the caret is the only "I'm typing
+     here" affordance. Background shifts to the slightly brighter input
+     color so there's still a subtle indication of focus. */
+  border-color: transparent;
+  background: var(--bg-input);
+  box-shadow: none;
+}
+
+/* Kill the global `input:focus-visible` ring from reset.css for the
+   inner <input>. That global rule paints a 2 px blue rectangle that
+   doesn't follow the pill's border-radius, so it reads as a separate
+   rectangle inside the search field. We don't want any focus chrome
+   on the search bar at all. */
+.ds-field.search-bar__input .ds-input:focus,
+.ds-field.search-bar__input .ds-input:focus-visible {
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.ds-field.search-bar__input .ds-field__icon {
+  color: var(--tx-3);
+  padding: 0 4px 0 10px;
+}
+
+/* Right-slot cluster — groups inline toggles (whole-word) and the X
+   clear button. 2026-05-22. */
+.search-bar__right-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.search-bar__inline-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-6, 6px);
+  color: var(--tx-3);
+  cursor: pointer;
+  transition: background var(--motion-fast, 150ms), color var(--motion-fast, 150ms);
+}
+
+.search-bar__inline-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+.search-bar__inline-toggle.is-active {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+  font-weight: 500;
+}
+
+/* Right-slot clear button — small outlined circle with X glyph. */
+.search-bar__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--bdr-1);
+  border-radius: 50%;
+  color: var(--tx-3);
+  cursor: pointer;
+  transition: all var(--motion-fast, 150ms) var(--ease-standard, ease);
+}
+
+.search-bar__clear:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+  border-color: var(--sep);
+}
+
+/* Legacy alias — kept because attachment date filters in SearchFilters.tsx
+   still emit raw <input className="search-input"> for date pickers. */
 .search-input {
   flex: 1;
   padding: 5px 10px;
@@ -96,79 +291,408 @@
 }
 
 .search-input:focus {
-  border-color: var(--c-blue);
-  box-shadow: 0 0 0 2px var(--c-blue);
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 .search-input::placeholder {
   color: var(--tx-3);
 }
 
-/* Search filter button */
-.search-filter-btn {
+/* ──────────────────────────────────────────────────────────────────
+   2026-05-22 — FilterChipBar (dynamic chip filter, pilot on
+   Frontmatter tab). Replaces the static "always show all controls"
+   panel. Inactive filters live behind `+ Add filter`; active filters
+   render as `[× Label | value ▾]` chips. Each chip opens its picker
+   via DS Popover so positioning is independent of panel layout.
+   ────────────────────────────────────────────────────────────────── */
+
+.filter-chip-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  margin-left: var(--sp-2);
-  padding: 0;
-  background: var(--bg-elevated);
-  border: 0.5px solid var(--sep-l);
-  border-radius: var(--r-6);
-  color: var(--tx-3);
-  cursor: pointer;
-  transition: all var(--dur-150) ease;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--bg-app);
+  border-bottom: 0.5px solid var(--sep-l);
+  /* 2026-05-22 — slide-down entrance when chips first appear. The bar
+     only mounts when ≥1 filter is active, so this animation plays each
+     time the user adds the first chip back into the empty state. */
+  animation: filterChipBarSlideIn 180ms ease-out;
+  transform-origin: top;
 }
 
-.search-filter-btn:hover {
+@keyframes filterChipBarSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 80px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter-chip-bar { animation: none; }
+}
+
+/* 2026-05-22 — Filter trigger is a ghost icon button now (HanBin
+   reference design): no border, no background at rest, just the
+   icon. Hover surfaces a soft `--bg-hover`; the active/open state
+   tints the icon blue without re-introducing chrome. Stretches to
+   match the Input's rendered height so the toolbar row stays even. */
+.search-filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--tx-3);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast, 150ms) var(--ease-standard, ease),
+    color var(--motion-fast, 150ms) var(--ease-standard, ease);
+  flex-shrink: 0;
+}
+
+.search-filter-trigger:hover {
   background: var(--bg-hover);
   color: var(--tx-1);
 }
 
-.search-filter-btn.active {
-  background: var(--c-blue);
-  border-color: var(--c-blue);
-  color: #111;
+.search-filter-trigger[aria-expanded="true"] {
+  /* Neutral active state (was blue tint). Looks like "this menu is open"
+     without the leftover-from-old-design blue accent. */
+  color: var(--tx-1);
+  background: var(--bg-hover);
 }
 
-/* Date filters panel */
-.search-date-filters {
+/* Active chip — pill shape with X | label | separator | value */
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: 13px;
+  font-size: var(--fs-12);
+  color: var(--tx-1);
+  cursor: pointer;
+  transition: background var(--dur-150), border-color var(--dur-150);
+}
+
+.filter-chip:hover {
+  background: var(--bg-hover);
+  border-color: var(--sep);
+}
+
+.filter-chip__label {
+  color: var(--tx-3);
+  white-space: nowrap;
+}
+
+.filter-chip__separator {
+  color: var(--tx-3);
+  margin: 0 2px;
+}
+
+.filter-chip__value {
+  color: var(--tx-1);
+  font-weight: 500;
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 2px;
+  border-radius: 50%;
+  color: var(--tx-3);
+  cursor: pointer;
+  transition: background var(--dur-150), color var(--dur-150);
+}
+
+.filter-chip__remove:hover {
+  background: var(--bg-hover);
+  color: var(--c-red);
+}
+
+/* +Add filter chip — same shape but dashed and tx-2 */
+.filter-chip--add {
+  background: transparent;
+  border-style: dashed;
+  color: var(--tx-2);
+  padding: 0 10px;
+}
+
+.filter-chip--add:hover {
+  background: var(--bg-hover);
+  border-style: solid;
+  color: var(--tx-1);
+}
+
+/* Clear-all link — text-style button on the right */
+.filter-chip-bar__clear-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 0 6px;
+  height: 26px;
+  background: none;
+  border: none;
+  font-size: var(--fs-12);
+  color: var(--tx-3);
+  cursor: pointer;
+  border-radius: var(--r-6);
+  transition: color var(--dur-150), background var(--dur-150);
+}
+
+.filter-chip-bar__clear-all:hover {
+  color: var(--c-red);
+  background: var(--bg-hover);
+}
+
+/* ── Chip popover content (rendered inside DS Popover) ────────── */
+
+.filter-chip-popover__field-list {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
+  min-width: 160px;
+  padding: 4px;
+}
+
+.filter-chip-popover__field-list-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  border-radius: var(--r-6);
+  font-size: var(--fs-12);
+  color: var(--tx-1);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-150);
+}
+
+.filter-chip-popover__field-list-item:hover {
+  background: var(--bg-hover);
+}
+
+.filter-chip-popover__empty {
+  padding: 14px 18px;
+  min-width: 200px;
+  font-size: var(--fs-12);
+  color: var(--tx-3);
+  text-align: center;
+}
+
+.filter-chip-popover__select {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.filter-chip-popover__select-option {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  border-radius: var(--r-6);
+  font-size: var(--fs-12);
+  color: var(--tx-1);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-150);
+}
+
+.filter-chip-popover__select-option:hover {
+  background: var(--bg-hover);
+}
+
+.filter-chip-popover__select-option.is-selected {
+  /* Neutral active highlight — was blue text on blue bg, now just a
+     slightly darker neutral surface so the eye reads "selected" via
+     contrast, not color. */
+  background: var(--bg-hover);
+  color: var(--tx-1);
+  font-weight: 500;
+}
+
+/* Multi-select picker — leading check column makes toggles obvious. */
+.filter-chip-popover__multi .filter-chip-popover__select-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-chip-popover__check {
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+  color: var(--tx-1);
+  font-weight: 600;
+}
+
+.filter-chip-popover__date-range,
+.filter-chip-popover__text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  min-width: 260px;
+}
+
+.filter-chip-popover__date-range {
+  flex-direction: row;
+  align-items: center;
+  min-width: auto;
+}
+
+/* Text picker input — matched to the chip popover neutral chrome. */
+.filter-chip-popover__text-input {
+  height: 30px;
+  padding: 0 10px;
+  font-size: var(--fs-12);
+  background: var(--bg-input, var(--bg-elevated));
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-md, 6px);
+  color: var(--tx-1);
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.filter-chip-popover__text-input:focus {
+  border-color: var(--bdr-2, var(--sep));
+}
+
+/* Autocomplete suggestion list — sits directly under the input. */
+.filter-chip-popover__suggestions {
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
+  overflow-y: auto;
+  border-top: 0.5px solid var(--sep-l);
+  margin: 0 -8px -8px;
+  padding: 4px 4px;
+}
+
+.filter-chip-popover__suggestion {
+  display: block;
+  width: 100%;
+  padding: 5px 8px;
+  background: none;
+  border: none;
+  border-radius: var(--r-6, 6px);
+  font-size: var(--fs-12);
+  color: var(--tx-1);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background var(--dur-150);
+}
+
+.filter-chip-popover__suggestion:hover,
+.filter-chip-popover__suggestion.is-highlight {
+  background: var(--bg-hover);
+}
+
+.filter-chip-popover__apply {
+  align-self: flex-end;
+  height: 26px;
+  padding: 0 12px;
+  background: var(--tx-1);
+  border: none;
+  border-radius: var(--r-6);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--bg-base);
+  cursor: pointer;
+  transition: opacity var(--dur-150);
+}
+
+.filter-chip-popover__apply:hover {
+  opacity: 0.9;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   2026-05-22 — static `.search-date-filters` panel (kept for Contents
+   tab + AttachmentsTab — both still use the static pattern). The
+   Frontmatter tab moved to FilterChipBar above.
+   ────────────────────────────────────────────────────────────────── */
+.search-date-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   padding: 8px 10px;
   background: var(--bg-app);
   border-bottom: 0.5px solid var(--sep-l);
 }
 
+/* Each row is now an inline-flex group: label + control(s) + optional
+   clear button stay glued together, and the parent `.search-date-filters`
+   wraps groups as atomic units (no mid-row breaks). */
 .search-date-filter-row {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .search-date-filter-label {
-  min-width: 70px;
-  width: auto;
   font-size: var(--fs-11);
   color: var(--tx-3);
-  flex-shrink: 0;
   white-space: nowrap;
+  margin-right: 2px;
 }
 
 .search-date-input {
-  padding: 4px 6px;
-  font-size: var(--fs-11);
+  /* 2026-05-22 — unified chrome with `.search-details-select` and
+     `.search-filter-toggle-btn`. All filter-panel controls share the
+     same padding/font-size/border so the rows read as one row of
+     controls (no taller-than-others select, no padding mismatch). */
+  height: 28px;
+  padding: 0 8px;
+  font-size: var(--fs-12);
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
   border-radius: var(--r-6);
   color: var(--tx-1);
   outline: none;
+  box-sizing: border-box;
+  color-scheme: light dark;
 }
 
 .search-date-input:focus {
-  border-color: var(--c-blue);
+  border-color: var(--tx-1);
 }
 
 .search-date-separator {
@@ -192,29 +716,33 @@
 }
 
 .search-date-clear-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e04040;
+  background: var(--bg-hover);
+  color: var(--c-red);
 }
 
 .search-filter-toggle-btn {
-  padding: 4px 12px;
-  font-size: var(--fs-13);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  /* 2026-05-22 — matched to `.search-date-input` / `.search-details-select`
+     height + font for consistent filter-row visual rhythm. */
+  height: 28px;
+  padding: 0 12px;
+  font-size: var(--fs-12);
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--r-6);
-  color: #888;
+  color: var(--tx-3);
   cursor: pointer;
   transition: all var(--dur-150) ease;
+  box-sizing: border-box;
 }
 
 .search-filter-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-hover);
 }
 
 .search-filter-toggle-btn.active {
-  background: rgba(100, 150, 255, 0.2);
-  border-color: rgba(100, 150, 255, 0.4);
-  color: #6496ff;
+  background: var(--bg-sel);
+  border-color: var(--tx-1);
+  color: var(--tx-1);
 }
 
 /* Batch action buttons */
@@ -301,20 +829,30 @@
 .search-grid-row {
   height: 32px; /* Match virtual list ROW_HEIGHT — guarantees uniform row height */
   box-sizing: border-box;
-  border-bottom: 1px solid var(--bg-elevated); /* Row-level border for uniform alignment */
+  /* iOS-style hairline separator (was 1px solid bg-elevated). */
+  border-bottom: 0.5px solid var(--sep-l);
 }
 
 .search-grid-header {
   flex-shrink: 0;
+  /* 11th hotfix follow-up #5 — rows carry a 3px type-color strip; match
+     it with a transparent 3px left border on the header so columns line
+     up. */
+  border-left: 3px solid transparent;
+  box-sizing: border-box;
+  /* 2026-05-22 — iOS-style header surface. Same tone as the toolbar +
+     chip bar so the whole "command" area reads as one panel. */
+  background: var(--bg-app);
+  border-bottom: 0.5px solid var(--sep-l);
 }
 
-/* Column separator + resize handle */
+/* 2026-05-22 — vertical column separators removed for an iOS-clean look.
+   Resize handle is still grabbable (positioned via .col-resize-handle)
+   and shows a soft blue tint on hover, but no static line between
+   columns. Sticky background lets the header sit cleanly above the
+   scrolled body. */
 .search-grid-header .search-th {
   position: relative;
-  border-right: 1px solid var(--border-color, rgba(255,255,255,0.08));
-}
-
-.search-grid-header .search-th:last-child {
   border-right: none;
 }
 
@@ -326,13 +864,14 @@
   width: 5px;
   cursor: col-resize;
   z-index: 1;
-  border-radius: var(--radius-xs);
+  border-radius: var(--r-4);
 }
 
 .col-resize-handle:hover,
 .col-resize-handle:active {
-  background: var(--accent-color, #7aa2f7);
-  opacity: 0.6;
+  /* Neutral tone instead of blue — matches the iOS palette restraint. */
+  background: var(--tx-3);
+  opacity: 0.4;
 }
 
 .search-virtual-body {
@@ -358,23 +897,31 @@
 }
 
 .search-th {
+  /* 2026-05-22 — iOS-style column heading: smaller, slightly tracked,
+     muted color. Letter-spacing gives the all-Korean/all-Latin labels
+     a refined "column heading" feel without going full uppercase. */
   text-align: left;
   padding: 8px 12px;
-  color: var(--tx-3);
+  font-size: var(--fs-11, 11px);
   font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--tx-3);
   border-bottom: 0.5px solid var(--sep-l);
   position: sticky;
   top: 0;
   background-color: var(--bg-app);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .search-th.clickable {
   cursor: pointer;
+  transition: color var(--dur-150);
 }
 
 .search-th.clickable:hover {
-  color: var(--tx-2);
+  color: var(--tx-1);
 }
 
 .search-row {
@@ -387,23 +934,102 @@
 }
 
 .search-row.selected {
-  background-color: #1e3a5f !important;
+  background-color: var(--bg-sel) !important;
 }
 
 .search-row.selected:hover {
-  background-color: #2a4a7c !important;
+  background-color: color-mix(in srgb, var(--tx-1) 25%, var(--bg-base)) !important;
 }
 
-/* Multi-selected note rows in Search */
-.search-row.multi-selected,
-.search-details-item.multi-selected {
-  background-color: rgba(122, 162, 247, 0.15) !important;
-  border-left: 3px solid #7aa2f7;
+/* `.search-row.multi-selected` lives at the END of this file so its
+   rule wins the cascade over `.note-type` / `.sketch-type` / etc. (and
+   over `.has-custom-color`'s `!important` background). See the
+   end-of-file block. */
+
+/* 11th hotfix follow-up #8 (2026-05-19, HanBin) — checkbox column cells.
+   The Frontmatter tab uses CSS grid (cells are grid items) while the
+   Attachments tab uses a real `<table>` (cells are table-cells). The
+   two layouts need *different* centering mechanics:
+     • Grid item: `display: flex` centers the box both axes cleanly,
+       and the grid's `align-items: stretch` keeps the cell at row
+       height regardless of content.
+     • Table cell: `display: flex` breaks `display: table-cell`, so the
+       cell collapses to content height. Use `text-align: center` +
+       `vertical-align: middle` instead — table layout's native
+       centering primitives.
+   Shared: padding 0, cursor pointer. */
+
+/* Common reset (both tabs). */
+.search-th.search-th-checkbox,
+.search-td.search-td-checkbox {
+  padding: 0 !important;
+  cursor: pointer;
 }
 
-.search-row.multi-selected:hover,
-.search-details-item.multi-selected:hover {
-  background-color: rgba(122, 162, 247, 0.25) !important;
+/* Grid path — Frontmatter tab. */
+.search-grid-header .search-th.search-th-checkbox,
+.search-grid-row .search-td.search-td-checkbox {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  align-self: stretch;
+}
+
+/* Table path — Attachments tab. */
+.attachments-tab-v2-table .search-th.search-th-checkbox,
+.attachments-tab-v2-table .search-td.search-td-checkbox {
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+/* 11th hotfix follow-up #6 (2026-05-19, HanBin) — checkbox visual.
+   Native input, custom-drawn via `appearance: none`. Hard-overridden
+   with `!important` to defeat any later-cascade rule (the prior
+   attempt was still showing UA defaults in the row column, suggesting
+   another rule or browser default was reaching the input first).
+   Cell catches the click; this input is pointer-events: none so the
+   click reliably hits the cell exactly once. */
+input.search-row-checkbox {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 1px solid var(--bdr-2, #d1d1d6) !important;
+  border-radius: var(--radius-sm, 4px) !important;
+  background: var(--bg-input, var(--bg-elevated, #ffffff)) !important;
+  cursor: pointer !important;
+  pointer-events: none !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+  box-sizing: border-box !important;
+  transition:
+    background var(--motion-fast, 120ms) var(--ease-standard, ease-out),
+    border-color var(--motion-fast, 120ms) var(--ease-standard, ease-out);
+}
+
+/* Checked / indeterminate background — `<input>` is a replaced element so
+   ::after / ::before pseudos aren't reliable across engines. Use inline
+   SVG background-image for the checkmark + indeterminate bar instead. */
+input.search-row-checkbox:checked {
+  background-color: var(--c-accent, var(--tx-1)) !important;
+  border-color: var(--c-accent, var(--tx-1)) !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 8 7 12 13 4'/></svg>") !important;
+  background-size: 14px 14px !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+input.search-row-checkbox:indeterminate {
+  background-color: var(--c-accent, var(--tx-1)) !important;
+  border-color: var(--c-accent, var(--tx-1)) !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='3' y='7' width='10' height='2' fill='white'/></svg>") !important;
+  background-size: 14px 14px !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
 }
 
 /* Attachment extension category row colors in Search */
@@ -419,7 +1045,7 @@
 
 /* Synology conflict file styling */
 .search-row.conflict-file {
-  border-left: 3px solid #e8a838;
+  border-left: 3px solid var(--c-orange);
   background: linear-gradient(to right, rgba(232, 168, 56, 0.1) 0%, transparent 40%);
 }
 .search-row.conflict-file:hover {
@@ -429,8 +1055,8 @@
   display: inline-block;
   font-size: var(--fs-10);
   font-weight: 600;
-  color: #1a1a1a;
-  background: #e8a838;
+  color: #fff;
+  background: var(--c-orange);
   padding: 1px 4px;
   border-radius: var(--r-6);
   margin-right: 5px;
@@ -447,7 +1073,7 @@
   background: linear-gradient(90deg, rgba(232, 168, 56, 0.15), rgba(232, 168, 56, 0.05));
   border-bottom: 1px solid rgba(232, 168, 56, 0.3);
   font-size: var(--fs-13);
-  color: #e8a838;
+  color: var(--c-orange);
   animation: pulse-subtle 2s ease-in-out infinite;
 }
 @keyframes pulse-subtle {
@@ -456,6 +1082,21 @@
 }
 
 /* Search Row Type Colors (Frontmatter mode) */
+/* 2026-05-24 (HanBin) — `.container-type` row treatment. Every other
+   type below has its own rule (border-left + gradient + per-type hover);
+   CONTAINER had none, so only the default `.search-row:hover` applied,
+   and that paints `var(--bg-elevated)` which resolves to `#FFFFFF` in
+   light mode (= the row's own bg) → hover invisible. Mirrors the per-
+   type pattern with a neutral tx-1 stripe so folder rows feel like
+   "folder" while still getting a clear hover bump. */
+.search-row.container-type {
+  border-left: 3px solid color-mix(in srgb, var(--tx-1) 30%, transparent);
+  background: linear-gradient(to right, color-mix(in srgb, var(--tx-1) 5%, transparent) 0%, transparent 30%);
+}
+.search-row.container-type:hover {
+  background: linear-gradient(to right, color-mix(in srgb, var(--tx-1) 10%, transparent) 0%, var(--bg-hover-rgba) 40%);
+}
+
 .search-row.note-type { border-left: 3px solid var(--note-color); background: linear-gradient(to right, var(--note-bg) 0%, transparent 30%); }
 .search-row.sketch-type { border-left: 3px solid var(--sketch-color); background: linear-gradient(to right, var(--sketch-bg) 0%, transparent 30%); }
 .search-row.mtg-type { border-left: 3px solid var(--mtg-color); background: linear-gradient(to right, var(--mtg-bg) 0%, transparent 30%); }
@@ -491,6 +1132,25 @@
   background: linear-gradient(to right, color-mix(in srgb, var(--template-color) 20%, transparent) 0%, var(--bg-hover-rgba) 40%) !important;
 }
 
+/* 2026-05-22 — Selected note row(s). Declared LAST so it wins the
+   cascade over the per-type gradient rules (`.note-type`,
+   `.sketch-type` …) and over `.has-custom-color`'s `!important`
+   background.
+   Tone: HanBin asked for less blue across the filter UX. Now uses a
+   pure neutral hover surface (no blue tint) and a thin foreground-color
+   strip on the left — reads as "this row is focused" purely via
+   contrast, not via accent color. */
+.search-row.multi-selected,
+.search-row.multi-selected.has-custom-color {
+  background: var(--bg-hover) !important;
+  box-shadow: inset 2px 0 0 0 color-mix(in srgb, var(--tx-1) 50%, transparent) !important;
+}
+
+.search-row.multi-selected:hover,
+.search-row.multi-selected.has-custom-color:hover {
+  background: color-mix(in srgb, var(--tx-1) 8%, var(--bg-base)) !important;
+}
+
 .search-td {
   padding: 5px 12px; /* 32px row - 1px border = 31px; 31px - 10px padding = 21px content */
   color: var(--tx-2);
@@ -520,40 +1180,42 @@
 
 .search-tag {
   padding: 1px 6px;
-  background-color: #2d3748;
+  background-color: var(--bg-elevated);
   border: 1px solid transparent; /* Normalize box model with category tags */
   border-radius: var(--r-6);
   font-size: var(--fs-11);
   line-height: 1;
-  color: #a0aec0;
+  color: var(--tx-2);
   font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif !important;
   white-space: nowrap;
   /* No transition - instant style application for better performance */
 }
 
-/* Tag Category Colors */
+/* Tag Category Colors — token-driven (5.0.7a, 2026-05-17 HanBin).
+   Tier-3 tokens `--c-tag-{domain,who,org,ctx}` defined in themes.css with
+   light + dark + system variants so theme swap propagates here. */
 .search-tag.tag-domain {
-  background-color: rgba(139, 92, 246, 0.15);
-  color: #a78bfa;
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  background-color: color-mix(in srgb, var(--c-tag-domain) 15%, transparent);
+  color: var(--c-tag-domain);
+  border: 1px solid color-mix(in srgb, var(--c-tag-domain) 30%, transparent);
 }
 
 .search-tag.tag-who {
-  background-color: rgba(34, 211, 238, 0.15);
-  color: #22d3ee;
-  border: 1px solid rgba(34, 211, 238, 0.3);
+  background-color: color-mix(in srgb, var(--c-tag-who) 15%, transparent);
+  color: var(--c-tag-who);
+  border: 1px solid color-mix(in srgb, var(--c-tag-who) 30%, transparent);
 }
 
 .search-tag.tag-org {
-  background-color: rgba(251, 146, 60, 0.15);
-  color: #fb923c;
-  border: 1px solid rgba(251, 146, 60, 0.3);
+  background-color: color-mix(in srgb, var(--c-tag-org) 15%, transparent);
+  color: var(--c-tag-org);
+  border: 1px solid color-mix(in srgb, var(--c-tag-org) 30%, transparent);
 }
 
 .search-tag.tag-ctx {
-  background-color: rgba(52, 211, 153, 0.15);
-  color: #34d399;
-  border: 1px solid rgba(52, 211, 153, 0.3);
+  background-color: color-mix(in srgb, var(--c-tag-ctx) 15%, transparent);
+  color: var(--c-tag-ctx);
+  border: 1px solid color-mix(in srgb, var(--c-tag-ctx) 30%, transparent);
 }
 
 .search-tag.tag-dimmed {
@@ -571,8 +1233,8 @@
   top: 100%;
   left: 0;
   z-index: var(--z-dropdown);
-  background: var(--bg-secondary, #1e1e2e);
-  border: 1px solid var(--border-color, #333);
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--r-8);
   padding: var(--sp-2);
   min-width: 120px;
@@ -589,7 +1251,7 @@
   padding: 5px 10px;
   border: none;
   background: transparent;
-  color: var(--text-primary, #cdd6f4);
+  color: var(--tx-1);
   font-size: var(--fs-13);
   cursor: pointer;
   border-radius: var(--r-6);
@@ -598,11 +1260,11 @@
 }
 
 .tag-category-option:hover {
-  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+  background: var(--bg-hover);
 }
 
 .tag-category-option.active {
-  background: var(--bg-active, rgba(255, 255, 255, 0.1));
+  background: var(--bg-pressed);
   font-weight: 600;
 }
 
@@ -613,21 +1275,10 @@
   flex-shrink: 0;
 }
 
-.tag-category-dot.tag-domain {
-  background-color: #a78bfa;
-}
-
-.tag-category-dot.tag-who {
-  background-color: #22d3ee;
-}
-
-.tag-category-dot.tag-org {
-  background-color: #fb923c;
-}
-
-.tag-category-dot.tag-ctx {
-  background-color: #34d399;
-}
+.tag-category-dot.tag-domain { background-color: var(--c-tag-domain); }
+.tag-category-dot.tag-who    { background-color: var(--c-tag-who); }
+.tag-category-dot.tag-org    { background-color: var(--c-tag-org); }
+.tag-category-dot.tag-ctx    { background-color: var(--c-tag-ctx); }
 
 .search-date {
   color: var(--tx-3);
@@ -638,7 +1289,7 @@
 .search-empty {
   text-align: center;
   color: var(--tx-3);
-  padding: var(--space-12);
+  padding: var(--sp-6);
 }
 
 /* Search Content Results (Contents mode) */
@@ -654,10 +1305,99 @@
   position: relative;
   flex: 1;
   overflow: hidden;
-  padding: var(--space-12);
+  padding: var(--sp-6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   color: var(--tx-3);
   font-size: var(--fs-13);
+}
+
+/* 2026-05-22 — replaces the FloatingWords decorative animation with a
+   plain, helpful prompt. The body-search tab is for *intentional*
+   searches; we don't need a screensaver, we need a clear "what does
+   this do" cue for the user. */
+.search-content-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: 360px;
+}
+
+.search-content-prompt__headline {
+  font-size: var(--fs-15, 15px);
+  font-weight: 500;
+  color: var(--tx-2);
+}
+
+.search-content-prompt__hint {
+  font-size: var(--fs-12);
+  color: var(--tx-3);
+  line-height: 1.55;
+}
+
+/* 2026-05-22 — recent contents searches. Vault-scoped history; click
+   any pill to re-run the query. */
+.search-content-recent {
+  margin-top: 14px;
+  width: 100%;
+  max-width: 360px;
+  text-align: left;
+}
+
+.search-content-recent__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.search-content-recent__clear {
+  background: none;
+  border: none;
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--dur-150);
+}
+
+.search-content-recent__clear:hover {
+  color: var(--c-red);
+}
+
+.search-content-recent__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.search-content-recent__item {
+  height: 24px;
+  padding: 0 10px;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: 999px;
+  color: var(--tx-2);
+  font-size: var(--fs-12);
+  cursor: pointer;
+  transition: background var(--dur-150), color var(--dur-150);
+}
+
+.search-content-recent__item:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+/* Selected sort option in the dropdown. */
+.filter-chip-popover__field-list-item.is-selected {
+  background: var(--bg-hover);
+  font-weight: 500;
 }
 
 .floating-words-container {
@@ -701,6 +1441,27 @@
 
 .search-content-item:hover {
   background-color: var(--bg-elevated);
+}
+
+/* 2026-05-22 — title row now hosts an optional match-count badge on
+   the right. Flex layout lets the title take available width while
+   the badge stays anchored. */
+.search-content-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.search-content-match-count {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--bg-hover);
+  color: var(--tx-2);
+  font-size: var(--fs-11, 11px);
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 /* Search Content Item Type Colors */
@@ -763,155 +1524,45 @@
 }
 
 .search-highlight {
-  background-color: rgba(255, 200, 0, 0.3);
-  color: #fff;
+  background-color: color-mix(in srgb, var(--c-yellow) 30%, transparent);
+  color: var(--tx-1);
   padding: 0 1px;
-  border-radius: var(--radius-xs);
+  border-radius: var(--r-4);
 }
 
-/* Search Details Tab */
-.search-details-filters {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  flex: 1;
-}
-
+/* 5.0.7a (2026-05-17, HanBin) — Details tab dropped. `.search-details-select`
+   stayed because SearchFilters still uses it as the generic <select>
+   style across Frontmatter / Contents filter panels — the class name is
+   misleading now (no Details tab anymore) but renaming is deferred to
+   the next polish pass to avoid touching unrelated filter UI. */
 .search-details-select {
-  padding: 5px 10px;
-  font-size: var(--fs-13);
+  /* 2026-05-22 — native <select> styled to match `.search-date-input`.
+     `appearance: none` removes the OS default arrow + box chrome;
+     a custom inline SVG caret keeps the dropdown affordance. The
+     trailing right-padding (28px) reserves room for the SVG. */
+  appearance: none;
+  -webkit-appearance: none;
+  height: 28px;
+  padding: 0 28px 0 8px;
+  font-size: var(--fs-12);
   background-color: var(--bg-elevated);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px 12px;
   border: 0.5px solid var(--sep-l);
   border-radius: var(--r-6);
   color: var(--tx-1);
   outline: none;
   cursor: pointer;
+  box-sizing: border-box;
+  /* Tells the UA that this control supports both schemes — keeps the
+     <option> popup readable in dark theme on Windows/macOS. */
+  color-scheme: light dark;
 }
 
 .search-details-select:focus {
-  border-color: var(--c-blue);
-}
-
-.search-details-results {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 0;
-}
-
-.search-details-item {
-  padding: 10px 16px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--bg-elevated);
-  transition: background-color var(--dur-150) ease;
-  border-radius: var(--r-6);
-  margin: 0 var(--sp-2);
-}
-
-.search-details-item:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-/* Search details item type colors */
-.search-details-item.note-type { border-left: 3px solid var(--note-color); background: linear-gradient(to right, var(--note-bg) 0%, transparent 30%); }
-.search-details-item.sketch-type { border-left: 3px solid var(--sketch-color); background: linear-gradient(to right, var(--sketch-bg) 0%, transparent 30%); }
-.search-details-item.mtg-type { border-left: 3px solid var(--mtg-color); background: linear-gradient(to right, var(--mtg-bg) 0%, transparent 30%); }
-.search-details-item.sem-type { border-left: 3px solid var(--sem-color); background: linear-gradient(to right, var(--sem-bg) 0%, transparent 30%); }
-.search-details-item.event-type { border-left: 3px solid var(--event-color); background: linear-gradient(to right, var(--event-bg) 0%, transparent 30%); }
-.search-details-item.ofa-type { border-left: 3px solid var(--ofa-color); background: linear-gradient(to right, var(--ofa-bg) 0%, transparent 30%); }
-.search-details-item.paper-type { border-left: 3px solid var(--paper-color); background: linear-gradient(to right, var(--paper-bg) 0%, transparent 30%); }
-.search-details-item.lit-type { border-left: 3px solid var(--lit-color); background: linear-gradient(to right, var(--lit-bg) 0%, transparent 30%); }
-.search-details-item.data-type { border-left: 3px solid var(--data-color); background: linear-gradient(to right, var(--data-bg) 0%, transparent 30%); }
-.search-details-item.theo-type { border-left: 3px solid var(--theo-color); background: linear-gradient(to right, var(--theo-bg) 0%, transparent 30%); }
-.search-details-item.contact-type { border-left: 3px solid var(--contact-color); background: linear-gradient(to right, var(--contact-bg) 0%, transparent 30%); }
-.search-details-item.setup-type { border-left: 3px solid var(--setup-color); background: linear-gradient(to right, var(--setup-bg) 0%, transparent 30%); }
-
-/* Search details item hover type colors */
-.search-details-item.note-type:hover { background: linear-gradient(to right, var(--note-bg-hover) 0%, var(--bg-hover-rgba) 40%); }
-.search-details-item.sketch-type:hover { background: linear-gradient(to right, var(--sketch-bg-hover) 0%, var(--bg-hover-rgba) 40%); }
-.search-details-item.mtg-type:hover { background: linear-gradient(to right, var(--mtg-bg-hover) 0%, var(--bg-hover-rgba) 40%); }
-.search-details-item.sem-type:hover { background: linear-gradient(to right, var(--sem-bg-hover) 0%, var(--bg-hover-rgba) 40%); }
-.search-details-item.event-type:hover { background: linear-gradient(to right, var(--event-bg-hover) 0%, var(--bg-hover-rgba) 40%); }
-.search-details-item.ofa-type:hover { background: linear-gradient(to right, var(--ofa-bg-hover) 0%, var(--bg-hover-rgba) 40%); }
-.search-details-item.paper-type:hover { background: linear-gradient(to right, var(--paper-bg-hover) 0%, var(--bg-hover-rgba) 40%); }
-.search-details-item.lit-type:hover { background: linear-gradient(to right, var(--lit-bg-hover) 0%, var(--bg-hover-rgba) 40%); }
-.search-details-item.data-type:hover { background: linear-gradient(to right, var(--data-bg-hover) 0%, var(--bg-hover-rgba) 40%); }
-.search-details-item.theo-type:hover { background: linear-gradient(to right, var(--theo-bg-hover) 0%, var(--bg-hover-rgba) 40%); }
-.search-details-item.contact-type:hover { background: linear-gradient(to right, var(--contact-bg-hover) 0%, var(--bg-hover-rgba) 40%); }
-.search-details-item.setup-type:hover { background: linear-gradient(to right, var(--setup-bg-hover) 0%, var(--bg-hover-rgba) 40%); }
-
-/* Custom color override for search details items */
-.search-details-item.has-custom-color {
-  border-left: 3px solid var(--template-color) !important;
-  background: linear-gradient(to right, color-mix(in srgb, var(--template-color) 12%, transparent) 0%, transparent 30%) !important;
-}
-.search-details-item.has-custom-color:hover {
-  background: linear-gradient(to right, color-mix(in srgb, var(--template-color) 20%, transparent) 0%, var(--bg-hover-rgba) 40%) !important;
-}
-
-.search-details-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-2);
-}
-
-.search-details-title {
-  font-size: var(--fs-13);
-  font-weight: 500;
-  color: var(--tx-1);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.search-details-type {
-  font-size: var(--fs-11);
-  padding: 2px 6px;
-  background: rgba(100, 150, 255, 0.2);
-  border-radius: var(--r-6);
-  color: #8ab4f8;
-  flex-shrink: 0;
-}
-
-.search-details-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-2);
-}
-
-.search-details-container {
-  font-size: var(--fs-11);
-  color: #888;
-}
-
-.search-details-dates {
-  font-size: var(--fs-11);
-  color: var(--tx-3);
-}
-
-.search-details-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  margin-top: var(--sp-2);
-}
-
-.search-details-tags .search-tag {
-  cursor: pointer;
-}
-
-.search-details-tags .search-tag:hover {
-  background-color: rgba(100, 150, 255, 0.3);
-}
-
-.search-details-comments {
-  margin-top: var(--sp-2);
-  font-size: var(--fs-11);
-  color: var(--tx-3);
+  border-color: var(--tx-1);
 }
 
 /* ── Light Mode Contrast ── */
@@ -929,18 +1580,50 @@ html[data-theme="light"] .search-input {
   border: 1px solid var(--sep);
 }
 
-html[data-theme="light"] .search-filter-toggle-btn {
-  background: rgba(0, 0, 0, 0.04);
-  border-color: var(--sep);
-  color: var(--tx-2);
-}
+/* Light mode overrides removed — base styles now use theme-aware tokens */
 
-html[data-theme="light"] .search-filter-toggle-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
+/* ─────────────────────────────────────────────────────────────────
+   5.0.5a-migration A2 (2026-05-17, HanBin) — unmatched-type row.
+   HanBin: "템플릿이 없는 케이스는 경고를 더 명확하게."
+   The previous treatment was a 3px strip + label color, but those got
+   visually overpowered by the per-cssclass color strip the row picks up
+   from `.note-type` / `.contact-type` / etc. — so legacy rows still
+   looked indistinguishable. Now:
+     • 4px solid warning strip on the left (override via !important
+       because the per-cssclass strips also use ::before)
+     • warning-tinted row background (light tint)
+     • warning-colored italic + bold type label + AlertTriangle prefix
+   The combined signal makes legacy rows obvious without having to
+   read the type cell.
+   ───────────────────────────────────────────────────────────────── */
+.search-row.search-row--unmatched {
+  position: relative;
+  background: color-mix(in srgb, var(--c-warning, #f97316) 6%, transparent) !important;
 }
-
-html[data-theme="light"] .search-filter-toggle-btn.active {
-  background: rgba(0, 122, 255, 0.1);
-  border-color: rgba(0, 122, 255, 0.3);
-  color: var(--c-blue);
+.search-row.search-row--unmatched:hover {
+  background: color-mix(in srgb, var(--c-warning, #f97316) 10%, transparent) !important;
+}
+.search-row.search-row--unmatched::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 4px !important;
+  background: var(--c-warning, #f97316) !important;
+  border-radius: 0 !important;
+  z-index: 1;
+}
+.search-row--unmatched .search-type,
+.search-row--unmatched .search-details-type {
+  color: var(--c-warning, #f97316);
+  font-style: italic;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.search-type__unmatched-icon {
+  flex-shrink: 0;
+  color: var(--c-warning, #f97316);
 }

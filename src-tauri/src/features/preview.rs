@@ -203,6 +203,7 @@ pub async fn cleanup_preview_cache(app: tauri::AppHandle, max_age_days: Option<u
     Ok(removed)
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn render_hwp_to_svg(path: String) -> Result<String, String> {
     use hwpers::HwpReader;
@@ -236,4 +237,10 @@ pub async fn render_hwp_to_svg(path: String) -> Result<String, String> {
     })
     .await
     .map_err(|e| format!("Task failed: {}", e))?
+}
+
+#[cfg(not(desktop))]
+#[tauri::command]
+pub async fn render_hwp_to_svg(_path: String) -> Result<String, String> {
+    Err("HWP rendering is not available on mobile".into())
 }

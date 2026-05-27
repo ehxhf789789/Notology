@@ -4,11 +4,14 @@
  * When a vault is selected, emits a Tauri event and closes itself.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { emit, listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { ConnectionVaultSelector } from './ConnectionVaultSelector';
 import { getGlobalStore } from '../../../core/stores/persistenceUtils';
+import { t } from '../../../core/utils/i18n';
+import { useLanguage } from '../../../core/stores/settingsStore';
 import logoWhite from '../../../assets/logo-white.png';
 import logoBlack from '../../../assets/logo-black.png';
 import '../../../styles/tokens.css';
@@ -109,6 +112,8 @@ export function VaultSelectorWindow() {
     await getCurrentWindow().close();
   }, []);
 
+  const language = useLanguage();
+
   // Resolve effective theme for rendering (system → actual dark/light)
   const effectiveTheme = theme === 'system'
     ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
@@ -116,18 +121,57 @@ export function VaultSelectorWindow() {
 
   return (
     <div className="vault-selector-window" data-theme={effectiveTheme}>
+      {/* 5.0.6ab (2026-05-17, HanBin) — final layout per HanBin's Obsidian
+          reference. Three zones:
+          • Titlebar → small Notology wordmark on the LEFT (was empty per
+            HanBin "윈도우 바에서도 당연히 텍스트가 있어야 하는데 왜
+            비어 있냐"). The chrome now carries the app identity at all
+            times even when the user scrolls past the hero.
+          • Hero (centered) → 48px logo + Notology wordmark (24px) +
+            version pill, then the page title underneath. Mirrors the
+            Obsidian "Quick start" hero block — vertically stacked,
+            horizontally centred, generous breathing space.
+          • Body → connection chip (right-aligned) + vault list. */}
       <div className="vault-selector-window-header">
-        <span className="vault-selector-window-title">Notology</span>
-        <button className="vault-selector-window-close" onClick={handleClose}>×</button>
+        <span className="vault-selector-window-titlebar-brand">
+          <img
+            src={effectiveTheme === 'dark' ? logoWhite : logoBlack}
+            alt=""
+            className="vault-selector-window-titlebar-brand__logo"
+          />
+          <span className="vault-selector-window-titlebar-brand__name">Notology</span>
+          {/* 5.0.6ac (2026-05-17, HanBin) — page label after the brand.
+              HanBin: "윈도우 바에 보관소 선택창 (한글/영문 고려)".
+              i18n drives the language; dot separator keeps the visual
+              hierarchy (brand emphasized, page label muted secondary). */}
+          <span className="vault-selector-window-titlebar-brand__sep" aria-hidden="true">·</span>
+          <span className="vault-selector-window-titlebar-brand__page">
+            {t('vsWindowTitle', language)}
+          </span>
+        </span>
+        <span className="vault-selector-window-titlebar-spacer" />
+        <button
+          className="vault-selector-window-close"
+          onClick={handleClose}
+          aria-label={t('close', language)}
+          title={t('close', language)}
+        >
+          <X size={16} strokeWidth={2} />
+        </button>
+      </div>
+      <div className="vault-selector-window-hero">
+        <img
+          src={effectiveTheme === 'dark' ? logoWhite : logoBlack}
+          alt=""
+          className="vault-selector-window-hero__logo"
+        />
+        <div className="vault-selector-window-hero__brand">
+          <span className="vault-selector-window-hero__name">Notology</span>
+          <span className="vault-selector-window-hero__version">v3.0.0</span>
+        </div>
+        <h1 className="vault-selector-window-hero__title">{t('vsWindowTitle', language)}</h1>
       </div>
       <div className="vault-selector-window-body">
-        <div className="vault-selector-window-logo">
-          <img src={effectiveTheme === 'dark' ? logoWhite : logoBlack} alt="Notology" className="vault-selector-logo-img" />
-          <div className="vault-selector-logo-text">
-            <h1>Notology</h1>
-            <span className="vault-selector-version">v3.0.0</span>
-          </div>
-        </div>
         <ConnectionVaultSelector onVaultSelected={handleVaultSelected} />
       </div>
     </div>

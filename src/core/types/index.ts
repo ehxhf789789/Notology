@@ -12,32 +12,117 @@ export interface FileContent {
   body: string;
 }
 
+/**
+ * Faceted tags shape that matches the Rust frontmatter struct on disk.
+ * Canonical 4 facets after the Q1 cleanup landed in 2026-05-18 — legacy
+ * source/method/status arrays are folded into `ctx` by the Rust
+ * deserializer (see src-tauri/.../frontmatter/types.rs `deserialize_tags`)
+ * so old vaults migrate transparently on first read.
+ */
+export interface FacetedTags {
+  domain?: string[];
+  who?: string[];
+  org?: string[];
+  ctx?: string[];
+}
+/** Legacy flat-array tag shape — pre-FacetedTags vaults. Parsers should
+ *  accept it but new writes should always emit FacetedTags. */
+export type LegacyFlatTags = string[];
+
 export interface NoteFrontmatter {
   created: string;
   modified: string;
   title?: string;
   type?: string;
   cssclasses?: string[];
-  tags?: string[];
+  /** Polymorphic for backward compat: new writes emit FacetedTags;
+   *  legacy notes may still carry a flat string[] until first re-save. */
+  tags?: FacetedTags | LegacyFlatTags;
   [key: string]: unknown;
 }
 
-export interface FolderNoteTemplate {
+/**
+ * Stage 5.0.5 T-3 (2026-05-17, HanBin) — shared base for FolderNoteTemplate
+ * and NoteTemplate. Both kinds share `id`, `name`, `frontmatter`, and `body`;
+ * the kind-specific fields (Folder: `type`+`level`; Note: `prefix`,
+ * `namePattern`, custom color/icon, sub-kinds, wizard fields) extend this
+ * base. Pulling the common shape out makes future cross-cutting changes
+ * (e.g. adding `description`, `version`, or `aliases` to BOTH at once)
+ * a single edit instead of two.
+ */
+export interface BaseTemplate {
   id: string;
   name: string;
-  type: 'A' | 'B';
-  level: number;
   frontmatter: Partial<NoteFrontmatter>;
   body: string;
 }
 
-export interface NoteTemplate {
+export interface FolderNoteTemplate extends BaseTemplate {
+  type: 'A' | 'B';
+  level: number;
+}
+
+/**
+ * Form field declaration for the unified NoteWizard (Stage 5.0.5a, 2026-05-16).
+ *
+ * A NoteKind can declare which fields the Wizard collects at note creation.
+ * The wizard knows how to render each `kind` and produce the merged
+ * frontmatter/body without per-template hand-rolled modals.
+ */
+export type NoteWizardFieldKind =
+  | 'title'        // required text, always present implicitly
+  | 'text'
+  | 'date'         // HTML5 date, defaults to today
+  | 'time'         // HH:MM, defaults to nearest 30 min
+  | 'url'
+  | 'email'
+  | 'tel'
+  | 'participants' // comma-separated string → string[] in frontmatter
+  | 'authors'      // comma-separated string → string[]
+  | 'year'         // integer, defaults to current year
+  | 'tags';        // FacetedTagSelection (TagInputSection)
+
+export interface NoteWizardField {
+  /** Frontmatter key to write into (also form state key). */
+  key: string;
+  /** Display label — i18n key. */
+  labelI18n: string;
+  /** Field kind drives rendering + parsing. */
+  kind: NoteWizardFieldKind;
+  /** If true the user MUST fill it before the wizard can submit. */
+  required?: boolean;
+  /** Optional placeholder i18n key. */
+  placeholderI18n?: string;
+}
+
+/**
+ * Sub-kind under a parent NoteTemplate. Lets one template (e.g., "Work")
+ * parameterize multiple workflows (meeting / report / project / admin / event)
+ * without proliferating top-level templates. Stage 5.0.5a IA per HanBin
+ * (2026-05-16): top-level = 4 templates, sub-kinds inside Work/Reference.
+ */
+export interface NoteKind {
+  /** Stable id (e.g., 'meeting', 'report', 'paper'). */
   id: string;
-  name: string;
+  /** Display label i18n key. */
+  nameI18n: string;
+  /** Optional one-line description i18n key. */
+  descriptionI18n?: string;
+  /** Optional lucide icon name. */
+  icon?: string;
+  /** Frontmatter shape produced when this kind is picked.
+   *  Merged on top of the parent template's frontmatter. */
+  frontmatter: Partial<NoteFrontmatter>;
+  /** Markdown body produced when this kind is picked. Supports {{var}}
+   *  interpolation from form values. */
+  body: string;
+  /** Fields the Wizard collects (in addition to the implicit `title`). */
+  fields?: NoteWizardField[];
+}
+
+export interface NoteTemplate extends BaseTemplate {
   prefix: string;
   namePattern: string;
-  frontmatter: Partial<NoteFrontmatter>;
-  body: string;
   // Extended template configuration
   customColor?: string; // Hex color for custom color
   icon?: string; // Icon identifier
@@ -47,6 +132,29 @@ export interface NoteTemplate {
     org?: string[];
     ctx?: string[];
   };
+  /**
+   * Stage 5.0.5a (2026-05-16) — sub-kinds. If present, the Wizard shows a
+   * second step where the user picks a kind, and the resulting note uses
+   * the kind's frontmatter/body merged with the template's defaults.
+   * Templates without `kinds` behave like before — title-only form.
+   */
+  kinds?: NoteKind[];
+  /**
+   * Fields the Wizard collects when this template has NO sub-kinds (e.g.,
+   * Contact). Title is implicit; declare any additional fields here.
+   */
+  fields?: NoteWizardField[];
+  /**
+   * 11th hotfix (2026-05-18, HanBin) — special-modals retire. Declarative
+   * list of `{{token}}` strings the unified TitleInputModal should collect
+   * even when the body doesn't reference them. Legacy MTG/PAPER/LIT/EVENT
+   * templates put their participants/authors/date/etc. into FRONTMATTER
+   * (via createFromTemplate's type-specific mapping) rather than into the
+   * body, so body-scan alone wouldn't surface those inputs. Listing them
+   * here ensures the wizard asks for them. Merged (de-duped) with tokens
+   * discovered by `scanUserInputVars(template.body)`.
+   */
+  userInputTokens?: string[];
 }
 
 export type ContainerType = 'standard' | 'storage';
@@ -90,7 +198,11 @@ export interface AppSettings {
 export interface SearchResult {
   path: string;
   title: string;
+  /** First (best) snippet — backward compat. New UI should prefer `snippets`. */
   snippet: string;
+  /** 2026-05-22 — up to 5 non-overlapping match excerpts. Lets cards
+   *  surface "this note matches in N places" instead of only the first. */
+  snippets?: string[];
   score: number;
 }
 
@@ -157,6 +269,21 @@ export interface ContextMenuState {
   wikiLinkDeleteCallback?: () => void;
   hideDelete?: boolean;
   isAttachment?: boolean;
+  /**
+   * Stage 5.0.4b-2d v3.2 (2026-05-15) — atom action list mode. Used by
+   * atom nodes (MediaEmbed, math, LinkCard) for right-click menus. Each
+   * item renders as a button. When set, `fileName` and `notePath` are
+   * empty (wiki-link branch of ContextMenu is skipped).
+   *
+   * Provides "위에 줄 추가" / "아래에 줄 추가" / "삭제" as reliable
+   * fallbacks for atoms where natural caret placement is hard to achieve.
+   */
+  atomActions?: Array<{
+    label: string;
+    onClick: () => void;
+    /** Show in red (delete-style). */
+    danger?: boolean;
+  }>;
 }
 
 export interface AttachmentInfo {
@@ -178,7 +305,10 @@ export interface NasPlatformInfo {
   synology_client_running: boolean;
 }
 
-export type SearchMode = 'frontmatter' | 'contents' | 'attachments' | 'details' | 'graph';
+// 5.0.7a (2026-05-17, HanBin) — "details" tab dropped per plan delta §C.
+// Information surfaced by the old Details tab will live as an inline
+// expand on Frontmatter rows in a follow-up sub-stage.
+export type SearchMode = 'frontmatter' | 'contents' | 'attachments' | 'graph';
 
 export interface GraphNode {
   id: string;
@@ -263,12 +393,12 @@ export interface NoteComment {
     // completed removed - use resolved instead
   };
   // Canvas (스케치) 노트용 필드
-  canvasNodeId?: string; // Canvas 노드 ID
-  canvasTextPosition?: { from: number; to: number }; // 노드 내 텍스트 위치
+  sketchNodeId?: string; // Canvas 노드 ID
+  sketchTextPosition?: { from: number; to: number }; // 노드 내 텍스트 위치
 }
 
 // Canvas selection 정보 (메모 생성용)
-export interface CanvasSelection {
+export interface SketchSelection {
   nodeId: string;
   text: string;
   from: number;
@@ -276,25 +406,39 @@ export interface CanvasSelection {
 }
 
 // Canvas types
-export type CanvasNodeType = 'text' | 'file' | 'link' | 'group';
+export type SketchNodeType = 'text' | 'file' | 'link' | 'group';
 
-export interface CanvasNode {
+export interface SketchNode {
   id: string;
-  type: CanvasNodeType;
+  type: SketchNodeType;
   x: number;
   y: number;
   width: number;
   height: number;
+  /** Fill background color (semantic key like 'node-blue' or hex). */
   color?: string;
+  /**
+   * v20.12 (2026-05-17, HanBin) — node border / outline color. Hex string
+   * (e.g. '#007AFF'). Applied as `border-color` on rectangle nodes and as
+   * SVG `stroke` on shape-decision / shape-io / shape-database /
+   * shape-parallelogram (and any other SVG-rendered shape). Falls back to
+   * the theme's `--sep` token when undefined. Synced with edge `color`
+   * via the unified "테두리 색상" picker so a node's outline matches the
+   * arrow color in a single click.
+   */
+  borderColor?: string;
   borderRadius?: number;
   shape?: 'process' | 'terminal' | 'decision' | 'io' | 'subroutine' | 'database';
   textAlign?: 'top-left' | 'center';
   text?: string;
   file?: string;
   url?: string;
+  // Group node fields
+  isGroup?: boolean;
+  groupLabel?: string;
 }
 
-export interface CanvasEdge {
+export interface SketchEdge {
   id: string;
   fromNode: string;
   fromSide: 'top' | 'right' | 'bottom' | 'left';
@@ -304,9 +448,9 @@ export interface CanvasEdge {
   label?: string;
 }
 
-export interface CanvasData {
-  nodes: CanvasNode[];
-  edges: CanvasEdge[];
+export interface SketchData {
+  nodes: SketchNode[];
+  edges: SketchEdge[];
 }
 
 // Calendar types
@@ -319,9 +463,19 @@ export interface CalendarMemo {
   isTask: boolean;
   resolved: boolean;
   anchorText: string;
+  /** "HH:MM" for tasks with a time set; undefined otherwise.
+   *  Drives Day-view 24-hour timeline placement. Undefined → "시간 미정" group. */
+  dueTime?: string;
 }
 
+/** Memo type filter (task vs free-form memo) — NOT a calendar layout mode.
+ *  See `CalendarLayoutMode` for month/day switch. */
 export type CalendarViewMode = 'task' | 'memo';
+
+/** 2026-05-26 (HanBin) — calendar surface layout. Toggled by SegmentedControl
+ *  in CalendarSurface header. `month` = traditional grid + memo list (existing);
+ *  `day` = single-day 24-hour timeline of selected date. */
+export type CalendarLayoutMode = 'month' | 'day';
 
 // Tag Settings Types
 export interface TagConfig {

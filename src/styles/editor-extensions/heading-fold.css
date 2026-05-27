@@ -12,19 +12,15 @@
 .tiptap-editor .heading-wrapper h6 {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--sp-1);
 }
 
-/* Adjust padding for headings in wrapper to make room for toggle button */
-.tiptap-editor .heading-wrapper h1 {
-  padding-left: var(--space-4);
-}
-.tiptap-editor .heading-wrapper h2 {
-  padding-left: var(--space-3);
-}
-.tiptap-editor .heading-wrapper h3 {
-  padding-left: var(--space-2);
-}
+/* v5.5 (2026-05-16) — REMOVED stale `padding-left: var(--sp-2)` / `var(--sp-1)`
+   overrides. Those tokens were never defined (the project uses `--space-*`
+   not `--sp-*`), so CSS treated the declarations as invalid-at-computed-value
+   and padding-left fell back to 0 — which killed the base 16/14/12 padding
+   from editor.css. The base padding now applies inside the wrapper too, so
+   the colored border-left sits next to the toggle button with a readable gap. */
 
 .tiptap-editor .heading-toggle-btn {
   display: inline-flex;
@@ -34,14 +30,14 @@
   height: 16px;
   min-width: 16px;
   padding: 0;
-  margin-right: var(--space-1);
+  margin-right: var(--sp-1);
   background: transparent;
   border: none;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted, #6c7086);
+  border-radius: var(--r-6);
+  color: var(--tx-3);
   cursor: pointer;
   opacity: 0;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
   flex-shrink: 0;
 }
 
@@ -51,13 +47,13 @@
 
 .tiptap-editor .heading-toggle-btn:hover {
   opacity: 1;
-  background: var(--bg-hover, rgba(255, 255, 255, 0.1));
-  color: var(--text-primary, #fff);
+  background: var(--bg-hover);
+  color: var(--tx-1);
 }
 
 .tiptap-editor .heading-wrapper.collapsed .heading-toggle-btn {
   opacity: 1;
-  color: var(--accent-color, #7aa2f7);
+  color: var(--tx-1);
 }
 
 .tiptap-editor .heading-content {
@@ -66,10 +62,10 @@
 }
 
 .tiptap-editor .heading-collapsed-indicator {
-  color: var(--text-muted, #6c7086);
+  color: var(--tx-3);
   font-weight: normal;
   font-size: 0.75em;
-  margin-left: var(--space-4);
+  margin-left: var(--sp-2);
   opacity: 0.6;
   white-space: nowrap;
 }

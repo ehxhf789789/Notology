@@ -1,10 +1,18 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { utilCommands, searchCommands } from '../../core/services/tauriCommands';
+import { utilCommands, searchCommands, fileCommands, frontmatterCommands } from '../../core/services/tauriCommands';
 import { RefreshCw, Check, Pause, Circle } from 'lucide-react';
+import { CHECK } from '../../design-system/components';
 import { useFileTree, useVaultPath, fileTreeActions, hoverActions, refreshActions } from '../../core/stores/zustand';
 import { useModalStore, modalActions } from '../modals/stores/modalStore';
 import { useContainerConfigs, useFolderStatuses, vaultConfigActions } from '../vault-config/stores/vaultConfigStore';
 import { deleteNote, deleteFolder, refreshHoverWindowsForFile } from '../../core/stores/appActions';
+// 8th hotfix (2026-05-17, HanBin) — explicit "템플릿 변환" menu item that
+// re-uses the existing TemplateMigrationPromptModal in `explicit-convert`
+// mode. Available on any note regardless of whether its current type is
+// registered.
+import { templateMigrationPromptActions } from '../templates/templateMigrationPromptStore';
+import { noteTypeCacheActions } from '../content-cache/stores/noteTypeCacheStore';
+import { showToast } from '../shared/Toast';
 import type { ContainerType, FolderStatus } from '../../core/types';
 import { FOLDER_STATUS_INFO } from '../../core/types';
 import { useSettingsStore } from '../../core/stores/settingsStore';
@@ -51,6 +59,25 @@ function ContextMenu() {
 
   // Use optimized hook for click outside and escape key handling
   useModalClose(menuRef, () => modalActions.hideContextMenu(), !!contextMenu);
+
+  // Stage 5.0.4b-2d v2.3 (2026-05-15) — close on scroll. v5.3 — also on
+  // dragstart. v5.5.1 (2026-05-16, HanBin): popover 내부 스크롤은 닫지 말 것 —
+  // 메뉴 안에서 휠로 항목 탐색 가능해야 함. 외부(편집기 본문) 스크롤만 닫기.
+  useEffect(() => {
+    if (!contextMenu?.visible) return;
+    const onScroll = (e: Event) => {
+      const target = e.target as Node | null;
+      if (target && menuRef.current?.contains(target)) return;
+      modalActions.hideContextMenu();
+    };
+    const onDragStart = () => modalActions.hideContextMenu();
+    window.addEventListener('scroll', onScroll, true);
+    document.addEventListener('dragstart', onDragStart, true);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      document.removeEventListener('dragstart', onDragStart, true);
+    };
+  }, [contextMenu?.visible]);
 
   const findFilePath = useCallback((fileName: string): string | null => {
     const search = (nodes: typeof fileTree): string | null => {
@@ -111,6 +138,41 @@ function ContextMenu() {
 
   if (!contextMenu || !contextMenu.visible) return null;
 
+  // Stage 5.0.4b-2d (2026-05-15) — atom delete-only branch. For math /
+  // LinkCard atoms that don't have a file path. Renders just one Delete
+  // item with the atom's localized label. Mutually exclusive with the
+  // wiki-link branch below — short-circuits the rest of the render.
+  if (contextMenu.atomActions && contextMenu.atomActions.length > 0) {
+    // `position: 'fixed'` REQUIRED (matches the wikilink branch below).
+    // Without it the menu renders in document flow as a block element →
+    // width: 100% of parent → position-clamp pushes x to 16 (viewport
+    // edge), leaving the menu off-screen. Use raw position on first
+    // render so the menu lands near the click instead of (0,0).
+    const useRaw = adjustedPos.x === 0 && adjustedPos.y === 0;
+    const menuStyle: React.CSSProperties = {
+      position: 'fixed',
+      left: useRaw ? contextMenu.position.x : adjustedPos.x,
+      top: useRaw ? contextMenu.position.y : adjustedPos.y,
+    };
+    const actions = contextMenu.atomActions;
+    return (
+      <div ref={menuRef} className="context-menu" style={menuStyle}>
+        {actions.map((action, idx) => (
+          <button
+            key={idx}
+            className={`context-menu-item${action.danger ? ' delete' : ''}`}
+            onClick={() => {
+              modalActions.hideContextMenu();
+              action.onClick();
+            }}
+          >
+            {action.label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
   const { fileName, position, notePath, filePath: directPath, isFolder, fromSearch, wikiLinkDeleteCallback, hideDelete, isAttachment: isAttachmentFlag } = contextMenu;
   const filePath = directPath || findFilePath(fileName);
   // Check if the file is in an _att folder (then it's an attachment, not a note even if .md)
@@ -119,7 +181,7 @@ function ContextMenu() {
   const isNote = isAttachmentFlag ? false : (filePath ? (/\.md$/i.test(filePath) && !isInAttFolder) : false);
   // Check if notePath is a valid note file path (must end with .md)
   const hasValidNotePath = notePath && /\.md$/i.test(notePath);
-  const isPreviewable = filePath ? /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(filePath) : false;
+  const isPreviewable = filePath ? /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala|csv|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(filePath) : false;
 
   // Check if this folder is a root container (direct child of vault)
   const isRootContainer = isFolder && filePath && vaultPath && (() => {
@@ -173,6 +235,70 @@ function ContextMenu() {
       modalActions.showMoveNoteModal(notePath);
     }
     modalActions.hideContextMenu();
+  };
+
+  // 8th hotfix (2026-05-17, HanBin) — explicit template conversion. Reads
+  // the note's current frontmatter to seed the `noteType` (the migration
+  // prompt's "from" pill), then opens the modal in explicit-convert mode.
+  // Differs from the open-time auto-prompt path: this runs even when the
+  // current type IS a registered template — user is deliberately switching
+  // form.
+  const handleConvertTemplate = async () => {
+    if (!filePath || !isNote) return;
+    modalActions.hideContextMenu();
+    let currentType = '';
+    try {
+      const raw = await fileCommands.readTextFile(filePath);
+      const parsed = await frontmatterCommands.parseFrontmatter<{
+        frontmatter: Record<string, unknown> | null;
+      }>(raw);
+      const fmType = parsed.frontmatter?.type;
+      if (typeof fmType === 'string') currentType = fmType;
+    } catch (err) {
+      console.warn('[ContextMenu] convert-template: failed to read current type', err);
+      showToast({
+        type: 'error',
+        title: t('convertTemplateReadFail', language),
+        description: String((err as { message?: string })?.message ?? err),
+      });
+      return;
+    }
+    templateMigrationPromptActions.show({
+      path: filePath,
+      noteType: currentType,
+      mode: 'explicit-convert',
+      onResolved: (action) => {
+        if (action === 'migrated') {
+          // Refresh caches + re-open in hover so the user lands on the
+          // converted note immediately. fileTree / search re-indexing are
+          // already triggered by writeFile's EventBus event.
+          noteTypeCacheActions.invalidate();
+          void noteTypeCacheActions.refreshCache();
+          refreshActions.incrementSearchRefresh();
+          hoverActions.open(filePath);
+        }
+      },
+    });
+  };
+
+  // 11th hotfix (2026-05-18, HanBin) — note PDF export. Lazy-imports the
+  // export module so the markdown-to-HTML pipeline isn't in the main bundle.
+  // Reads the note via the existing fileCommands wrapper, renders body
+  // markdown into a hidden iframe styled for print, and triggers
+  // window.print() so the OS dialog handles the save-to-PDF.
+  const handleExportPdf = async () => {
+    if (!filePath || !isNote) return;
+    modalActions.hideContextMenu();
+    try {
+      const { exportAsPdf } = await import('../shared/noteExport');
+      await exportAsPdf(filePath);
+    } catch (err) {
+      console.warn('[ContextMenu] export-pdf failed:', err);
+      modalActions.showAlertModal(
+        t('exportFailedTitle', language),
+        `${t('exportFailedMsg', language)}\n\n${String((err as { message?: string })?.message ?? err)}`,
+      );
+    }
   };
 
   const handleRename = () => {
@@ -312,9 +438,42 @@ function ContextMenu() {
     <div ref={menuRef} className="context-menu" style={menuStyle}>
       {wikiLinkDeleteCallback ? (
         <>
-          <button className="context-menu-item" onClick={handleOpenNewWindow}>
-            {t('openNote', language)}
-          </button>
+          {(() => {
+            // HanBin 2026-05-14: contextual primary action.
+            //   • .md note → "노트 열기" (open in hover window)
+            //   • previewable attachment (pdf/image/office/code/csv)
+            //                → "뷰어로 열기" (open in hover-window viewer)
+            //   • everything else (mp4 / mp3 / m4a / zip / arbitrary binary)
+            //                → "응용프로그램으로 열기" (OS default app)
+            // The old "노트 열기" label was misleading on attachments and
+            // the underlying hoverActions.open would silently fall through
+            // to the legacy direct-open path (or worse, render a binary
+            // file as a blank TipTap editor — the "dummy" the user hit).
+            const ext = filePath ? (filePath.toLowerCase().split('.').pop() || '') : '';
+            const isMd = ext === 'md';
+            // Mirrors HoverWindowApp.getFileType + hoverStore.detectFileType.
+            const VIEWABLE = /^(pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|csv|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala)$/i;
+            const isViewable = VIEWABLE.test(ext);
+            if (isMd) {
+              return (
+                <button className="context-menu-item" onClick={handleOpenNewWindow}>
+                  {t('openNote', language)}
+                </button>
+              );
+            }
+            if (isViewable) {
+              return (
+                <button className="context-menu-item" onClick={handleOpenNewWindow}>
+                  {t('openInViewer', language)}
+                </button>
+              );
+            }
+            return (
+              <button className="context-menu-item" onClick={handleOpenDefault}>
+                {t('openInApp', language)}
+              </button>
+            );
+          })()}
           {isWikiLinkAttachment && (
             <button className="context-menu-item" onClick={handleRevealFolder}>
               {t('revealInExplorer', language)}
@@ -370,7 +529,7 @@ function ContextMenu() {
                       className={`context-menu-item ${currentType === 'standard' ? 'checked' : ''}`}
                       onClick={() => handleSetContainerType('standard')}
                     >
-                      <span className="context-menu-check">{currentType === 'standard' ? '✓' : ''}</span>
+                      <span className="context-menu-check">{currentType === 'standard' ? CHECK : ''}</span>
                       <span>Standard</span>
                       <span className="context-menu-type-desc">{t('typeStandard', language)}</span>
                     </button>
@@ -378,7 +537,7 @@ function ContextMenu() {
                       className={`context-menu-item ${currentType === 'storage' ? 'checked' : ''}`}
                       onClick={() => handleSetContainerType('storage')}
                     >
-                      <span className="context-menu-check">{currentType === 'storage' ? '✓' : ''}</span>
+                      <span className="context-menu-check">{currentType === 'storage' ? CHECK : ''}</span>
                       <span>Storage</span>
                       <span className="context-menu-type-desc">{t('typeStorage', language)}</span>
                     </button>
@@ -412,7 +571,7 @@ function ContextMenu() {
                         modalActions.hideContextMenu();
                       }}
                     >
-                      <span className="context-menu-check">{isActive ? '✓' : ''}</span>
+                      <span className="context-menu-check">{isActive ? CHECK : ''}</span>
                       <span className="context-menu-status-icon">{renderStatusIcon(info.status)}</span>
                       <span>{t(info.label, language)}</span>
                     </button>
@@ -454,6 +613,14 @@ function ContextMenu() {
           <button className="context-menu-item" onClick={handleMoveNote}>
             {t('moveNote', language)}
           </button>
+          <button className="context-menu-item" onClick={() => void handleConvertTemplate()}>
+            {t('ctxMenuConvertTemplate', language)}
+          </button>
+          <div className="context-menu-separator" />
+          <button className="context-menu-item" onClick={() => void handleExportPdf()}>
+            {t('exportAsPdf', language)}
+          </button>
+          <div className="context-menu-separator" />
           <button className="context-menu-item delete" onClick={handleDelete}>
             {t('deleteNoteContext', language)}
           </button>

@@ -10,13 +10,19 @@
 //! built on top of the current `Library::commit_version` API which handles
 //! CAS write + DAG append + Ref update atomically.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
 use crate::core::library::Library;
 use crate::core::sync_provider::SyncProvider;
+
+/// Signature for the optional progress callback wired up by the Tauri
+/// command. `(current, total)` lets the banner show `47 / 178` style status
+/// during a long import. Fires once per note after `register_one` returns
+/// (success or error).
+pub type ImportProgressFn = dyn Fn(usize, usize);
 
 /// Folder-name prefixes to skip during scan: test artifacts and system folders.
 /// Match is **prefix** based — `obj_test_` matches both `obj_test_177...` etc.
@@ -136,15 +142,39 @@ pub async fn scan_remote(
 /// Returns a list of `PendingWriteBack` items for notes whose `id` was newly
 /// generated (so the NAS .md must be updated with id-injected content for
 /// next-run idempotency). The async caller drains the list via `write_back_ids`.
+///
+/// 2026-05-24 (HanBin): added `path_to_id` safety net + optional
+/// `progress_cb`. The map is built once per import so the per-note safety
+/// net stays O(1) instead of paying O(refs) per file.
 pub fn import_into_library(
     fetched: Vec<FetchedNote>,
     library: &Library,
     dry_run: bool,
     report: &mut ImportReport,
+    progress_cb: Option<&ImportProgressFn>,
 ) -> Vec<PendingWriteBack> {
+    let total = fetched.len();
+
+    // Safety net for the partial-failure edge case: if a previous import
+    // committed a ref for relative_path X but the Phase-3 write-back never
+    // hit NAS, the file on NAS still has no frontmatter id. Without this
+    // map, the next retry would mint a fresh id and create a duplicate ref
+    // pointing at the same path (ref churn). With it, we reuse the id we
+    // already minted and replay the write-back instead.
+    //
+    // Built once per import (snapshot of library state). Phase 2 holds the
+    // library lock for its duration, so no concurrent commit can stale this.
+    // Paths normalized to forward slashes — older Windows commits stored
+    // backslashes and we compare against scanner-produced forward slashes.
+    let path_to_id: HashMap<String, String> = library.refs().list()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|r| (r.relative_path.replace('\\', "/"), r.note_id))
+        .collect();
+
     let mut pending: Vec<PendingWriteBack> = Vec::new();
-    for note in fetched {
-        match register_one(&note, library, dry_run) {
+    for (idx, note) in fetched.into_iter().enumerate() {
+        match register_one(&note, library, dry_run, &path_to_id) {
             Ok(outcome) => {
                 if outcome.newly_registered {
                     report.newly_registered += 1;
@@ -164,6 +194,9 @@ pub fn import_into_library(
                 log::warn!("[remote_import] register {} failed: {}", note.relative_path, e);
                 report.errors.push(format!("{}: {}", note.relative_path, e));
             }
+        }
+        if let Some(cb) = progress_cb {
+            cb(idx + 1, total);
         }
     }
     log::info!(
@@ -215,7 +248,7 @@ pub async fn scan_and_import(
     dry_run: bool,
 ) -> Result<ImportReport, String> {
     let (fetched, mut report) = scan_remote(provider, remote_base).await?;
-    let pending = import_into_library(fetched, library, dry_run, &mut report);
+    let pending = import_into_library(fetched, library, dry_run, &mut report, None);
     write_back_ids(provider, pending, &mut report).await;
     Ok(report)
 }
@@ -319,6 +352,7 @@ fn register_one(
     note: &FetchedNote,
     library: &Library,
     dry_run: bool,
+    path_to_id: &HashMap<String, String>,
 ) -> Result<RegisterOutcome, String> {
     let content_str = std::str::from_utf8(&note.bytes)
         .map_err(|e| format!("not valid UTF-8: {}", e))?;
@@ -330,9 +364,25 @@ fn register_one(
     let initial_id = if id_was_present {
         existing_id.clone().unwrap()
     } else {
-        // Bulk import: ms+atomic counter to avoid collisions within same second.
-        // generate_id() (1s resolution) silently overwrote refs in early runs.
-        crate::core::note_id::generate_unique_id()
+        // SAFETY NET (2026-05-24): before minting a fresh id, see if some
+        // existing ref already covers this relative_path. Without this, a
+        // crash between Phase 2 (commit) and Phase 3 (NAS write-back) lets
+        // the next retry mint a *different* id for the same NAS file —
+        // creating a duplicate ref pointing at the same path. Reusing the
+        // earlier id makes the retry idempotent: write-back replays, hash
+        // matches existing ref, no churn.
+        let norm_path = note.relative_path.replace('\\', "/");
+        if let Some(prior_id) = path_to_id.get(&norm_path) {
+            log::info!(
+                "[remote_import] reusing existing id {} for path {} (safety net: NAS file has no frontmatter id, prior ref present)",
+                prior_id, norm_path
+            );
+            prior_id.clone()
+        } else {
+            // Bulk import: ms+atomic counter to avoid collisions within same second.
+            // generate_id() (1s resolution) silently overwrote refs in early runs.
+            crate::core::note_id::generate_unique_id()
+        }
     };
 
     // Conflict-copy collision detection: legacy sync_v1 produced sibling files
@@ -514,4 +564,5 @@ mod tests {
         assert_eq!(r.id_written_back, 0);
         assert!(r.errors.is_empty());
     }
+
 }

@@ -469,7 +469,7 @@ export function PptxViewer({ data }: PptxViewerProps) {
 
   return (
     <div ref={containerRef} className="office-viewer-container pptx-viewer">
-      <div className="pptx-toolbar">
+      <div className="viewer-toolbar pptx-toolbar">
         <span className="pptx-slide-indicator">
           {visibleSlide + 1} / {slides.length}
         </span>

@@ -4,6 +4,7 @@ import { load, type Store } from '@tauri-apps/plugin-store';
 import yaml from 'js-yaml';
 import type { ContainerConfig, FolderStatusConfig, FolderNoteTemplate, NoteTemplate } from '../types';
 import type { ShortcutBinding } from './shortcuts';
+import { EventBus } from '../infrastructure/eventBus';
 
 /**
  * Vault configuration stored in .notology/vault-config.yaml
@@ -27,6 +28,31 @@ export interface VaultConfig {
 let cachedVaultConfig: VaultConfig | null = null;
 let cachedVaultPath: string | null = null;
 let migratedConfigThisSession = false;
+
+/**
+ * v18 fix (2026-05-16, HanBin) — the backend `write_file` Tauri command
+ * auto-prepends a `---\nid: "<17-digit>"\n---\n\n` frontmatter wrapper to
+ * ANY non-frontmatter file write (it treats everything as a note). For
+ * config YAML files like vault-config.yaml that means the on-disk shape
+ * is a multi-document stream that js-yaml's `load` refuses to parse
+ * ("expected a single document in the stream, but found more"). The error
+ * was being silently swallowed by the outer try/catch → empty config
+ * returned → user's customTemplates, containerConfigs, folderStatuses
+ * all "disappeared" between sessions (the data is still on disk, just
+ * unreadable by the old loader).
+ *
+ * This helper strips the wrapper if present. Idempotent on already-clean
+ * yaml (returns input unchanged).
+ */
+function stripWriteFileWrapper(content: string): string {
+  if (!content.startsWith('---\n') && !content.startsWith('---\r\n')) {
+    return content;
+  }
+  const closeMatch = content.match(/\n---(\r?\n|$)/);
+  if (!closeMatch || closeMatch.index === undefined) return content;
+  const afterClose = content.slice(closeMatch.index + closeMatch[0].length);
+  return afterClose.replace(/^[\r\n]+/, '');
+}
 
 // Self-save tracking: prevent self-triggering feedback loop
 let lastSelfSaveTime = 0;
@@ -141,7 +167,14 @@ export async function loadVaultConfig(vaultPath: string): Promise<VaultConfig> {
 
     try {
       const yamlContent = await fileCommands.readTextFile(configPath);
-      config = yaml.load(yamlContent) as VaultConfig;
+      // v18 fix (2026-05-16, HanBin) — strip the `---\nid:"..."\n---\n\n`
+      // wrapper that the backend `write_file` command auto-prepends to ANY
+      // non-frontmatter file write. Without this, js-yaml's `load` throws
+      // "expected a single document in the stream" on every read → silently
+      // returns empty config → user's customTemplates (and everything else)
+      // disappears between sessions. Now the optimistic-locking path also
+      // benefits because diskConfig stops being unconditionally undefined.
+      config = yaml.load(stripWriteFileWrapper(yamlContent)) as VaultConfig;
       if (!config.containerConfigs) config.containerConfigs = {};
       if (!config.folderStatuses) config.folderStatuses = {};
     } catch {
@@ -309,7 +342,8 @@ async function flushSaveVaultConfig(vaultPath: string, config: VaultConfig): Pro
     // Optimistic locking: check if disk version differs from our cached version
     try {
       const diskYaml = await fileCommands.readTextFile(configPath);
-      const diskConfig = yaml.load(diskYaml) as VaultConfig | null;
+      // v18 — strip backend write_file wrapper before parse (same reason as loadVaultConfig).
+      const diskConfig = yaml.load(stripWriteFileWrapper(diskYaml)) as VaultConfig | null;
       if (diskConfig?._meta?.version && cachedVaultConfig?._meta?.version &&
           diskConfig._meta.version !== cachedVaultConfig._meta.version) {
         // Another device modified the config — merge key-value maps
@@ -383,6 +417,8 @@ async function flushSaveVaultConfig(vaultPath: string, config: VaultConfig): Pro
     lastSelfSaveTime = Date.now();
 
     await fileCommands.writeFile(configPath, null, yamlContent);
+    // Notify features that a config file was saved (for sync)
+    EventBus.emit('config:saved', { path: configPath });
 
     // Cache with absolute keys (in-memory format)
     cachedVaultConfig = config;
@@ -420,7 +456,13 @@ export async function updateFolderStatus(
 }
 
 /**
- * Update custom templates (portable across devices)
+ * Update custom templates (portable across devices).
+ *
+ * v16d fix (2026-05-16, HanBin) — bypass the 500ms saveVaultConfig debounce
+ * by calling flushSaveVaultConfig directly. Template create/edit/delete is
+ * an explicit user action where the cost of an immediate disk write is
+ * negligible, and a previous race-condition lost a template ("TEST2") when
+ * the debounced save was overwritten by a subsequent vault-config update.
  */
 export async function updateCustomTemplates(
   vaultPath: string,
@@ -428,7 +470,10 @@ export async function updateCustomTemplates(
 ): Promise<void> {
   const config = await loadVaultConfig(vaultPath);
   config.customTemplates = templates;
-  await saveVaultConfig(vaultPath, config);
+  // Flush immediately — no debounce — so the user template hits disk before
+  // any subsequent vault-config writes can clobber it.
+  await flushSaveVaultConfig(vaultPath, config);
+  cachedVaultConfig = config;
 }
 
 /**

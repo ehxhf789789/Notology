@@ -1,81 +1,50 @@
 import { NodeViewWrapper } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
+import { modalActions } from '../modals/stores/modalStore';
+import { useSettingsStore } from '../../core/stores/settingsStore';
+import { t } from '../../core/utils/i18n';
 
-function HorizontalRuleView({ editor, getPos, deleteNode, selected }: NodeViewProps) {
-  const [showActions, setShowActions] = useState(false);
-
-  const handleDelete = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+/**
+ * Stage 5.0.4b v5.2 (2026-05-15) — HanBin:
+ *   "구분선에 공백을 만드는 기능 제거. 이미 간격을 생성하는 로직이 들어갔기에.
+ *    그리고 구분선을 삭제하는 삭제버튼도 제거."
+ *
+ * Two HorizontalRule-specific affordances removed:
+ *
+ * 1. **Insert-paragraph zones above/below the line** — these added ~16-24px
+ *    of clickable vertical padding around the rule. With v5.1's
+ *    `blockGapClickAutoFill` plugin, clicking in the gap BETWEEN any two
+ *    standalone blocks (including horizontal rule) already inserts a
+ *    paragraph + caret. The dedicated zones are redundant.
+ *
+ * 2. **Hover × delete button** — replaced with right-click → "구분선 삭제"
+ *    menu (mirrors MediaEmbed / LinkCard / Math atom UX pattern from
+ *    5.0.4b-2d v3). Keyboard Backspace at adjacent empty paragraph also
+ *    safely removes only the paragraph (v5.0 safe-backspace); explicit
+ *    NodeSelection + Backspace deletes the rule itself.
+ *
+ * Result: the NodeView renders just the `<hr>` line, no extra chrome.
+ * Vertical spacing comes from CSS margin on `.horizontal-rule-wrapper`
+ * and the surrounding paragraph margins.
+ */
+function HorizontalRuleView({ deleteNode, selected }: NodeViewProps) {
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    deleteNode();
+    e.stopPropagation();
+    const lang = useSettingsStore.getState().language;
+    modalActions.showAtomContextMenu(
+      { x: e.clientX, y: e.clientY },
+      [{ label: t('deleteHorizontalRule', lang), onClick: () => deleteNode(), danger: true }],
+    );
   }, [deleteNode]);
-
-  const handleInsertBefore = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    const pos = getPos();
-    if (pos !== undefined) {
-      editor.chain()
-        .focus()
-        .insertContentAt(pos, { type: 'paragraph' })
-        .run();
-    }
-  }, [editor, getPos]);
-
-  const handleInsertAfter = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    const pos = getPos();
-    if (pos !== undefined) {
-      editor.chain()
-        .focus()
-        .insertContentAt(pos + 1, { type: 'paragraph' })
-        .run();
-    }
-  }, [editor, getPos]);
 
   return (
     <NodeViewWrapper
       className={`horizontal-rule-wrapper${selected ? ' ProseMirror-selectednode' : ''}`}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
+      onContextMenu={handleContextMenu}
     >
-      <div className="horizontal-rule-container">
-        <div
-          className="horizontal-rule-insert-zone horizontal-rule-insert-before"
-          onClick={handleInsertBefore}
-          title="Insert paragraph before"
-        >
-          <span className="horizontal-rule-insert-line" />
-        </div>
-
-        <hr className="horizontal-rule-line" />
-
-        <div
-          className="horizontal-rule-insert-zone horizontal-rule-insert-after"
-          onClick={handleInsertAfter}
-          title="Insert paragraph after"
-        >
-          <span className="horizontal-rule-insert-line" />
-        </div>
-
-        {showActions && (
-          <div className="horizontal-rule-actions" contentEditable={false}>
-            <button
-              className="horizontal-rule-btn"
-              onClick={handleDelete}
-              title="Delete"
-              type="button"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-              </svg>
-            </button>
-          </div>
-        )}
-      </div>
+      <hr className="horizontal-rule-line" />
     </NodeViewWrapper>
   );
 }

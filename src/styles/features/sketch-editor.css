@@ -1,0 +1,1745 @@
+/* ============================================
+   Sketch Editor
+   ============================================ */
+
+.sketch-editor {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-base);
+  position: relative;
+}
+
+.sketch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background-color: var(--bg-elevated);
+  border-bottom: 0.5px solid var(--sep-l);
+}
+
+.sketch-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-13);
+  background-color: var(--bg-hover);
+  border: none;
+  border-radius: var(--r-6);
+  color: var(--tx-1);
+  cursor: pointer;
+  transition: background-color var(--dur-200);
+}
+
+.sketch-toolbar-btn:hover {
+  background-color: var(--bg-hover);
+}
+
+.sketch-toolbar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sketch-toolbar-btn.active {
+  background-color: var(--tx-1);
+  color: var(--c-white);
+}
+
+.sketch-toolbar-btn.active:hover {
+  background-color: color-mix(in srgb, var(--tx-1) 70%, black);
+}
+
+.sketch-toolbar-hint {
+  flex: 1;
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  padding-left: var(--sp-2);
+}
+
+/* v20.20 (2026-05-17, HanBin) — canvas-wide text search bar. Lives in
+   the toolbar row when active; collapses entirely when inactive so the
+   toolbar's normal compact layout is preserved. */
+.sketch-search-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-2);
+  height: 28px;
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-6);
+  box-shadow: var(--sh-sm);
+}
+
+.sketch-search-icon {
+  color: var(--tx-3);
+  flex-shrink: 0;
+}
+
+.sketch-search-input {
+  width: 160px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--tx-1);
+  font-size: var(--fs-12);
+  padding: 0 var(--sp-1);
+}
+
+.sketch-search-input::placeholder {
+  color: var(--tx-3);
+}
+
+.sketch-search-count {
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  min-width: 36px;
+  text-align: right;
+  padding: 0 var(--sp-1);
+  white-space: nowrap;
+}
+
+.sketch-search-nav,
+.sketch-search-close {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-4);
+  color: var(--tx-2);
+  cursor: pointer;
+  transition: background-color var(--dur-150), color var(--dur-150);
+}
+
+.sketch-search-nav:hover:not(:disabled),
+.sketch-search-close:hover {
+  background-color: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+.sketch-search-nav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Match highlights — yellow halo around matched nodes, brighter halo
+   on the currently focused match. Use a box-shadow ring so it overlays
+   border-color customizations without changing layout. */
+.sketch-node.search-match {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-yellow) 70%, transparent),
+              0 0 16px color-mix(in srgb, var(--c-yellow) 35%, transparent);
+}
+
+.sketch-node.search-match-current {
+  box-shadow: 0 0 0 3px var(--c-yellow),
+              0 0 24px color-mix(in srgb, var(--c-yellow) 60%, transparent);
+}
+
+.sketch-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sketch-viewport:active {
+  cursor: grabbing;
+}
+
+/* Cursor modes for different operations */
+.sketch-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.sketch-viewport.is-selecting {
+  cursor: crosshair;
+}
+
+.sketch-viewport.is-connecting {
+  cursor: crosshair;
+}
+
+/* Prevent text selection during drag operations */
+.sketch-viewport.is-dragging,
+.sketch-viewport.is-dragging * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+.sketch-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10000px;
+  height: 10000px;
+  overflow: visible;
+  z-index: var(--z-base);
+  pointer-events: none;
+}
+
+.sketch-svg path {
+  pointer-events: auto;
+}
+
+/* v20.6 (2026-05-16, HanBin) — rewire handles need to capture mouse
+   events too. Without this, `.sketch-svg { pointer-events: none }`
+   inherits to <circle> and the rewire handles silently don't respond
+   (reported issue: "화살표 끝점 재지정 동작 안하고 있음"). */
+.sketch-svg circle {
+  pointer-events: auto;
+}
+
+.sketch-edge {
+  transition: stroke var(--dur-200);
+}
+
+.sketch-edge:hover {
+  stroke: var(--tx-1) !important;
+}
+
+.sketch-edge.selected {
+  stroke: var(--tx-1) !important;
+}
+
+.sketch-nodes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10000px;
+  height: 10000px;
+  z-index: var(--z-raised);
+  pointer-events: none;
+}
+
+/* v20.5 (2026-05-16, HanBin) — smoother node interactions.
+   • fade-in on mount via `sketch-node-enter` keyframe
+   • box-shadow + border transitions on hover/select
+   • size + transform transitions during programmatic moves (not drag,
+     where the interaction hook sets transform synchronously and we
+     don't want to ease behind the cursor) */
+@keyframes sketch-node-enter {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.sketch-node {
+  animation: sketch-node-enter 160ms ease-out;
+  position: absolute;
+  border: 1.5px solid var(--sep);
+  border-radius: var(--r-8);
+  padding: var(--sp-3);
+  cursor: move;
+  box-shadow: var(--sh-sm);
+  /* v20.18 (2026-05-17, HanBin) — single consolidated transition.
+     Previous version had two `transition:` lines so only the second
+     applied. Both border-color + box-shadow now ease together (140ms),
+     plus we add `opacity` for the (future) delete fade. transform is
+     intentionally NOT transitioned — drag updates set it
+     synchronously and easing would lag the cursor. */
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease;
+  pointer-events: auto;
+  box-sizing: border-box;
+  isolation: isolate;
+}
+
+html[data-theme="light"] .sketch-node {
+  border-color: color-mix(in srgb, var(--c-black) 12%, transparent);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--c-black) 6%, transparent);
+}
+
+/* Prevent text selection when dragging nodes */
+.sketch-viewport.is-dragging .sketch-node,
+.sketch-viewport.is-dragging .sketch-node-text {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  pointer-events: none !important;
+}
+
+.sketch-node.file-node {
+  border-radius: var(--r-8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sketch-node:hover,
+.sketch-node.hovered {
+  border-color: var(--tx-1) !important;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--tx-1) 20%, transparent) !important;
+}
+
+.sketch-node.selected,
+.sketch-node.multi-selected {
+  border-color: var(--tx-1) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tx-1) 40%, transparent) !important;
+}
+
+.sketch-node.editing {
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tx-1) 30%, transparent);
+  filter: brightness(1.05);
+}
+
+html[data-theme="dark"] .sketch-node.editing {
+  filter: brightness(1.15);
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tx-1) 40%, transparent), 0 0 12px color-mix(in srgb, var(--tx-1) 10%, transparent);
+}
+
+.sketch-node.multi-selected {
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tx-1) 50%, transparent);
+}
+
+/* Special shapes - no outline, use SVG stroke instead */
+.sketch-node.shape-decision.multi-selected,
+.sketch-node.shape-io.multi-selected,
+.sketch-node.shape-database.multi-selected,
+.sketch-node.shape-decision.selected,
+.sketch-node.shape-io.selected,
+.sketch-node.shape-database.selected,
+.sketch-node.shape-decision.editing,
+.sketch-node.shape-io.editing,
+.sketch-node.shape-database.editing {
+  outline: none;
+  box-shadow: none;
+}
+
+.sketch-node.hovered {
+  border-color: var(--tx-1);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--tx-1) 35%, transparent);
+}
+
+/* Extend hover zone slightly beyond node bounds for easier interaction */
+.sketch-node::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: -12px;
+  right: -12px;
+  bottom: -12px;
+  pointer-events: none;
+}
+
+.sketch-node.connecting {
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tx-1) 60%, transparent);
+}
+
+/* Target node indicator during connection */
+.sketch-viewport.is-connecting .sketch-node.hovered:not(.connecting) {
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tx-1) 60%, transparent), 0 0 20px color-mix(in srgb, var(--tx-1) 40%, transparent);
+  animation: pulseTarget 1s ease-in-out infinite;
+}
+
+@keyframes pulseTarget {
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tx-1) 60%, transparent), 0 0 20px color-mix(in srgb, var(--tx-1) 40%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--tx-1) 80%, transparent), 0 0 30px color-mix(in srgb, var(--tx-1) 60%, transparent); }
+}
+
+/* Shape-specific styles */
+.sketch-node.shape-process {
+  border-radius: var(--r-8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sketch-node.shape-terminal {
+  border-radius: var(--r-16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sketch-node.shape-decision {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none !important;
+  box-sizing: border-box;
+  cursor: move !important;
+  /* Disable rectangular hit area - let SVG shape handle events */
+  pointer-events: none;
+}
+
+/* Re-enable pointer events for interactive children within decision shape */
+.sketch-node.shape-decision .sketch-node-text,
+.sketch-node.shape-decision .sketch-node-handle,
+.sketch-node.shape-decision .sketch-node-resize,
+.sketch-node.shape-decision .sketch-node-action-bar,
+.sketch-node.shape-decision .sketch-tiptap-wrapper,
+.sketch-node.shape-decision .sketch-node-text-display {
+  pointer-events: auto !important;
+}
+
+/* Hit area overlay for special shapes - border only, above content */
+.sketch-node-shape-hit-area {
+  pointer-events: none;
+  z-index: var(--z-dropdown) !important;
+}
+
+.sketch-node-shape-hit-area polygon {
+  pointer-events: stroke !important;
+  cursor: move !important;
+}
+
+.sketch-node.shape-decision .sketch-node-text,
+.sketch-node.shape-decision .sketch-node-text-display,
+.sketch-node.shape-decision .sketch-tiptap-wrapper {
+  text-align: center;
+  width: 50%;
+  height: 50%;
+  padding: var(--sp-2);
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  overflow: auto;
+  word-wrap: break-word;
+  pointer-events: auto;
+  z-index: var(--z-raised);
+}
+
+.sketch-node.shape-io {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none !important;
+  box-sizing: border-box;
+  /* Disable rectangular hit area - let SVG shape handle events */
+  pointer-events: none;
+}
+
+/* Re-enable pointer events for interactive children within io shape */
+.sketch-node.shape-io .sketch-node-text,
+.sketch-node.shape-io .sketch-node-handle,
+.sketch-node.shape-io .sketch-node-resize,
+.sketch-node.shape-io .sketch-node-action-bar,
+.sketch-node.shape-io .sketch-tiptap-wrapper,
+.sketch-node.shape-io .sketch-node-text-display {
+  pointer-events: auto;
+}
+
+.sketch-node.shape-io .sketch-node-text,
+.sketch-node.shape-io .sketch-node-text-display,
+.sketch-node.shape-io .sketch-tiptap-wrapper {
+  text-align: center;
+  width: 70%;
+  height: 70%;
+  padding: var(--sp-2);
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  overflow: auto;
+  pointer-events: auto;
+  z-index: var(--z-raised);
+}
+
+/* Subroutine */
+.sketch-node.shape-subroutine {
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-3) var(--sp-6);
+}
+
+/* Left line using ::before */
+.sketch-node.shape-subroutine::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--sep);
+  pointer-events: none;
+}
+
+/* v20.17 (2026-05-17, HanBin) — subroutine side bars now follow the
+   user's borderColor. The default state uses --sep via the --node-
+   border-color CSS variable (set inline from node.borderColor with a
+   --sep fallback). Hover keeps default since hovered state should
+   communicate interactivity. */
+.sketch-node.shape-subroutine::before,
+.sketch-node.shape-subroutine::after {
+  background-color: var(--node-border-color, var(--sep));
+}
+.sketch-node.shape-subroutine:hover::before {
+  background-color: var(--sep);
+}
+
+.sketch-node.shape-subroutine.selected::before,
+.sketch-node.shape-subroutine.connecting::before,
+.sketch-node.shape-subroutine.hovered::before {
+  background-color: var(--tx-1);
+}
+
+.sketch-node.shape-subroutine.selected,
+.sketch-node.shape-subroutine.connecting,
+.sketch-node.shape-subroutine.hovered {
+  border-color: var(--tx-1);
+  border-width: 3px;
+}
+
+/* Right line using ::after (overrides hover zone extension) */
+.sketch-node.shape-subroutine::after {
+  content: '';
+  position: absolute;
+  left: auto;
+  right: 12px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--sep);
+  pointer-events: none;
+}
+
+.sketch-node.shape-subroutine:hover::after {
+  background-color: var(--sep);
+}
+
+.sketch-node.shape-subroutine.selected::after,
+.sketch-node.shape-subroutine.connecting::after,
+.sketch-node.shape-subroutine.hovered::after {
+  background-color: var(--tx-1);
+}
+
+.sketch-node.shape-database {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  background: transparent;
+  box-shadow: none !important;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.sketch-node.shape-database .sketch-node-handle,
+.sketch-node.shape-database .sketch-node-resize,
+.sketch-node.shape-database .sketch-node-action-bar,
+.sketch-node.shape-database .sketch-tiptap-wrapper,
+.sketch-node.shape-database .sketch-node-text-display {
+  pointer-events: auto;
+}
+
+.sketch-node.shape-database .sketch-node-text,
+.sketch-node.shape-database .sketch-node-text-display,
+.sketch-node.shape-database .sketch-tiptap-wrapper {
+  text-align: center;
+  width: 80%;
+  height: auto;
+  max-height: 60%;
+  padding: var(--sp-2);
+  display: block;
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  overflow: auto;
+  pointer-events: auto;
+  z-index: var(--z-raised);
+}
+
+.sketch-node-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: var(--tx-1);
+  border: 2px solid var(--c-white);
+  border-radius: var(--r-pill);
+  cursor: crosshair;
+  z-index: var(--z-toast);
+  transform: translate(-50%, -50%);
+  transition: box-shadow var(--dur-150) var(--ease-out), opacity var(--dur-200) var(--ease-out);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--c-black) 30%, transparent);
+  pointer-events: auto;
+  opacity: 0;
+  animation: handleFadeIn 0.2s ease-out forwards;
+}
+
+@keyframes handleFadeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Larger invisible hit area for easier clicking */
+.sketch-node-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-pill);
+}
+
+.sketch-node-handle:hover {
+  background-color: var(--tx-1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tx-1) 30%, transparent);
+  transform: translate(-50%, -50%) scale(1.2);
+}
+
+/* Handle positions are calculated via inline styles in JS for all shapes */
+
+/* Resize handles — invisible, cursor-only, straddles border-box corners */
+.sketch-node-resize {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  z-index: var(--z-titlebar);
+  pointer-events: auto;
+}
+
+/* Visible resize dots for special shapes (diamond, parallelogram, database)
+   where shape doesn't reach bounding box corners */
+.sketch-node-resize.visible-dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--tx-1);
+  border: 1.5px solid var(--c-white);
+  box-shadow: 0 0 3px color-mix(in srgb, var(--c-black) 25%, transparent);
+}
+
+/* Special shapes need visible handles and resize controls */
+.sketch-node.shape-decision,
+.sketch-node.shape-io,
+.sketch-node.shape-database {
+  /* Keep position: absolute from base class - do NOT change to relative */
+}
+
+.sketch-node.shape-decision .sketch-node-handle,
+.sketch-node.shape-io .sketch-node-handle,
+.sketch-node.shape-database .sketch-node-handle {
+  z-index: var(--z-toast);
+  pointer-events: auto !important;
+  position: absolute !important;
+}
+
+.sketch-node.shape-decision .sketch-node-resize,
+.sketch-node.shape-io .sketch-node-resize,
+.sketch-node.shape-database .sketch-node-resize {
+  z-index: var(--z-titlebar);
+  pointer-events: auto !important;
+}
+
+/* Action bar consistent position for all shapes - above node center */
+.sketch-node .sketch-node-action-bar {
+  z-index: var(--z-top);
+  pointer-events: auto !important;
+}
+
+/* SVG shape background */
+.sketch-node-shape-svg {
+  z-index: -1 !important;
+  pointer-events: none !important;
+}
+
+.sketch-node-text {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: var(--tx-1);
+  font-size: var(--fs-13);
+  font-family: inherit;
+  outline: none;
+  resize: none;
+  padding: 0;
+  pointer-events: auto;
+  cursor: text;
+}
+
+.sketch-node-text::placeholder {
+  color: var(--tx-3);
+}
+
+.sketch-node-text.text-center {
+  text-align: center;
+}
+
+/* View mode: rendered rich text display */
+.sketch-node-text-display {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  color: var(--tx-1);
+  font-size: var(--fs-13);
+  font-family: inherit;
+  overflow: hidden;
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: auto;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
+}
+
+.sketch-node-text-display.text-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.sketch-node-text-display p {
+  margin: 0 0 4px 0;
+  line-height: 1.5;
+}
+
+.sketch-node-text-display strong.sketch-heading {
+  display: block;
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+  color: var(--tx-1);
+}
+
+.sketch-node-text-display strong.sketch-heading-1 {
+  font-size: 1.5em;
+  border-bottom: 0.5px solid var(--sep-l);
+  padding-bottom: var(--sp-1);
+  margin-bottom: var(--sp-2);
+}
+
+.sketch-node-text-display strong.sketch-heading-2 {
+  font-size: 1.3em;
+}
+
+.sketch-node-text-display strong.sketch-heading-3 {
+  font-size: 1.15em;
+  color: var(--tx-2);
+}
+
+.sketch-node-text-display ul,
+.sketch-node-text-display ol {
+  margin: 0 0 4px 0;
+  padding-left: var(--sp-5);
+}
+
+.sketch-node-text-display li {
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sketch-node-text-display blockquote {
+  margin: 0 0 4px 0;
+  padding-left: var(--sp-2);
+  border-left: 3px solid var(--sep-l);
+  color: var(--tx-3);
+  font-style: italic;
+}
+
+.sketch-node-text-display .sketch-wikilink {
+  color: var(--tx-1);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+  border-radius: var(--r-4);
+  padding: 0 2px;
+  transition: background-color var(--dur-150), color var(--dur-150);
+}
+
+.sketch-node-text-display .sketch-wikilink:hover {
+  background-color: color-mix(in srgb, var(--tx-1) 12%, transparent);
+  color: color-mix(in srgb, var(--tx-1) 70%, black);
+}
+
+html[data-theme="dark"] .sketch-node-text-display .sketch-wikilink {
+  color: var(--tx-1);
+}
+
+html[data-theme="dark"] .sketch-node-text-display .sketch-wikilink:hover {
+  background-color: color-mix(in srgb, var(--tx-1) 15%, transparent);
+  color: color-mix(in srgb, var(--tx-1) 80%, white);
+}
+
+.sketch-node-text-display .sketch-placeholder {
+  color: var(--tx-3);
+  font-style: italic;
+}
+
+/* TipTap HTML content in display mode */
+.sketch-node-text-display h1,
+.sketch-node-text-display h2,
+.sketch-node-text-display h3 {
+  margin: 4px 0 2px;
+  line-height: 1.3;
+}
+
+.sketch-node-text-display h1 { font-size: 1.5em; }
+.sketch-node-text-display h2 { font-size: 1.3em; }
+.sketch-node-text-display h3 { font-size: 1.15em; }
+
+.sketch-node-text-display table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 4px 0;
+}
+
+.sketch-node-text-display td,
+.sketch-node-text-display th {
+  border: 0.5px solid var(--sep-l);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-12);
+}
+
+.sketch-node-text-display th {
+  background: var(--bg-input);
+  font-weight: 600;
+}
+
+/* Table cell background colors (display mode) */
+.sketch-node-text-display td[data-background-color="cell-dark-gray"],
+.sketch-node-text-display th[data-background-color="cell-dark-gray"] { background-color: var(--cell-dark-gray); }
+.sketch-node-text-display td[data-background-color="cell-gray"],
+.sketch-node-text-display th[data-background-color="cell-gray"] { background-color: var(--cell-gray); }
+.sketch-node-text-display td[data-background-color="cell-blue"],
+.sketch-node-text-display th[data-background-color="cell-blue"] { background-color: var(--cell-blue); }
+.sketch-node-text-display td[data-background-color="cell-green"],
+.sketch-node-text-display th[data-background-color="cell-green"] { background-color: var(--cell-green); }
+.sketch-node-text-display td[data-background-color="cell-brown"],
+.sketch-node-text-display th[data-background-color="cell-brown"] { background-color: var(--cell-brown); }
+.sketch-node-text-display td[data-background-color="cell-purple"],
+.sketch-node-text-display th[data-background-color="cell-purple"] { background-color: var(--cell-purple); }
+.sketch-node-text-display td[data-background-color="cell-red"],
+.sketch-node-text-display th[data-background-color="cell-red"] { background-color: var(--cell-red); }
+
+.sketch-node-text-display pre {
+  background: var(--bg-input);
+  border-radius: var(--r-6);
+  padding: var(--sp-2);
+  font-size: var(--fs-12);
+  font-family: var(--font-mono);
+  overflow-x: auto;
+  margin: 4px 0;
+}
+
+.sketch-node-text-display code {
+  background: var(--bg-input);
+  border-radius: var(--r-4);
+  padding: 1px var(--sp-1);
+  font-size: 0.9em;
+  font-family: var(--font-mono);
+}
+
+.sketch-node-text-display pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Math nodes in display mode — render KaTeX output */
+.sketch-node-text-display .math-node {
+  font-family: var(--font-mono);
+}
+
+/* WikiLink nodes from TipTap HTML */
+.sketch-node-text-display [data-wiki-link] {
+  color: var(--tx-1);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.sketch-node-text-display [data-wiki-link]:hover {
+  background-color: color-mix(in srgb, var(--tx-1) 12%, transparent);
+}
+
+/* Task lists */
+.sketch-node-text-display ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: var(--sp-1);
+}
+
+.sketch-node-text-display ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* Alignment toggle buttons in properties panel */
+.sketch-properties-align-btns {
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.sketch-properties-align-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-6);
+  background-color: var(--bg-hover);
+  color: var(--tx-1);
+  cursor: pointer;
+  transition: background-color var(--dur-200), border-color var(--dur-200);
+}
+
+.sketch-properties-align-btn:hover {
+  background-color: var(--sep-l);
+}
+
+.sketch-properties-align-btn.active {
+  background-color: var(--tx-1);
+  border-color: var(--tx-1);
+  color: var(--c-white);
+}
+
+/* Floating action bar above node (centered, outside node bounds) */
+.sketch-node-action-bar {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+  padding: var(--sp-1);
+  box-shadow: var(--sh-md);
+  z-index: var(--z-top);
+  pointer-events: auto;
+  animation: handleFadeIn 0.15s ease-out forwards;
+}
+
+.sketch-node-action-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--r-6);
+  background: transparent;
+  color: var(--tx-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background var(--dur-150) var(--ease-out), color var(--dur-150) var(--ease-out);
+}
+
+.sketch-node-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+.sketch-node-action-btn.delete {
+  color: var(--c-red);
+}
+
+.sketch-node-action-btn.delete:hover {
+  background: color-mix(in srgb, var(--c-red) 12%, transparent);
+}
+
+.sketch-node-action-btn:active {
+  transform: scale(0.9);
+}
+
+/* v20 (2026-05-16, HanBin) — drag-OUT handle on file nodes. Native OS
+   drag via tauri-plugin-drag (sketchFileDragOut.ts). Top-right corner,
+   ALWAYS visible (was hover-only — user couldn't find it). Distinct from
+   canvas-move: the handle has its own draggable=true + onDragStart and
+   stops mousedown propagation so the canvas-move logic never sees it.
+   pointer-events: auto + z-index above siblings so the handle wins hit-
+   testing over the file icon below. */
+.sketch-node-file-drag-handle {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--bdr-2);
+  border-radius: var(--r-4);
+  color: var(--tx-2);
+  cursor: grab;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-drag: element;
+  transition: color 120ms ease, background 120ms ease, transform 120ms ease;
+  /* Subtle elevation so the handle reads as a separate control, not
+     part of the file node's surface. */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.sketch-node-file-drag-handle:active {
+  cursor: grabbing;
+  transform: scale(0.95);
+}
+.sketch-node-file-drag-handle:hover {
+  color: var(--tx-1);
+  background: var(--bg-hover);
+  border-color: var(--tx-1);
+}
+/* Slightly emphasize on selected node so user notices it after clicking
+   the file (which they often do right before wanting to drag it out). */
+.sketch-node.file-node.selected .sketch-node-file-drag-handle {
+  border-color: var(--tx-1);
+  color: var(--tx-1);
+}
+
+/* v20.3 (2026-05-16, HanBin) — sync spinner overlay on file nodes.
+   Bottom-left so it doesn't collide with the top-right drag-out handle.
+   Visible only while the file's path is in SketchEditor's syncingFiles
+   set (drained on next successful sync-v2:report). */
+.sketch-node-file-syncing {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tx-1) 18%, var(--bg-elevated));
+  color: var(--tx-1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+.sketch-node-file-syncing__icon {
+  animation: sketch-sync-spin 900ms linear infinite;
+}
+@keyframes sketch-sync-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* v20.14 (2026-05-17, HanBin) — unified file node sized to 200×100
+   (matches text-node default). Tightened padding + reduced gap so the
+   icon + filename fit comfortably in the smaller box. Background
+   transparent so the node's outer border is the single visual frame. */
+.sketch-node-file {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--sp-1) var(--sp-2);
+  pointer-events: auto;
+  background: transparent;
+}
+
+.sketch-node-file-preview {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--r-6);
+  position: relative;
+}
+
+.sketch-node-file-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.sketch-node-file-ext-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background-color: color-mix(in srgb, var(--tx-1) 85%, transparent);
+  color: var(--c-white);
+  font-size: 8px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: var(--r-pill);
+  text-transform: none;
+  letter-spacing: 0.3px;
+  /* v20.5 — moved from top-right to top-left so it doesn't collide with
+     the drag-out grip handle (top-right). */
+}
+
+.sketch-node-file-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--tx-1);
+  flex: 0 0 auto;
+}
+
+.sketch-node-file-ext {
+  font-size: var(--fs-10);
+  font-weight: 700;
+  color: var(--tx-1);
+  text-transform: none;
+  letter-spacing: 0.5px;
+}
+
+/* v20.5 — single-line filename with ellipsis. Old 2-line clamp made
+   nodes wildly different heights based on filename length. Fixed
+   single-line keeps the node grid visually consistent. */
+.sketch-node-file-name {
+  font-size: var(--fs-11);
+  font-weight: 500;
+  color: var(--tx-1);
+  text-align: center;
+  line-height: 1.25;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+.sketch-viewport.drag-over {
+  background-color: color-mix(in srgb, var(--tx-1) 10%, transparent);
+  outline: 2px dashed var(--tx-1);
+  outline-offset: -4px;
+}
+
+.sketch-properties-panel {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  width: 220px;
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-12);
+  padding: var(--sp-3);
+  box-shadow: var(--sh-md);
+  z-index: var(--z-window-menu);
+}
+
+.sketch-properties-header {
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--tx-1);
+  margin-bottom: var(--sp-3);
+  padding-bottom: var(--sp-2);
+  border-bottom: 0.5px solid var(--sep-l);
+}
+
+.sketch-properties-section {
+  margin-bottom: var(--sp-4);
+}
+
+.sketch-properties-section:last-child {
+  margin-bottom: 0;
+}
+
+.sketch-properties-label {
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  text-transform: none;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--sp-2);
+}
+
+.sketch-properties-colors {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--sp-2);
+}
+
+.sketch-properties-color {
+  width: 28px;
+  height: 28px;
+  border: 2px solid transparent;
+  border-radius: var(--r-6);
+  cursor: pointer;
+  transition: border-color var(--dur-200), transform var(--dur-200);
+}
+
+.sketch-properties-color:hover {
+  transform: scale(1.1);
+}
+
+.sketch-properties-color.active {
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tx-1) 30%, transparent);
+}
+
+.sketch-properties-shapes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.sketch-properties-shape {
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-13);
+  background-color: var(--bg-hover);
+  border: 2px solid transparent;
+  border-radius: var(--r-6);
+  color: var(--tx-1);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--dur-200), border-color var(--dur-200);
+}
+
+.sketch-properties-shape:hover {
+  background-color: var(--sep-l);
+}
+
+.sketch-properties-shape.active {
+  background-color: var(--tx-1);
+  border-color: var(--tx-1);
+  color: var(--c-white);
+}
+
+.sketch-properties-delete-btn {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  background-color: color-mix(in srgb, var(--c-red) 15%, var(--bg-base));
+  border: 1px solid var(--c-red);
+  border-radius: var(--r-6);
+  color: var(--c-red);
+  font-size: var(--fs-11);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--dur-200), color var(--dur-200);
+}
+
+.sketch-properties-delete-btn:hover {
+  background-color: var(--c-red);
+  color: var(--c-white);
+}
+
+/* Compact Properties Panel */
+.sketch-properties-panel.compact {
+  width: auto;
+  min-width: 200px;
+  padding: var(--sp-2);
+}
+
+.sketch-props-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.sketch-props-colors-row {
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.sketch-props-color-btn {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-radius: var(--r-6);
+  cursor: pointer;
+  transition: transform var(--dur-150), border-color var(--dur-150);
+}
+
+.sketch-props-color-btn:hover {
+  transform: scale(1.15);
+}
+
+.sketch-props-color-btn.active {
+  border-color: var(--tx-1);
+}
+
+.sketch-props-align-row {
+  display: flex;
+  gap: var(--sp-1);
+  margin-left: var(--sp-1);
+  padding-left: var(--sp-2);
+  border-left: 0.5px solid var(--sep-l);
+}
+
+.sketch-props-icon-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-6);
+  color: var(--tx-2);
+  cursor: pointer;
+  transition: background-color var(--dur-150), color var(--dur-150);
+}
+
+.sketch-props-icon-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+.sketch-props-icon-btn.active {
+  background-color: var(--tx-1);
+  color: var(--c-white);
+}
+
+.sketch-props-expand-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-6);
+  color: var(--tx-2);
+  cursor: pointer;
+  margin-left: auto;
+  transition: background-color var(--dur-150), color var(--dur-150);
+}
+
+.sketch-props-expand-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+/* v20.19 (2026-05-17, HanBin) — compact delete icon-button for the
+   single-edge properties panel. Lives next to the color swatch row
+   in the same toolbar (mirrors the node compact panel layout). Uses
+   the red token only on hover so the toolbar itself stays neutral. */
+.sketch-props-edge-delete-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-6);
+  color: var(--tx-2);
+  cursor: pointer;
+  margin-left: auto;
+  transition: background-color var(--dur-150), color var(--dur-150), border-color var(--dur-150);
+}
+
+.sketch-props-edge-delete-btn:hover {
+  background-color: color-mix(in srgb, var(--c-red) 15%, var(--bg-base));
+  border-color: var(--c-red);
+  color: var(--c-red);
+}
+
+.sketch-props-shapes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 0.5px solid var(--sep-l);
+}
+
+.sketch-props-shapes-grid.icons {
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-2);
+}
+
+.sketch-props-shape-btn {
+  padding: var(--sp-2) var(--sp-2);
+  font-size: var(--fs-11);
+  background-color: var(--bg-hover);
+  border: 1px solid transparent;
+  border-radius: var(--r-6);
+  color: var(--tx-1);
+  cursor: pointer;
+  text-align: center;
+  transition: background-color var(--dur-150), border-color var(--dur-150);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sketch-props-shape-btn.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-2) var(--sp-2);
+  min-height: 36px;
+}
+
+.sketch-props-shape-btn.icon svg {
+  opacity: 0.85;
+}
+
+.sketch-props-shape-btn:hover {
+  background-color: var(--sep-l);
+}
+
+.sketch-props-shape-btn.icon:hover svg {
+  opacity: 1;
+}
+
+.sketch-props-shape-btn.active {
+  background-color: var(--tx-1);
+  color: var(--c-white);
+}
+
+.sketch-props-shape-btn.icon.active svg {
+  opacity: 1;
+}
+
+/* ============================================
+   Group Node
+   ============================================ */
+
+.sketch-node.group-node {
+  min-width: 200px;
+  min-height: 200px;
+  border-radius: var(--r-8);
+  box-shadow: none;
+  padding: 0;
+  z-index: 0;
+}
+
+.sketch-node.group-node:hover {
+  box-shadow: none;
+}
+
+.sketch-node.group-node.selected {
+  box-shadow: none;
+}
+
+.sketch-group-label {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--tx-2);
+  pointer-events: auto;
+  user-select: none;
+}
+
+.sketch-group-label-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--sep);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--tx-1);
+  outline: none;
+  padding: 0 2px;
+  width: 120px;
+}
+
+/* ============================================
+   Sketch Context Menu (empty area right-click)
+   ============================================ */
+
+.sketch-context-menu {
+  position: fixed;
+  z-index: var(--z-popover);
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+  box-shadow: var(--sh-md);
+  padding: var(--sp-1);
+  min-width: 160px;
+}
+
+.sketch-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-13);
+  color: var(--tx-1);
+  background: none;
+  border: none;
+  border-radius: var(--r-4);
+  cursor: pointer;
+  text-align: left;
+}
+
+.sketch-context-menu-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.sketch-context-menu-divider {
+  height: 1px;
+  background: var(--sep-l);
+  margin: 2px 4px;
+}
+
+/* ============================================
+   TipTap Editor in Sketch Nodes
+   ============================================ */
+
+.sketch-tiptap-wrapper {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: var(--sp-2) var(--sp-3);
+  box-sizing: border-box;
+  cursor: text;
+}
+
+.sketch-tiptap-wrapper .ProseMirror {
+  outline: none;
+  border: none;
+  box-shadow: none;
+  min-height: 100%;
+  font-size: var(--fs-13);
+  line-height: 1.5;
+  color: inherit;
+}
+
+.sketch-tiptap-wrapper .ProseMirror:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
+/* Hide any focus ring on the wrapper itself */
+.sketch-tiptap-wrapper:focus-within {
+  outline: none;
+}
+
+/* Remove editing highlight and set text cursor for editing mode */
+.sketch-tiptap-wrapper .sketch-node.editing {
+  cursor: text !important;
+  border-color: var(--tx-1) !important;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--tx-1) 25%, transparent) !important;
+  filter: none !important;
+}
+
+.sketch-tiptap-wrapper .ProseMirror p {
+  margin: 0 0 4px;
+}
+
+.sketch-tiptap-wrapper .ProseMirror h1,
+.sketch-tiptap-wrapper .ProseMirror h2,
+.sketch-tiptap-wrapper .ProseMirror h3 {
+  margin: 4px 0 2px;
+}
+
+.sketch-tiptap-wrapper .ProseMirror h1 { font-size: var(--fs-20); }
+.sketch-tiptap-wrapper .ProseMirror h2 { font-size: var(--fs-17); }
+.sketch-tiptap-wrapper .ProseMirror h3 { font-size: var(--fs-15); }
+
+.sketch-tiptap-wrapper .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 4px 0;
+}
+
+.sketch-tiptap-wrapper .ProseMirror td,
+.sketch-tiptap-wrapper .ProseMirror th {
+  border: 0.5px solid var(--sep-l);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-12);
+  position: relative;
+}
+
+/* Table cell background colors (edit mode) */
+.sketch-tiptap-wrapper .ProseMirror td[data-background-color="cell-dark-gray"],
+.sketch-tiptap-wrapper .ProseMirror th[data-background-color="cell-dark-gray"] { background-color: var(--cell-dark-gray); }
+.sketch-tiptap-wrapper .ProseMirror td[data-background-color="cell-gray"],
+.sketch-tiptap-wrapper .ProseMirror th[data-background-color="cell-gray"] { background-color: var(--cell-gray); }
+.sketch-tiptap-wrapper .ProseMirror td[data-background-color="cell-blue"],
+.sketch-tiptap-wrapper .ProseMirror th[data-background-color="cell-blue"] { background-color: var(--cell-blue); }
+.sketch-tiptap-wrapper .ProseMirror td[data-background-color="cell-green"],
+.sketch-tiptap-wrapper .ProseMirror th[data-background-color="cell-green"] { background-color: var(--cell-green); }
+.sketch-tiptap-wrapper .ProseMirror td[data-background-color="cell-brown"],
+.sketch-tiptap-wrapper .ProseMirror th[data-background-color="cell-brown"] { background-color: var(--cell-brown); }
+.sketch-tiptap-wrapper .ProseMirror td[data-background-color="cell-purple"],
+.sketch-tiptap-wrapper .ProseMirror th[data-background-color="cell-purple"] { background-color: var(--cell-purple); }
+.sketch-tiptap-wrapper .ProseMirror td[data-background-color="cell-red"],
+.sketch-tiptap-wrapper .ProseMirror th[data-background-color="cell-red"] { background-color: var(--cell-red); }
+
+/* Table cell selection highlight */
+.sketch-tiptap-wrapper .ProseMirror .selectedCell {
+  background: color-mix(in srgb, var(--tx-1) 20%, transparent);
+}
+
+.sketch-tiptap-wrapper .ProseMirror .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--tx-1) 30%, transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sketch-tiptap-wrapper .ProseMirror .math-inline,
+.sketch-tiptap-wrapper .ProseMirror .math-block {
+  font-size: var(--fs-13);
+}
+
+.sketch-tiptap-wrapper .ProseMirror pre {
+  background: var(--bg-input);
+  border-radius: var(--r-6);
+  padding: var(--sp-2);
+  font-size: var(--fs-12);
+  overflow-x: auto;
+}
+
+.sketch-tiptap-wrapper .ProseMirror ul,
+.sketch-tiptap-wrapper .ProseMirror ol {
+  padding-left: var(--sp-5);
+  margin: 2px 0;
+}
+
+/* Task list in editor — hide bullet markers, show checkbox only */
+.sketch-tiptap-wrapper .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: var(--sp-1);
+}
+
+.sketch-tiptap-wrapper .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.sketch-tiptap-wrapper .ProseMirror ul[data-type="taskList"] li label {
+  margin-top: 2px;
+}
+
+.sketch-tiptap-wrapper .ProseMirror blockquote {
+  border-left: 3px solid var(--sep);
+  padding-left: var(--sp-3);
+  margin: 4px 0;
+  color: var(--tx-2);
+}
+
+.sketch-tiptap-editor.text-center {
+  text-align: center;
+}
+
+/* ============================================
+   Wiki Link Search Popup (sketch)
+   ============================================ */
+
+.sketch-wikilink-search-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-top);
+}
+
+.sketch-wikilink-search {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 320px;
+  max-height: 360px;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-12);
+  box-shadow: var(--sh-lg);
+  z-index: var(--z-top);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sketch-wikilink-search-input {
+  padding: var(--sp-3) var(--sp-4);
+  border: none;
+  border-bottom: 0.5px solid var(--sep-l);
+  background: transparent;
+  color: var(--tx-1);
+  font-size: var(--fs-14);
+  outline: none;
+}
+
+.sketch-wikilink-search-input::placeholder {
+  color: var(--tx-3);
+}
+
+.sketch-wikilink-search-results {
+  overflow-y: auto;
+  max-height: 300px;
+  padding: var(--sp-1);
+}
+
+.sketch-wikilink-search-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-6);
+  cursor: pointer;
+  transition: background-color var(--dur-100);
+}
+
+.sketch-wikilink-search-item:hover,
+.sketch-wikilink-search-item.selected {
+  background: var(--bg-hover);
+}
+
+.sketch-wikilink-search-name {
+  font-size: var(--fs-13);
+  font-weight: 500;
+  color: var(--tx-1);
+}
+
+.sketch-wikilink-search-path {
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sketch-wikilink-search-empty {
+  padding: var(--sp-4);
+  text-align: center;
+  font-size: var(--fs-12);
+  color: var(--tx-3);
+}
+
+/* Note icon (for .md file nodes) */
+.sketch-node-note-icon {
+  color: var(--tx-1);
+}
+
+.sketch-node-note-icon svg {
+  opacity: 0.85;
+}

@@ -39,11 +39,14 @@
 @import './components/rename-dialog.css';
 @import './components/container-type-selector.css';
 @import './components/ribbon-bar.css';
+@import './components/sync-failure-banner.css';
 
 /* ── Viewers ── */
+/* 5.0.9a (2026-05-17) — document-viewers-dark.css folded into
+   document-viewers.css `html[data-theme="dark"]` block; standalone
+   parallel file deleted. */
 @import './viewers/pdf-viewer.css';
 @import './viewers/document-viewers.css';
-@import './viewers/document-viewers-dark.css';
 @import './viewers/web-viewer.css';
 @import './viewers/image-viewer.css';
 @import './viewers/code-viewer.css';
@@ -57,6 +60,8 @@
 @import './editor-extensions/comment-marks.css';
 @import './editor-extensions/suggestions.css';
 @import './editor-extensions/link-card.css';
+@import './editor-extensions/bubble-menu.css';
+@import './editor-extensions/paper-pattern.css';
 
 /* ── Features ── */
 @import './features/graph-view.css';
@@ -67,8 +72,10 @@
 @import './features/loading-screen.css';
 @import './features/sync.css';
 @import './features/sync-v2.css';
+@import './features/migration.css';
 @import './features/command-palette.css';
 @import './features/slash-command.css';
+@import './features/outline-panel.css';
 
 /* ── Metadata ── */
 @import './metadata/yaml-editor.css';
@@ -82,7 +89,6 @@
 @import './metadata/tag-panel.css';
 
 /* ── Modals ── */
-@import './modals/contact-modal.css';
 @import './modals/note-creation-modals.css';
 @import './modals/vault-lock.css';
 @import './modals/window-context-menu.css';

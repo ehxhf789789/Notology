@@ -146,6 +146,12 @@ async function openVaultInner(newVaultPath?: string) {
   hoverActions.clearAll();
   vaultConfigActions.clearAll();
   clearVaultConfigCache();
+  // 11th hotfix (2026-05-18, HanBin) — wipe noteTypeCache on vault
+  // switch so the previous vault's `unmatchedTypes` count doesn't bleed
+  // through into the Settings → "미확인 템플릿 정리" badge until the new
+  // vault's refresh completes. Without this the badge can show "5개"
+  // for the OLD vault while the user is browsing a clean new vault.
+  noteTypeCacheActions.reset();
   // Reset stale search state (clears init_in_progress flag if previous init hung)
   searchCommands.resetSearchState().catch(() => {});
 
@@ -402,7 +408,27 @@ export async function updateNoteFrontmatter(notePath: string, frontmatterYaml: s
 // Note creation with templates
 // ============================================================================
 
-export async function createNoteWithTemplate(title: string, templateId: string, parentPath?: string): Promise<string> {
+export async function createNoteWithTemplate(
+  title: string,
+  templateId: string,
+  parentPath?: string,
+  /**
+   * Stage 5.0.5a-β (2026-05-16, HanBin) — pre-collected variable values
+   * from NoteCreationWizard. When provided, the legacy per-template input
+   * modals are bypassed and the note is created with the supplied vars +
+   * auto-fill system variables. Used for templates whose body declares
+   * user-input `{{vars}}` (autoFill=false in TEMPLATE_VAR_CATALOG).
+   */
+  customVariables?: Record<string, string>,
+  /**
+   * Hotfix (2026-05-17, HanBin) — wizard's per-creation tag selection.
+   * Threaded through to `applyNoteTemplateVariables` as `userTags` so
+   * domain/who/org/ctx picks merge into the new note's frontmatter.
+   * Previously the wizard collected these but they were dropped at the
+   * call site.
+   */
+  userTags?: FacetedTagSelection,
+): Promise<string> {
   const vaultPath = useFileTreeStore.getState().vaultPath;
   const targetDir = parentPath || vaultPath;
   if (!targetDir) throw new Error('No vault open');
@@ -412,8 +438,8 @@ export async function createNoteWithTemplate(title: string, templateId: string, 
   if (!template) throw new Error('Template not found');
 
   const language = useSettingsStore.getState().language;
-  const createNoteHelper = async (vars: Record<string, string> & { title: string }, userTags?: FacetedTagSelection) => {
-    const { fileName, frontmatter, body } = applyNoteTemplateVariables(template, vars, userTags, language);
+  const createNoteHelper = async (vars: Record<string, string> & { title: string }, callTimeUserTags?: FacetedTagSelection) => {
+    const { fileName, frontmatter, body } = applyNoteTemplateVariables(template, vars, callTimeUserTags, language);
     const result = await noteCommands.createNoteWithTemplate(targetDir, fileName, frontmatter, body);
     await fileTreeActions.refreshFileTree();
     await searchCommands.indexNote(result).catch((err) => {
@@ -426,99 +452,213 @@ export async function createNoteWithTemplate(title: string, templateId: string, 
     return result;
   };
 
-  // Contact template
-  if (templateId === 'note-contact') {
-    return new Promise((resolve, reject) => {
-      modalActions.showContactInputModal((formData: any) => {
-        const vars = {
-          title: formData.name || title,
-          name: formData.name || title,
-          email: formData.email || '',
-          organization: formData.company || '',
-          role: formData.position || '',
-          phone: formData.phone || '',
-          location: formData.location || '',
-        };
-        createNoteHelper(vars, formData.tags).then(resolve).catch(reject);
-      });
-    });
+  // β-stage shortcut: wizard already gathered values. Skip TitleInputModal
+  // and use whatever customVariables provides. Title comes through the first
+  // arg directly (wizard already trimmed it).
+  if (customVariables) {
+    return createNoteHelper({ title, ...customVariables }, userTags);
   }
 
-  // Meeting template
-  if (templateId === 'note-mtg') {
-    return new Promise((resolve, reject) => {
-      modalActions.showMeetingInputModal((formData: any) => {
-        const vars = {
-          title: formData.title,
-          participants: formData.participants,
-          date: formData.date || '',
-          time: formData.time || '',
-        };
-        createNoteHelper(vars, formData.tags).then(resolve).catch(reject);
-      });
-    });
+  // 11th hotfix (2026-05-18, HanBin) — special-modals retire.
+  // Five dedicated modals (Contact/Meeting/Paper/Literature/Event) used to
+  // sit here as templateId-specific branches. They were dead weight: each
+  // had the same TagInputSection chip wizard and the same form fields that
+  // TitleInputModal + userInputTokens now collect generically. Unified path:
+  //
+  //   1. Gather tokens this template wants the user to fill from
+  //      `template.userInputTokens` AND a body scan (templates can declare
+  //      tokens that aren't in their body — see note-mtg/event/paper/lit/etc.).
+  //   2. If we have ANY user-input tokens OR title is empty → open
+  //      TitleInputModal. It already handles synthetic specs for non-catalog
+  //      tokens and pre-fills title from `initialInputValue`.
+  //   3. Otherwise → straight create with the supplied title.
+  //
+  // Result: 5 modal files + 5 store actions + 5 mount points become dead.
+  let userInputTokens: string[] = template.userInputTokens ? [...template.userInputTokens] : [];
+  try {
+    const { scanUserInputVars } = await import('../../features/templates/templateVarScan');
+    const bodyTokens = scanUserInputVars(template.body).map(s => s.token);
+    for (const tok of bodyTokens) {
+      if (!userInputTokens.includes(tok)) userInputTokens.push(tok);
+    }
+  } catch (err) {
+    console.warn('[createNoteWithTemplate] var-scan import failed:', err);
   }
 
-  // Paper template
-  if (templateId === 'note-paper') {
-    return new Promise((resolve, reject) => {
-      modalActions.showPaperInputModal((formData: any) => {
-        const vars = {
-          title: formData.title,
-          authors: formData.authors,
-          year: formData.year,
-          venue: formData.venue,
-          doi: formData.doi,
-          url: formData.url,
-        };
-        createNoteHelper(vars, formData.tags).then(resolve).catch(reject);
-      });
-    });
-  }
+  const needsTitle = !title || title.trim() === '';
+  const needsTokens = userInputTokens.length > 0;
 
-  // Literature template
-  if (templateId === 'note-lit') {
+  if (needsTitle || needsTokens) {
+    const { t: tFn } = await import('../utils/i18n');
+    const templateInfo = {
+      name: template.name,
+      prefix: template.prefix,
+      description: tFn(TEMPLATE_DESC_KEYS_INTERACTIVE[template.prefix.toUpperCase()] || 'templateDescCustom', language),
+      noteType: template.frontmatter.type?.toLowerCase() || template.prefix.toLowerCase() || 'note',
+      customColor: template.customColor,
+      icon: template.icon,
+    };
     return new Promise((resolve, reject) => {
-      modalActions.showLiteratureInputModal((formData: any) => {
-        const vars = {
-          title: formData.title,
-          authors: formData.authors,
-          year: formData.year,
-          publisher: formData.publisher,
-          source: formData.source,
-          url: formData.url,
-        };
-        createNoteHelper(vars, formData.tags).then(resolve).catch(reject);
-      });
-    });
-  }
-
-  // Event template
-  if (templateId === 'note-event') {
-    return new Promise((resolve, reject) => {
-      modalActions.showEventInputModal((formData: any) => {
-        const vars = {
-          title: formData.title,
-          date: formData.date,
-          location: formData.location,
-          organizer: formData.organizer,
-          participants: formData.participants,
-        };
-        createNoteHelper(vars, formData.tags).then(resolve).catch(reject);
-      });
-    });
-  }
-
-  // For templates with empty title, show title input
-  if (!title || title.trim() === '') {
-    return new Promise((resolve, reject) => {
-      modalActions.showTitleInputModal((result) => {
-        createNoteHelper({ title: result.title }, result.tags).then(resolve).catch(reject);
-      });
+      modalActions.showTitleInputModal(
+        (result) => {
+          if (!result.title.trim()) {
+            reject(new Error('title required'));
+            return;
+          }
+          const vars = result.varValues
+            ? { title: result.title.trim(), ...result.varValues }
+            : { title: result.title.trim() };
+          createNoteHelper(vars, result.tags).then(resolve).catch(reject);
+        },
+        tFn('enterNoteTitlePlaceholder', language),
+        tFn('newNoteDefault', language),
+        templateInfo,
+        userInputTokens,
+        // Pre-fill the title input with whatever the caller provided. For
+        // inline-name flows (ContainerView, HoverEditor) this becomes the
+        // seed value; for empty-title invocations it stays empty.
+        title && title.trim() ? title.trim() : undefined,
+        // Pre-seed the wizard tag chips from template's tagCategories so
+        // the user can see + adjust BEFORE creating, same as the
+        // createNoteFromTemplateInteractive flow.
+        {
+          domain: [...(template.tagCategories?.domain ?? [])],
+          who:    [...(template.tagCategories?.who    ?? [])],
+          org:    [...(template.tagCategories?.org    ?? [])],
+          ctx:    [...(template.tagCategories?.ctx    ?? [])],
+        },
+      );
     });
   }
 
   return createNoteHelper({ title });
+}
+
+/**
+ * Stage 5.0.5a v18 (2026-05-16, HanBin) — interactive create-from-template
+ * flow. Single entry point for all "user picked a template, now create a
+ * note" call sites (Ctrl+N, ContainerView "+ 새 노트", RibbonBar storage
+ * buttons).
+ *
+ * 11th hotfix (2026-05-18, HanBin) — special-modals retire collapsed this
+ * into a single path: TitleInputModal collects title + any user-input
+ * tokens (from body scan ∪ template.userInputTokens) + tag chips, then
+ * createNoteWithTemplate is called with customVariables so it skips its
+ * own internal modal-opening path. The old SPECIAL_TEMPLATE_IDS branch
+ * (Contact/MTG/Paper/Lit/Event → dedicated modal) is gone — those
+ * templates now declare their fields via `userInputTokens` and route
+ * through the same unified wizard as every other template.
+ *
+ * After creation the file tree refreshes, search re-indexes, and the new
+ * note opens in a hover window — same finalisation across all branches.
+ */
+const TEMPLATE_DESC_KEYS_INTERACTIVE: Record<string, string> = {
+  'NOTE': 'templateDescNote',
+  'SKETCH': 'templateDescSketch',
+  'MTG': 'templateDescMtg',
+  'SEM': 'templateDescSem',
+  'EVENT': 'templateDescEvent',
+  'OFA': 'templateDescOfa',
+  'PAPER': 'templateDescPaper',
+  'LIT': 'templateDescLit',
+  'DATA': 'templateDescData',
+  'THEO': 'templateDescTheo',
+  'CONTACT': 'templateDescContact',
+  'SETUP': 'templateDescSetup',
+};
+
+export async function createNoteFromTemplateInteractive(
+  templateId: string,
+  targetContainer: string | null,
+): Promise<void> {
+  const { noteTemplates } = useTemplateStore.getState();
+  const template = noteTemplates.find(t => t.id === templateId);
+  if (!template) {
+    console.error('[createNoteFromTemplateInteractive] template not found:', templateId);
+    return;
+  }
+
+  const language = useSettingsStore.getState().language;
+  const { t: tFn } = await import('../utils/i18n');
+
+  const finalize = async (notePath: string) => {
+    await fileTreeActions.refreshFileTree();
+    refreshActions.incrementSearchRefresh();
+    hoverActions.open(notePath);
+  };
+
+  // All templates → unified TitleInputModal collects title + user-input
+  // tokens + tag chips. 11th hotfix (2026-05-18) removed the special-modals
+  // bypass for note-contact/mtg/paper/lit/event; they now declare their
+  // fields via `template.userInputTokens` and flow through this same path.
+  let userInputTokens: string[] = template.userInputTokens ? [...template.userInputTokens] : [];
+  try {
+    const { scanUserInputVars } = await import('../../features/templates/templateVarScan');
+    const bodyTokens = scanUserInputVars(template.body).map(s => s.token);
+    for (const tok of bodyTokens) {
+      if (!userInputTokens.includes(tok)) userInputTokens.push(tok);
+    }
+  } catch (err) {
+    console.warn('[createNoteFromTemplateInteractive] var-scan import failed:', err);
+  }
+
+  const noteType = template.frontmatter.type?.toLowerCase() || template.prefix.toLowerCase() || 'note';
+  const templateInfo = {
+    name: template.name,
+    prefix: template.prefix,
+    description: tFn(TEMPLATE_DESC_KEYS_INTERACTIVE[template.prefix.toUpperCase()] || 'templateDescCustom', language),
+    noteType,
+    customColor: template.customColor,
+    // v18 — icon flows through so the modal header can render the right
+    // lucide component (was missing → blank icon span for custom types).
+    icon: template.icon,
+  };
+
+  modalActions.showTitleInputModal(
+    async (result) => {
+      if (!result.title.trim()) return;
+      try {
+        // v18 — pass the inline-collected variable values as customVariables
+        // so createNoteWithTemplate substitutes them into both body and
+        // frontmatter. Empty object when the template declared no vars.
+        const customVariables = result.varValues && Object.keys(result.varValues).length > 0
+          ? result.varValues
+          : undefined;
+        // Hotfix (2026-05-17, HanBin) — wizard's `tags` selection was
+        // silently dropped here: only title + customVariables flowed
+        // through. Now passing `result.tags` as the 5th arg so the
+        // user's per-creation tag picks reach `applyNoteTemplateVariables`
+        // and merge into the new note's frontmatter.
+        const notePath = await createNoteWithTemplate(
+          result.title.trim(),
+          templateId,
+          targetContainer || undefined,
+          customVariables,
+          result.tags,
+        );
+        await finalize(notePath);
+      } catch (err) {
+        console.error('[createNoteFromTemplateInteractive] title-modal create failed:', err);
+      }
+    },
+    tFn('enterNoteTitlePlaceholder', language),
+    tFn('newNoteDefault', language),
+    templateInfo,
+    userInputTokens,
+    // initialInputValue — empty for fresh new-note (Ctrl+N is intentionally a
+    // blank title; only migration pre-fills the existing filename).
+    undefined,
+    // 10th hotfix (2026-05-17, HanBin) — pre-seed wizard tag chips from
+    // template's tagCategories so the user sees the defaults BEFORE
+    // creating. Empty arrays per category if the template didn't define
+    // any → wizard tag section opens empty, same as before.
+    {
+      domain: [...(template.tagCategories?.domain ?? [])],
+      who:    [...(template.tagCategories?.who    ?? [])],
+      org:    [...(template.tagCategories?.org    ?? [])],
+      ctx:    [...(template.tagCategories?.ctx    ?? [])],
+    },
+  );
 }
 
 // ============================================================================
@@ -556,6 +696,9 @@ export async function forceOpenLockedVault() {
     fileTreeActions.setSelectedContainer(null);
     hoverActions.clearAll();
     vaultConfigActions.clearAll();
+    // 11th hotfix — same reset as openVault path; force-open-locked is a
+    // vault switch from the user's POV.
+    noteTypeCacheActions.reset();
 
     const globalStore = await getGlobalStore();
     await globalStore.set('vault_path', lockedVaultPath);

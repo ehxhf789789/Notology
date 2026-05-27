@@ -24,7 +24,7 @@
 }
 
 .link-card.error {
-  border-color: #dc3545;
+  border-color: var(--c-red);
 }
 
 .link-card-content {
@@ -78,7 +78,7 @@
 
 .link-card-description {
   font-size: var(--fs-13);
-  color: #999;
+  color: var(--tx-3);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -88,7 +88,7 @@
 
 .link-card-url {
   font-size: var(--fs-13);
-  color: #666;
+  color: var(--tx-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -98,54 +98,128 @@
 .link-card-loading {
   padding: var(--sp-4);
   text-align: center;
-  color: #999;
+  color: var(--tx-3);
   font-size: var(--fs-13);
 }
 
 .link-card-error {
-  color: #dc3545;
+  color: var(--c-red);
   font-size: var(--fs-13);
   margin-bottom: var(--sp-2);
 }
 
-.link-card-delete {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: var(--r-pill);
-  background-color: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  font-size: var(--fs-20);
-  line-height: 1;
-  cursor: pointer;
+/* v5.5 (2026-05-16) — REMOVED `.link-card-delete` styles. LinkCardView
+   stopped rendering an inline × button (deletion now routes through
+   the right-click atom context menu — see LinkCardView.tsx handleContextMenu).
+   Rules were dead and showing zero in production. */
+
+/* WikiLink Suggestion List.
+   v5.5 (2026-05-16) — popover visual IA unification (HanBin):
+   bg / border / radius / shadow / padding now match the canonical
+   slash-palette tokens so all 4 popovers (`/`, `[[`, `//`, atom ctx)
+   read as one design family. */
+.wiki-link-suggestion-list {
+  background-color: var(--bg-elev-2);
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-pop);
+  padding: var(--space-xs);
+  max-height: 360px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-modal);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* v5.3 (2026-05-15) — shared search header for [[ / // popovers (HanBin:
+   popovers needed a visible search affordance). Sticky at the top of the
+   list, shows typed query or empty-state hint. */
+.suggestion-search {
   display: flex;
   align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity var(--dur-200), background-color var(--dur-200);
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--sep-l);
+  margin-bottom: 4px;
+  position: sticky;
+  top: 0;
+  background: inherit;
   z-index: 1;
 }
-
-.link-card:hover .link-card-delete {
-  opacity: 1;
+.suggestion-search__icon {
+  flex-shrink: 0;
+  color: var(--tx-3);
+}
+.suggestion-search__query {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Consolas', 'Monaco', 'Fira Code', monospace;
+  font-size: var(--fs-13);
+  color: var(--tx-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.suggestion-search__query--empty {
+  color: var(--tx-3);
+  font-family: inherit;
+  font-style: italic;
 }
 
-.link-card-delete:hover {
-  background-color: #dc3545;
+/* Stage 5.0.5a-γ5 v6 (2026-05-16, HanBin) — Tab template filter button
+   in the [[ wikilink popover. Inactive shows "Tab" kbd hint; active
+   shows the current type filter name. */
+.suggestion-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px;
+  background: transparent;
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--r-4);
+  color: var(--tx-3);
+  font-size: var(--fs-10);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--dur-150) ease, color var(--dur-150) ease, border-color var(--dur-150) ease;
+}
+.suggestion-filter-btn:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+  border-color: var(--tx-1);
+}
+.suggestion-filter-btn.is-active {
+  background: var(--bg-sel);
+  color: var(--tx-1);
+  border-color: var(--tx-1);
+  font-weight: 600;
+}
+.suggestion-filter-btn kbd {
+  font-family: var(--font-mono);
+  font-size: var(--fs-10);
+  background: var(--bg-elev-1);
+  padding: 1px 3px;
+  border-radius: 2px;
+  color: var(--tx-2);
 }
 
-/* WikiLink Suggestion List */
-.wiki-link-suggestion-list {
-  background-color: #2d2d2d;
-  border: 1px solid #3c3c3c;
-  border-radius: var(--r-12);
-  padding: var(--sp-1);
-  max-height: 300px;
-  overflow-y: auto;
-  box-shadow: var(--sh-md);
+/* Section label inside the suggestion list (template-picker view) */
+.wiki-link-suggestion-section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: var(--fs-10);
+  font-weight: 600;
+  color: var(--tx-3);
+  text-transform: none;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--bdr-1);
+  margin-bottom: 4px;
+}
+
+html[data-theme="light"] .wiki-link-suggestion-list {
+  background-color: var(--bg-base);
 }
 
 .wiki-link-suggestion-item {
@@ -168,8 +242,8 @@
 }
 
 .wiki-link-suggestion-item.selected {
-  background-color: var(--c-blue);
-  color: #fff;
+  background-color: var(--tx-1);
+  color: var(--bg-base);
 }
 
 .wiki-link-suggestion-item-name {
@@ -186,18 +260,27 @@
 .wiki-link-suggestion-empty {
   padding: var(--sp-3);
   text-align: center;
-  color: #888;
+  color: var(--tx-3);
   font-size: var(--fs-14);
 }
 
-/* Tippy tooltip styles for suggestion */
+/* Tippy tooltip styles for suggestion. v5.4 (2026-05-15) — added
+   !important + border/box-shadow/arrow overrides so Tippy's default dark
+   `.tippy-box` background can't leak through behind our list. The slash
+   palette + attachment popover use the same pattern. */
 .tippy-box[data-theme~='wiki-link-suggestion'] {
-  background-color: transparent;
-  padding: 0;
+  background-color: transparent !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .tippy-box[data-theme~='wiki-link-suggestion'] .tippy-content {
-  padding: 0;
+  padding: 0 !important;
+}
+
+.tippy-box[data-theme~='wiki-link-suggestion'] .tippy-arrow {
+  display: none !important;
 }
 
 /* Attachment (//) Suggestion Tippy Theme */
@@ -216,15 +299,15 @@
   display: none !important;
 }
 
-/* Attachment (//) Suggestion List */
+/* Attachment (//) Suggestion List — same canonical popover tokens as `/` + `[[`. */
 .attachment-suggestion-list {
-  background-color: var(--bg-elevated);
-  border: 1px solid var(--sep);
-  border-radius: var(--r-10);
-  padding: var(--sp-1);
-  max-height: 280px;
+  background-color: var(--bg-elev-2);
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-pop);
+  padding: var(--space-xs);
+  max-height: 360px;
   overflow-y: auto;
-  box-shadow: var(--sh-lg);
+  box-shadow: var(--shadow-modal);
   color: var(--tx-1);
   min-width: 200px;
   backdrop-filter: blur(20px);
@@ -232,7 +315,7 @@
 }
 
 html[data-theme="light"] .attachment-suggestion-list {
-  background-color: rgba(255, 255, 255, 0.95);
+  background-color: var(--bg-base);
 }
 
 .attachment-suggestion-header {
@@ -242,7 +325,7 @@ html[data-theme="light"] .attachment-suggestion-list {
   font-size: var(--fs-10);
   font-weight: 600;
   color: var(--tx-3);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.5px;
   padding: 6px 10px 6px;
   border-bottom: 1px solid var(--sep-l);
@@ -278,25 +361,25 @@ html[data-theme="light"] .attachment-suggestion-list {
 }
 
 .attachment-suggestion-item.selected {
-  background-color: var(--c-blue);
-  color: #fff;
+  background-color: var(--tx-1);
+  color: var(--bg-base);
 }
 
 .attachment-suggestion-item-icon {
   width: 24px;
   height: 24px;
   border-radius: var(--r-6);
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--bg-hover);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: var(--c-blue);
+  color: var(--tx-1);
 }
 
 .attachment-suggestion-item.selected .attachment-suggestion-item-icon {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: #fff;
+  background-color: color-mix(in srgb, var(--bg-base) 20%, transparent);
+  color: var(--bg-base);
 }
 
 .attachment-suggestion-item-name {
@@ -309,18 +392,14 @@ html[data-theme="light"] .attachment-suggestion-list {
 }
 
 .attachment-suggestion-item.selected .attachment-suggestion-item-name {
-  color: #fff;
+  color: var(--bg-base);
 }
 
 .attachment-suggestion-empty {
   padding: var(--sp-4);
   text-align: center;
-  color: #888;
+  color: var(--tx-3);
   font-size: var(--fs-13);
-}
-
-html[data-theme="light"] .attachment-suggestion-empty {
-  color: #666;
 }
 
 /* Image Embed (@@ trigger) Suggestion */
@@ -339,48 +418,36 @@ html[data-theme="light"] .attachment-suggestion-empty {
 }
 
 .image-embed-suggestion-list {
-  background-color: #1e1e2e;
-  border: 1px solid #3a3a4a;
+  background-color: var(--bg-base);
+  border: 1px solid var(--sep);
   border-radius: var(--r-12);
   padding: var(--sp-2);
   max-height: 280px;
   overflow-y: auto;
   box-shadow: var(--sh-md);
-  color: #e0e0e0;
-}
-
-html[data-theme="light"] .image-embed-suggestion-list {
-  background-color: #ffffff;
-  border: 1px solid #ddd;
-  box-shadow: var(--sh-md);
-  color: #1a1a1a;
+  color: var(--tx-1);
 }
 
 .image-embed-suggestion-header {
   font-size: var(--fs-11);
   font-weight: 600;
-  color: #888;
-  text-transform: uppercase;
+  color: var(--tx-3);
+  text-transform: none;
   letter-spacing: 0.5px;
   padding: 6px 10px 8px;
-  border-bottom: 1px solid #3a3a4a;
+  border-bottom: 1px solid var(--sep);
   margin-bottom: var(--sp-1);
-}
-
-html[data-theme="light"] .image-embed-suggestion-header {
-  color: #555;
-  border-bottom-color: #ddd;
 }
 
 .image-embed-suggestion-item {
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--sp-3);
   padding: 8px 10px;
   border-radius: var(--r-8);
   background: none;
   border: none;
-  color: #e0e0e0;
+  color: var(--tx-1);
   cursor: pointer;
   text-align: left;
   width: 100%;
@@ -389,28 +456,20 @@ html[data-theme="light"] .image-embed-suggestion-header {
   font-size: var(--fs-14);
 }
 
-html[data-theme="light"] .image-embed-suggestion-item {
-  color: #1a1a1a;
-}
-
 .image-embed-suggestion-item:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-html[data-theme="light"] .image-embed-suggestion-item:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--bg-hover);
 }
 
 .image-embed-suggestion-item.selected {
-  background-color: #7aa2f7;
-  color: #fff !important;
+  background-color: var(--tx-1);
+  color: var(--bg-base) !important;
 }
 
 .image-embed-suggestion-item-thumbnail {
   width: 48px;
   height: 48px;
   border-radius: var(--r-8);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-hover);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -429,12 +488,8 @@ html[data-theme="light"] .image-embed-suggestion-item:hover {
   display: none;
 }
 
-html[data-theme="light"] .image-embed-suggestion-item-thumbnail {
-  background: rgba(0, 0, 0, 0.05);
-}
-
 .image-embed-suggestion-item.selected .image-embed-suggestion-item-thumbnail {
-  background: rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--bg-base) 20%, transparent);
 }
 
 /* Legacy icon style - keeping for fallback */
@@ -442,7 +497,7 @@ html[data-theme="light"] .image-embed-suggestion-item-thumbnail {
   width: 32px;
   height: 32px;
   border-radius: var(--r-8);
-  background: linear-gradient(135deg, #a78bfa 0%, #f472b6 100%);
+  background: linear-gradient(135deg, var(--c-purple) 0%, var(--c-pink) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -451,7 +506,7 @@ html[data-theme="light"] .image-embed-suggestion-item-thumbnail {
 }
 
 .image-embed-suggestion-item.selected .image-embed-suggestion-item-icon {
-  background: rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--bg-base) 20%, transparent);
 }
 
 .image-embed-suggestion-item-info {
@@ -469,26 +524,18 @@ html[data-theme="light"] .image-embed-suggestion-item-thumbnail {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #e0e0e0;
-}
-
-html[data-theme="light"] .image-embed-suggestion-item-name {
-  color: #1a1a1a;
+  color: var(--tx-1);
 }
 
 .image-embed-suggestion-item.selected .image-embed-suggestion-item-name {
-  color: #fff !important;
+  color: var(--bg-base) !important;
 }
 
 .image-embed-suggestion-empty {
   padding: var(--sp-4);
   text-align: center;
-  color: #888;
+  color: var(--tx-3);
   font-size: var(--fs-13);
-}
-
-html[data-theme="light"] .image-embed-suggestion-empty {
-  color: #666;
 }
 
 @keyframes pulse {

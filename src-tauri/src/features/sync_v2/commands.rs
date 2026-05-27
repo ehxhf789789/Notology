@@ -221,6 +221,159 @@ pub fn sync_v2_get_queue_count(
     Ok(state.get().map(|e| e.queue_count()).unwrap_or(0))
 }
 
+// ============================================================================
+// Round 2 R5 v5 (HanBin 2026-05-23) — pending & failed queue introspection.
+// Frontend uses these for:
+//   * hydrating the sync-indicator store on app start (pending → spinner)
+//   * surfacing permanent failures so the user sees them and can retry
+//   * a "X uploads queued / Y failed" status badge in the UI
+// All operations are vault-scoped via SyncEngineState (which holds one
+// engine per active vault).
+// ============================================================================
+
+/// DTO mirroring `DirtyEntry` for the frontend. `target_path` is extracted
+/// from the operation payload so the UI can match it against
+/// `attachmentSyncStore` paths without parsing operation_json itself.
+#[derive(serde::Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingOpDto {
+    pub id: i64,
+    pub op_type: String,
+    pub target_path: String,
+    pub timestamp_ms: i64,
+    pub retry_count: u32,
+    pub last_error: Option<String>,
+    pub lane: String,
+}
+
+/// DTO mirroring `FailedEntry`. Includes `failed_at_ms` so the UI can show
+/// "failed 3 minutes ago".
+#[derive(serde::Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct FailedOpDto {
+    pub id: i64,
+    pub op_type: String,
+    pub target_path: String,
+    pub queued_at_ms: i64,
+    pub failed_at_ms: i64,
+    pub last_error: String,
+    pub lane: String,
+}
+
+fn op_type_and_path(op: &crate::features::sync_v2::dirty_queue::DirtyOperation) -> (String, String) {
+    use crate::features::sync_v2::dirty_queue::DirtyOperation as DOp;
+    match op {
+        DOp::NoteUpsert { relative_path, .. } => ("note_upsert".into(), relative_path.clone()),
+        DOp::NoteDelete { relative_path, .. } => ("note_delete".into(), relative_path.clone()),
+        DOp::NoteMove { new_path, .. } => ("note_move".into(), new_path.clone()),
+        DOp::AttachmentUpsert { relative_path } => ("attachment_upsert".into(), relative_path.clone()),
+        DOp::AttachmentDelete { relative_path } => ("attachment_delete".into(), relative_path.clone()),
+        DOp::FolderCreate { relative_path } => ("folder_create".into(), relative_path.clone()),
+        DOp::FolderDelete { relative_path } => ("folder_delete".into(), relative_path.clone()),
+        DOp::YamlChange { relative_path } => ("yaml_change".into(), relative_path.clone()),
+        DOp::MetaChange { relative_path, .. } => ("meta_change".into(), relative_path.clone()),
+    }
+}
+
+#[tauri::command]
+pub fn sync_v2_list_pending(
+    state: tauri::State<'_, SyncEngineState>,
+) -> Result<Vec<PendingOpDto>, String> {
+    let engine = match state.get() {
+        Some(e) => e,
+        None => return Ok(Vec::new()),
+    };
+    let entries = engine.queue().list_pending()?;
+    let mut out = Vec::with_capacity(entries.len());
+    for e in entries {
+        let (op_type, target_path) = op_type_and_path(&e.op);
+        out.push(PendingOpDto {
+            id: e.id,
+            op_type,
+            target_path,
+            timestamp_ms: e.timestamp.timestamp_millis(),
+            retry_count: e.retry_count,
+            last_error: e.last_error,
+            lane: e.lane.as_str().to_string(),
+        });
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn sync_v2_list_failed(
+    state: tauri::State<'_, SyncEngineState>,
+) -> Result<Vec<FailedOpDto>, String> {
+    let engine = match state.get() {
+        Some(e) => e,
+        None => return Ok(Vec::new()),
+    };
+    let entries = engine.queue().list_failed()?;
+    let mut out = Vec::with_capacity(entries.len());
+    for e in entries {
+        let (op_type, target_path) = op_type_and_path(&e.op);
+        out.push(FailedOpDto {
+            id: e.id,
+            op_type,
+            target_path,
+            queued_at_ms: e.queued_at.timestamp_millis(),
+            failed_at_ms: e.failed_at.timestamp_millis(),
+            last_error: e.last_error,
+            lane: e.lane.as_str().to_string(),
+        });
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn sync_v2_retry_failed(
+    failed_id: i64,
+    state: tauri::State<'_, SyncEngineState>,
+) -> Result<(), String> {
+    let engine = state
+        .get()
+        .ok_or_else(|| "sync engine not initialised".to_string())?;
+    engine.retry_failed(failed_id)?;
+    // Trigger immediate sync so the user sees retry attempt right away.
+    engine.trigger_reconciliation_now();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn sync_v2_retry_all_failed(
+    state: tauri::State<'_, SyncEngineState>,
+) -> Result<usize, String> {
+    let engine = state
+        .get()
+        .ok_or_else(|| "sync engine not initialised".to_string())?;
+    let failed = engine.queue().list_failed()?;
+    let n = failed.len();
+    for f in failed {
+        engine.retry_failed(f.id)?;
+    }
+    if n > 0 {
+        engine.trigger_reconciliation_now();
+    }
+    Ok(n)
+}
+
+#[tauri::command]
+pub fn sync_v2_clear_failed(
+    state: tauri::State<'_, SyncEngineState>,
+) -> Result<usize, String> {
+    let engine = state
+        .get()
+        .ok_or_else(|| "sync engine not initialised".to_string())?;
+    engine.queue().clear_failed()
+}
+
+#[tauri::command]
+pub fn sync_v2_count_failed(
+    state: tauri::State<'_, SyncEngineState>,
+) -> Result<usize, String> {
+    Ok(state.get().map(|e| e.queue().count_failed().unwrap_or(0)).unwrap_or(0))
+}
+
 #[tauri::command]
 pub async fn sync_v2_set_realtime(
     enabled: bool,
@@ -608,9 +761,79 @@ pub async fn attachment_add(
         }
     };
 
+    // HanBin 2026-05-14: faststart re-mux for MP4 family. Webex / Zoom / OBS
+    // screen recordings ship with `moov` at the end of the file, which
+    // forces HTML5 <video> in the editor's inline embed to download the
+    // whole file before seek works (visible bug: progress thumb decouples
+    // from played-progress fill). We re-mux on ingest, before CAS storage,
+    // so every attachment that lands in the vault is seek-friendly
+    // out of the box. Lossless — `mdat` byte stream is preserved; only the
+    // `moov` atom is moved and its stco/co64 entries shifted.
+    //
+    // Safety: if any step fails (parse, shift overflow, IO), we fall back
+    // to the original file. Empirically verified on a 1.47 GB Webex file
+    // (see scripts/mp4-faststart.mjs + c:/tmp/faststart_verify).
+    let ext_lower = src
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|s| s.to_lowercase())
+        .unwrap_or_default();
+    let needs_faststart = matches!(ext_lower.as_str(), "mp4" | "mov" | "m4v");
+    let mut temp_path: Option<std::path::PathBuf> = None;
+    let processed_src: std::path::PathBuf = if needs_faststart {
+        match crate::core::mp4_faststart::is_faststart(src) {
+            Ok(true) => src.to_path_buf(),
+            Ok(false) => {
+                let tmp_dir = std::env::temp_dir();
+                let unique = format!(
+                    "notology_faststart_{}_{}.mp4",
+                    std::process::id(),
+                    chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+                );
+                let tmp = tmp_dir.join(unique);
+                match crate::core::mp4_faststart::apply_faststart(src, &tmp) {
+                    Ok(()) => {
+                        log::info!(
+                            "[attachment_add] faststart re-muxed {} → {:?}",
+                            src.display(),
+                            tmp
+                        );
+                        temp_path = Some(tmp.clone());
+                        tmp
+                    }
+                    Err(e) => {
+                        log::warn!(
+                            "[attachment_add] faststart failed for {}: {} (using original)",
+                            src.display(),
+                            e
+                        );
+                        let _ = std::fs::remove_file(&tmp);
+                        src.to_path_buf()
+                    }
+                }
+            }
+            Err(e) => {
+                log::warn!(
+                    "[attachment_add] faststart pre-check failed for {}: {} (using original)",
+                    src.display(),
+                    e
+                );
+                src.to_path_buf()
+            }
+        }
+    } else {
+        src.to_path_buf()
+    };
+
     let mut store =
         crate::features::sync_v2::attachment_store::AttachmentStore::new(vault)?;
-    let outcome = store.add_attachment(src, &name, &resolved_note_id)?;
+    let outcome = store.add_attachment(&processed_src, &name, &resolved_note_id);
+    // Clean up the temp file regardless of store.add_attachment outcome —
+    // store already copied bytes into CAS by the time it returns.
+    if let Some(tmp) = temp_path.as_ref() {
+        let _ = std::fs::remove_file(tmp);
+    }
+    let outcome = outcome?;
     let r = outcome.attachment_ref;
 
     // Enqueue for sync. Lane chosen by size (Fast <100 MB, Slow ≥100 MB).
@@ -847,6 +1070,284 @@ pub async fn attachment_list_all(
     let vault = require_vault(&library_state)?;
     let store = crate::features::sync_v2::attachment_store::AttachmentStore::new(vault)?;
     Ok(store.all_refs().cloned().map(Into::into).collect())
+}
+
+/// 2026-05-24 (HanBin) — vault_repair: read-only scan for 7 inconsistency
+/// patterns. Safe to call any time; never mutates the vault.
+#[tauri::command]
+pub async fn vault_repair_scan(
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<crate::features::sync_v2::vault_repair::RepairReport, String> {
+    let vault = require_vault(&library_state)?;
+    crate::features::sync_v2::vault_repair::scan(&vault)
+}
+
+/// 2026-05-24 (HanBin) — vault_repair: execute the fixes from a prior scan.
+/// Backs up to `.legacy/repair_<ts>/` before any write. On verification
+/// failure, the caller can request rollback via `vault_repair_rollback`
+/// (manifest path returned in `outcome.backup_dir`).
+///
+/// Concurrency: gated by a global AtomicBool mutex. Re-entry while a
+/// prior apply is still running returns an error immediately rather
+/// than racing the in-flight apply (which would corrupt the manifest
+/// and produce non-deterministic state).
+#[tauri::command]
+pub async fn vault_repair_apply(
+    app: tauri::AppHandle,
+    report: crate::features::sync_v2::vault_repair::RepairReport,
+    options: Option<crate::features::sync_v2::vault_repair::ApplyOptions>,
+    library_state: tauri::State<'_, LibraryState>,
+    sync_state: tauri::State<'_, SyncEngineState>,
+) -> Result<crate::features::sync_v2::vault_repair::ApplyOutcome, String> {
+    use tauri::Emitter;
+    let vault = require_vault(&library_state)?;
+    let opts = options
+        .unwrap_or_else(crate::features::sync_v2::vault_repair::ApplyOptions::default_safe);
+
+    // Acquire the global apply lock. RAII guard releases on scope exit.
+    let _guard = crate::features::sync_v2::vault_repair::progress::try_acquire_apply_lock()?;
+
+    // Phase 4 B7 (HanBin 2026-05-24) — pause the sync engine for the
+    // duration of the repair. Prevents NAS pull from racing our writes
+    // and corrupting the manifest, and prevents NAS push from sending
+    // half-migrated state to remote. Restored unconditionally on
+    // scope exit via the RAII guard below.
+    struct SyncPauseGuard {
+        engine: Option<std::sync::Arc<crate::features::sync_v2::sync_engine::SyncEngine>>,
+        original_state: bool,
+    }
+    impl Drop for SyncPauseGuard {
+        fn drop(&mut self) {
+            if let Some(e) = &self.engine {
+                e.set_sync_enabled(self.original_state);
+                log::info!(
+                    "[vault_repair::apply] sync_engine restored to enabled={}",
+                    self.original_state
+                );
+            }
+        }
+    }
+    let _sync_guard: SyncPauseGuard = {
+        let engine_opt = sync_state.0.lock()
+            .map_err(|e| format!("sync_state lock poisoned: {}", e))?
+            .clone();
+        if let Some(engine) = engine_opt {
+            let original = engine.is_sync_enabled();
+            if original {
+                engine.set_sync_enabled(false);
+                log::info!("[vault_repair::apply] sync_engine paused for repair");
+            }
+            SyncPauseGuard { engine: Some(engine), original_state: original }
+        } else {
+            SyncPauseGuard { engine: None, original_state: false }
+        }
+    };
+
+    // Spawn a heartbeat task that emits Tauri progress events every
+    // 250ms so the UI can render a smooth status line without polling.
+    // Runs until the apply returns and the guard drops.
+    let app_for_hb = app.clone();
+    let stop_hb = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let stop_hb_clone = stop_hb.clone();
+    tokio::spawn(async move {
+        while !stop_hb_clone.load(std::sync::atomic::Ordering::Acquire) {
+            let snap = crate::features::sync_v2::vault_repair::progress_snapshot();
+            let _ = app_for_hb.emit("vault-repair:progress", &snap);
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+    });
+
+    let outcome = crate::features::sync_v2::vault_repair::apply(&vault, &report, &opts);
+
+    stop_hb.store(true, std::sync::atomic::Ordering::Release);
+
+    // Final state event + reset progress slot.
+    match &outcome {
+        Ok(o) => {
+            let _ = app.emit("vault-repair:done", o);
+        }
+        Err(e) => {
+            let _ = app.emit("vault-repair:error", &e);
+        }
+    }
+    // Brief delay so the UI receives the terminal stage before idle.
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    crate::features::sync_v2::vault_repair::reset_to_idle();
+    outcome
+}
+
+/// 2026-05-24 (HanBin) — UNIFIED note-id resolution. Returns the
+/// `note_id → vault_relative_path` map for every .md note in the vault.
+///
+/// Why this exists: the graph view (`get_graph_data`) does its own
+/// note-id resolution on the Rust side, but the AttachmentsTab filter
+/// was doing it client-side via `contentCacheStore.metadataCache` —
+/// which only has frontmatter for notes the user has actually opened.
+/// Result: the same `AttachmentRef.linked_notes` content showed up in
+/// the graph but vanished from the filtered Attachments tab, depending
+/// purely on which notes happened to be cached. HanBin 2026-05-24:
+/// "왜 연계 방식이 통일이 안되지?"
+///
+/// This command pushes the resolution to the backend so both surfaces
+/// share one source of truth. Maps a note_id (frontmatter `id:` field
+/// when present, file stem fallback otherwise — matches
+/// `extract_note_id_from_path` + `attachment_reconcile::note_id_for`)
+/// to its forward-slash vault-relative path. Lowercased keys for
+/// case-insensitive lookup on the frontend.
+///
+/// Cost: walks the vault tree + reads each .md. Acceptable since the
+/// AttachmentsTab only calls this on mount + vault change (cached in
+/// the component). For a 5,000-note vault: ~200ms cold, <50ms warm.
+#[tauri::command]
+pub async fn note_id_index(
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<std::collections::HashMap<String, String>, String> {
+    let vault = require_vault(&library_state)?;
+    let mut out: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+    fn walk(dir: &std::path::Path, vault_root: &std::path::Path, out: &mut std::collections::HashMap<String, String>) {
+        if let Some(name) = dir.file_name().and_then(|s| s.to_str()) {
+            if name.starts_with('.') || name.ends_with("_att") {
+                return;
+            }
+        }
+        let entries = match std::fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(_) => return,
+        };
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                walk(&p, vault_root, out);
+                continue;
+            }
+            if p.extension().and_then(|s| s.to_str()) != Some("md") {
+                continue;
+            }
+            let content = match std::fs::read_to_string(&p) {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            let nid = crate::core::note_id::read_id_from_content(&content)
+                .unwrap_or_else(|| {
+                    p.file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("")
+                        .to_string()
+                });
+            if nid.is_empty() {
+                continue;
+            }
+            let rel = p.strip_prefix(vault_root)
+                .map(|r| r.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_else(|_| p.to_string_lossy().to_string());
+            out.insert(nid.to_lowercase(), rel);
+        }
+    }
+
+    walk(&vault, &vault, &mut out);
+    Ok(out)
+}
+
+/// Phase 1 B1+B2 (HanBin 2026-05-24) — full vault snapshot with sha256
+/// integrity manifest. Foundational safety primitive: every vault_repair
+/// apply will create one of these first, and the user can always
+/// 1-click restore.
+#[tauri::command]
+pub async fn vault_snapshot_create(
+    label: Option<String>,
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<crate::features::sync_v2::vault_repair::snapshot::SnapshotManifest, String> {
+    let vault = require_vault(&library_state)?;
+    let label = label.unwrap_or_else(|| "manual".to_string());
+    crate::features::sync_v2::vault_repair::snapshot::create_snapshot(&vault, &label)
+}
+
+#[tauri::command]
+pub async fn vault_snapshot_list(
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<Vec<crate::features::sync_v2::vault_repair::snapshot::SnapshotInfo>, String> {
+    let vault = require_vault(&library_state)?;
+    crate::features::sync_v2::vault_repair::snapshot::list_snapshots(&vault)
+}
+
+#[tauri::command]
+pub async fn vault_snapshot_restore(
+    snapshot_id: String,
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<crate::features::sync_v2::vault_repair::snapshot::RestoreOutcome, String> {
+    let vault = require_vault(&library_state)?;
+    crate::features::sync_v2::vault_repair::snapshot::restore_snapshot(&vault, &snapshot_id)
+}
+
+/// P1 #6 (HanBin 2026-05-24) — preview a restore. UI shows the list
+/// of files that would be overwritten + DELETED, so the user can
+/// inspect the cost before confirming.
+#[tauri::command]
+pub async fn vault_snapshot_preview_restore(
+    snapshot_id: String,
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<crate::features::sync_v2::vault_repair::snapshot::RestorePreview, String> {
+    let vault = require_vault(&library_state)?;
+    crate::features::sync_v2::vault_repair::snapshot::preview_restore(&vault, &snapshot_id)
+}
+
+#[tauri::command]
+pub async fn vault_snapshot_delete(
+    snapshot_id: String,
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<(), String> {
+    let vault = require_vault(&library_state)?;
+    crate::features::sync_v2::vault_repair::snapshot::delete_snapshot(&vault, &snapshot_id)
+}
+
+/// Phase 5 B8 (HanBin 2026-05-24) — clone the open vault to a sandbox
+/// location. The user can then open the sandbox in Notology (via
+/// VaultSelector) and run vault_repair against it for safe testing
+/// before touching the real vault. Returns the sandbox absolute path.
+#[tauri::command]
+pub async fn vault_sandbox_create(
+    label: Option<String>,
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<crate::features::sync_v2::vault_repair::sandbox::SandboxOutcome, String> {
+    let vault = require_vault(&library_state)?;
+    // Acquire the apply lock so the sandbox-create itself can't run
+    // simultaneously with a vault_repair_apply on the same vault.
+    let _guard = crate::features::sync_v2::vault_repair::progress::try_acquire_apply_lock()?;
+    let label = label.unwrap_or_else(|| "test".to_string());
+    let outcome = crate::features::sync_v2::vault_repair::sandbox::create_sandbox(&vault, &label)?;
+    crate::features::sync_v2::vault_repair::progress::reset_to_idle();
+    Ok(outcome)
+}
+
+/// 2026-05-24 (HanBin) — vault_repair: poll the current apply progress.
+/// Returns Idle stage when no apply is running. Cheap (Mutex lock +
+/// struct clone, no I/O). Safe to call from any thread.
+#[tauri::command]
+pub async fn vault_repair_status(
+) -> Result<crate::features::sync_v2::vault_repair::RepairProgress, String> {
+    Ok(crate::features::sync_v2::vault_repair::progress_snapshot())
+}
+
+/// 2026-05-24 (HanBin) — vault_repair: request cancellation of the
+/// currently-running apply. Sets a flag; the apply loop checks it at
+/// every safe checkpoint (between findings) and bails cleanly,
+/// preserving the backup folder so the user can rollback if needed.
+/// No-op when no apply is running.
+#[tauri::command]
+pub async fn vault_repair_cancel() -> Result<(), String> {
+    crate::features::sync_v2::vault_repair::request_cancel();
+    Ok(())
+}
+
+/// 2026-05-24 (HanBin) — vault_repair: post-apply verification. Returns the
+/// list of invariant violations (empty = pass).
+#[tauri::command]
+pub async fn vault_repair_verify(
+    library_state: tauri::State<'_, LibraryState>,
+) -> Result<Vec<crate::features::sync_v2::vault_repair::VerificationFailure>, String> {
+    let vault = require_vault(&library_state)?;
+    crate::features::sync_v2::vault_repair::verify(&vault)
 }
 
 /// Track B Phase B-3: resolve an attachment_id to a user-droppable absolute
@@ -1222,6 +1723,16 @@ pub struct NasFolderEntry {
     /// True when this directory contains a `.notology/` subdir — i.e., it
     /// is itself a Notology vault root the user can open directly.
     pub is_vault: bool,
+    /// Set when `is_vault` is false but the folder still looks like a
+    /// note-bearing vault that just hasn't been migrated yet. Drives the
+    /// "마이그레이션해서 열기" affordance in the NAS browser so legacy
+    /// folders (Obsidian or plain markdown trees) are reachable instead of
+    /// being silently treated as opaque folders.
+    ///
+    /// Values: `"obsidian"` (`.obsidian/` present) or `"plainMd"` (≥1 `.md`
+    /// in immediate children). `None` for ordinary folders.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub legacy_kind: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -1251,6 +1762,7 @@ pub async fn browse_folder_with_provider(
             continue;
         }
         let mut is_vault = false;
+        let mut legacy_kind: Option<String> = None;
         if child.is_collection {
             // One PROPFIND per child to detect vault marker. Sequential is
             // intentional — we don't want to hammer Synology with parallel
@@ -1258,6 +1770,9 @@ pub async fn browse_folder_with_provider(
             if let Ok(grandchildren) = provider.list_children(&child.path).await {
                 is_vault = grandchildren.iter()
                     .any(|gc| gc.name == ".notology" && gc.is_collection);
+                if !is_vault {
+                    legacy_kind = detect_legacy_kind(provider, &grandchildren).await;
+                }
             }
         }
         entries.push(NasFolderEntry {
@@ -1265,6 +1780,7 @@ pub async fn browse_folder_with_provider(
             path: child.path,
             is_collection: child.is_collection,
             is_vault,
+            legacy_kind,
         });
     }
 
@@ -1300,6 +1816,48 @@ pub async fn sync_v2_browse_nas_folder(
     );
 
     browse_folder_with_provider(&provider, &path).await
+}
+
+/// Classify a non-vault folder so the NAS browser can offer "migrate and
+/// open" instead of silently treating it as opaque.
+///
+/// Cheap signals first (no extra fetch):
+///   1. `.obsidian/` present → `"obsidian"`
+///   2. ≥1 `.md` at top level → `"plainMd"`
+///
+/// Deep fallback (organised vaults often keep root clean and push notes
+/// down one level, e.g. `01_Tasks/note.md`): probe up to
+/// `MAX_DEEP_PROBES` non-hidden, non-system subfolders. Bounded so a busy
+/// Colony root with many opaque siblings stays snappy on Synology.
+async fn detect_legacy_kind(
+    provider: &std::sync::Arc<dyn crate::core::sync_provider::SyncProvider>,
+    children: &[crate::core::sync_provider::RemoteChild],
+) -> Option<String> {
+    if children.iter().any(|c| c.name == ".obsidian" && c.is_collection) {
+        return Some("obsidian".to_string());
+    }
+    if children.iter().any(|c| !c.is_collection && c.name.to_lowercase().ends_with(".md")) {
+        return Some("plainMd".to_string());
+    }
+
+    // No top-level signal — probe up to N non-hidden subfolders one level
+    // deeper. Skip hidden (`.foo`) and system (`@eaDir`, `#recycle`) names
+    // so the budget isn't wasted on caches.
+    const MAX_DEEP_PROBES: usize = 3;
+    let mut probed = 0;
+    for child in children {
+        if probed >= MAX_DEEP_PROBES { break; }
+        if !child.is_collection { continue; }
+        if child.name.starts_with('.') { continue; }
+        if is_browser_skip_name(&child.name) { continue; }
+        if let Ok(grand) = provider.list_children(&child.path).await {
+            probed += 1;
+            if grand.iter().any(|g| !g.is_collection && g.name.to_lowercase().ends_with(".md")) {
+                return Some("plainMd".to_string());
+            }
+        }
+    }
+    None
 }
 
 /// Skip system folders + test artifacts in the NAS browser UI. Mirrors the
@@ -1782,11 +2340,28 @@ pub async fn remote_import_scan(
 
     // Phase 2 (sync, holding library lock): register each fetched note.
     // Returns pending NAS write-backs for notes whose id we generated.
+    //
+    // For non-dry-run we wire a progress callback that emits a Tauri event
+    // after each note. The UnregisteredNotesBanner listens for these and
+    // shows "47 / 178" style status — 178 notes can take a minute or two
+    // on Synology, and silence-then-done felt like a hang in prior runs.
     let pending = {
+        use tauri::Emitter;
+        let app_for_progress = app.clone();
+        let progress_cb = move |current: usize, total: usize| {
+            let _ = app_for_progress.emit(
+                "remote-import:progress",
+                serde_json::json!({ "current": current, "total": total }),
+            );
+        };
         let guard = library_state.lock().unwrap_or_else(|e| e.into_inner());
         let library = guard.as_ref().ok_or("Library not initialized")?;
         crate::features::connection::remote_import::import_into_library(
-            fetched, library, dry_run, &mut report,
+            fetched,
+            library,
+            dry_run,
+            &mut report,
+            if dry_run { None } else { Some(&progress_cb) },
         )
     };
 
@@ -1832,5 +2407,128 @@ mod tests {
     fn test_default_impl() {
         let state = SyncEngineState::default();
         assert!(state.get().is_none());
+    }
+
+    // ── 2026-05-24 legacy vault detection in NAS browser ──
+
+    use crate::core::sync_provider::SyncProvider;
+    use crate::features::sync_v2::in_memory_provider::InMemorySyncProvider;
+    use std::sync::Arc;
+
+    fn rc(name: &str, is_collection: bool) -> crate::core::sync_provider::RemoteChild {
+        crate::core::sync_provider::RemoteChild {
+            name: name.to_string(),
+            path: format!("/x/{}", name),
+            is_collection,
+            modified_at: chrono::Utc::now(),
+            size: 0,
+        }
+    }
+
+    /// Provider that returns empty for every list_children call. Used when
+    /// the test only exercises the cheap top-level signal path.
+    fn empty_provider() -> Arc<dyn crate::core::sync_provider::SyncProvider> {
+        Arc::new(InMemorySyncProvider::new())
+    }
+
+    #[tokio::test]
+    async fn detect_legacy_kind_obsidian_takes_priority() {
+        let children = vec![
+            rc(".obsidian", true),
+            rc("note.md", false),
+        ];
+        assert_eq!(
+            detect_legacy_kind(&empty_provider(), &children).await.as_deref(),
+            Some("obsidian")
+        );
+    }
+
+    #[tokio::test]
+    async fn detect_legacy_kind_plain_md_when_no_obsidian() {
+        let children = vec![
+            rc("note.md", false),
+            rc("attachments", true),
+        ];
+        assert_eq!(
+            detect_legacy_kind(&empty_provider(), &children).await.as_deref(),
+            Some("plainMd")
+        );
+    }
+
+    #[tokio::test]
+    async fn detect_legacy_kind_uppercase_md_extension_still_matches() {
+        let children = vec![rc("README.MD", false)];
+        assert_eq!(
+            detect_legacy_kind(&empty_provider(), &children).await.as_deref(),
+            Some("plainMd")
+        );
+    }
+
+    #[tokio::test]
+    async fn detect_legacy_kind_none_for_opaque_folder_with_no_subfolders() {
+        let children = vec![
+            rc("video.mp4", false),
+            rc("notes.txt", false),
+        ];
+        assert!(detect_legacy_kind(&empty_provider(), &children).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn detect_legacy_kind_obsidian_must_be_collection_not_file() {
+        // A file literally named `.obsidian` (no extension) is not the marker.
+        let children = vec![rc(".obsidian", false)];
+        assert!(detect_legacy_kind(&empty_provider(), &children).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn detect_legacy_kind_deep_probe_finds_md_in_subfolder() {
+        // Mirrors the NotologyMigrationTest layout: root has only subdirs
+        // (00_Templates, 01_Tasks, ...), all `.md` files live one level
+        // deeper. Top-level signal misses; deep probe should hit it.
+        let provider = Arc::new(InMemorySyncProvider::new());
+        provider.put_md("/Vault/01_Tasks/NOTE-1.md", b"hi").await.unwrap();
+        let provider_dyn: Arc<dyn crate::core::sync_provider::SyncProvider> = provider.clone();
+
+        // Use real /Vault/... paths so list_children resolves under the
+        // in-memory provider.
+        let children = vec![
+            crate::core::sync_provider::RemoteChild {
+                name: "00_Templates".into(), path: "/Vault/00_Templates".into(),
+                is_collection: true, modified_at: chrono::Utc::now(), size: 0,
+            },
+            crate::core::sync_provider::RemoteChild {
+                name: "01_Tasks".into(), path: "/Vault/01_Tasks".into(),
+                is_collection: true, modified_at: chrono::Utc::now(), size: 0,
+            },
+        ];
+
+        assert_eq!(
+            detect_legacy_kind(&provider_dyn, &children).await.as_deref(),
+            Some("plainMd")
+        );
+    }
+
+    #[tokio::test]
+    async fn detect_legacy_kind_deep_probe_skips_hidden_and_system_dirs() {
+        // .claude and @eaDir should be skipped — only real subfolders count.
+        let provider = Arc::new(InMemorySyncProvider::new());
+        // Only the *hidden* subfolder has any .md; if the probe leaked into
+        // it the result would be plainMd. Real result must be None.
+        provider.put_md("/Vault/.claude/secret.md", b"shh").await.unwrap();
+        let provider_dyn: Arc<dyn crate::core::sync_provider::SyncProvider> = provider.clone();
+
+        let children = vec![
+            crate::core::sync_provider::RemoteChild {
+                name: ".claude".into(), path: "/Vault/.claude".into(),
+                is_collection: true, modified_at: chrono::Utc::now(), size: 0,
+            },
+            crate::core::sync_provider::RemoteChild {
+                name: "@eaDir".into(), path: "/Vault/@eaDir".into(),
+                is_collection: true, modified_at: chrono::Utc::now(), size: 0,
+            },
+        ];
+
+        assert!(detect_legacy_kind(&provider_dyn, &children).await.is_none(),
+            "hidden/system subfolders must not be probed");
     }
 }

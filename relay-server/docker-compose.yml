@@ -1,0 +1,12 @@
+version: "3"
+services:
+  notology-relay:
+    build: .
+    container_name: notology-relay
+    restart: unless-stopped
+    ports:
+      - "9399:9399"
+    environment:
+      - RELAY_PORT=9399
+      - RELAY_SECRET=${RELAY_SECRET:-}
+      - RUST_LOG=info

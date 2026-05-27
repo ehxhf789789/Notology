@@ -10,8 +10,8 @@ lazy_static! {
         "properties": {
             "id": {
                 "type": "string",
-                "pattern": "^[0-9]{14}$",
-                "description": "14-digit timestamp ID"
+                "pattern": "^[0-9]{14}([0-9]{3})?$",
+                "description": "14 or 17-digit timestamp ID (YYYYMMDDHHMMSS with optional milliseconds)"
             },
             "title": {
                 "type": "string",
@@ -19,9 +19,15 @@ lazy_static! {
                 "description": "Note title"
             },
             "type": {
+                // HOTFIX (2026-05-17, HanBin) — was an `enum: [...]` whitelist
+                // of 15 built-in types; that rejected user-defined template
+                // types (e.g. "TEST4") at JSON-schema validation time and
+                // broke the 5.0.5a-migration "convert to template" flow.
+                // Now any non-empty uppercase string is accepted; the Rust
+                // NoteType enum's Custom(String) variant catches unknowns.
                 "type": "string",
-                "enum": ["NOTE", "MTG", "PAPER", "THEO", "TASK", "LIT", "EVENT", "CONTACT", "CONTAINER", "ADM", "OFA", "SEM", "DATA", "SETUP", "SKETCH"],
-                "description": "Note type"
+                "pattern": "^[A-Z][A-Z0-9_]*$",
+                "description": "Note type — built-in (NOTE/MTG/PAPER/THEO/TASK/LIT/EVENT/CONTACT/CONTAINER/ADM/OFA/SEM/DATA/SETUP/SKETCH) or a user-defined template key"
             },
             "created": {
                 "type": "string",

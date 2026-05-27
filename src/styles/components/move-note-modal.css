@@ -18,7 +18,7 @@
 .move-note-modal {
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-12);
   width: 400px;
   max-height: 500px;
   display: flex;
@@ -35,7 +35,7 @@
 }
 
 .move-note-title {
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   font-weight: 600;
   color: var(--tx-1);
 }
@@ -44,7 +44,7 @@
   background: none;
   border: none;
   color: var(--tx-3);
-  font-size: var(--font-xl);
+  font-size: var(--fs-16);
   cursor: pointer;
   padding: 0 4px;
 }
@@ -71,11 +71,11 @@
 .move-tree-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   padding: 4px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   color: var(--tx-2);
 }
 
@@ -94,7 +94,7 @@
 
 .move-tree-toggle {
   width: 16px;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   cursor: pointer;
   color: var(--tx-2);
   flex-shrink: 0;
@@ -115,24 +115,24 @@
 }
 
 .move-tree-current {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
-  margin-left: var(--space-4);
+  margin-left: var(--sp-2);
 }
 
 .move-note-footer {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   padding: 12px 16px;
   border-top: 0.5px solid var(--sep-l);
 }
 
 .move-note-btn {
   padding: 6px 16px;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
   font-weight: 500;
 }
@@ -147,7 +147,7 @@
 }
 
 .move-note-btn.confirm {
-  background-color: var(--c-blue);
+  background-color: var(--tx-1);
   color: #fff;
 }
 

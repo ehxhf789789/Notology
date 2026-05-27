@@ -45,6 +45,12 @@ export interface SlashCommandItem {
 export const SlashCommand = Extension.create<SlashCommandOptions>({
   name: 'slashCommand',
 
+  // Stage 5.0.5a-γ5 v8 fix — same priority bump as WikiLinkSuggestion so
+  // Tab/Enter/arrow shortcuts are intercepted by the / palette before the
+  // editor's keymap. (Less critical for `/` because slash typically opens
+  // outside a list, but consistent with sibling suggestions.)
+  priority: 1000,
+
   addOptions() {
     return {
       suggestion: {

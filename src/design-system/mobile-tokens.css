@@ -1,0 +1,64 @@
+/* ============================================================ */
+/* Mobile Design Tokens — iOS HIG inspired                      */
+/* Layered on top of base tokens.css                            */
+/* ============================================================ */
+
+:root {
+  /* Safe area (set by Tauri/WebView) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* Touch targets — 44px minimum (Apple HIG) */
+  --touch-min: 44px;
+  --touch-lg: 56px;
+
+  /* Mobile layout dimensions */
+  --m-navbar: 44px;
+  --m-tabbar: 56px;
+  --m-toolbar: 44px;
+  --m-large-title: 34px;
+
+  /* Mobile spacing (slightly larger for touch) */
+  --m-sp-1: 4px;
+  --m-sp-2: 8px;
+  --m-sp-3: 12px;
+  --m-sp-4: 16px;
+  --m-sp-5: 20px;
+  --m-sp-6: 24px;
+
+  /* Mobile font sizes */
+  --m-fs-caption: 12px;
+  --m-fs-footnote: 13px;
+  --m-fs-body: 15px;
+  --m-fs-headline: 17px;
+  --m-fs-title3: 20px;
+  --m-fs-title2: 22px;
+  --m-fs-title1: 28px;
+  --m-fs-large-title: 34px;
+
+  /* Mobile typography */
+  --m-fs-title: 17px;
+
+  /* Mobile card radius */
+  --m-radius: 8px;
+  --m-radius-card: 12px;
+
+  /* Mobile spacing (larger) */
+  --m-sp-8: 32px;
+
+  /* Mobile animation */
+  --m-dur-fast: 150ms;
+
+  /* Bottom sheet snap points */
+  --sheet-peek: 64px;
+  --sheet-half: 50vh;
+  --sheet-full: calc(100vh - var(--safe-top) - 20px);
+
+  /* ── Responsive breakpoints (Galaxy S23 / Tab S11) ── */
+  /* Phone: ≤ 599dp (Galaxy S23 viewport 360dp)          */
+  /* Tablet portrait: 600dp – 959dp (Tab S11 세로 800dp) */
+  /* Tablet landscape: ≥ 960dp (Tab S11 가로 1280dp)     */
+  /* Desktop: ≥ 1280dp                                    */
+}

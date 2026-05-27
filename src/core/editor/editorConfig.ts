@@ -8,6 +8,8 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import TextAlign from '@tiptap/extension-text-align';
 import { Table, TableRow } from '@tiptap/extension-table';
+import { getHTMLFromFragment } from '@tiptap/core';
+import { Fragment } from '@tiptap/pm/model';
 import TableCellWithColor from './extensions/TableCellWithColor';
 import TableHeaderWithColor from './extensions/TableHeaderWithColor';
 import CodeBlockWithHighlight from './extensions/CodeBlockWithHighlight';
@@ -40,11 +42,13 @@ import HeadingWithAlign from './extensions/HeadingWithAlign';
 import CommentMarks from './extensions/CommentMarks';
 import LinkCard from './extensions/LinkCard';
 import WikiLinkSuggestion from './extensions/WikiLinkSuggestion';
+import AttachmentSuggestion from './extensions/AttachmentSuggestion';
 import { MathInline, MathBlock, MathTrigger } from './extensions/MathExtension';
 import { MathCursorPlugin } from './extensions/MathCursorPlugin';
 import { SlashCommand } from './extensions/SlashCommand';
 import 'katex/dist/katex.min.css';
 import { createWikiLinkSuggestion } from '../../features/suggestions/wikiLinkSuggestion';
+import { createAttachmentSuggestion } from '../../features/suggestions/attachmentSuggestion';
 import { createSlashCommandSuggestion } from '../../features/slash-command';
 import type { FileNode } from '../types';
 
@@ -99,6 +103,27 @@ export interface EditorConfigOptions {
   notePath?: string;
   // Resolve fileName to full file path (for preloading on hover)
   resolveFilePath?: (name: string) => string | null;
+  /**
+   * v20.5 (2026-05-16, HanBin) — override the default `//` attachment-pick
+   * behavior. Default inserts a wikilink in the editor; sketch contexts
+   * pass an override that creates a CANVAS NODE instead so attachments
+   * stay first-class on the sketch surface (not inline references).
+   * Receives { editor, range, attachment } and must both clear the
+   * trigger text from the editor (via `range`) AND apply its own action.
+   */
+  onAttachmentPick?: (args: {
+    editor: import('@tiptap/core').Editor;
+    range: import('@tiptap/core').Range;
+    attachment: import('../../features/suggestions/attachmentSuggestion').AttachmentResult;
+  }) => void;
+  /**
+   * v20.21 (2026-05-17, HanBin) — slash-command items to hide. Used by
+   * sketch text-node editors to drop items that conflict with sketch
+   * UX (e.g. `/위키 링크` types `[[` which is intentionally disabled in
+   * sketch context — wikilinks live as canvas nodes there, not inline).
+   * Matches SlashCommandItem.id values from features/slash-command/commands.ts.
+   */
+  slashCommandExclude?: string[];
 }
 
 export function getEditorExtensions(options: EditorConfigOptions) {
@@ -109,6 +134,18 @@ export function getEditorExtensions(options: EditorConfigOptions) {
       paragraph: false, // Disable default paragraph to use ParagraphWithIndent
       heading: false, // Disable default heading to use HeadingWithAlign
       codeBlock: false, // Disable default codeBlock to use CodeBlockWithHighlight
+      // v20.7 (2026-05-16, HanBin) — undo/redo depth raised to window-
+      // lifetime. HanBin: "되돌리기 기억 캐시가 너무 짧음. hover 창이
+      // 열려있는 기준으로는 되돌리기 기록이 모두 남아야 함... 모든 노트
+      // 에 해당하는 기능". Default depth (100) was capping the history
+      // mid-session for any long editing flow. Hover windows have finite
+      // lifetime (close → gc) so a high cap is safe. Using a very large
+      // number rather than Infinity because TipTap stores history in a
+      // ring buffer and accepts only finite ints.
+      history: {
+        depth: 100_000,
+        newGroupDelay: 500,
+      },
     }),
     CodeBlockWithHighlight.configure({ lowlight }),
     ParagraphWithIndent, // Custom paragraph with indent support and markdown serialization
@@ -137,8 +174,6 @@ export function getEditorExtensions(options: EditorConfigOptions) {
 
               if (hasCellColor) {
                 // Serialize as HTML to preserve cell background colors
-                const { getHTMLFromFragment } = require('@tiptap/core');
-                const { Fragment } = require('@tiptap/pm/model');
                 const html = getHTMLFromFragment(Fragment.from(node), node.type.schema);
                 state.write(html);
                 state.closeBlock(node);
@@ -174,8 +209,17 @@ export function getEditorExtensions(options: EditorConfigOptions) {
     TableRow,
     TableCellWithColor,
     TableHeaderWithColor,
+    // v22 (HanBin 2026-05-23) — Ctrl/Cmd+Shift+L/E/R align shortcuts.
     TextAlign.configure({
       types: ['heading', 'paragraph'],
+    }).extend({
+      addKeyboardShortcuts() {
+        return {
+          'Mod-Shift-l': () => this.editor.commands.setTextAlign('left'),
+          'Mod-Shift-e': () => this.editor.commands.setTextAlign('center'),
+          'Mod-Shift-r': () => this.editor.commands.setTextAlign('right'),
+        };
+      },
     }),
     // Underline is included in StarterKit
     Callout,
@@ -197,12 +241,29 @@ export function getEditorExtensions(options: EditorConfigOptions) {
         suggestion: createWikiLinkSuggestion(options.getFileTree),
       }),
     ] : []),
+    // v20.4 (2026-05-16, HanBin) — `//` attachment suggestion. Previously
+    // this was only wired into editorPool.ts (main note editor) and was
+    // absent from the shared getEditorExtensions(), which meant sketch
+    // node text editors didn't get `//` even though they share this same
+    // factory. HanBin: "스케치 노트의 노드 내 텍스트 영역은 노트 편집기와
+    // 동일하기 때문에, /, //, [[ 기능 구현". Gated on notePath because
+    // attachment commands need the host note to file against.
+    // v20.5 — optionally takes onAttachmentPick override. Sketch passes
+    // one that creates a CANVAS NODE instead of inserting a wikilink.
+    ...(options.notePath ? [
+      AttachmentSuggestion.configure({
+        suggestion: createAttachmentSuggestion({
+          getNotePath: () => options.notePath || '',
+          onPick: options.onAttachmentPick,
+        }),
+      }),
+    ] : []),
     MathInline,
     MathBlock,
     MathTrigger,
     MathCursorPlugin,
     SlashCommand.configure({
-      suggestion: createSlashCommandSuggestion(),
+      suggestion: createSlashCommandSuggestion({ excludeIds: options.slashCommandExclude }),
     }),
     LinkCard, // Put LinkCard BEFORE Markdown for higher paste priority
     Markdown.configure({

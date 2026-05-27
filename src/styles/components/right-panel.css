@@ -12,14 +12,14 @@
 .backlinks-header {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--sp-2);
   padding: 8px 12px;
   cursor: pointer;
   user-select: none;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-3);
   background-color: var(--bg-app);
-  transition: background-color var(--duration-fast) ease;
+  transition: background-color var(--dur-150) ease;
 }
 
 .backlinks-header:hover {
@@ -27,22 +27,22 @@
 }
 
 .backlinks-toggle {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   width: 12px;
 }
 
 .backlinks-title {
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
 
 .backlinks-count {
   margin-left: auto;
   background-color: var(--bg-hover);
   padding: 0 6px;
-  border-radius: var(--radius-lg);
-  font-size: var(--font-sm);
+  border-radius: var(--r-12);
+  font-size: var(--fs-11);
 }
 
 .backlinks-list {
@@ -51,7 +51,7 @@
 
 .backlinks-empty {
   padding: 8px 16px;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-3);
 }
 
@@ -60,10 +60,10 @@
   flex-direction: column;
   padding: 4px 16px;
   cursor: pointer;
-  gap: var(--space-1);
-  border-radius: var(--radius-sm);
-  margin: 0 var(--space-2);
-  transition: background-color var(--duration-fast) ease;
+  gap: var(--sp-1);
+  border-radius: var(--r-6);
+  margin: 0 var(--sp-1);
+  transition: background-color var(--dur-150) ease;
 }
 
 .backlink-item:hover {
@@ -71,13 +71,13 @@
 }
 
 .backlink-file-name {
-  font-size: var(--font-md);
-  color: var(--c-blue);
+  font-size: var(--fs-13);
+  color: var(--tx-1);
   font-weight: 500;
 }
 
 .backlink-context {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -89,7 +89,7 @@
 }
 
 .backlinks-section-title {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
   padding: 2px 8px;
   font-weight: 500;
@@ -101,7 +101,7 @@
 
 .relationship-panel {
   border-top: 0.5px solid var(--sep-l);
-  margin-top: var(--space-4);
+  margin-top: var(--sp-2);
 }
 
 .relationship-header {
@@ -110,10 +110,10 @@
 }
 
 .relationship-title {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
 
 .relationship-content {
@@ -125,7 +125,7 @@
 }
 
 .relationship-section-title {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
   padding: 2px 12px;
 }
@@ -142,12 +142,12 @@
 }
 
 .relationship-link-name {
-  font-size: var(--font-base);
-  color: var(--c-blue);
+  font-size: var(--fs-13);
+  color: var(--tx-1);
 }
 
 .relationship-context {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
-  margin-top: var(--space-1);
+  margin-top: var(--sp-1);
 }

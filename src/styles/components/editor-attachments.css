@@ -2,8 +2,8 @@
 
 /* Image files (.png, .jpg, .gif, .webp, .svg, etc.) */
 .wiki-link-inline.attachment.att-image {
-  color: var(--c-green);
-  background-color: color-mix(in srgb, var(--c-green) 8%, transparent);
+  --wiki-chip-accent: var(--c-green);
+  color: var(--c-green);  background-color: color-mix(in srgb, var(--c-green) 8%, transparent);
   border-color: color-mix(in srgb, var(--c-green) 30%, transparent);
 }
 .wiki-link-inline.attachment.att-image::before {
@@ -17,8 +17,8 @@
 
 /* Document files (.pdf, .doc, .docx, .ppt, .hwp, etc.) */
 .wiki-link-inline.attachment.att-document {
-  color: var(--c-orange);
-  background-color: color-mix(in srgb, var(--c-orange) 8%, transparent);
+  --wiki-chip-accent: var(--c-orange);
+  color: var(--c-orange);  background-color: color-mix(in srgb, var(--c-orange) 8%, transparent);
   border-color: color-mix(in srgb, var(--c-orange) 30%, transparent);
 }
 .wiki-link-inline.attachment.att-document::before {
@@ -32,8 +32,8 @@
 
 /* Data files (.xlsx, .csv, .json, .xml, .yaml, etc.) */
 .wiki-link-inline.attachment.att-data {
-  color: var(--c-yellow);
-  background-color: color-mix(in srgb, var(--c-yellow) 8%, transparent);
+  --wiki-chip-accent: var(--c-yellow);
+  color: var(--c-yellow);  background-color: color-mix(in srgb, var(--c-yellow) 8%, transparent);
   border-color: color-mix(in srgb, var(--c-yellow) 30%, transparent);
 }
 .wiki-link-inline.attachment.att-data::before {
@@ -47,8 +47,8 @@
 
 /* Code files (.py, .js, .ts, .rs, .go, etc.) */
 .wiki-link-inline.attachment.att-code {
-  color: var(--c-teal);
-  background-color: color-mix(in srgb, var(--c-teal) 8%, transparent);
+  --wiki-chip-accent: var(--c-teal);
+  color: var(--c-teal);  background-color: color-mix(in srgb, var(--c-teal) 8%, transparent);
   border-color: color-mix(in srgb, var(--c-teal) 30%, transparent);
 }
 .wiki-link-inline.attachment.att-code::before {
@@ -62,23 +62,24 @@
 
 /* Contact files (.vcf) */
 .wiki-link-inline.attachment.att-contact {
-  color: var(--c-blue);
-  background-color: color-mix(in srgb, var(--c-blue) 8%, transparent);
-  border-color: color-mix(in srgb, var(--c-blue) 30%, transparent);
+  --wiki-chip-accent: var(--c-blue);
+  color: var(--tx-1);
+  background-color: color-mix(in srgb, var(--tx-1) 8%, transparent);
+  border-color: color-mix(in srgb, var(--tx-1) 30%, transparent);
 }
 .wiki-link-inline.attachment.att-contact::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E");
 }
 .wiki-link-inline.attachment.att-contact:hover {
-  background-color: color-mix(in srgb, var(--c-blue) 20%, transparent);
-  border-color: color-mix(in srgb, var(--c-blue) 50%, transparent);
-  color: color-mix(in srgb, var(--c-blue) 70%, white);
+  background-color: color-mix(in srgb, var(--tx-1) 20%, transparent);
+  border-color: color-mix(in srgb, var(--tx-1) 50%, transparent);
+  color: color-mix(in srgb, var(--tx-1) 70%, white);
 }
 
 /* Media files (.mp3, .mp4, .wav, .avi, etc.) */
 .wiki-link-inline.attachment.att-media {
-  color: var(--c-purple);
-  background-color: color-mix(in srgb, var(--c-purple) 8%, transparent);
+  --wiki-chip-accent: var(--c-purple);
+  color: var(--c-purple);  background-color: color-mix(in srgb, var(--c-purple) 8%, transparent);
   border-color: color-mix(in srgb, var(--c-purple) 30%, transparent);
 }
 .wiki-link-inline.attachment.att-media::before {
@@ -92,8 +93,8 @@
 
 /* Archive files (.zip, .7z, .rar, .tar, etc.) */
 .wiki-link-inline.attachment.att-archive {
-  color: var(--c-gray);
-  background-color: color-mix(in srgb, var(--c-gray) 8%, transparent);
+  --wiki-chip-accent: var(--c-gray);
+  color: var(--c-gray);  background-color: color-mix(in srgb, var(--c-gray) 8%, transparent);
   border-color: color-mix(in srgb, var(--c-gray) 30%, transparent);
 }
 .wiki-link-inline.attachment.att-archive::before {
@@ -107,8 +108,8 @@
 
 /* Markdown attachment files (.md in _att folder) */
 .wiki-link-inline.attachment.att-markdown {
-  color: var(--c-teal);
-  background-color: color-mix(in srgb, var(--c-teal) 8%, transparent);
+  --wiki-chip-accent: var(--c-teal);
+  color: var(--c-teal);  background-color: color-mix(in srgb, var(--c-teal) 8%, transparent);
   border-color: color-mix(in srgb, var(--c-teal) 30%, transparent);
 }
 .wiki-link-inline.attachment.att-markdown::before {
@@ -125,8 +126,8 @@
    `.exe` chip lost the leading icon while keeping the rest of the
    attachment styling. */
 .wiki-link-inline.attachment.att-other {
-  color: var(--c-gray);
-  background-color: color-mix(in srgb, var(--c-gray) 8%, transparent);
+  --wiki-chip-accent: var(--c-gray);
+  color: var(--c-gray);  background-color: color-mix(in srgb, var(--c-gray) 8%, transparent);
   border-color: color-mix(in srgb, var(--c-gray) 30%, transparent);
 }
 .wiki-link-inline.attachment.att-other::before {
@@ -178,13 +179,20 @@
   display: inline-block;
   width: 14px;
   height: 14px;
-  margin-right: var(--sp-1);
-  margin-left: 0;
-  vertical-align: middle;
+  /* 2026-05-24 (HanBin) — gap is provided by the flex parent (6px),
+     so no per-icon margin needed. `vertical-align: baseline` lets the
+     flex `align-items: center` truly center the icon-text pair on the
+     visual midline (Pretendard caps height vs SVG 14px box mismatch
+     was producing a 1–2px downward drift with vertical-align: middle). */
+  margin: 0;
+  vertical-align: baseline;
+  flex-shrink: 0;
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
   background-color: currentColor;
 }
 
@@ -336,8 +344,8 @@ html[data-theme="light"] .wiki-link-inline:not([class*="note-type-"]):hover {
 }
 
 html[data-theme="light"] .wiki-link-inline.unresolved {
-  color: var(--c-gray);
-  text-decoration-color: color-mix(in srgb, var(--c-gray) 70%, white);
+  --wiki-chip-accent: var(--c-gray);
+  color: var(--c-gray);  text-decoration-color: color-mix(in srgb, var(--c-gray) 70%, white);
 }
 
 html[data-theme="light"] .wiki-link-inline.unresolved:hover {
@@ -399,13 +407,13 @@ html[data-theme="light"] .wiki-link-inline.attachment.att-code:hover {
 }
 
 html[data-theme="light"] .wiki-link-inline.attachment.att-contact {
-  color: color-mix(in srgb, var(--c-blue) 80%, black);
-  background-color: color-mix(in srgb, var(--c-blue) 8%, transparent);
-  border-color: color-mix(in srgb, var(--c-blue) 25%, transparent);
+  color: color-mix(in srgb, var(--tx-1) 80%, black);
+  background-color: color-mix(in srgb, var(--tx-1) 8%, transparent);
+  border-color: color-mix(in srgb, var(--tx-1) 25%, transparent);
 }
 html[data-theme="light"] .wiki-link-inline.attachment.att-contact:hover {
-  background-color: color-mix(in srgb, var(--c-blue) 15%, transparent);
-  color: color-mix(in srgb, var(--c-blue) 65%, black);
+  background-color: color-mix(in srgb, var(--tx-1) 15%, transparent);
+  color: color-mix(in srgb, var(--tx-1) 65%, black);
 }
 
 html[data-theme="light"] .wiki-link-inline.attachment.att-media {
@@ -467,16 +475,51 @@ html[data-theme="light"] .wiki-link-inline.wiki-link-decoration.resolved.note-ty
   }
 }
 
-/* Wiki Image Embed (![[image.jpg]]) */
+/* Wiki Image Embed (![[image.jpg]])
+ * HanBin 2026-05-14: now rendered by the MediaEmbed atom node (see
+ * src/core/editor/extensions/MediaEmbed.ts). To make keyboard caret
+ * navigation visible the wrapper is rendered `display: block` with vertical
+ * breathing room, so the caret in the line *above* or *below* is clearly
+ * distinguishable from the embed itself. Hover + selected outlines give an
+ * obvious affordance the embed is a navigable unit (Arrow / Backspace work
+ * on it as a whole). */
 .wiki-image-embed-wrapper {
-  margin: 8px 0;
-  display: inline-block;
+  /* v4 (2026-05-15) — block atom wrapper. With `selectable: false` PM
+     doesn't NodeSelect on click; Gapcursor handles the click-between-
+     embeds case via the styled `.ProseMirror-gapcursor` below. */
+  display: block;
+  margin: 10px 0;
   max-width: 100%;
+  position: relative;
+  border-radius: var(--r-6, 6px);
+  transition: box-shadow var(--dur-150, 150ms), outline-color var(--dur-150, 150ms);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  cursor: text;
+}
+
+/* v4.4 (2026-05-15) — Gapcursor visual prominence. Most of the time the
+   auto-fill plugin converts GapCursor to an inserted paragraph instantly,
+   but after a safe-backspace (where the user explicitly removed the empty
+   paragraph) auto-fill is suppressed and the GapCursor remains visible.
+   Style it as a clear blue bar so the user knows where the caret is and
+   that typing here will create a new paragraph. */
+.ProseMirror-gapcursor:after {
+  border-top: 2px solid var(--tx-1) !important;
+  width: min(60ch, 60%) !important;
+  margin-left: max(0px, calc((100% - min(60ch, 60%)) / 2)) !important;
+}
+
+/* Hover affordance — light blue outline as a "this is an interactive
+   atom" cue. With selectable: false, the user gets this on hover but no
+   persistent selection ring (cursor placement does the visual feedback). */
+.wiki-image-embed-wrapper:hover {
+  outline-color: color-mix(in srgb, var(--tx-1) 30%, transparent);
 }
 
 .wiki-image-embed-container {
   position: relative;
-  display: inline-block;
+  display: block;
 }
 
 .wiki-image-embed {
@@ -492,50 +535,196 @@ html[data-theme="light"] .wiki-link-inline.wiki-link-decoration.resolved.note-ty
   opacity: 0.9;
 }
 
-.wiki-image-embed-delete {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--r-pill);
-  border: none;
-  background-color: color-mix(in srgb, #000 60%, transparent);
-  color: var(--bg-base);
-  font-size: var(--fs-16);
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity var(--dur-200), background-color var(--dur-200);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.wiki-image-embed-container:hover .wiki-image-embed-delete {
-  opacity: 1;
-}
-
-.wiki-image-embed-delete:hover {
-  background-color: var(--c-red);
-}
+/* v5.5 (2026-05-16) — REMOVED `.wiki-image-embed-delete` styles. MediaEmbed
+   stopped rendering this overlay button in 5.0.4b-2d; the CSS rules here
+   no longer matched any DOM and were dead code. Atom delete is now uniform
+   across all 4 atom types (MediaEmbed / LinkCard / Math / future) via the
+   right-click context-menu (.wiki-link-inline keeps its own native right-
+   click handler; the others route through `modalActions.showAtomContextMenu`). */
 
 .wiki-image-embed-text {
   display: none !important;
 }
 
-html[data-theme="light"] .wiki-image-embed-delete {
-  background-color: color-mix(in srgb, #000 50%, transparent);
+/* HanBin 2026-05-13: video / audio embeds reuse the .wiki-image-embed-*
+   wrapper + delete-button positioning, so we only need to size the media
+   element itself. Image embed CSS above already covers width/height for
+   <img>. */
+
+/* PART 6.5+ (HanBin 2026-05-14): video embed renders as a full-width card
+   with the native <video> letterboxed inside. The earlier setup
+   (`max-width: 100%; max-height: 480px`) made the <video> shrink to its
+   natural-aspect-at-480px-tall size — for a 1920×1080 file that's ~853px
+   wide, so on a wide editor pane the wrapper paragraph collapsed to that
+   width and left a large empty zone on the right (HanBin's screenshot).
+   The fix: a 100% wide black card that's at most 480px tall, with the
+   <video> using `object-fit: contain` so any aspect ratio centers cleanly. */
+.wiki-embed-video .wiki-image-embed-container {
+  display: block;
+  width: 100%;
+  max-height: 480px;
+  background: #000;
+  border-radius: var(--r-6, 6px);
+  overflow: hidden;
 }
+
+.wiki-video-embed {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 480px;
+  object-fit: contain;
+  background: #000;
+  outline: none;
+}
+
+/* PART 6.5++ (HanBin 2026-05-14, revised): audio embed redesign.
+   The WRAPPER (atom-node root) is itself the card-sized centered block,
+   not a full-width row with a centered card inside. The earlier version
+   had `wrapper { width: 100% }` + `container { max-width: 560px; margin:
+   0 auto }`, which made the hover / selected outline trace the full
+   editor width and visibly mismatched the embed's visual footprint. */
+.wiki-embed-audio.wiki-image-embed-wrapper {
+  display: block;
+  max-width: 560px;
+  margin: 10px auto;
+}
+
+.wiki-embed-audio .wiki-image-embed-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  background: var(--bg-elevated, #1f2024);
+  border: 0.5px solid var(--sep-l, color-mix(in srgb, var(--text-primary) 12%, transparent));
+  border-radius: var(--r-6, 6px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.wiki-audio-embed {
+  /* Flex child — fills container width naturally; `flex: 1 1 auto` keeps
+     Chromium's audio control from defaulting to its tiny intrinsic width. */
+  flex: 1 1 auto;
+  width: 100%;
+  height: 36px;
+  min-width: 0;
+}
+
+/* (.wiki-audio-embed-label removed 2026-05-14 — unified .wiki-embed-label
+   at wrapper level covers all three embed kinds.) */
+
+.wiki-embed-video.wiki-image-embed-wrapper {
+  /* Force full editor width — otherwise the inline-atom-in-a-paragraph
+     wrapper shrinks to the <video> element's natural-aspect size when the
+     480px max-height cap kicks in, leaving the right half of wide editor
+     panes empty. */
+  display: block;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* HanBin 2026-05-14: unified filename label — same look for image / video
+   / audio embeds. Sits *outside* the inner container at the wrapper level,
+   so it stays visible regardless of overflow/clip rules the container
+   applies (e.g., video's black `overflow: hidden` letterbox frame). */
+.wiki-embed-label {
+  display: block;
+  font-size: var(--fs-12, 12px);
+  color: var(--tx-2, #d1d5db);
+  font-weight: 500;
+  padding: 0 4px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+/* Image / video labels can have a touch more left padding to align with
+   the card edge; audio sits flush inside the soft card. */
+.wiki-embed-label-image,
+.wiki-embed-label-video {
+  padding-left: 4px;
+}
+
+/* HanBin 2026-05-14 (revised): only theme the overflow-menu POPUP (the
+   floating panel that pops out from the ⋮ button). Earlier attempts to
+   style `::-webkit-media-controls-panel` itself caused WebView2 to
+   render a solid gray rectangle over the entire video frame both on
+   hover AND while paused — the "panel" element in WebView2's media
+   controls covers the whole video area, not just the bottom strip.
+   Leaving the panel alone restores the default transparent overlay. */
+.wiki-video-embed::-webkit-media-controls-overflow-menu-list,
+.wiki-audio-embed::-webkit-media-controls-overflow-menu-list {
+  background: var(--bg-elevated, #1f2024) !important;
+  color: var(--tx-1, #f3f4f6) !important;
+  border: 0.5px solid var(--sep-l, color-mix(in srgb, var(--text-primary) 12%, transparent)) !important;
+  border-radius: var(--r-6, 6px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32) !important;
+  font-size: var(--fs-13, 13px) !important;
+  font-family: inherit !important;
+  padding: 4px !important;
+}
+
+/* HanBin 2026-05-14: image embed now centered + labeled like audio/video.
+   Wrapper = card-sized centered block; the <img> inside centers via the
+   container's `text-align: center`. */
+.wiki-embed-image.wiki-image-embed-wrapper {
+  display: block;
+  max-width: 600px;
+  margin: 10px auto;
+}
+
+.wiki-embed-image .wiki-image-embed-container {
+  display: block;
+  text-align: center;
+}
+
+.wiki-embed-image .wiki-image-embed {
+  display: inline-block;
+  max-width: 100%;
+  max-height: 480px;
+  vertical-align: middle;
+  border-radius: var(--r-6, 6px);
+}
+
+.wiki-embed-video .wiki-image-embed-container {
+  display: block;
+}
+
+/* HanBin 2026-05-14: editor caret + line-height adjustments around media
+   embeds. The atom node is keyboard-navigable but the caret is invisible
+   when adjacent to a large block element unless the paragraph it lives in
+   has a minimum height. Setting a min-height on empty paragraphs near
+   embeds guarantees a click target / arrow-key destination. */
+.ProseMirror {
+  caret-color: var(--tx-1);
+}
+
+/* Empty paragraph between block media embeds — keep enough height that the
+   caret (a thin 1.5em line) is reachable by click and visible after Arrow
+   keys leave the embed. */
+.ProseMirror p:empty {
+  min-height: 1.4em;
+}
+
+/* The wrapper itself is non-selectable (drag-handle uses its own affordance),
+   but the row of pixels just before / after it must invite a click that lands
+   the caret. The vertical margin on `.wiki-image-embed-wrapper` already
+   reserves this — declared above. */
 
 /* ===== Track B Phase B-3 PART 5: multi-select + marquee ===== */
 
-/* Selected attachment chip — distinct outline that survives every tier color. */
+/* Selected attachment chip — distinct ring that survives every tier color.
+   5.0.4b-2d v6 (2026-05-17, HanBin) — switched from `outline` to box-shadow
+   ring so wikilinks/chips match the unified selection signal on the other
+   three atom types (math, MediaEmbed, LinkCard). `outline` doesn't follow
+   border-radius on every browser engine and gave a slightly off-shape
+   rectangle on chips. */
 .wiki-link-inline.wiki-link-selected,
 .wiki-link-inline.attachment.wiki-link-selected {
-  outline: 2px solid var(--c-blue, #3b82f6);
-  outline-offset: 1px;
-  background-color: color-mix(in srgb, var(--c-blue, #3b82f6) 18%, transparent);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--tx-1);
+  background-color: color-mix(in srgb, var(--tx-1) 18%, transparent);
 }
 
 /* Marquee overlay — drawn while user drags to select multiple chips at once.
@@ -543,8 +732,8 @@ html[data-theme="light"] .wiki-image-embed-delete {
 .wiki-link-marquee {
   position: fixed;
   pointer-events: none;
-  border: 1px solid var(--c-blue, #3b82f6);
-  background-color: color-mix(in srgb, var(--c-blue, #3b82f6) 12%, transparent);
+  border: 1px solid var(--tx-1);
+  background-color: color-mix(in srgb, var(--tx-1) 12%, transparent);
   z-index: 2147483646;
 }
 

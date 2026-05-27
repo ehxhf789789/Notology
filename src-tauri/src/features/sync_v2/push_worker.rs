@@ -152,6 +152,14 @@ impl PushWorker {
         for entry in entries {
             if self.stop_signal.load(Ordering::Relaxed) { break; }
             let entry_id = entry.id;
+            // Round 2 R5 v5 (HanBin 2026-05-23) — capture metadata BEFORE
+            // process_one consumes `entry`, so we can record a failed-table
+            // row if mark_retry drops the entry. Without this we'd lose all
+            // context after max retries and the user would silently lose
+            // visibility into what failed.
+            let entry_op = entry.op.clone();
+            let entry_lane = entry.lane;
+            let entry_queued_at_ms = entry.timestamp.timestamp_millis();
             match self.process_one(entry).await {
                 Ok(()) => {
                     self.queue.dequeue(entry_id)?;
@@ -161,6 +169,18 @@ impl PushWorker {
                     log::warn!("[push_worker] entry {} failed: {}", entry_id, e);
                     if !self.queue.mark_retry(entry_id, &e)? {
                         log::error!("[push_worker] entry {} dropped after max retries", entry_id);
+                        // Persist to failed-table so frontend can surface
+                        // this to the user and offer a "retry" action. Best-
+                        // effort: a failed insert here doesn't affect the
+                        // primary queue, so we only log and continue.
+                        if let Err(re) = self.queue.record_failed(
+                            &entry_op,
+                            entry_queued_at_ms,
+                            &e,
+                            entry_lane,
+                        ) {
+                            log::error!("[push_worker] could not record failed entry {}: {}", entry_id, re);
+                        }
                     }
                 }
             }

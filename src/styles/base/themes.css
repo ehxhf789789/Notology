@@ -13,9 +13,9 @@
      3. html[data-theme="system"] → @media (prefers-color-scheme: ...)
      4. :root default             → light (also drives system w/ light OS)
 
-   *-dark.css parallel files (document-viewers-dark.css) intentionally
-   left in place until Stage 5.0.9 viewer redesign — they will be folded
-   into token-based theming then.
+   *-dark.css parallel files — document-viewers-dark.css was folded
+   back into document-viewers.css `html[data-theme="dark"]` block in
+   Stage 5.0.9a (2026-05-17). No standalone *-dark.css files remain.
    ============================================================ */
 
 /* ============================================================
@@ -95,11 +95,16 @@ html[data-theme="dark"]     { color-scheme: dark; }
   --shadow-overlay: var(--primitive-shadow-3);
   --shadow-inset:   inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 
-  /* ── Tier 3 component (accent-bound; resolved per theme) ── */
-  --btn-primary-bg:        var(--c-accent);
-  --btn-primary-fg:        var(--tx-on-accent);
-  --btn-primary-bg-hover:  var(--c-accent-hover);
-  --btn-primary-bg-active: var(--c-accent-pressed);
+  /* ── Tier 3 component (2026-05-22 — neutral primary, HanBin) ──
+     Primary buttons (Save/Apply/Login/Create) read as the "dark on
+     light" dominant action instead of accent-blue. Uses `--tx-1` as
+     bg so the button reads with the same contrast as body text.
+     The accent token (`--c-accent`) stays available for legitimate
+     non-button uses (headings, focus contrast, info dots). */
+  --btn-primary-bg:        var(--tx-1);
+  --btn-primary-fg:        var(--bg-base);
+  --btn-primary-bg-hover:  color-mix(in srgb, var(--tx-1) 88%, black);
+  --btn-primary-bg-active: color-mix(in srgb, var(--tx-1) 78%, black);
   --modal-backdrop-bg:     rgba(0, 0, 0, 0.40);
 
   /* ============================================================
@@ -120,6 +125,27 @@ html[data-theme="dark"]     { color-scheme: dark; }
   --c-indigo: #5856D6;
   --c-pink:   #FF2D55;
   --c-gray:   #8E8E93;
+
+  /* Tag category colors (Tier-3 — search + graph + tag panel share these).
+     5.0.7a (2026-05-17, HanBin) — promoted from raw hex in search.css.
+     :root defaults to light-mode palette (matches system fallback). The
+     html[data-theme="dark"] block re-binds these to brighter tints. */
+  --c-tag-domain: #6d28d9;
+  --c-tag-who:    #0891b2;
+  --c-tag-org:    #ea580c;
+  --c-tag-ctx:    #059669;
+
+  /* Memo stripe colors (Tier-3 — calendar memo chips, indexed 1..7).
+     5.0.10a (2026-05-17, HanBin) — promoted from CalendarHomeView's
+     hardcoded MEMO_COLORS hex array. Same palette across light + dark
+     since the chips ride a neutral background. */
+  --c-memo-stripe-1: #ef4444;
+  --c-memo-stripe-2: #f97316;
+  --c-memo-stripe-3: #eab308;
+  --c-memo-stripe-4: #22c55e;
+  --c-memo-stripe-5: #3b82f6;
+  --c-memo-stripe-6: #8b5cf6;
+  --c-memo-stripe-7: #ec4899;
 
   /* legacy: --bg-primary / --text-primary etc. (themes.css v1 names) */
   --bg-primary:   #ffffff;
@@ -207,6 +233,15 @@ html[data-theme="dark"]     { color-scheme: dark; }
   --node-red:     #fee2e2;
   --node-purple:  #ede9fe;
   --node-orange:  #fff7ed;
+
+  /* v20.16 (2026-05-17, HanBin) — sketch-specific theme tokens. Edge
+     default color was hardcoded `#666` (medium gray) which reads OK in
+     light mode but feels muted in dark mode. These tokens give per-mode
+     defaults. Light mode: medium gray over white; dark: lighter gray
+     over near-black so the arrow stays visible. */
+  --sketch-edge-default: #707070;
+  --sketch-group-fill: rgba(79, 70, 229, 0.06);
+  --sketch-group-border: #4f46e5;
 }
 
 /* ============================================================
@@ -266,10 +301,11 @@ html[data-theme="light"] {
   --shadow-overlay: var(--primitive-shadow-3);
   --shadow-inset:   inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 
-  --btn-primary-bg:        var(--c-accent);
-  --btn-primary-fg:        var(--tx-on-accent);
-  --btn-primary-bg-hover:  var(--c-accent-hover);
-  --btn-primary-bg-active: var(--c-accent-pressed);
+  /* 2026-05-22 — neutral primary (see top block comment). */
+  --btn-primary-bg:        var(--tx-1);
+  --btn-primary-fg:        var(--bg-base);
+  --btn-primary-bg-hover:  color-mix(in srgb, var(--tx-1) 88%, black);
+  --btn-primary-bg-active: color-mix(in srgb, var(--tx-1) 78%, black);
   --modal-backdrop-bg:     rgba(0, 0, 0, 0.40);
 
   /* iOS system colors (light) */
@@ -283,6 +319,12 @@ html[data-theme="light"] {
   --c-indigo: #5856D6;
   --c-pink:   #FF2D55;
   --c-gray:   #8E8E93;
+
+  /* Tag category colors — explicit light forcing. Same palette as :root. */
+  --c-tag-domain: #6d28d9;
+  --c-tag-who:    #0891b2;
+  --c-tag-org:    #ea580c;
+  --c-tag-ctx:    #059669;
 
   /* legacy theme v1 */
   --bg-primary:   #ffffff;
@@ -359,6 +401,11 @@ html[data-theme="light"] {
   --node-red:     #fee2e2;
   --node-purple:  #ede9fe;
   --node-orange:  #fff7ed;
+
+  /* v20.16 — sketch light mode tokens (mirrors :root). */
+  --sketch-edge-default: #707070;
+  --sketch-group-fill: rgba(79, 70, 229, 0.06);
+  --sketch-group-border: #4f46e5;
 }
 
 /* ============================================================
@@ -420,10 +467,13 @@ html[data-theme="dark"] {
                     0 0 0 0.5px rgba(255, 255, 255, 0.06);
   --shadow-inset:   inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 
-  --btn-primary-bg:        var(--c-accent);
-  --btn-primary-fg:        var(--tx-on-accent);
-  --btn-primary-bg-hover:  var(--c-accent-hover);
-  --btn-primary-bg-active: var(--c-accent-pressed);
+  /* 2026-05-22 — neutral primary (dark mode mirror). `--tx-1` in dark
+     mode is light, `--bg-base` is dark → button becomes light bg with
+     dark text (inverted from light mode, both readable). */
+  --btn-primary-bg:        var(--tx-1);
+  --btn-primary-fg:        var(--bg-base);
+  --btn-primary-bg-hover:  color-mix(in srgb, var(--tx-1) 92%, white);
+  --btn-primary-bg-active: color-mix(in srgb, var(--tx-1) 82%, white);
   --modal-backdrop-bg:     rgba(0, 0, 0, 0.60);
 
   /* iOS system colors (dark) */
@@ -436,6 +486,13 @@ html[data-theme="dark"] {
   --c-teal:   #64D2FF;
   --c-indigo: #5E5CE6;
   --c-pink:   #FF375F;
+
+  /* Tag category colors — dark mode (Tier-3). Brighter Tailwind tints so
+     they stay legible against dark bg-app + bg-elevated. */
+  --c-tag-domain: #a78bfa;
+  --c-tag-who:    #22d3ee;
+  --c-tag-org:    #fb923c;
+  --c-tag-ctx:    #34d399;
   --c-gray:   #8E8E93;
 
   /* legacy theme v1 — dark */
@@ -513,6 +570,13 @@ html[data-theme="dark"] {
   --node-red:     #4d1e1e;
   --node-purple:  #3d1e4d;
   --node-orange:  #4d3a1e;
+
+  /* v20.16 — sketch dark mode. Lighter gray for the edge default so the
+     arrow stays visible against the dark canvas. Group fill alpha slightly
+     higher because dark canvases have less natural contrast. */
+  --sketch-edge-default: #9ca3af;
+  --sketch-group-fill: rgba(99, 102, 241, 0.10);
+  --sketch-group-border: #6366f1;
 }
 
 /* ============================================================
@@ -587,6 +651,12 @@ html[data-theme="dark"] {
     --c-indigo: #5E5CE6;
     --c-pink:   #FF375F;
 
+    /* Tag category — dark mode (auto via prefers-color-scheme) */
+    --c-tag-domain: #a78bfa;
+    --c-tag-who:    #22d3ee;
+    --c-tag-org:    #fb923c;
+    --c-tag-ctx:    #34d399;
+
     --bg-primary:   #1a1a1a;
     --bg-secondary: #242424;
     --bg-tertiary:  #2d2d2d;
@@ -645,5 +715,10 @@ html[data-theme="dark"] {
     --node-red:     #4d1e1e;
     --node-purple:  #3d1e4d;
     --node-orange:  #4d3a1e;
+
+    /* v20.16 — sketch system-dark mode (matches html[data-theme=dark]). */
+    --sketch-edge-default: #9ca3af;
+    --sketch-group-fill: rgba(99, 102, 241, 0.10);
+    --sketch-group-border: #6366f1;
   }
 }

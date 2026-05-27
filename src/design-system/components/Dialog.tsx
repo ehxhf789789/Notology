@@ -32,6 +32,9 @@ export interface DialogProps {
   className?: string;
   /** Add aria-label when no visible title is used. */
   ariaLabel?: string;
+  /** Localized aria-label for the close X button. Defaults to "Close" so
+   *  primitives stay decoupled from i18n; consumers thread `t('dsClose')`. */
+  closeAriaLabel?: string;
 }
 
 /** Close-X glyph as inline SVG to avoid a lucide-react dep cycle here. */
@@ -58,6 +61,7 @@ export function Dialog({
   initialFocus,
   className,
   ariaLabel,
+  closeAriaLabel,
 }: DialogProps) {
   const headingId = useId();
   const descId = useId();
@@ -111,7 +115,7 @@ export function Dialog({
                 {!hideCloseButton && (
                   <IconButton
                     icon={<CloseGlyph />}
-                    aria-label="닫기"
+                    aria-label={closeAriaLabel ?? 'Close'}
                     variant="ghost"
                     size="sm"
                     onClick={onClose}

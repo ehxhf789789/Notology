@@ -23,7 +23,7 @@ import { modalActions } from '../../features/modals/stores/modalStore';
 import { templateActions } from '../../features/templates/stores/templateStore';
 import { vaultConfigActions } from '../../features/vault-config/stores/vaultConfigStore';
 import { loadVaultConfig, clearVaultConfigCache, wasSelfSave } from '../utils/vaultConfigUtils';
-import { filterExternalChanges } from '../utils/selfSaveTracker';
+import { filterExternalChanges, isSyncActive } from '../utils/selfSaveTracker';
 import { initializeApp } from './appActions';
 import { initContentCacheSync, cleanupContentCacheSync } from '../../features/content-cache/stores/contentCacheStore';
 
@@ -56,10 +56,16 @@ export function AppInitializer({ children }: { children: ReactNode }) {
       // File changed externally (Synology sync or other editor)
       unlisteners.push(await listen<{ paths: string[] }>('vault-files-changed', (e) => {
         fileTreeActions.refreshFileTree();
-        // Filter out files that were just saved by this app to prevent false "external change" warnings
-        const externallyChanged = filterExternalChanges(e.payload.paths);
-        if (externallyChanged.length > 0) {
-          hoverActions.refreshForFiles(externallyChanged);
+        // Filter out:
+        // 1. .notology internal files (sync metadata, base snapshots)
+        // 2. Files changed during active sync (bidirectional_sync writes files)
+        // 3. Files that were just saved by this app (self-save tracker)
+        const userFiles = e.payload.paths.filter(p => !p.includes('.notology'));
+        if (!isSyncActive()) {
+          const externallyChanged = filterExternalChanges(userFiles);
+          if (externallyChanged.length > 0) {
+            hoverActions.refreshForFiles(externallyChanged);
+          }
         }
         refreshActions.incrementSearchRefresh();
         // If vault-config.yaml changed externally, reload configs

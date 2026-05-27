@@ -112,8 +112,17 @@ export function preprocessWikiLinks(markdown: string): string {
   // Step 2: Convert image embeds ![[...]] to protected placeholders
   // We use a unique marker that won't be processed as markdown
   // Also restore underscores from asterisks in the filename
+  //
+  // 2026-05-24 (HanBin) — char class is `[^\]\n]+`, not `[^\]]+`.
+  // Excluding newline prevents a `![[file` missing its closing `]]` from
+  // greedy-matching across paragraphs to the next `]]` it finds. That bug
+  // produced multi-line placeholders → multi-line HTML span attributes →
+  // tiptap-markdown couldn't parse the span → literal `<span data-…">`
+  // text bled into the editor → next save persisted the corruption.
+  // Wikilinks (Obsidian / Notology) are always single-line; cross-line
+  // matches are corruption, not a valid filename.
   const imageEmbedPlaceholders: string[] = [];
-  result = result.replace(/!\[\[([^\]]+)\]\]/g, (match, content) => {
+  result = result.replace(/!\[\[([^\]\n]+)\]\]/g, (match, content) => {
     const index = imageEmbedPlaceholders.length;
     // Fix asterisks back to underscores in image embed filenames
     imageEmbedPlaceholders.push(restoreUnderscoresFromAsterisks(content));
@@ -123,12 +132,21 @@ export function preprocessWikiLinks(markdown: string): string {
   // Step 3: Handle wikilinks that might have HTML emphasis tags inside
   // If markdown converted _text_ to <em>text</em>, fix it before processing
   // Pattern: [[prefix<em>text</em>suffix]] -> [[prefix_text_suffix]]
-  result = result.replace(/\[\[([^\]]*?)<em>([^<]+)<\/em>([^\]]*?)\]\]/g, '[[$1_$2_$3]]');
-  result = result.replace(/\[\[([^\]]*?)<strong>([^<]+)<\/strong>([^\]]*?)\]\]/g, '[[$1__$2__$3]]');
+  // (2026-05-24 — same single-line guard as Step 2/4: `\n` excluded.)
+  result = result.replace(/\[\[([^\]\n]*?)<em>([^<\n]+)<\/em>([^\]\n]*?)\]\]/g, '[[$1_$2_$3]]');
+  result = result.replace(/\[\[([^\]\n]*?)<strong>([^<\n]+)<\/strong>([^\]\n]*?)\]\]/g, '[[$1__$2__$3]]');
 
   // Step 4: Convert wikilinks [[...]] to HTML spans (protects from markdown processing)
-  // Use a non-greedy match to handle nested brackets
-  result = result.replace(/\[\[([^\]]+)\]\]/g, (match, content) => {
+  // Use a non-greedy match to handle nested brackets.
+  //
+  // 2026-05-24 (HanBin) — char class is `[^\]\n]+`, not `[^\]]+`. See the
+  // matching comment on Step 2 for the full rationale. In short: allowing
+  // newlines here let a `[[file` typed without its closing `]]` absorb
+  // every subsequent paragraph up to the next `]]`, producing a span whose
+  // `data-wiki-link` attribute spanned multiple lines. tiptap-markdown
+  // can't parse multi-line HTML attributes, so the literal opening
+  // `<span data-wiki-link="` text bled into the editor.
+  result = result.replace(/\[\[([^\]\n]+)\]\]/g, (match, content) => {
     const { fileName, displayText } = parseWikiLinkContent(content);
     // Show underscores as spaces in display text (only when no custom alias)
     const shownText = displayText === fileName

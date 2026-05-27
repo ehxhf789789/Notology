@@ -1,3 +1,23 @@
+/**
+ * CommandPalette — global Cmd/Ctrl+K palette.
+ *
+ * Stage 5.0.4a landed the base palette (filename navigation + 4 static
+ * commands). Stage 5.0.7a (2026-05-17, HanBin) wires it to the Search
+ * pipeline so it works as the global "search anything" surface the plan
+ * §8.1 calls for:
+ *   • Empty query → "최근 노트" section (mtime-sorted file-tree leaves) +
+ *     "명령" section. The old behavior of dumping the first 10 notes from
+ *     the tree was meaningless ordering.
+ *   • Query ≥ 2 chars → "노트" (filename fuzzy match) + "본문 검색" section
+ *     (debounced 200 ms `full_text_search` Tantivy query with snippet) +
+ *     filtered commands.
+ *   • "Search '{query}' in panel" action — opens the Search panel with
+ *     the query pre-filled in the Contents tab (`open-search-with-query`
+ *     window event consumed by Search.tsx).
+ *
+ * Sections render as headers in the list. Headers are non-interactive
+ * (skipped during ArrowUp/Down nav).
+ */
 import {
   useCallback,
   useEffect,
@@ -14,6 +34,7 @@ import {
   PanelRightOpen,
   FileText as FileIcon,
   ArrowRight,
+  Clock,
 } from 'lucide-react';
 import {
   useFileTree,
@@ -24,8 +45,9 @@ import {
   useLanguage,
 } from '../../core/stores/zustand';
 import { Dialog, KeyboardHint } from '../../design-system/components';
-import { t } from '../../core/utils/i18n';
-import type { FileNode } from '../../core/types';
+import { t, tf } from '../../core/utils/i18n';
+import { searchCommands } from '../../core/services/tauriCommands';
+import type { FileNode, SearchResult } from '../../core/types';
 
 interface PaletteCommand {
   type: 'command';
@@ -42,23 +64,38 @@ interface PaletteNote {
   name: string;
   path: string;
   matchText: string;
+  /** When set, this row renders the snippet (content-search match). */
+  snippet?: string;
 }
-type PaletteItem = PaletteCommand | PaletteNote;
+interface PaletteHeader {
+  type: 'header';
+  id: string;
+  label: string;
+}
+type PaletteItem = PaletteCommand | PaletteNote | PaletteHeader;
 
 const MAX_NOTE_RESULTS = 30;
+const MAX_CONTENT_RESULTS = 20;
+const MAX_RECENT_RESULTS = 8;
+const CONTENT_SEARCH_DEBOUNCE_MS = 200;
+const CONTENT_SEARCH_MIN_CHARS = 2;
 
 /**
  * Flatten the file tree into a list of note paths (.md only).
  * Folders/attachments are excluded — only navigable notes.
  */
-function flattenNotes(tree: FileNode[]): Array<{ name: string; path: string }> {
-  const out: Array<{ name: string; path: string }> = [];
+function flattenNotes(tree: FileNode[]): Array<{ name: string; path: string; mtime?: number }> {
+  const out: Array<{ name: string; path: string; mtime?: number }> = [];
   const walk = (nodes: FileNode[]) => {
     for (const n of nodes) {
       if (n.is_dir) {
         if (n.children) walk(n.children);
       } else if (n.name.toLowerCase().endsWith('.md')) {
-        out.push({ name: n.name.replace(/\.md$/i, ''), path: n.path });
+        out.push({
+          name: n.name.replace(/\.md$/i, ''),
+          path: n.path,
+          mtime: n.mtime,
+        });
       }
     }
   };
@@ -90,6 +127,8 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const [contentResults, setContentResults] = useState<SearchResult[]>([]);
+  const [contentLoading, setContentLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -97,6 +136,8 @@ export function CommandPalette() {
     setOpen(false);
     setQuery('');
     setActiveIndex(0);
+    setContentResults([]);
+    setContentLoading(false);
   }, []);
 
   // Listen for the Ctrl+K window event dispatched by useAppKeyboardShortcuts.
@@ -105,10 +146,35 @@ export function CommandPalette() {
       setOpen(true);
       setQuery('');
       setActiveIndex(0);
+      setContentResults([]);
     };
     window.addEventListener('open-command-palette', handler);
     return () => window.removeEventListener('open-command-palette', handler);
   }, []);
+
+  /** Debounced full-text search. Runs only when query length crosses
+   *  the minimum threshold — otherwise we'd hit Tantivy on every keystroke. */
+  useEffect(() => {
+    const q = query.trim();
+    if (!open || q.length < CONTENT_SEARCH_MIN_CHARS) {
+      setContentResults([]);
+      setContentLoading(false);
+      return;
+    }
+    setContentLoading(true);
+    const handle = setTimeout(async () => {
+      try {
+        const results = await searchCommands.fullTextSearch(q, MAX_CONTENT_RESULTS);
+        setContentResults(results);
+      } catch (err) {
+        console.warn('[CommandPalette] full-text search failed', err);
+        setContentResults([]);
+      } finally {
+        setContentLoading(false);
+      }
+    }, CONTENT_SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [query, open]);
 
   /** Static commands — order = recency priority when query is empty. */
   const commands = useMemo<PaletteCommand[]>(() => {
@@ -154,50 +220,124 @@ export function CommandPalette() {
   }, [language, sidebarCollapsed, showHoverPanel]);
 
   /** All notes in vault (memoized — flatten + matchText only when tree changes). */
-  const allNotes = useMemo<PaletteNote[]>(() => {
-    return flattenNotes(fileTree).map((n) => ({
+  const allNotes = useMemo(() => flattenNotes(fileTree), [fileTree]);
+
+  /** Recent notes: mtime-sorted, top N. Same approach as the mobile
+   *  SearchView. Falls back to first-N when mtime is missing on all rows. */
+  const recentNotes = useMemo<PaletteNote[]>(() => {
+    const sorted = [...allNotes].sort((a, b) => (b.mtime ?? 0) - (a.mtime ?? 0));
+    return sorted.slice(0, MAX_RECENT_RESULTS).map((n) => ({
       type: 'note' as const,
-      id: `note:${n.path}`,
+      id: `recent:${n.path}`,
       name: n.name,
       path: n.path,
       matchText: n.name + ' ' + n.path,
     }));
-  }, [fileTree]);
+  }, [allNotes]);
 
-  /** Filtered + ranked items. Notes first when query non-empty; commands first when empty. */
+  /** Filtered + ranked items, split into sections with headers. */
   const items = useMemo<PaletteItem[]>(() => {
     const q = query.trim();
+    const out: PaletteItem[] = [];
+
     if (!q) {
-      // Empty query: show commands first, then top notes (recent if available)
-      return [
-        ...commands,
-        ...allNotes.slice(0, 10),
-      ];
+      // Empty query: recent notes first (the most useful default), then commands.
+      if (recentNotes.length > 0) {
+        out.push({ type: 'header', id: 'h-recent', label: t('cmdPaletteSectionRecent', language) });
+        out.push(...recentNotes);
+      }
+      out.push({ type: 'header', id: 'h-actions', label: t('cmdPaletteSectionActions', language) });
+      out.push(...commands);
+      return out;
     }
+
+    // Query-driven: fuzzy filename → "노트", Tantivy hits → "본문 검색", filtered cmds → "명령".
+    const noteRanked: PaletteNote[] = allNotes
+      .map((n) => ({ n, score: fuzzyScore(q, n.name + ' ' + n.path) }))
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, MAX_NOTE_RESULTS)
+      .map((x) => ({
+        type: 'note' as const,
+        id: `note:${x.n.path}`,
+        name: x.n.name,
+        path: x.n.path,
+        matchText: x.n.name + ' ' + x.n.path,
+      }));
+
+    // Content matches — dedupe against filename matches so a note doesn't
+    // appear twice (once as a filename hit and once as a body hit).
+    const filenameMatched = new Set(noteRanked.map((n) => n.path));
+    const contentMatches: PaletteNote[] = contentResults
+      .filter((r) => !filenameMatched.has(r.path))
+      .map((r) => ({
+        type: 'note' as const,
+        id: `content:${r.path}`,
+        name: r.title || r.path.split(/[/\\]/).pop() || r.path,
+        path: r.path,
+        matchText: r.title + ' ' + r.path,
+        snippet: r.snippet,
+      }));
+
     const cmdRanked = commands
       .map((c) => ({ c, score: fuzzyScore(q, c.matchText) }))
       .filter((x) => x.score > 0)
       .sort((a, b) => b.score - a.score)
       .map((x) => x.c);
 
-    const noteRanked = allNotes
-      .map((n) => ({ n, score: fuzzyScore(q, n.matchText) }))
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, MAX_NOTE_RESULTS)
-      .map((x) => x.n);
+    // "Search this query in the full Search panel" — always at the top of
+    // the Actions section when the user has typed anything substantial.
+    const searchPanelCmd: PaletteCommand = {
+      type: 'command',
+      id: 'searchPanelHere',
+      label: tf('cmdSearchPanelHere', language, { query: q }),
+      icon: <Search size={14} />,
+      matchText: 'search panel ' + q,
+      onSelect: () => {
+        uiActions.setShowSearch(true);
+        window.dispatchEvent(new CustomEvent('open-search-with-query', { detail: { query: q } }));
+      },
+    };
 
-    // Note matches usually more relevant when querying by filename. Notes first.
-    return [...noteRanked, ...cmdRanked];
-  }, [query, commands, allNotes]);
+    if (noteRanked.length > 0) {
+      out.push({ type: 'header', id: 'h-notes', label: t('cmdPaletteSectionNotes', language) });
+      out.push(...noteRanked);
+    }
+    if (contentMatches.length > 0 || contentLoading) {
+      out.push({ type: 'header', id: 'h-content', label: t('cmdPaletteSectionContent', language) });
+      if (contentLoading && contentMatches.length === 0) {
+        // Loading placeholder as a header-only row so users see "검색 중...".
+        out.push({ type: 'header', id: 'h-content-loading', label: t('cmdContentSearching', language) });
+      }
+      out.push(...contentMatches);
+    }
+    out.push({ type: 'header', id: 'h-actions', label: t('cmdPaletteSectionActions', language) });
+    out.push(searchPanelCmd, ...cmdRanked);
 
-  // Clamp activeIndex into range when items list changes.
+    return out;
+  }, [query, commands, allNotes, recentNotes, contentResults, contentLoading, language]);
+
+  /** Indices of selectable rows — used for keyboard nav to skip headers. */
+  const selectableIndices = useMemo(() => {
+    const idx: number[] = [];
+    items.forEach((it, i) => { if (it.type !== 'header') idx.push(i); });
+    return idx;
+  }, [items]);
+
+  // Clamp activeIndex to the first selectable row when items change.
   useEffect(() => {
-    if (activeIndex >= items.length) setActiveIndex(0);
-  }, [items.length, activeIndex]);
+    if (selectableIndices.length === 0) {
+      setActiveIndex(0);
+      return;
+    }
+    if (!selectableIndices.includes(activeIndex)) {
+      setActiveIndex(selectableIndices[0]);
+    }
+  }, [selectableIndices, activeIndex]);
 
   const handleSelect = useCallback(
     (item: PaletteItem) => {
+      if (item.type === 'header') return;
       close();
       if (item.type === 'command') {
         item.onSelect();
@@ -209,23 +349,28 @@ export function CommandPalette() {
   );
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (items.length === 0) return;
+    if (selectableIndices.length === 0) return;
+    const currentPos = selectableIndices.indexOf(activeIndex);
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setActiveIndex((i) => (i + 1) % items.length);
+      const next = currentPos < 0 ? 0 : (currentPos + 1) % selectableIndices.length;
+      setActiveIndex(selectableIndices[next]);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setActiveIndex((i) => (i - 1 + items.length) % items.length);
+      const next = currentPos < 0
+        ? selectableIndices.length - 1
+        : (currentPos - 1 + selectableIndices.length) % selectableIndices.length;
+      setActiveIndex(selectableIndices[next]);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       const item = items[activeIndex];
       if (item) handleSelect(item);
     } else if (e.key === 'Home') {
       e.preventDefault();
-      setActiveIndex(0);
+      setActiveIndex(selectableIndices[0]);
     } else if (e.key === 'End') {
       e.preventDefault();
-      setActiveIndex(items.length - 1);
+      setActiveIndex(selectableIndices[selectableIndices.length - 1]);
     }
   };
 
@@ -259,7 +404,7 @@ export function CommandPalette() {
             type="text"
             placeholder={t('commandPalettePlaceholder', language)}
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setActiveIndex(0); }}
+            onChange={(e) => { setQuery(e.target.value); }}
             spellCheck={false}
             autoComplete="off"
           />
@@ -267,10 +412,17 @@ export function CommandPalette() {
         </div>
 
         <div ref={listRef} className="command-palette__list" role="listbox">
-          {items.length === 0 ? (
+          {selectableIndices.length === 0 ? (
             <div className="command-palette__empty">{t('commandPaletteNoResults', language)}</div>
           ) : (
             items.map((item, idx) => {
+              if (item.type === 'header') {
+                return (
+                  <div key={item.id} className="command-palette__section-header" role="presentation">
+                    {item.label}
+                  </div>
+                );
+              }
               const active = idx === activeIndex;
               const cls = `command-palette__row${active ? ' command-palette__row--active' : ''}`;
               if (item.type === 'command') {
@@ -292,19 +444,28 @@ export function CommandPalette() {
                   </div>
                 );
               }
-              // Note row
+              // Note row (recent / filename match / content match)
+              const isRecent = item.id.startsWith('recent:');
+              const isContent = item.id.startsWith('content:');
               return (
                 <div
                   key={item.id}
                   role="option"
                   aria-selected={active}
                   data-palette-index={idx}
-                  className={cls}
+                  className={cls + (item.snippet ? ' command-palette__row--with-snippet' : '')}
                   onMouseEnter={() => setActiveIndex(idx)}
                   onClick={() => handleSelect(item)}
                 >
-                  <span className="command-palette__row-icon" aria-hidden="true"><FileIcon size={14} /></span>
-                  <span className="command-palette__row-label">{item.name}</span>
+                  <span className="command-palette__row-icon" aria-hidden="true">
+                    {isRecent ? <Clock size={14} /> : isContent ? <Search size={14} /> : <FileIcon size={14} />}
+                  </span>
+                  <div className="command-palette__row-body">
+                    <span className="command-palette__row-label">{item.name}</span>
+                    {item.snippet && (
+                      <span className="command-palette__row-snippet">{item.snippet}</span>
+                    )}
+                  </div>
                   <ArrowRight size={12} className="command-palette__row-trail" aria-hidden="true" />
                 </div>
               );

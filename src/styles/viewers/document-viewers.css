@@ -8,19 +8,19 @@
   justify-content: center;
   padding: 2rem;
   text-align: center;
-  color: var(--text-secondary, #999);
+  color: var(--tx-2);
 }
 
 .doc-viewer-converting {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-6);
+  gap: var(--sp-3);
 }
 
 .doc-viewer-spinner {
   animation: doc-spin 1.2s linear infinite;
-  color: var(--accent-color, #6c8cff);
+  color: var(--tx-1);
 }
 
 @keyframes doc-spin {
@@ -32,31 +32,31 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
-  color: var(--danger-color, #e06c75);
+  gap: var(--sp-2);
+  color: var(--c-red);
 }
 
 .doc-viewer-error-detail {
   font-size: 0.85em;
-  color: var(--text-tertiary, #666);
+  color: var(--tx-3);
   max-width: 400px;
   word-break: break-word;
 }
 
 .doc-viewer-retry-btn {
-  margin-top: var(--space-4);
+  margin-top: var(--sp-2);
   padding: 6px 16px;
-  border: 1px solid var(--border-color, #333);
-  border-radius: var(--radius-md);
-  background: var(--bg-secondary, #2a2a2a);
-  color: var(--text-primary, #ddd);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-6);
+  background: var(--bg-base);
+  color: var(--tx-1);
   cursor: pointer;
   font-size: 0.9em;
-  transition: background var(--duration-fast);
+  transition: background var(--dur-150);
 }
 
 .doc-viewer-retry-btn:hover {
-  background: var(--bg-tertiary, #3a3a3a);
+  background: var(--bg-elevated);
 }
 
 /* ============================================================ */
@@ -83,49 +83,41 @@
 .docx-viewer {
   display: flex;
   flex-direction: column;
-  background: #525659;
+  background: var(--bg-app);
   padding: 0;
 }
 
+/* Chrome (display/gap/padding/bg/border/font) comes from .viewer-toolbar
+   primitive. Bespoke rule keeps only DOCX-specific layout overrides. */
 .docx-toolbar {
-  display: flex;
-  align-items: center;
   justify-content: center;
-  gap: var(--space-10);
-  padding: 8px 16px;
-  background: #3c3c3c;
-  border-bottom: 1px solid #555;
-  flex-shrink: 0;
+  user-select: none;
 }
 
 .docx-page-indicator {
-  color: #fff;
-  font-size: var(--font-md);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 4px 12px;
-  border-radius: var(--radius-sm);
+  min-width: 56px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx-2, #d1d5db);
+  font-size: var(--fs-12, 12px);
 }
 
 .docx-toolbar .docx-zoom-indicator {
   position: static;
-  color: #fff;
-  font-size: var(--font-md);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 4px 12px;
-  border-radius: var(--radius-sm);
+  min-width: 56px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx-2, #d1d5db);
+  font-size: var(--fs-12, 12px);
+  background: transparent;
+  padding: 0;
 }
 
 .docx-scroll-container {
   flex: 1;
   overflow: auto;
   padding: 24px 20px 60px 20px;
-  background: #525659;
-}
-
-html[data-theme="light"] .docx-scroll-container {
-  background: #808080;
+  background: var(--bg-app);
 }
 
 .docx-pages-container {
@@ -184,51 +176,56 @@ html[data-theme="light"] .docx-scroll-container {
   display: flex;
   flex-direction: column;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-  background: #f0f0f0;
+  background: var(--bg-app);
   outline: none;
 }
 
+/* Sheet tabs sit at the BOTTOM of the spreadsheet (Excel convention),
+   so they invert the toolbar pattern (border-top instead of border-bottom)
+   but reuse the same surface + typography tokens for visual cohesion. */
 .xlsx-sheet-tabs {
   display: flex;
-  gap: var(--space-1);
-  padding: 4px 8px;
-  background: var(--bg-secondary, #f0f0f0);
-  border-top: 1px solid var(--border-color, #ccc);
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--bg-elevated, color-mix(in srgb, var(--bg-app) 88%, white 12%));
+  border-top: 0.5px solid var(--sep-l, color-mix(in srgb, var(--text-primary) 8%, transparent));
+  font-size: var(--fs-12, 12px);
   flex-shrink: 0;
   overflow-x: auto;
   scrollbar-width: thin;
+  user-select: none;
 }
 
 .xlsx-sheet-tab {
-  padding: 4px 12px;
-  background: var(--bg-tertiary, #e0e0e0);
-  border: 1px solid var(--border-color, #ccc);
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-4, 4px);
   cursor: pointer;
-  font-size: 0.8em;
+  font-size: var(--fs-12, 12px);
   white-space: nowrap;
-  transition: background var(--duration-fast);
-  color: var(--text-secondary, #555);
+  transition: background-color var(--dur-150, 150ms), border-color var(--dur-150, 150ms);
+  color: var(--tx-2, #d1d5db);
 }
 
 .xlsx-sheet-tab:hover {
-  background: var(--bg-primary, #fff);
-  color: var(--text-primary, #333);
+  background-color: color-mix(in srgb, var(--tx-1) 14%, transparent);
+  color: var(--tx-1, #f3f4f6);
 }
 
 .xlsx-sheet-tab.active {
-  background: white;
-  border-top-color: white;
+  background-color: color-mix(in srgb, var(--tx-1) 22%, transparent);
+  border-color: color-mix(in srgb, var(--tx-1) 60%, transparent);
   font-weight: 600;
-  color: var(--text-primary, #1a1a1a);
+  color: var(--tx-1, #f3f4f6);
 }
 
 /* Grid container */
 .xlsx-grid-container {
   flex: 1;
   overflow: auto;
-  background: #e8e8e8;
-  scrollbar-color: #b0b0b0 #e8e8e8;
+  background: var(--bg-app);
+  scrollbar-color: var(--tx-4) var(--bg-app);
   scrollbar-width: thin;
 }
 
@@ -238,21 +235,21 @@ html[data-theme="light"] .docx-scroll-container {
 }
 
 .xlsx-grid-container::-webkit-scrollbar-track {
-  background: #e8e8e8;
+  background: var(--bg-app);
 }
 
 .xlsx-grid-container::-webkit-scrollbar-thumb {
-  background: #b0b0b0;
+  background: var(--tx-4);
   border-radius: 5px;
-  border: 2px solid #e8e8e8;
+  border: 2px solid var(--bg-app);
 }
 
 .xlsx-grid-container::-webkit-scrollbar-thumb:hover {
-  background: #999;
+  background: var(--tx-3);
 }
 
 .xlsx-grid-container::-webkit-scrollbar-corner {
-  background: #e8e8e8;
+  background: var(--bg-app);
 }
 
 .xlsx-grid-wrapper {
@@ -369,21 +366,22 @@ html[data-theme="light"] .docx-scroll-container {
   background: #f8f8f8;
 }
 
-/* Zoom Indicator - Base styles */
+/* Zoom Indicator - Base styles (unified tokens with PDF toolbar page-info). */
 .xlsx-zoom-indicator,
 .docx-zoom-indicator,
 .pptx-zoom-indicator,
 .hwpx-zoom-indicator {
   position: absolute;
   right: 16px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
+  background: var(--bg-elevated, color-mix(in srgb, var(--bg-app) 88%, white 12%));
+  color: var(--tx-2, #d1d5db);
   padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  font-size: 0.8em;
+  border: 0.5px solid var(--sep-l, color-mix(in srgb, var(--text-primary) 8%, transparent));
+  border-radius: var(--r-4, 4px);
+  font-size: var(--fs-12, 12px);
+  font-variant-numeric: tabular-nums;
   z-index: var(--z-raised);
   pointer-events: none;
-  opacity: 0.8;
 }
 
 /* Position zoom indicators below headers/toolbars */
@@ -415,25 +413,21 @@ html[data-theme="light"] .docx-scroll-container {
 .pptx-viewer {
   display: flex;
   flex-direction: column;
-  background: #2a2a2a;
+  background: var(--bg-app);
 }
 
+/* Chrome from .viewer-toolbar. Bespoke rule keeps only PPTX-specific. */
 .pptx-toolbar {
-  display: flex;
-  align-items: center;
   justify-content: center;
-  gap: var(--space-6);
-  padding: 6px 16px;
-  background: var(--bg-secondary, #333);
-  border-bottom: 1px solid var(--border-color, #444);
-  flex-shrink: 0;
+  user-select: none;
 }
 
 .pptx-slide-indicator {
-  color: var(--text-secondary, #aaa);
-  font-size: 0.85em;
-  min-width: 60px;
+  min-width: 56px;
   text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx-2, #d1d5db);
+  font-size: var(--fs-12, 12px);
 }
 
 .pptx-slides-scroll-container {
@@ -443,12 +437,8 @@ html[data-theme="light"] .docx-scroll-container {
   flex-direction: column;
   align-items: center;
   padding: 20px 20px 60px 20px;
-  gap: var(--space-8);
-  background: #525659;
-}
-
-html[data-theme="light"] .pptx-slides-scroll-container {
-  background: #808080;
+  gap: var(--sp-4);
+  background: var(--bg-app);
 }
 
 .pptx-slide {
@@ -478,7 +468,7 @@ html[data-theme="light"] .pptx-slides-scroll-container {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--text-secondary, #888);
+  color: var(--tx-2);
 }
 
 /* PPTX Table */
@@ -502,7 +492,7 @@ html[data-theme="light"] .pptx-slides-scroll-container {
 .hwpx-viewer {
   display: flex;
   flex-direction: column;
-  background: #e8e8e8;
+  background: var(--bg-app);
 }
 
 .hwpx-content {
@@ -512,12 +502,8 @@ html[data-theme="light"] .pptx-slides-scroll-container {
   flex-direction: column;
   align-items: center;
   padding: 16px 20px 60px 20px;
-  gap: var(--space-6);
-  background: #525659;
-}
-
-html[data-theme="light"] .hwpx-content {
-  background: #808080;
+  gap: var(--sp-3);
+  background: var(--bg-app);
 }
 
 .hwpx-page {
@@ -545,7 +531,7 @@ html[data-theme="light"] .hwpx-content {
 
 .hwpx-section figcaption {
   font-size: 0.85em;
-  color: #555;
+  color: var(--tx-3);
 }
 
 .hwpx-table {
@@ -565,10 +551,10 @@ html[data-theme="light"] .hwpx-content {
 }
 
 .hwpx-images {
-  margin-top: var(--space-10);
+  margin-top: var(--sp-5);
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-8);
+  gap: var(--sp-4);
 }
 
 .hwpx-image {
@@ -589,13 +575,13 @@ html[data-theme="light"] .hwpx-content {
 
 .hwpx-figure figcaption {
   font-size: 0.85em;
-  color: #555;
-  margin-top: var(--space-2);
+  color: var(--tx-3);
+  margin-top: var(--sp-1);
 }
 
 .hwpx-page-num {
   font-size: 9pt;
-  color: #666;
+  color: var(--tx-3);
 }
 
 .hwpx-loading {
@@ -603,66 +589,53 @@ html[data-theme="light"] .hwpx-content {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--text-secondary, #888);
+  color: var(--tx-2);
 }
 
-.hwpx-zoom-indicator {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  z-index: var(--z-raised);
-  font-size: var(--font-base);
-  color: var(--text-secondary, #888);
-  background: rgba(255,255,255,0.8);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-}
+/* (.hwpx-zoom-indicator base styles live with the other floating zoom
+   indicators above — this duplicate block was overriding them with an
+   inconsistent font-size/padding and was removed.) */
 
 /* HWPX Toolbar (page navigation) */
+/* Chrome from .viewer-toolbar. Bespoke rule keeps only HWPX-specific. */
 .hwpx-toolbar {
-  display: flex;
-  align-items: center;
   justify-content: center;
-  gap: var(--space-4);
-  padding: 6px 12px;
-  background: var(--bg-secondary, #f0f0f0);
-  border-bottom: 1px solid var(--border-color, #ddd);
-  flex-shrink: 0;
-  font-size: var(--font-md);
+  user-select: none;
 }
 
 .hwpx-nav-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: var(--bg-tertiary, #e0e0e0);
-  border: none;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary, #333);
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-4, 4px);
+  color: var(--tx-2, #d1d5db);
   cursor: pointer;
-  transition: background var(--duration-fast);
+  transition: background-color var(--dur-150, 150ms), border-color var(--dur-150, 150ms);
 }
 
 .hwpx-nav-btn:hover:not(:disabled) {
-  background: var(--accent-primary, #4a9eff);
-  color: white;
+  background-color: color-mix(in srgb, var(--tx-1) 14%, transparent);
+  color: var(--tx-1, #f3f4f6);
 }
 
 .hwpx-nav-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
 .hwpx-page-input {
   width: 44px;
   text-align: center;
-  border: 1px solid var(--border-color, #ccc);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary, #fff);
-  color: var(--text-primary, #333);
-  font-size: var(--font-md);
+  border: 1px solid var(--sep-l, color-mix(in srgb, var(--text-primary) 12%, transparent));
+  border-radius: var(--r-4, 4px);
+  background: var(--bg-app);
+  color: var(--tx-1, #f3f4f6);
+  font-size: var(--fs-12, 12px);
+  font-variant-numeric: tabular-nums;
   padding: 2px 4px;
   -moz-appearance: textfield;
 }
@@ -674,37 +647,27 @@ html[data-theme="light"] .hwpx-content {
 }
 
 .hwpx-page-total {
-  color: var(--text-secondary, #888);
-  font-size: var(--font-md);
+  min-width: 36px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx-2, #d1d5db);
+  font-size: var(--fs-12, 12px);
 }
 
 .hwpx-zoom-label {
-  color: var(--text-secondary, #888);
-  font-size: var(--font-base);
-  margin-left: var(--space-4);
-}
-
-html[data-theme="dark"] .hwpx-toolbar {
-  background: var(--bg-secondary, #2a2a2a);
-  border-bottom-color: var(--border-color, #444);
-}
-
-html[data-theme="dark"] .hwpx-nav-btn {
-  background: var(--bg-tertiary, #3a3a3a);
-  color: var(--text-primary, #ddd);
-}
-
-html[data-theme="dark"] .hwpx-page-input {
-  background: var(--bg-primary, #1e1e1e);
-  color: var(--text-primary, #ddd);
-  border-color: var(--border-color, #555);
+  min-width: 56px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--tx-2, #d1d5db);
+  font-size: var(--fs-12, 12px);
+  margin-left: var(--sp-2);
 }
 
 /* HWP Viewer (SVG from Rust hwpers) */
 .hwp-viewer {
   display: flex;
   flex-direction: column;
-  background: #f0f0f0;
+  background: var(--bg-app);
 }
 
 .hwp-content {
@@ -712,7 +675,7 @@ html[data-theme="dark"] .hwpx-page-input {
   overflow: auto;
   display: flex;
   justify-content: center;
-  padding: var(--space-10);
+  padding: var(--sp-5);
   background: white;
 }
 
@@ -726,10 +689,10 @@ html[data-theme="dark"] .hwpx-page-input {
   position: absolute;
   top: 8px;
   right: 16px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
+  background: var(--bg-elevated);
+  color: var(--tx-3);
   padding: 4px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-4);
   font-size: 0.8em;
   z-index: var(--z-raised);
   pointer-events: none;
@@ -741,7 +704,7 @@ html[data-theme="dark"] .hwpx-page-input {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--text-secondary, #888);
+  color: var(--tx-2);
 }
 
 .hwp-error-container {
@@ -750,14 +713,14 @@ html[data-theme="dark"] .hwpx-page-input {
   align-items: center;
   justify-content: center;
   height: 100%;
-  gap: var(--space-6);
+  gap: var(--sp-3);
   padding: 40px;
   text-align: center;
-  background: var(--bg-primary, #fff);
+  background: var(--bg-app);
 }
 
 .hwp-error-icon {
-  color: var(--text-tertiary, #999);
+  color: var(--tx-3);
   opacity: 0.6;
 }
 
@@ -765,33 +728,33 @@ html[data-theme="dark"] .hwpx-page-input {
   margin: 0;
   font-size: 1.1em;
   font-weight: 600;
-  color: var(--text-primary, #333);
+  color: var(--tx-1);
 }
 
 .hwp-error-detail {
   margin: 0;
   font-size: 0.9em;
-  color: var(--text-secondary, #666);
+  color: var(--tx-2);
   max-width: 300px;
 }
 
 .hwp-open-external-btn {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  margin-top: var(--space-4);
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
   padding: 10px 20px;
-  background: var(--accent-primary, #4a9eff);
+  background: var(--tx-1);
   color: white;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--r-6);
   font-size: 0.95em;
   cursor: pointer;
-  transition: background var(--duration-fast);
+  transition: background var(--dur-150);
 }
 
 .hwp-open-external-btn:hover {
-  background: var(--accent-hover, #3a8eef);
+  background: var(--tx-1);
 }
 
 /* Legacy/Unsupported Format Notice */
@@ -801,25 +764,25 @@ html[data-theme="dark"] .hwpx-page-input {
   align-items: center;
   justify-content: center;
   height: 100%;
-  gap: var(--space-8);
+  gap: var(--sp-4);
   padding: 40px;
   text-align: center;
-  background: var(--bg-secondary, #f8f8f8);
+  background: var(--bg-base);
 }
 
 .office-viewer-unsupported-icon {
-  color: var(--text-tertiary, #888);
+  color: var(--tx-3);
   opacity: 0.6;
 }
 
 .office-viewer-unsupported-text {
-  color: var(--text-primary, #333);
+  color: var(--tx-1);
   font-size: 1.1em;
   margin: 0;
 }
 
 .office-viewer-unsupported-hint {
-  color: var(--text-tertiary, #888);
+  color: var(--tx-3);
   font-size: 0.9em;
   margin: 0;
 }
@@ -827,19 +790,19 @@ html[data-theme="dark"] .hwpx-page-input {
 .office-viewer-external-btn {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   padding: 10px 20px;
-  background: var(--accent-primary, #4a9eff);
+  background: var(--tx-1);
   color: white;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--r-6);
   font-size: 0.95em;
   cursor: pointer;
-  transition: background var(--duration-fast), transform var(--duration-fast);
+  transition: background var(--dur-150), transform var(--dur-150);
 }
 
 .office-viewer-external-btn:hover {
-  background: var(--accent-hover, #3a8eef);
+  background: var(--tx-1);
   transform: translateY(-1px);
 }
 
@@ -848,7 +811,252 @@ html[data-theme="dark"] .hwpx-page-input {
 }
 
 .office-viewer-error {
-  color: var(--text-error, #e53935);
+  color: var(--c-red);
   text-align: center;
-  padding: var(--space-10);
+  padding: var(--sp-5);
+}
+
+/* ============================================================
+   5.0.9c — ViewerToolbar primitive styles.
+   Visual rhythm follows the pre-existing `.docx-toolbar` / `.hwpx-toolbar`
+   tokens (gap 6 / padding 6×12 / bg --bg-elevated / 0.5px --sep-l divider).
+   `viewer-toolbar` becomes the canonical class once DOCX/HWPX/PPTX/XLSX
+   adopt the primitive in 5.0.9e.
+   ============================================================ */
+
+.viewer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-elevated);
+  border-bottom: 0.5px solid var(--sep-l);
+  font-size: var(--fs-12);
+  color: var(--tx-2);
+  flex-shrink: 0;
+}
+.viewer-toolbar--bottom {
+  border-bottom: none;
+  border-top: 0.5px solid var(--sep-l);
+}
+
+.viewer-toolbar__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--tx-2);
+  border-radius: var(--r-4);
+  cursor: pointer;
+  transition: background-color var(--dur-150) ease, color var(--dur-150) ease;
+}
+.viewer-toolbar__btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.viewer-toolbar__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.viewer-toolbar__zoom,
+.viewer-toolbar__page-nav,
+.viewer-toolbar__sheet-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.viewer-toolbar__zoom-pct {
+  font-variant-numeric: tabular-nums;
+  min-width: 3.5em;
+  text-align: center;
+  user-select: none;
+}
+
+.viewer-toolbar__page-input {
+  width: 3.5em;
+  padding: 2px 4px;
+  font-size: var(--fs-12);
+  text-align: center;
+  background: var(--bg-input, var(--bg-base));
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-4);
+  color: var(--tx-1);
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+.viewer-toolbar__page-input:focus {
+  border-color: var(--tx-1);
+}
+/* Hide number-input spin buttons (Chrome / Safari) — they collide with
+   tight toolbar spacing. */
+.viewer-toolbar__page-input::-webkit-outer-spin-button,
+.viewer-toolbar__page-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.viewer-toolbar__page-input {
+  -moz-appearance: textfield;
+}
+
+.viewer-toolbar__page-total {
+  color: var(--tx-3);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.viewer-toolbar__sheet-tab {
+  padding: 2px 10px;
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-4);
+  background: var(--bg-base);
+  color: var(--tx-2);
+  font-size: var(--fs-12);
+  cursor: pointer;
+  transition: background-color var(--dur-150) ease, color var(--dur-150) ease;
+}
+.viewer-toolbar__sheet-tab:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.viewer-toolbar__sheet-tab.is-active {
+  background: color-mix(in srgb, var(--tx-1) 15%, transparent);
+  color: var(--tx-1);
+  border-color: color-mix(in srgb, var(--tx-1) 35%, transparent);
+}
+
+/* ============================================================
+   Dark-mode overrides — moved here from document-viewers-dark.css
+   in Stage 5.0.9a (2026-05-17, HanBin). The "paper" metaphor stays:
+   `.xlsx-grid` + `.xlsx-cell` background stay WHITE in both themes so
+   spreadsheet contents read like a printed page; only the surrounding
+   container chrome (scrollbars, headers, zoom indicator) flips.
+   Previously the 1 raw `rgba(0,120,215,0.15)` hardcode for selected
+   cells was promoted to `color-mix(var(--tx-1) 15%)` — every other
+   value here was already token-driven.
+   ============================================================ */
+
+html[data-theme="dark"] .office-viewer-container {
+  background: var(--bg-base);
+  color: var(--tx-1);
+}
+
+html[data-theme="dark"] .docx-viewer {
+  background: var(--bg-app);
+}
+
+html[data-theme="dark"] .xlsx-viewer {
+  background: var(--bg-base);
+}
+
+html[data-theme="dark"] .xlsx-grid-container {
+  background: var(--bg-elevated);
+  scrollbar-color: var(--tx-3) var(--bg-elevated);
+}
+
+html[data-theme="dark"] .xlsx-grid-container::-webkit-scrollbar-track {
+  background: var(--bg-elevated);
+}
+
+html[data-theme="dark"] .xlsx-grid-container::-webkit-scrollbar-thumb {
+  background: var(--tx-3);
+  border-color: var(--bg-elevated);
+}
+
+html[data-theme="dark"] .xlsx-grid-container::-webkit-scrollbar-corner {
+  background: var(--bg-elevated);
+}
+
+html[data-theme="dark"] .xlsx-corner-cell {
+  background: var(--bg-elevated);
+  border-color: var(--sep-l);
+}
+
+html[data-theme="dark"] .xlsx-corner-cell:hover {
+  background: var(--bg-hover);
+}
+
+html[data-theme="dark"] .xlsx-column-header {
+  background: var(--bg-elevated);
+  border-color: var(--sep-l);
+  color: var(--tx-2);
+}
+
+html[data-theme="dark"] .xlsx-column-header:hover {
+  background: var(--bg-hover);
+}
+
+html[data-theme="dark"] .xlsx-column-header.selected {
+  background: color-mix(in srgb, var(--tx-1) 25%, transparent);
+}
+
+html[data-theme="dark"] .xlsx-row-header {
+  background: var(--bg-elevated);
+  border-color: var(--sep-l);
+  color: var(--tx-2);
+}
+
+html[data-theme="dark"] .xlsx-row-header:hover {
+  background: var(--bg-hover);
+}
+
+html[data-theme="dark"] .xlsx-row-header.selected {
+  background: color-mix(in srgb, var(--tx-1) 25%, transparent);
+}
+
+/* Cells stay WHITE + DARK TEXT (Excel-in-dark-mode metaphor). */
+html[data-theme="dark"] .xlsx-cell {
+  border-color: var(--sep);
+  background: white;
+  color: #1a1a1a;
+}
+
+html[data-theme="dark"] .xlsx-cell.selected {
+  background: color-mix(in srgb, var(--tx-1) 15%, transparent) !important;
+}
+
+html[data-theme="dark"] .xlsx-grid tbody tr:hover .xlsx-cell:not(.selected) {
+  background: #f8f8f8;
+}
+
+html[data-theme="dark"] .xlsx-zoom-indicator {
+  background: var(--bg-elevated);
+  color: var(--tx-2);
+}
+
+html[data-theme="dark"] .pptx-viewer {
+  background: var(--bg-base);
+}
+
+html[data-theme="dark"] .hwpx-viewer {
+  background: var(--bg-app);
+}
+
+html[data-theme="dark"] .hwpx-page {
+  box-shadow: var(--sh-md);
+}
+
+html[data-theme="dark"] .hwpx-figure figcaption {
+  color: var(--tx-3);
+}
+
+html[data-theme="dark"] .hwpx-zoom-indicator {
+  background: var(--bg-elevated);
+  color: var(--tx-2);
+}
+
+html[data-theme="dark"] .hwpx-image {
+  border-color: var(--sep-l);
+}
+
+html[data-theme="dark"] .hwp-viewer {
+  background: var(--bg-app);
+}
+
+html[data-theme="dark"] .hwp-content {
+  background: var(--bg-app);
 }

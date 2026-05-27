@@ -12,6 +12,15 @@ export const WikiLinkSuggestionPluginKey = new PluginKey('wikiLinkSuggestion');
 export const WikiLinkSuggestion = Extension.create<WikiLinkSuggestionOptions>({
   name: 'wikiLinkSuggestion',
 
+  // Stage 5.0.5a-γ5 v8 fix (2026-05-16, HanBin) — bump priority above the
+  // list/task-item keymap (default 100) so the suggestion plugin's
+  // handleKeyDown intercepts Tab BEFORE the list-sink keymap when the
+  // popover is open. HanBin: "[[ 입력 후 tab → 들여쓰기가 동작함" — root
+  // cause was plugin-order: ProseMirror processed Tab through list keymap
+  // first, sunk the bullet item, and never reached the suggestion handler.
+  // TipTap StarterKit lists have priority 100; 1000 wins reliably.
+  priority: 1000,
+
   addOptions() {
     return {
       suggestion: {

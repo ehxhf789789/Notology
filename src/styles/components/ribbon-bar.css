@@ -10,7 +10,7 @@
 
 .ribbon-buttons {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   flex-wrap: wrap;
 }
 
@@ -18,16 +18,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   min-width: 48px;
   height: 28px;
   padding: 0 8px;
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   background-color: var(--bg-hover);
   color: var(--tx-3);
   cursor: pointer;
-  transition: background-color var(--duration-fast), color var(--duration-fast);
+  transition: background-color var(--dur-150), color var(--dur-150);
 }
 
 .ribbon-btn:hover {
@@ -38,19 +38,19 @@
 
 .ribbon-btn.active {
   background-color: var(--bg-elevated);
-  border-color: #7aa2f7;
-  color: #7aa2f7;
+  border-color: var(--tx-1);
+  color: var(--tx-1);
 }
 
 .ribbon-btn-prefix {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   font-weight: 700;
-  color: #7aa2f7;
+  color: var(--tx-1);
   letter-spacing: 0.3px;
 }
 
 .ribbon-btn-name {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   font-weight: 500;
   color: var(--tx-2);
   max-width: 60px;
@@ -71,25 +71,25 @@
 }
 
 .ribbon-btn-icon.template-selector-icon {
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
 }
 
 .ribbon-input-row {
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--sp-2);
 }
 
 .ribbon-input {
   width: 100%;
   padding: 5px 8px;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-1);
   background-color: var(--bg-base);
   border: 0.5px solid var(--sep);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   outline: none;
   box-sizing: border-box;
 }
 
 .ribbon-input:focus {
-  border-color: var(--c-blue);
+  border-color: var(--tx-1);
 }

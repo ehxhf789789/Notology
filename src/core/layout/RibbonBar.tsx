@@ -1,12 +1,9 @@
-import { useFileTree, fileTreeActions, refreshActions, hoverActions, modalActions } from '../stores/zustand';
+import { useFileTree } from '../stores/zustand';
 import { useContainerConfigs } from '../../features/vault-config/stores/vaultConfigStore';
 import { useTemplateStore } from '../../features/templates/stores/templateStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { createNoteWithTemplate } from '../stores/appActions';
+import { createNoteFromTemplateInteractive } from '../stores/appActions';
 import { t, tf } from '../utils/i18n';
-
-// Templates that have their own input modals (skip TitleInputModal)
-const SPECIAL_TEMPLATE_IDS = ['note-contact', 'note-mtg', 'note-paper', 'note-lit', 'note-event'];
 
 function RibbonBar() {
   const fileTree = useFileTree();
@@ -25,36 +22,11 @@ function RibbonBar() {
   const handleRibbonClick = (containerPath: string) => {
     const config = containerConfigs[containerPath];
     if (!config?.assignedTemplateId) return;
-
-    const templateId = config.assignedTemplateId;
-    const templateInfo = getTemplateInfo(templateId);
-    const containerName = containerPath.split(/[/\\]/).pop() || '';
-
-    // Special templates: directly call createNoteWithTemplate (it will show its own modal)
-    if (SPECIAL_TEMPLATE_IDS.includes(templateId)) {
-      createNoteWithTemplate('', templateId, containerPath)
-        .then(async (notePath) => {
-          await fileTreeActions.refreshFileTree();
-          refreshActions.incrementSearchRefresh();
-          hoverActions.open(notePath);
-        })
-        .catch(err => console.error('RibbonBar: Failed to create note:', err));
-      return;
-    }
-
-    // Regular templates: show title input modal first
-    modalActions.showTitleInputModal(async (result) => {
-      if (result.title.trim()) {
-        try {
-          const notePath = await createNoteWithTemplate(result.title.trim(), templateId, containerPath);
-          await fileTreeActions.refreshFileTree();
-          refreshActions.incrementSearchRefresh();
-          hoverActions.open(notePath);
-        } catch (e) {
-          console.error('RibbonBar: Failed to create note:', e);
-        }
-      }
-    }, t('enterNoteTitle', language), `${t('newNoteDefault', language)} - ${templateInfo.name} (${containerName})`);
+    // v18 (2026-05-16, HanBin) — single entry point. Wizard / special-modal /
+    // title-modal branching lives in `createNoteFromTemplateInteractive`,
+    // shared with Ctrl+N and ContainerView's "+ 새 노트". Previously this
+    // branched locally and missed the wizard for user-input vars.
+    createNoteFromTemplateInteractive(config.assignedTemplateId, containerPath);
   };
 
   const getTemplateInfo = (templateId: string): { prefix: string; name: string; noteType: string; customColor?: string } => {

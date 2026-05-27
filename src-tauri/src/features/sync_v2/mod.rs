@@ -57,3 +57,17 @@ pub mod chunked_upload;
 //   - stale ref links: ref claims a link that the note body does not have
 //   - missing ref links: chip in note body that ref doesn't yet record
 pub mod attachment_reconcile;
+
+// Round 2 R6 (HanBin 2026-05-22) — sketch/canvas attachment ref scanner.
+// Extracts attachment basenames from canvas note JSON bodies so reconcile
+// counts sketch nodes as legitimate references (prevents orphan sweep from
+// deleting attachments referenced only by a sketch).
+pub mod sketch_scan;
+
+// 2026-05-24 (HanBin) — vault_repair: comprehensive 7-pattern legacy +
+// inconsistency detector and repair pipeline. Unifies attachment_migration
+// (P1 _att/ folders) and attachment_reconcile (P4 wikilinks, P6 shared
+// refs) plus net-new patterns (P2 sketch external paths, P3 sketch
+// unresolved refs, P5 broken wikilinks, P7 orphan blobs). Backup +
+// verify + rollback for zero-data-loss guarantee.
+pub mod vault_repair;

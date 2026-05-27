@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import type { NoteComment, CanvasSelection } from '../../core/types';
+import type { NoteComment, SketchSelection } from '../../core/types';
 import { generateCommentId } from './comments';
 import { getCurrentTimestamp } from '../../core/utils/frontmatter';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { t, tf } from '../../core/utils/i18n';
+import { CHECK, DOT_HOLLOW } from '../../design-system/components';
 
 interface CommentPanelProps {
   comments: NoteComment[];
@@ -15,7 +16,7 @@ interface CommentPanelProps {
   selectedText: string;
   selectionRange: { from: number; to: number } | null;
   activeCommentId: string | null;
-  canvasSelection?: CanvasSelection | null;
+  sketchSelection?: SketchSelection | null;
   initialTaskMode?: boolean;
 }
 
@@ -29,7 +30,7 @@ function CommentPanel({
   selectedText,
   selectionRange,
   activeCommentId,
-  canvasSelection,
+  sketchSelection,
   initialTaskMode,
 }: CommentPanelProps) {
   const language = useSettingsStore(s => s.language);
@@ -84,9 +85,9 @@ function CommentPanel({
       resolved: false,
     };
 
-    if (canvasSelection) {
-      comment.canvasNodeId = canvasSelection.nodeId;
-      comment.canvasTextPosition = { from: canvasSelection.from, to: canvasSelection.to };
+    if (sketchSelection) {
+      comment.sketchNodeId = sketchSelection.nodeId;
+      comment.sketchTextPosition = { from: sketchSelection.from, to: sketchSelection.to };
     }
 
     if (isTaskMode) {
@@ -187,6 +188,12 @@ function CommentPanel({
           {/* Task fields (shown when task mode from context menu) */}
           {isTaskMode && (
             <div className="comment-task-fields">
+              {/* 2026-05-26 (HanBin) — onClick handler opens the native
+                  picker programmatically. CSS hides the native indicator
+                  (display:none) so the WebView2 system tooltip ("날짜
+                  선택도구 표시") never appears. showPicker is a modern
+                  HTMLInputElement API (Chromium 99+/WebView2). Optional
+                  chained — silently no-op on older runtimes. */}
               <div className="comment-task-field">
                 <label htmlFor="task-due-date">{t('dueDateRequired', language)}</label>
                 <input
@@ -194,6 +201,7 @@ function CommentPanel({
                   type="date"
                   value={taskDueDate}
                   onChange={e => setTaskDueDate(e.target.value)}
+                  onClick={e => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
                 />
               </div>
               <div className="comment-task-field">
@@ -203,6 +211,7 @@ function CommentPanel({
                   type="time"
                   value={taskDueTime}
                   onChange={e => setTaskDueTime(e.target.value)}
+                  onClick={e => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
                 />
               </div>
             </div>
@@ -251,6 +260,7 @@ function CommentPanel({
                         type="date"
                         value={editTaskDueDate}
                         onChange={e => setEditTaskDueDate(e.target.value)}
+                        onClick={e => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
                       />
                     </div>
                     <div className="comment-task-field">
@@ -259,6 +269,7 @@ function CommentPanel({
                         type="time"
                         value={editTaskDueTime}
                         onChange={e => setEditTaskDueTime(e.target.value)}
+                        onClick={e => (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
                       />
                     </div>
                   </div>
@@ -334,7 +345,7 @@ function CommentPanel({
                         onClick={() => onResolveComment(comment.id)}
                         title={comment.resolved ? t('markUnresolved', language) : t('resolve', language)}
                       >
-                        {comment.resolved ? '○' : '✓'}
+                        {comment.resolved ? DOT_HOLLOW : CHECK}
                       </button>
                     )}
                     <button

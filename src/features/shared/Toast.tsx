@@ -6,6 +6,13 @@ export interface ToastMessage {
   title: string;
   description?: string;
   duration?: number;
+  /** Optional inline call-to-action shown next to the title. PART 8
+   *  (2026-05-14): used by the sync conflict toast to deep-link to the
+   *  conflict list modal. */
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 let nextId = 1;
@@ -59,7 +66,34 @@ export function ToastContainer() {
           color: 'var(--fg-default, #333)',
           fontSize: 13,
         }}>
-          <strong>{t.title}</strong>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <strong>{t.title}</strong>
+            {t.action && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  t.action!.onClick();
+                  setToasts(prev => prev.filter(x => x.id !== t.id));
+                }}
+                style={{
+                  flex: '0 0 auto',
+                  padding: '3px 10px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: '#fff',
+                  background: t.type === 'warning' ? '#f59e0b' :
+                              t.type === 'error' ? '#ef4444' :
+                              t.type === 'success' ? '#10b981' : '#3b82f6',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {t.action.label}
+              </button>
+            )}
+          </div>
           {t.description && <div style={{ marginTop: 2, opacity: 0.8, fontSize: 12 }}>{t.description}</div>}
         </div>
       ))}

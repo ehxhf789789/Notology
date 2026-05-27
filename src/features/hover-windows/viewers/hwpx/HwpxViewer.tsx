@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import JSZip from 'jszip';
 import { useViewerZoom } from '../shared/useViewerZoom';
 import { log } from '../shared/viewerConstants';
+import { t } from '../../../../core/utils/i18n';
+import { useLanguage } from '../../../../core/stores/settingsStore';
 import type { HwpxViewerProps, Section, HeaderData, ContentItem, ImageElement, FootnoteData } from './hwpxTypes';
 import { parseHeaderXml } from './hwpxHeaderParser';
 import { parseSectionXml } from './hwpxParser';
@@ -15,6 +17,7 @@ import {
 // ==================== React Component ====================
 
 export function HwpxViewer({ data }: HwpxViewerProps) {
+  const language = useLanguage();
   const [sections, setSections] = useState<Section[]>([]);
   const [images, setImages] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState<string | null>(null);
@@ -192,10 +195,10 @@ export function HwpxViewer({ data }: HwpxViewerProps) {
 
   // ==================== Component Rendering ====================
 
-  if (loading) return <div className="office-viewer-container hwpx-viewer"><div className="hwpx-loading">문서 로딩 중...</div></div>;
-  if (error) return <div className="office-viewer-container hwpx-viewer"><div className="office-viewer-error">HWPX 파싱 실패: {error}</div></div>;
+  if (loading) return <div className="office-viewer-container hwpx-viewer"><div className="hwpx-loading">{t('viewerHwpxLoading', language)}</div></div>;
+  if (error) return <div className="office-viewer-container hwpx-viewer"><div className="office-viewer-error">HWPX {t('viewerPdfLoadError', language)}: {error}</div></div>;
   if (sections.length === 0 || sections.every(s => s.content.length === 0)) {
-    return <div className="office-viewer-container hwpx-viewer"><div className="office-viewer-error">문서 내용을 찾을 수 없습니다.</div></div>;
+    return <div className="office-viewer-container hwpx-viewer"><div className="office-viewer-error">{t('viewerHwpxNotFound', language)}</div></div>;
   }
 
   const s0 = sections[0];
@@ -209,8 +212,14 @@ export function HwpxViewer({ data }: HwpxViewerProps) {
   return (
     <div ref={containerRef} className="office-viewer-container hwpx-viewer">
       {/* Page navigation toolbar */}
-      <div className="hwpx-toolbar">
-        <button className="hwpx-nav-btn" onClick={goToPrevPage} disabled={currentPageIdx === 0}>
+      <div className="viewer-toolbar hwpx-toolbar">
+        <button
+          className="hwpx-nav-btn"
+          onClick={goToPrevPage}
+          disabled={currentPageIdx === 0}
+          title={t('viewerPdfPrevPage', language)}
+          aria-label={t('viewerPdfPrevPage', language)}
+        >
           <ChevronLeft size={18} />
         </button>
         <input
@@ -225,7 +234,13 @@ export function HwpxViewer({ data }: HwpxViewerProps) {
           max={paginatedPages.length}
         />
         <span className="hwpx-page-total">/ {paginatedPages.length}</span>
-        <button className="hwpx-nav-btn" onClick={goToNextPage} disabled={currentPageIdx >= paginatedPages.length - 1}>
+        <button
+          className="hwpx-nav-btn"
+          onClick={goToNextPage}
+          disabled={currentPageIdx >= paginatedPages.length - 1}
+          title={t('viewerPdfNextPage', language)}
+          aria-label={t('viewerPdfNextPage', language)}
+        >
           <ChevronRight size={18} />
         </button>
         <span className="hwpx-zoom-label">{Math.round(zoom * 100)}%</span>

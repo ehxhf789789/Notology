@@ -308,9 +308,6 @@ impl SuggestionEngine {
         tags.extend(frontmatter.tags.who.clone());
         tags.extend(frontmatter.tags.org.clone());
         tags.extend(frontmatter.tags.ctx.clone());
-        tags.extend(frontmatter.tags.source.clone());
-        tags.extend(frontmatter.tags.method.clone());
-        tags.extend(frontmatter.tags.status.clone());
         tags
     }
 

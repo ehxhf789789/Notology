@@ -46,7 +46,8 @@ export interface BaseFrontmatter {
   tags?: FacetedTags;
   relations?: Relation[];
   cssclasses?: string[];
-  canvas?: boolean;
+  sketch?: boolean;
+  canvas?: boolean; // backwards compat
   [key: string]: unknown;
 }
 

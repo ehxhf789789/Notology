@@ -1,10 +1,36 @@
+/* 2026-05-20 — generic backdrop for the legacy `.modal-overlay`
+   pattern used by ConfirmDeleteModal / AlertModal / TitleInputModal /
+   BulkTagModal. The rule went missing at some point during the Stage
+   5.0 CSS sweep, so without this every consumer rendered as a normal
+   block element near the bottom of the page (Alert/Confirm modals
+   appeared in the footer area instead of centered on top of the app).
+   Mirrors `.settings-overlay`'s shape so behavior is consistent. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--backdrop-bg, color-mix(in srgb, var(--tx-1) 35%, transparent));
+  backdrop-filter: var(--backdrop-blur, blur(2px));
+  -webkit-backdrop-filter: var(--backdrop-blur, blur(2px));
+  /* Above the Settings sheet so modals launched from inside Settings
+     (template migration, confirm-delete from any source, etc.) cannot
+     end up underneath it. `--z-popover` is the highest pre-defined
+     z-index, +10 keeps a margin for future stacking. */
+  z-index: calc(var(--z-popover, 5000) + 10);
+  animation: modalOverlayEnter 0.18s ease-out;
+}
+
+@keyframes modalOverlayEnter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 /* ── Confirm Delete Modal ── */
 
+/* Chrome from .modal-shell. Bespoke rule keeps only sizes. */
 .confirm-delete-modal {
-  background: var(--bg-base);
-  border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--sh-lg);
   max-width: 400px;
   width: 100%;
 }
@@ -41,42 +67,44 @@
   padding: 12px 20px 16px;
 }
 
+/* 2026-05-22 — iOS pattern: cancel = ghost (no border, no fill at
+   rest), destructive = outlined red (was solid red). Matches
+   vault-lock + template editor cancel/back patterns. */
 .confirm-delete-btn {
   padding: 6px 14px;
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  border: 0.5px solid var(--sep);
-  transition: background var(--duration-fast), border-color var(--duration-fast);
+  border: none;
+  transition: background var(--dur-150), border-color var(--dur-150), color var(--dur-150);
 }
 
 .confirm-delete-cancel {
-  background: var(--bg-elevated);
-  color: var(--tx-1);
+  background: transparent;
+  color: var(--tx-2);
 }
 
 .confirm-delete-cancel:hover {
-  background: var(--bg-app);
+  background: var(--bg-hover);
+  color: var(--tx-1);
 }
 
 .confirm-delete-confirm {
-  background: var(--c-red);
-  color: #fff;
-  border-color: var(--c-red);
+  background: transparent;
+  color: var(--c-red);
+  border: 0.5px solid color-mix(in srgb, var(--c-red) 45%, transparent);
 }
 
 .confirm-delete-confirm:hover {
-  opacity: 0.9;
+  background: color-mix(in srgb, var(--c-red) 8%, transparent);
+  border-color: color-mix(in srgb, var(--c-red) 70%, transparent);
 }
 
 /* ── Alert Modal ── */
 
+/* Chrome from .modal-shell. Bespoke rule keeps only sizes. */
 .alert-modal {
-  background: var(--bg-base);
-  border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--sh-lg);
   max-width: 380px;
   width: 100%;
 }
@@ -106,18 +134,21 @@
   padding: 12px 20px 16px;
 }
 
+/* 2026-05-22 — neutral primary (alert is the only action button so
+   it stays primary-toned, just now via the token chain instead of
+   raw blue). Matches the global primary-action policy. */
 .alert-modal-btn {
   padding: 6px 14px;
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  border: 0.5px solid var(--sep);
-  background: var(--c-blue);
-  color: #fff;
-  transition: opacity var(--duration-fast);
+  border: none;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  transition: background var(--dur-150);
 }
 
 .alert-modal-btn:hover {
-  opacity: 0.9;
+  background: var(--btn-primary-bg-hover);
 }

@@ -1,0 +1,121 @@
+/*
+ * Round 2 R3 (HanBin 2026-05-22) — paper-pattern backgrounds for hover-window note bodies.
+ *
+ * Selector strategy — `data-paper` is stamped on `.hover-editor-body` (the
+ * actual scroll container in hover windows). That element is React-owned and
+ * not shared via the editor pool, so attribute updates are reliable.
+ *
+ * The pattern paints behind the editor's transparent background; embeds,
+ * callouts, code blocks etc. have their own opaque backgrounds and naturally
+ * paint over the pattern wherever they appear — no special handling needed.
+ *
+ * Visibility tuned for both light + dark themes via color-mix on --tx-1.
+ * Spacing tuned to the editor's typography (14px body × 1.7 line-height ≈ 24px
+ * per line) so ruled lines land roughly on text baselines without being
+ * too noisy when content is mixed (images, codeblocks, etc.).
+ *
+ * Sketch (canvas) notes don't get data-paper at all (HoverEditor sets it
+ * undefined), so the canvas's own visual model is preserved.
+ *
+ * `!important` is used on the background-image because hover-editor-body has
+ * a per-note-type background-color rule (sync.css / hover-editor.css note-type
+ * blocks) and we want the pattern to *always* paint on top of any solid bg.
+ */
+
+/* 2026-05-23 — paper pattern rules moved to inline styles in
+   HoverEditor.tsx (`buildPaperInlineStyle`). CSS-based rules couldn't
+   reliably win the cascade against various other .hover-editor-body
+   selectors; inline styles bypass cascade entirely. This file keeps
+   only the picker popover chrome below. */
+
+/* ====================================================================
+   Popover (4-option picker rendered from PaperPatternPopover.tsx).
+   v22 (HanBin 2026-05-23) — chrome-less. The parent `.ds-popover`
+   (FloatingPortal wrapper from AnchoredPopover) already supplies the
+   background / border / radius / shadow. Doubling it produced the
+   "rectangle inside a rectangle" visual the user flagged. We also
+   strip the padding so the option rows sit flush against the popover
+   edge — list-style, not card-style.
+   ==================================================================== */
+.paper-pattern-popover {
+  display: flex;
+  flex-direction: column;
+  min-width: 168px;
+  margin: calc(-1 * var(--space-md));  /* cancel parent .ds-popover padding (12px) so rows touch edges */
+  padding: 4px;
+}
+
+.paper-pattern-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-6);
+  color: var(--tx-1);
+  font-size: var(--fs-13);
+  font-family: var(--app-font);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-150) var(--ease-standard, ease);
+}
+
+.paper-pattern-option:hover {
+  background: var(--bg-hover);
+}
+
+.paper-pattern-option.is-selected {
+  background: var(--bg-hover);
+  font-weight: 500;
+}
+
+.paper-pattern-option__preview {
+  flex-shrink: 0;
+  width: 28px;
+  height: 20px;
+  border: 0.5px solid var(--sep-l);
+  border-radius: 3px;
+  background-color: var(--bg-base);
+  background-position: 0 0;
+}
+
+.paper-pattern-option__preview--plain {
+  background-image: none;
+}
+
+.paper-pattern-option__preview--ruled {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3.5px,
+    color-mix(in srgb, var(--tx-1) 30%, transparent) 3.5px,
+    color-mix(in srgb, var(--tx-1) 30%, transparent) 4px
+  );
+}
+
+.paper-pattern-option__preview--dot {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--tx-1) 40%, transparent) 0.5px,
+    transparent 1px
+  );
+  background-size: 5px 5px;
+}
+
+.paper-pattern-option__preview--grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--tx-1) 22%, transparent) 0.5px, transparent 0.5px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--tx-1) 22%, transparent) 0.5px, transparent 0.5px);
+  background-size: 5px 5px;
+}
+
+.paper-pattern-option__label {
+  flex: 1;
+}
+
+.paper-pattern-option__check {
+  flex-shrink: 0;
+  color: var(--tx-2);
+}

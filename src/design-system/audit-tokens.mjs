@@ -70,6 +70,25 @@ const HEX_RE = /#[0-9a-fA-F]{3,8}\b/g;
 const MARGIN_PX_RE = /(?:^|[\s;])(?:margin|padding)(?:-[a-z]+)?\s*:\s*[^;]*?\b\d+px\b/gm;
 // --primitive-* reference (var(...) form OR fallback chain)
 const PRIMITIVE_USE_RE = /--primitive-[a-z0-9-]+/g;
+// Round 2 R7 (2026-05-22): heading absolute px font-size in editor CSS.
+// Headers in `.tiptap-editor h1/h2/h3` should land at the tight scale
+// agreed in Round 2 (H1 20 / H2 17 / H3 15). Any raw `font-size: NNpx`
+// inside an h1/h2/h3 rule that's NOT one of those three is a regression
+// signal — the tight-scale rule has been overridden. Reported as a
+// non-blocking warning so the user sees drift early.
+const TIPTAP_HEADING_FONT_RE = /\.tiptap-editor\s+h[1-6][^{]*\{[^}]*?font-size:\s*(\d+)px/gms;
+
+// Round 2 R7 extension (2026-05-28): paper-pattern + bubble-menu CSS must
+// use Tier-2 tokens only — raw color literals or px font-sizes indicate
+// drift away from the theme-aware token chain. These files were authored
+// in Round 2 and any new color/size that doesn't go through a token is a
+// regression candidate. Reported as BLOCKING (exit 1) since the surface
+// is small and the rule is unambiguous.
+const TOKEN_STRICT_FILES = [
+  join('src', 'styles', 'editor-extensions', 'paper-pattern.css').split('/').join(sep),
+  join('src', 'styles', 'editor-extensions', 'bubble-menu.css').split('/').join(sep),
+];
+const RAW_COLOR_RE = /#[0-9a-fA-F]{3,8}\b|\brgba?\s*\(|\bhsla?\s*\(/g;
 
 /* ---------- per-file scan ---------- */
 const baseline = {
@@ -80,6 +99,9 @@ const baseline = {
 };
 
 const tier1Leak = []; // { file, line, snippet }
+const headingDrift = []; // { file, headerSize } — Round 2 R7 regression watch
+const TIGHT_HEADING_SIZES = new Set([20, 17, 15]);
+const tokenStrictLeak = []; // { file, line, snippet } — Round 2 R7 extension
 
 for (const file of cssFiles) {
   const rel = relative(REPO, file);
@@ -105,6 +127,31 @@ for (const file of cssFiles) {
       }
     });
   }
+
+  // Round 2 R7 — heading scale drift check.
+  let hm;
+  while ((hm = TIPTAP_HEADING_FONT_RE.exec(text)) !== null) {
+    const size = parseInt(hm[1], 10);
+    if (!TIGHT_HEADING_SIZES.has(size)) {
+      headingDrift.push({ file: rel, headerSize: size });
+    }
+  }
+
+  // Round 2 R7 extension — strict token-only files (paper-pattern, bubble-menu).
+  if (TOKEN_STRICT_FILES.some(s => rel.endsWith(s))) {
+    const lines = text.split(/\r?\n/);
+    lines.forEach((line, idx) => {
+      // Skip comments — design notes often cite raw colors as examples.
+      const trimmed = line.trim();
+      if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) return;
+      const m = line.match(RAW_COLOR_RE);
+      if (m) {
+        for (const lit of m) {
+          tokenStrictLeak.push({ file: rel, line: idx + 1, lit, snippet: trimmed });
+        }
+      }
+    });
+  }
 }
 
 /* ---------- emit ---------- */
@@ -118,6 +165,9 @@ if (asJSON) {
     },
     tier1_leak_count: tier1Leak.length,
     tier1_leak: tier1Leak.slice(0, 50),
+    token_strict_leak_count: tokenStrictLeak.length,
+    token_strict_leak: tokenStrictLeak.slice(0, 50),
+    heading_drift_count: headingDrift.length,
     files_scanned: cssFiles.length,
   };
   process.stdout.write(JSON.stringify(out, null, 2) + '\n');
@@ -152,6 +202,34 @@ if (asJSON) {
     }
   }
   console.log('');
+
+  // Round 2 R7 — heading drift watch (informational).
+  console.log(bold('Heading scale drift (Round 2 R7 — tight scale = H1 20 / H2 17 / H3 15)'));
+  if (headingDrift.length === 0) {
+    console.log(green('  PASS') + dim('  all .tiptap-editor h1/h2/h3 rules use tight scale'));
+  } else {
+    console.log(yellow(`  WARN  ${headingDrift.length} rule(s) drift from tight scale`));
+    for (const d of headingDrift.slice(0, 10)) {
+      console.log(`    ${yellow(d.file)}  font-size: ${d.headerSize}px`);
+    }
+  }
+  console.log('');
+
+  // Round 2 R7 extension — strict token-only files (BLOCKING).
+  console.log(bold('Strict token-only files (Round 2 R7 — BLOCKING — must be 0)'));
+  console.log(dim('  scope: ' + TOKEN_STRICT_FILES.map(f => f.split(sep).pop()).join(', ')));
+  if (tokenStrictLeak.length === 0) {
+    console.log(green('  PASS') + dim('  no raw colors in strict-token files'));
+  } else {
+    console.log(red(`  FAIL  ${tokenStrictLeak.length} raw color literal(s) found`));
+    for (const lk of tokenStrictLeak.slice(0, 25)) {
+      console.log(`    ${yellow(lk.file + ':' + lk.line)} ${dim(lk.lit)}  ${lk.snippet.slice(0, 80)}`);
+    }
+    if (tokenStrictLeak.length > 25) {
+      console.log(dim(`    ... and ${tokenStrictLeak.length - 25} more`));
+    }
+  }
+  console.log('');
 }
 
-process.exit(tier1Leak.length === 0 ? 0 : 1);
+process.exit((tier1Leak.length === 0 && tokenStrictLeak.length === 0) ? 0 : 1);

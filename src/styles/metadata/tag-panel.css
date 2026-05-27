@@ -6,8 +6,8 @@
   width: 360px;
   min-width: 280px;
   max-width: 480px;
-  border-left: 1px solid var(--border-color, #3c3c3c);
-  background-color: var(--bg-primary, #1e1e1e);
+  border-left: 1px solid var(--sep-l);
+  background-color: var(--bg-app);
   overflow-y: auto;
   flex-shrink: 0;
 }
@@ -27,8 +27,8 @@
 
 /* Folder note tag section (above search) */
 .hover-editor-tag-section {
-  border-top: 1px solid var(--border-color, #3c3c3c);
-  background-color: var(--bg-primary, #1e1e1e);
+  border-top: 1px solid var(--sep-l);
+  background-color: var(--bg-app);
   overflow-y: auto;
   max-height: 400px;
   flex-shrink: 0;
@@ -53,8 +53,8 @@
   justify-content: center;
   height: 100%;
   color: var(--tx-3);
-  font-size: var(--font-lg);
-  padding: var(--space-8);
+  font-size: var(--fs-14);
+  padding: var(--sp-4);
 }
 
 .tag-panel-header {
@@ -68,7 +68,7 @@
 }
 
 .tag-panel-title {
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   font-weight: 600;
   color: var(--tx-1);
 }
@@ -76,15 +76,15 @@
 .tag-panel-header-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-2);
 }
 
 .tag-panel-mode-toggle {
   display: flex;
-  gap: var(--space-1);
+  gap: var(--sp-1);
   background-color: var(--bg-elevated);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1);
+  border-radius: var(--r-6);
+  padding: var(--sp-1);
 }
 
 .tag-panel-mode-btn {
@@ -93,9 +93,9 @@
   border: none;
   color: var(--tx-2);
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-base);
-  transition: background-color var(--duration-fast);
+  border-radius: var(--r-6);
+  font-size: var(--fs-13);
+  transition: background-color var(--dur-150);
 }
 
 .tag-panel-mode-btn:hover {
@@ -103,12 +103,12 @@
 }
 
 .tag-panel-mode-btn.active {
-  background-color: var(--c-blue);
-  color: #fff;
+  background-color: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
 }
 
 .tag-panel-saving {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-3);
   font-style: italic;
 }
@@ -116,7 +116,7 @@
 .tag-panel-content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-6);
+  padding: var(--sp-3);
 }
 
 /* Hide faceted tag editor title inside tag panel (redundant with panel header) */

@@ -186,6 +186,8 @@ pub fn rename_file_with_links(
     file_path: String,
     new_name: String,
     vault_path: String,
+    library_state: tauri::State<'_, crate::LibraryState>,
+    sync_v2_state: tauri::State<'_, crate::features::sync_v2::commands::SyncEngineState>,
 ) -> Result<String, String> {
     println!("[DEBUG] rename_file_with_links called:");
     println!("  file_path: {}", file_path);
@@ -359,6 +361,113 @@ pub fn rename_file_with_links(
                             &content[line_end..]
                         );
                         let _ = fs::write(&final_path, new_content);
+                    }
+                }
+            }
+        }
+    }
+
+    // === sync_v2: update refs + enqueue for all affected notes ===
+    {
+        use crate::core::note_id;
+        use crate::features::sync_v2::dirty_queue::DirtyOperation;
+
+        let vault_root = Path::new(&vault_path);
+
+        // Collect all .md files at the final_path location (single file or directory)
+        let mut affected_files: Vec<PathBuf> = Vec::new();
+        if final_path.is_dir() {
+            fn walk_md(dir: &Path, out: &mut Vec<PathBuf>) {
+                if let Ok(entries) = fs::read_dir(dir) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if p.is_dir() {
+                            let name = p.file_name().unwrap_or_default().to_string_lossy();
+                            if !name.ends_with("_att") && name != ".notology" {
+                                walk_md(&p, out);
+                            }
+                        } else if p.extension().and_then(|e| e.to_str()) == Some("md") {
+                            out.push(p);
+                        }
+                    }
+                }
+            }
+            walk_md(&final_path, &mut affected_files);
+        } else if final_path.extension().and_then(|e| e.to_str()) == Some("md") {
+            affected_files.push(final_path.clone());
+        }
+
+        // For each affected .md: read note_id → compute new relative path → update ref + enqueue
+        if let Ok(guard) = library_state.lock() {
+            if let Some(lib) = guard.as_ref() {
+                for md_path in &affected_files {
+                    if let Ok(Some(nid)) = note_id::read_id_from_file(md_path) {
+                        if let Ok(new_rel) = md_path.strip_prefix(vault_root) {
+                            let new_rel_str = new_rel.to_str().unwrap_or("").replace('\\', "/");
+                            // Get old path from current ref (before update)
+                            let old_rel_str = lib.refs().get(&nid)
+                                .ok().flatten()
+                                .map(|r| r.relative_path.clone())
+                                .unwrap_or_default();
+                            // Update ref
+                            if let Ok(Some(mut note_ref)) = lib.refs().get(&nid) {
+                                if note_ref.relative_path != new_rel_str {
+                                    note_ref.relative_path = new_rel_str.clone();
+                                    note_ref.updated_at = chrono::Utc::now();
+                                    let _ = lib.refs().set(&note_ref);
+                                    log::info!("[rename] updated ref: {} → {}", old_rel_str, new_rel_str);
+                                    // Enqueue move
+                                    if let Some(engine) = sync_v2_state.get() {
+                                        engine.enqueue_dirty(DirtyOperation::NoteMove {
+                                            note_id: nid.clone(),
+                                            old_path: old_rel_str,
+                                            new_path: new_rel_str,
+                                        });
+                                    }
+                                }
+                            }
+                            // Also commit the new content (frontmatter title was updated above)
+                            if let Ok(content) = fs::read(md_path) {
+                                let rel_str = new_rel.to_str().unwrap_or("");
+                                match lib.commit_version(&nid, &content, rel_str, vec![]) {
+                                    Ok(Some(hash)) => {
+                                        log::info!("[rename] committed: {} -> {}", nid, &hash[..16]);
+                                        if let Some(engine) = sync_v2_state.get() {
+                                            engine.enqueue_dirty(DirtyOperation::NoteUpsert {
+                                                note_id: nid,
+                                                relative_path: rel_str.replace('\\', "/"),
+                                            });
+                                        }
+                                    }
+                                    Ok(None) => {}
+                                    Err(e) => log::warn!("[rename] commit failed: {} - {}", nid, e),
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Enqueue old folder deletion if this was a folder rename
+        if is_folder_note || old_path.is_dir() {
+            if let Ok(old_rel) = old_path.strip_prefix(vault_root) {
+                if let Some(old_rel_str) = old_rel.to_str() {
+                    let old_dir_rel = if is_folder_note {
+                        // For folder note, old_path is the .md file; parent was the folder
+                        old_rel.parent()
+                            .and_then(|p| p.to_str())
+                            .unwrap_or("")
+                            .replace('\\', "/")
+                    } else {
+                        old_rel_str.replace('\\', "/")
+                    };
+                    if !old_dir_rel.is_empty() {
+                        if let Some(engine) = sync_v2_state.get() {
+                            engine.enqueue_dirty(DirtyOperation::FolderDelete {
+                                relative_path: old_dir_rel,
+                            });
+                        }
                     }
                 }
             }

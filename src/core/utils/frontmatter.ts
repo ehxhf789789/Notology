@@ -1,5 +1,5 @@
 import { parse, stringify } from 'yaml';
-import type { NoteFrontmatter } from '../types';
+import type { NoteFrontmatter, FacetedTags, LegacyFlatTags } from '../types';
 
 export function parseFrontmatter(raw: string): NoteFrontmatter {
   try {
@@ -10,7 +10,11 @@ export function parseFrontmatter(raw: string): NoteFrontmatter {
       title: parsed.title as string | undefined,
       type: parsed.type as string | undefined,
       cssclasses: parsed.cssclasses as string[] | undefined,
-      tags: parsed.tags as string[] | undefined,
+      // 11th hotfix (2026-05-17) — was `as string[] | undefined` which
+      // misrepresented reality (yaml-parsed `tags` is a FacetedTags object
+      // for current vaults, legacy flat array for old vaults). Polymorphic
+      // union now matches the type declaration in core/types/index.ts.
+      tags: parsed.tags as FacetedTags | LegacyFlatTags | undefined,
       ...parsed,
     };
   } catch {

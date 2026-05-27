@@ -397,7 +397,7 @@ function Sidebar() {
       {/* New Container Modal - Portal to body for correct positioning */}
       {showNewContainer && createPortal(
         <div className="modal-overlay" onClick={cancelNew}>
-          <div className="new-container-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-shell new-container-modal" onClick={(e) => e.stopPropagation()}>
             <div className="new-container-modal-header">{t('newContainerTitle', language)}</div>
             <input
               ref={inputRef}
@@ -428,7 +428,7 @@ function Sidebar() {
       {/* New Subfolder Modal - Portal to body for correct positioning */}
       {showNewSubfolder && createPortal(
         <div className="modal-overlay" onClick={cancelNewSubfolder}>
-          <div className="new-container-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-shell new-container-modal" onClick={(e) => e.stopPropagation()}>
             <div className="new-container-modal-header">
               <FolderPlus size={16} style={{ marginRight: '8px' }} />
               {t('newFolder', language)}

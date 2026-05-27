@@ -27,177 +27,450 @@
   justify-content: center;
   height: 100%;
   color: var(--tx-3);
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
 }
 
-/* Graph search bar */
+/* ===== v22 (HanBin 2026-05-23) — Graph tab complete redesign =====
+   • iOS-style pill search with search-icon prefix + clear/count suffix
+   • Neutral focus (no blue ring) per Codified Rules §C
+   • Toggle button = `.btn-ghost-icon`-style square
+   • Settings panel = iOS popover chrome (modal-shell tokens, ds-popover)
+   • DS Toggle replaces native checkboxes
+   • Legend = chip-pill row (mirrors search-tab filter chips)
+   • Node info panel = sliding side card on top-right
+   ================================================================ */
+
 .graph-search-bar {
   position: absolute;
   top: 8px;
   left: 8px;
   z-index: var(--z-raised);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px 0 10px;
+  /* v22.4 (HanBin 2026-05-23) — borderless. The hairline pill outline
+     read as a stray "직사각형 테두리" floating in the otherwise empty
+     canvas. The subtle background tint alone is enough chrome.
+
+     2026-05-24 (HanBin) — `--bg-elevated` resolved to `#FFFFFF` in
+     light mode = identical to the canvas behind it, so the bar was
+     invisible. Switched to a theme-aware tx-1 tint at 6% which gives a
+     barely-there gray that reads as a distinct chip on both themes
+     without becoming visual chrome. Hover / focus bump the tint
+     slightly for affordance. */
+  background: color-mix(in srgb, var(--tx-1) 6%, transparent);
+  border: none;
+  border-radius: 999px;
+  color: var(--tx-2);
+  transition: background var(--dur-150) var(--ease-standard, ease);
+}
+
+.graph-search-bar:hover {
+  background: color-mix(in srgb, var(--tx-1) 10%, transparent);
+}
+
+.graph-search-bar:focus-within {
+  background: color-mix(in srgb, var(--tx-1) 12%, transparent);
+}
+
+.graph-search-bar__icon {
+  flex-shrink: 0;
+  color: var(--tx-3);
 }
 
 .graph-search-input {
-  width: 180px;
-  padding: 4px 8px;
-  font-size: var(--font-base);
-  background: var(--bg-app);
-  border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
-  color: var(--tx-1);
+  flex: 1;
+  width: 160px;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
   outline: none;
-  transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
+  color: var(--tx-1);
+  font-size: var(--fs-13);
+  font-family: var(--app-font);
 }
 
-.graph-search-input:focus {
-  border-color: var(--accent-color, #7c3aed);
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+.graph-search-input::placeholder { color: var(--tx-3); }
+
+/* v22.5 (HanBin 2026-05-23) — kill the focus rectangle. The global
+   reset (`input:focus-visible { box-shadow: 0 0 0 2px ... }`) was
+   painting a 2px halo on the input element on focus. Because the
+   <input> has no border-radius (only its rounded pill parent does),
+   the halo rendered as a literal RECTANGLE inside the pill — that's
+   the "직사각형 테두리" the user kept flagging. Override here so the
+   pill itself is the only focus indicator. */
+.graph-search-input:focus,
+.graph-search-input:focus-visible {
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 
-/* Graph settings toggle */
-.graph-settings-toggle {
-  position: absolute;
-  bottom: 32px;
-  left: 8px;
-  z-index: var(--z-raised);
-  width: 32px;
-  height: 32px;
-  display: flex;
+.graph-search-bar__count {
+  flex-shrink: 0;
+  min-width: 18px;
+  padding: 0 4px;
+  background: var(--bg-hover);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-11);
+  color: var(--tx-2);
+  text-align: center;
+  line-height: 16px;
+}
+
+.graph-search-bar__clear {
+  flex-shrink: 0;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-app);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-pill);
+  color: var(--tx-3);
+  cursor: pointer;
+}
+
+.graph-search-bar__clear:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+/* Graph settings toggle — ghost icon button */
+.graph-settings-toggle {
+  position: absolute;
+  bottom: 36px;
+  left: 8px;
+  z-index: var(--z-raised);
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-md, 6px);
   color: var(--tx-3);
   cursor: pointer;
   padding: 0;
-  transition: all var(--duration-fast) ease;
+  transition: background var(--dur-150) var(--ease-standard, ease),
+              color var(--dur-150) var(--ease-standard, ease);
 }
 
 .graph-settings-toggle:hover {
+  background: var(--bg-hover);
   color: var(--tx-1);
-  background: var(--bg-tertiary, var(--bg-app));
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-xs);
 }
 
-/* Graph settings panel */
+.graph-settings-toggle.is-active {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+/* Graph settings panel — popover chrome (matches DS .ds-popover) */
 .graph-settings-panel {
   position: absolute;
-  bottom: 66px;
+  bottom: 72px;
   left: 8px;
-  width: 220px;
-  background: var(--bg-app);
-  border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-xl);
-  padding: var(--space-6);
+  width: 240px;
   z-index: var(--z-raised);
-  box-shadow: var(--sh-md);
-  animation: modalEnter 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+  background: var(--bg-elev-2);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--radius-pop, var(--r-12));
+  box-shadow: var(--shadow-modal, var(--sh-lg));
+  font-family: var(--app-font);
+  animation: modalEnter 180ms ease-out;
 }
 
-.graph-settings-title {
-  font-size: var(--font-base);
-  font-weight: 600;
-  color: var(--tx-1);
-  margin-bottom: var(--space-5);
+@keyframes modalEnter {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.graph-settings-section {
-  margin-bottom: var(--space-5);
-  padding-bottom: var(--space-4);
-  border-bottom: 0.5px solid var(--sep-l);
+@media (prefers-reduced-motion: reduce) {
+  .graph-settings-panel { animation: none; }
 }
 
-.graph-settings-section:last-of-type {
-  border-bottom: none;
-}
-
-.graph-settings-subtitle {
-  font-size: var(--font-sm);
-  color: var(--tx-3);
-  margin-bottom: var(--space-3);
-}
-
-.graph-settings-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  font-size: var(--font-base);
-  color: var(--tx-1);
-  cursor: pointer;
-  margin-bottom: var(--space-2);
-}
-
-.graph-settings-label input[type="checkbox"] {
-  margin: 0;
-  cursor: pointer;
-}
-
-.graph-settings-color-row {
+.graph-settings-panel__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: var(--font-sm);
+  padding: 10px 10px 8px;
+  font-size: var(--fs-13);
+  font-weight: 600;
   color: var(--tx-1);
-  margin-bottom: var(--space-2);
 }
 
-.graph-settings-color-row input[type="color"] {
-  width: 24px;
+.graph-settings-panel__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
   height: 20px;
-  border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
   padding: 0;
-  background: none;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md, 6px);
+  color: var(--tx-3);
+  cursor: pointer;
+}
+
+.graph-settings-panel__close:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+.graph-settings-panel__group {
+  padding: 4px 10px 8px;
+}
+
+.graph-settings-panel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+  font-size: var(--fs-13);
+}
+
+.graph-settings-panel__row-label {
+  flex: 1;
+  color: var(--tx-1);
+}
+
+.graph-settings-panel__divider {
+  height: 0.5px;
+  background: var(--sep-l);
+  margin: 2px 0;
+}
+
+.graph-settings-panel__group-label {
+  font-size: var(--fs-11);
+  letter-spacing: 0.02em;
+  color: var(--tx-3);
+  font-weight: 500;
+  margin-bottom: 6px;
 }
 
 .graph-settings-slider-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 56px 1fr 36px;
   align-items: center;
-  gap: var(--space-3);
-  font-size: var(--font-sm);
-  color: var(--tx-1);
-  margin-bottom: var(--space-2);
+  gap: 8px;
+  min-height: 24px;
+  font-size: var(--fs-11);
 }
 
-.graph-settings-slider-row span:first-child {
-  min-width: 50px;
+.graph-settings-slider-row__label {
+  color: var(--tx-2);
 }
 
-.graph-settings-slider-row input[type="range"] {
-  flex: 1;
+.graph-settings-slider-row__value {
+  color: var(--tx-3);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-settings-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
   height: 4px;
+  background: var(--sep-l);
+  border-radius: var(--r-pill);
+  outline: none;
   cursor: pointer;
 }
 
-.graph-settings-slider-value {
-  min-width: 30px;
-  text-align: right;
-  font-size: var(--font-sm);
-  color: var(--tx-3);
+.graph-settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--tx-1);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: transform var(--dur-150) var(--ease-standard, ease);
+}
+
+.graph-settings-slider::-webkit-slider-thumb:hover { transform: scale(1.1); }
+
+.graph-settings-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--tx-1);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
 }
 
 .graph-settings-reset-btn {
-  width: 100%;
-  padding: 4px 8px;
-  font-size: var(--font-sm);
+  display: block;
+  width: calc(100% - 20px);
+  margin: 4px 10px 10px;
+  padding: 6px 10px;
+  font-size: var(--fs-12);
+  font-family: var(--app-font);
   background: transparent;
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
-  color: var(--tx-3);
+  border-radius: var(--r-md, 6px);
+  color: var(--tx-2);
   cursor: pointer;
-  margin-top: var(--space-2);
+  transition: background var(--dur-150) var(--ease-standard, ease),
+              color var(--dur-150) var(--ease-standard, ease);
 }
 
 .graph-settings-reset-btn:hover {
+  background: var(--bg-hover);
   color: var(--tx-1);
-  border-color: var(--tx-3);
 }
 
-/* Graph legend bar */
+/* Node info panel — v22.1 speech-bubble that follows the selected
+   node. Default top:8/left:8 only kicks in until rAF-driven inline
+   `style.left/top` arrives (one tick). Pointer tail on the LEFT edge
+   visually anchors the bubble to the node. */
+.graph-node-info {
+  /* Portaled into document.body so it escapes .graph-view-container's
+     overflow:hidden. Coordinates are computed in viewport space by the
+     React render. z-index sits above RightPanel/Calendar/modal-backdrop. */
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  width: 280px;
+  max-height: calc(100vh - 80px);
+  z-index: var(--z-popover);
+  background: var(--bg-elev-2);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--radius-pop, var(--r-12));
+  box-shadow: var(--shadow-modal, var(--sh-lg));
+  font-family: var(--app-font);
+  display: flex;
+  flex-direction: column;
+  overflow: visible;  /* allow ::before pointer to overflow */
+  animation: modalEnter 180ms ease-out;
+}
+
+/* Pointer tail — small diamond on the bubble's left edge */
+.graph-node-info::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 14px;
+  width: 10px;
+  height: 10px;
+  background: var(--bg-elev-2);
+  border-left: 0.5px solid var(--sep-l);
+  border-bottom: 0.5px solid var(--sep-l);
+  transform: rotate(45deg);
+  z-index: -1;
+}
+
+.graph-node-info__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px;
+  border-bottom: 0.5px solid var(--sep-l);
+}
+
+.graph-node-info__type-icon {
+  flex-shrink: 0;
+  color: var(--tx-2);
+}
+
+.graph-node-info__title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--tx-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-node-info__close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md, 6px);
+  color: var(--tx-3);
+  cursor: pointer;
+}
+
+.graph-node-info__close:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+.graph-node-info__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.graph-node-info__meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-12);
+  line-height: 1.4;
+}
+
+.graph-node-info__meta-icon {
+  flex-shrink: 0;
+  color: var(--tx-3);
+}
+
+.graph-node-info__meta-label {
+  min-width: 56px;
+  color: var(--tx-3);
+  font-size: var(--fs-11);
+  letter-spacing: 0.02em;
+}
+
+.graph-node-info__meta-value {
+  flex: 1;
+  min-width: 0;
+  color: var(--tx-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-node-info__open-btn {
+  margin: 0 10px 10px;
+  padding: 6px 10px;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  border: none;
+  border-radius: var(--r-md, 6px);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  font-family: var(--app-font);
+  cursor: pointer;
+  transition: background var(--dur-150) var(--ease-standard, ease);
+}
+
+.graph-node-info__open-btn:hover {
+  background: var(--btn-primary-bg-hover, var(--btn-primary-bg));
+}
+
+/* Graph legend bar — iOS-style chip row */
 .graph-legend-bar {
   position: absolute;
   bottom: 4px;
@@ -205,43 +478,54 @@
   display: flex;
   flex-wrap: wrap-reverse;
   justify-content: flex-end;
-  gap: 4px 10px;
-  font-size: var(--font-sm);
-  color: var(--tx-2);
+  gap: 4px 6px;
   z-index: var(--z-above);
   pointer-events: none;
   max-width: 65%;
-  background: color-mix(in srgb, var(--bg-app) 85%, transparent);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-md);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
 }
 
-.graph-legend-item {
-  display: flex;
+.graph-legend-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 5px;
+  padding: 2px 8px;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-11);
+  color: var(--tx-2);
   white-space: nowrap;
+  pointer-events: auto;
 }
 
-.graph-legend-dot {
+.graph-legend-chip__dot {
   width: 8px;
   height: 8px;
-  border-radius: var(--radius-full);
+  border-radius: var(--r-pill);
   flex-shrink: 0;
 }
 
-.graph-legend-folder {
-  border: 1.5px solid rgba(255, 255, 255, 0.5);
+.graph-legend-chip__dot--folder {
+  border: 1.5px solid var(--tx-2);
   box-sizing: border-box;
 }
 
-.graph-legend-diamond {
+.graph-legend-chip__dot--diamond {
   border-radius: 0;
   transform: rotate(45deg);
   width: 7px;
   height: 7px;
+}
+
+.graph-legend-chip__label {
+  color: var(--tx-1);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.graph-legend-chip__count {
+  color: var(--tx-3);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Graph info bar */
@@ -250,8 +534,8 @@
   bottom: 4px;
   left: 8px;
   display: flex;
-  gap: var(--space-6);
-  font-size: var(--font-sm);
+  gap: var(--sp-3);
+  font-size: var(--fs-11);
   color: var(--tx-3);
   z-index: var(--z-above);
   pointer-events: none;
@@ -271,115 +555,141 @@
 .comment-panel-header {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--sp-2);
   padding: 8px 10px;
   border-bottom: 0.5px solid var(--sep-l);
 }
 
 .comment-panel-title {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--tx-1);
 }
 
 .comment-panel-count {
-  font-size: var(--font-sm);
-  background: #bb9af7;
+  font-size: var(--fs-11);
+  background: var(--c-purple);
   color: #fff;
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-12);
   padding: 0 5px;
   font-weight: 700;
 }
 
+/* 2026-05-26 (HanBin) — iOS-style refinement for CommentPanel form.
+   - Generous padding (iOS 입력칸 톤)
+   - Border-radius 10px (form / 8px input — iOS 표준)
+   - bg + 0.5px sep-l hairline (no harsh borders)
+   - Buttons: rounded pill-ish, neutral tx-1 base (raw purple/blue 채도 줄임)
+   - Anchor: italic 제거 (iOS는 italic 안 씀) */
 .comment-new {
-  padding: 8px 10px;
+  padding: 12px;
   border-bottom: 0.5px solid var(--sep-l);
   box-sizing: border-box;
+  background: var(--bg-base);
 }
 
 .comment-new-anchor {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
-  font-style: italic;
-  margin-bottom: var(--space-3);
+  margin-bottom: 8px;
   word-break: break-all;
+  /* iOS pill-style anchor preview */
+  display: inline-block;
+  padding: 2px 8px;
+  background: color-mix(in srgb, var(--tx-1) 6%, transparent);
+  border-radius: 999px;
 }
 
 .comment-new-input {
   width: 100%;
-  padding: 6px 8px;
-  font-size: var(--font-base);
+  padding: 10px 12px;
+  font-size: var(--fs-13);
   color: var(--tx-1);
-  background: var(--bg-elevated);
-  border: 0.5px solid var(--sep);
-  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--tx-1) 4%, transparent);
+  border: 0.5px solid var(--sep-l);
+  border-radius: 8px;
   resize: vertical;
-  min-height: 50px;
+  min-height: 56px;
   outline: none;
   box-sizing: border-box;
   font-family: inherit;
+  line-height: 1.45;
+  transition: border-color var(--dur-150) var(--ease-out),
+              background-color var(--dur-150) var(--ease-out);
 }
 
 .comment-new-input:focus {
-  border-color: #bb9af7;
+  border-color: color-mix(in srgb, var(--tx-1) 25%, transparent);
+  background: color-mix(in srgb, var(--tx-1) 6%, transparent);
 }
 
 .comment-new-header {
   display: flex;
   align-items: center;
-  margin-bottom: var(--space-3);
+  margin-bottom: 8px;
 }
 
 .comment-new-mode-label {
-  font-size: var(--font-sm);
+  font-size: var(--fs-12);
   font-weight: 600;
-  color: #bb9af7;
-  letter-spacing: 0.3px;
+  color: var(--tx-2);
+  letter-spacing: 0;
 }
 
+/* Task-mode = same neutral tone; the difference between memo/task is
+   conveyed by the form's "할일 추가" vs "메모 추가" label, not by
+   colored chrome (iOS minimalism). */
 .comment-new.task-mode .comment-new-mode-label {
-  color: #7aa2f7;
+  color: var(--tx-1);
 }
 
 .comment-new-actions {
   display: flex;
-  gap: var(--space-3);
-  margin-top: var(--space-3);
+  gap: 6px;
+  margin-top: 12px;
 }
 
+/* iOS-style primary button — filled, neutral dark base. */
 .comment-add-btn {
-  padding: 4px 10px;
-  font-size: var(--font-sm);
-  background: #bb9af7;
-  color: #fff;
+  padding: 7px 14px;
+  font-size: var(--fs-12);
+  background: var(--tx-1);
+  color: var(--bg-base);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+  transition: opacity var(--dur-150) var(--ease-out);
+}
+.comment-add-btn:hover:not(:disabled) {
+  opacity: 0.85;
 }
 
 .comment-new.task-mode .comment-add-btn {
-  background: #7aa2f7;
+  /* Same neutral primary across memo / task — iOS-style consistency. */
+  background: var(--tx-1);
+  color: var(--bg-base);
 }
 
 .comment-add-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.3;
   cursor: default;
 }
 
 .comment-cancel-btn {
-  padding: 4px 10px;
-  font-size: var(--font-sm);
+  padding: 7px 14px;
+  font-size: var(--fs-12);
   background: transparent;
-  color: var(--tx-3);
-  border: 0.5px solid var(--sep);
-  border-radius: var(--radius-sm);
+  color: var(--tx-2);
+  border: none;
+  border-radius: 8px;
   cursor: pointer;
+  transition: background-color var(--dur-150) var(--ease-out);
 }
 
 .comment-cancel-btn:hover {
+  background: color-mix(in srgb, var(--tx-1) 6%, transparent);
   color: var(--tx-1);
-  border-color: var(--tx-3);
 }
 
 .comment-list {
@@ -389,35 +699,53 @@
 
 .comment-empty {
   padding: 16px 10px;
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
   text-align: center;
 }
 
+/* 2026-05-26 (HanBin) — iOS-style card list items.
+   - Rounded card per item (8px radius), subtle bg tint
+   - Active state: neutral tx-1 tint (purple stripe 제거, 너무 채도 강함)
+   - Anchor: pill, italic 제거 (form anchor와 동일 톤)
+   - Spacing 약간 여유 (touch-friendly) */
 .comment-item {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--bg-app);
+  padding: 10px 12px;
+  margin: 6px 8px;
+  border-radius: 8px;
+  background: var(--bg-base);
+  border: 0.5px solid transparent;
+  transition: background-color var(--dur-150) var(--ease-out),
+              border-color var(--dur-150) var(--ease-out);
+}
+
+.comment-item:hover {
+  background: color-mix(in srgb, var(--tx-1) 3%, transparent);
 }
 
 .comment-item.active {
-  background: rgba(187, 154, 247, 0.08);
-  border-left: 3px solid #bb9af7;
+  background: color-mix(in srgb, var(--tx-1) 6%, transparent);
+  border-color: color-mix(in srgb, var(--tx-1) 12%, transparent);
 }
 
 .comment-item.resolved {
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 .comment-item-anchor {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
-  font-style: italic;
-  margin-bottom: var(--space-2);
+  margin-bottom: 6px;
   word-break: break-all;
+  /* iOS pill-style anchor, matches form anchor */
+  display: inline-block;
+  padding: 1px 8px;
+  background: color-mix(in srgb, var(--tx-1) 5%, transparent);
+  border-radius: 999px;
 }
 
 .comment-item-content {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-1);
   white-space: pre-wrap;
   word-break: break-word;
@@ -427,42 +755,45 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: var(--space-3);
+  margin-top: var(--sp-2);
 }
 
 .comment-item-date {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
 }
 
 .comment-item-actions {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--sp-1);
 }
 
+/* 2026-05-26 (HanBin) — iOS-style ghost icon buttons (matches other
+   ghost btns elsewhere: container-parent-btn / nas-browser-close). */
 .comment-action-btn {
-  width: 20px;
-  height: 20px;
-  background: none;
-  border: 0.5px solid var(--sep);
-  border-radius: var(--radius-sm);
-  color: var(--tx-2);
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--tx-3);
   cursor: pointer;
-  font-size: var(--font-sm);
+  font-size: var(--fs-12);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background-color var(--dur-150) var(--ease-out),
+              color var(--dur-150) var(--ease-out);
 }
 
 .comment-action-btn:hover {
-  background: var(--bg-elevated);
+  background: color-mix(in srgb, var(--tx-1) 8%, transparent);
   color: var(--tx-1);
 }
 
 .comment-delete-btn:hover {
-  background: #f7768e33;
-  border-color: #f7768e;
-  color: #f7768e;
+  background: color-mix(in srgb, var(--c-red) 14%, transparent);
+  color: var(--c-red);
 }
 
 .comment-resolved-section {
@@ -476,7 +807,7 @@
   background: none;
   border: none;
   color: var(--tx-3);
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   text-align: left;
   cursor: pointer;
 }
@@ -485,66 +816,89 @@
   color: var(--tx-1);
 }
 
-/* Comment Task Fields */
+/* 2026-05-26 (HanBin) — iOS-style task fields (date / time).
+   - Drop heavy bg container; fields sit flush with form (less nesting visual)
+   - Labels: sentence-case (UPPERCASE 제거)
+   - Inputs: same tx-1 tint base as textarea above for consistency
+   - Native HTML5 date/time picker preserved (Windows OS picker) — wrap만 정돈 */
 .comment-task-fields {
-  margin-top: var(--space-4);
-  padding: 10px 8px 8px 8px;
-  background: var(--bg-app);
+  margin-top: 10px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--tx-1) 3%, transparent);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: 10px;
   box-sizing: border-box;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .comment-task-field {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  margin-bottom: var(--space-5);
+  gap: 4px;
   min-width: 0;
   overflow: hidden;
 }
 
-.comment-task-field:last-child {
-  margin-bottom: 0;
-}
-
 .comment-task-field label {
-  font-size: var(--font-sm);
-  color: #999;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  font-weight: 500;
+  /* iOS: sentence-case, no tracking */
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .comment-task-field input {
   width: 100%;
   max-width: 100%;
-  padding: 5px 7px;
-  font-size: var(--font-sm);
+  padding: 7px 10px;
+  font-size: var(--fs-12);
   color: var(--tx-1);
   background: var(--bg-base);
-  border: 0.5px solid var(--sep);
-  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--sep-l);
+  border-radius: 8px;
   outline: none;
   box-sizing: border-box;
-  transition: border-color var(--duration-normal);
+  transition: border-color var(--dur-150) var(--ease-out),
+              background-color var(--dur-150) var(--ease-out);
   min-width: 0;
+  font-family: inherit;
+  color-scheme: light dark;
 }
 
 .comment-task-field input:focus {
-  border-color: #bb9af7;
-  background: var(--bg-app);
+  border-color: color-mix(in srgb, var(--tx-1) 30%, transparent);
+  background: color-mix(in srgb, var(--tx-1) 4%, transparent);
+}
+
+/* 2026-05-26 (HanBin) — REMOVE the native picker indicator entirely.
+   v1 attempt used `opacity: 0` + stretched indicator, but WebView2
+   still treated the (invisible) stretched indicator as a hover target
+   and showed the system tooltip ("날짜 선택도구 표시"). v2: `display:
+   none` removes the indicator from the layout tree entirely so there's
+   no tooltip target. Input click opens the picker via the
+   `showPicker()` JS call wired in CommentPanel.tsx onClick handler. */
+.comment-task-field input[type="date"]::-webkit-calendar-picker-indicator,
+.comment-task-field input[type="time"]::-webkit-calendar-picker-indicator {
+  display: none;
+}
+/* Cursor on the whole input field so the user perceives it as clickable. */
+.comment-task-field input[type="date"],
+.comment-task-field input[type="time"] {
+  cursor: pointer;
 }
 
 
-/* Comment Task Display */
+/* 2026-05-26 (HanBin) — iOS-style task display.
+   - 좌측 stripe (c-teal) 제거: card 자체로 충분, 굳이 색 강조 안 함
+   - resolved: opacity + strikethrough 그대로
+   - date/time meta: pill-style chips (좌측 들여쓰기 줄이고, 인라인 chip) */
 .comment-item.task {
-  border-left: 3px solid #7dcfff;
-}
-
-.comment-item.resolved {
-  opacity: 0.6;
+  /* No left stripe — card + checkbox만으로 task 식별 충분 */
+  border-left: none;
 }
 
 .comment-item.resolved .comment-item-content,
@@ -556,30 +910,61 @@
 .comment-task-content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 8px;
 }
 
 .comment-task-header {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-4);
+  gap: 10px;
 }
 
+/* 2026-05-26 (HanBin) — iOS-style native checkbox (matches
+   .right-panel-memo-checkbox + .calendar-memo-checkbox). accent-color
+   만으로는 native 외형이 OS-dependent라 일관성 없었음. */
 .comment-task-checkbox {
-  width: 16px;
-  height: 16px;
-  margin-top: var(--space-1);
-  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
   flex-shrink: 0;
-  accent-color: #7dcfff;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  background: transparent;
+  border: 1.5px solid color-mix(in srgb, var(--tx-1) 35%, transparent);
+  border-radius: 5px;
+  cursor: pointer;
+  position: relative;
+  transition: background-color var(--dur-150) var(--ease-out),
+              border-color var(--dur-150) var(--ease-out);
+}
+.comment-task-checkbox:hover {
+  border-color: color-mix(in srgb, var(--tx-1) 60%, transparent);
+}
+.comment-task-checkbox:checked {
+  background: var(--tx-1);
+  border-color: var(--tx-1);
+}
+.comment-task-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+  -webkit-mask-size: 12px;
+  mask-size: 12px;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  background-color: var(--bg-base);
 }
 
 .comment-task-title {
   flex: 1;
-  font-size: var(--font-base);
-  font-weight: 600;
+  font-size: var(--fs-13);
+  font-weight: 500;
   color: var(--tx-1);
-  line-height: 1.4;
+  line-height: 1.45;
   word-break: break-word;
 }
 
@@ -588,27 +973,30 @@
   color: var(--tx-3);
 }
 
+/* Date / time inline pill chips (iOS reminders-style). Sit below title,
+   small + neutral. */
 .comment-task-meta {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-left: var(--space-12);
-  font-size: var(--font-sm);
-  color: var(--tx-2);
-  margin-top: var(--space-2);
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 28px;
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  margin-top: 2px;
 }
 
-.comment-task-date {
-  color: #9ece6a;
-}
-
+.comment-task-date,
 .comment-task-time {
-  color: #7dcfff;
+  padding: 1px 8px;
+  background: color-mix(in srgb, var(--tx-1) 6%, transparent);
+  color: var(--tx-2);
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
 }
 
 .comment-task-note {
-  margin-left: var(--space-12);
-  font-size: var(--font-sm);
+  margin-left: var(--sp-6);
+  font-size: var(--fs-11);
   color: var(--tx-2);
   font-style: italic;
   line-height: 1.3;
@@ -618,19 +1006,19 @@
 .comment-edit-mode {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   width: 100%;
 }
 
 .comment-edit-input {
   width: 100%;
-  padding: var(--space-4);
+  padding: var(--sp-2);
   background-color: var(--bg-base);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-2);
   font-family: inherit;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   resize: vertical;
   min-height: 60px;
 }
@@ -642,7 +1030,7 @@
 
 .comment-edit-actions {
   display: flex;
-  gap: var(--space-3);
+  gap: var(--sp-2);
   justify-content: flex-end;
 }
 
@@ -650,8 +1038,8 @@
 .comment-edit-cancel-btn {
   padding: 6px 12px;
   border: none;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-sm);
+  border-radius: var(--r-6);
+  font-size: var(--fs-11);
   cursor: pointer;
   font-weight: 500;
 }
@@ -662,7 +1050,7 @@
 }
 
 .comment-edit-save-btn:hover {
-  background-color: #005a9e;
+  background-color: color-mix(in srgb, var(--c-blue) 80%, black);
 }
 
 .comment-edit-cancel-btn {

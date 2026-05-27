@@ -9,6 +9,18 @@ import {
   updateFolderTemplates,
   updateCustomShortcuts,
 } from '../../../core/utils/vaultConfigUtils';
+// v17 (2026-05-16, HanBin) — per-file custom template storage so a single
+// vault-config write can't wipe all templates at once.
+import {
+  loadAllCustomTemplates,
+  saveCustomTemplate,
+  deleteCustomTemplateFile,
+  migrateLegacyTemplates,
+} from '../templatesFileStore';
+// v20 (2026-05-16, HanBin) — cross-window template sync. Any mutation here
+// broadcasts a Tauri event so hover windows (separate React entrypoints
+// with their own templateStore) can reload and stay in sync.
+import { notifyTemplatesChanged } from '../../../core/utils/windowSync';
 
 interface TemplateState {
   // State
@@ -34,14 +46,14 @@ interface TemplateState {
   // Actions - Shortcuts
   setCustomShortcuts: (shortcuts: ShortcutBinding[], vaultPath: string | null) => void;
 
-  // Load from vault-config.yaml
+  // Load from vault-config.yaml + per-file custom template dir (v17)
   loadTemplates: (vaultPath: string, vaultConfig: {
     customTemplates?: NoteTemplate[];
     enabledTemplateIds?: string[];
     defaultTemplateType?: 'A' | 'B';
     folderTemplates?: FolderNoteTemplate[];
     customShortcuts?: ShortcutBinding[];
-  }) => void;
+  }) => Promise<void>;
   resetToDefaults: () => void;
 }
 
@@ -52,10 +64,34 @@ async function persistFolderTemplates(templates: FolderNoteTemplate[], vaultPath
 }
 
 // Internal helper to persist note templates
-async function persistNoteTemplates(templates: NoteTemplate[], vaultPath: string | null) {
+// v17 (2026-05-16, HanBin) — persist customs as PER-FILE YAML under
+// `.notology/templates/custom/<id>.yaml`. Each save = one file write,
+// each delete = one file remove. No more single-point-of-failure on
+// vault-config.yaml's customTemplates array.
+const DEFAULT_TEMPLATE_IDS = new Set(DEFAULT_NOTE_TEMPLATES.map(t => t.id));
+
+async function persistOneCustomTemplate(template: NoteTemplate, vaultPath: string | null) {
   if (!vaultPath) return;
-  const customOnly = templates.filter(t => !t.id.startsWith('note-') || t.id.startsWith('note-custom-'));
-  await updateCustomTemplates(vaultPath, customOnly);
+  if (DEFAULT_TEMPLATE_IDS.has(template.id)) return; // never write defaults to disk
+  await saveCustomTemplate(vaultPath, template);
+  // v17 also clears the legacy vault-config.customTemplates array so a
+  // future migration step doesn't re-introduce stale entries.
+  await updateCustomTemplates(vaultPath, []).catch(err =>
+    console.warn('[templateStore] failed to clear legacy customTemplates:', err),
+  );
+  // v20 — broadcast so other windows reload templates.
+  notifyTemplatesChanged(vaultPath).catch(err =>
+    console.warn('[templateStore] broadcast failed:', err),
+  );
+}
+
+async function deleteOneCustomTemplate(id: string, vaultPath: string | null) {
+  if (!vaultPath) return;
+  if (DEFAULT_TEMPLATE_IDS.has(id)) return;
+  await deleteCustomTemplateFile(vaultPath, id);
+  notifyTemplatesChanged(vaultPath).catch(err =>
+    console.warn('[templateStore] broadcast failed:', err),
+  );
 }
 
 // Inject template custom colors as CSS variables on :root
@@ -105,24 +141,38 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
     persistFolderTemplates(updated, vaultPath);
   },
 
-  // Actions - Note templates
+  // Actions - Note templates (v17 — per-file persistence)
   addNoteTemplate: (template, vaultPath) => {
     const updated = [...get().noteTemplates, template];
-    set({ noteTemplates: updated });
-    persistNoteTemplates(updated, vaultPath);
+    const currentEnabled = get().enabledTemplateIds;
+    const newEnabled = currentEnabled.includes(template.id)
+      ? currentEnabled
+      : [...currentEnabled, template.id];
+    set({ noteTemplates: updated, enabledTemplateIds: newEnabled });
+    // Single template write — won't touch other template files.
+    persistOneCustomTemplate(template, vaultPath).catch(err =>
+      console.error('[templateStore] addNoteTemplate persist failed:', err),
+    );
+    if (vaultPath && newEnabled !== currentEnabled) {
+      updateEnabledTemplateIds(vaultPath, newEnabled);
+    }
   },
 
   updateNoteTemplate: (template, vaultPath) => {
     const updated = get().noteTemplates.map(t => t.id === template.id ? template : t);
     set({ noteTemplates: updated });
-    persistNoteTemplates(updated, vaultPath);
+    persistOneCustomTemplate(template, vaultPath).catch(err =>
+      console.error('[templateStore] updateNoteTemplate persist failed:', err),
+    );
     injectTemplateColorVars(updated);
   },
 
   removeNoteTemplate: (id, vaultPath) => {
     const updated = get().noteTemplates.filter(t => t.id !== id);
     set({ noteTemplates: updated });
-    persistNoteTemplates(updated, vaultPath);
+    deleteOneCustomTemplate(id, vaultPath).catch(err =>
+      console.error('[templateStore] removeNoteTemplate delete failed:', err),
+    );
   },
 
   setEnabledTemplates: (ids, vaultPath) => {
@@ -148,8 +198,8 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
     updateCustomShortcuts(vaultPath, shortcuts);
   },
 
-  // Load from vault-config.yaml (all template data now in portable config)
-  loadTemplates: (_vaultPath, vaultConfig) => {
+  // Load from vault-config.yaml + per-file custom template store (v17).
+  loadTemplates: async (vaultPath, vaultConfig) => {
     const updates: Partial<TemplateState> = {};
 
     // Folder templates
@@ -161,17 +211,71 @@ export const useTemplateStore = create<TemplateState>()((set, get) => ({
     }
     if (vaultConfig.defaultTemplateType) updates.defaultTemplateType = vaultConfig.defaultTemplateType;
 
-    // Note templates (custom ones from vault config)
-    const savedCustomNoteTemplates = vaultConfig.customTemplates || [];
+    // v17 (2026-05-16, HanBin) — custom templates now live as individual
+    // YAML files under `.notology/templates/custom/`. Load from there;
+    // run a one-shot migration if vault-config still has the legacy
+    // `customTemplates` array (writes each to its own file).
+    let perFileCustoms: NoteTemplate[] = [];
+    try {
+      perFileCustoms = await loadAllCustomTemplates(vaultPath);
+    } catch (err) {
+      console.error('[templateStore] failed to load per-file customs:', err);
+    }
+    // Migrate legacy array if present and not yet superseded by per-file
+    // versions (per-file wins by id).
+    if (vaultConfig.customTemplates && vaultConfig.customTemplates.length > 0) {
+      const perFileIds = new Set(perFileCustoms.map(t => t.id));
+      const toMigrate = vaultConfig.customTemplates.filter(
+        t => !DEFAULT_TEMPLATE_IDS.has(t.id) && !perFileIds.has(t.id),
+      );
+      if (toMigrate.length > 0) {
+        try {
+          const migrated = await migrateLegacyTemplates(vaultPath, toMigrate, DEFAULT_TEMPLATE_IDS);
+          perFileCustoms = [...perFileCustoms, ...migrated];
+        } catch (err) {
+          console.warn('[templateStore] migration of legacy templates failed:', err);
+        }
+      }
+      // Clear the legacy array so the per-file store is the single
+      // source of truth going forward.
+      try {
+        await updateCustomTemplates(vaultPath, []);
+      } catch (err) {
+        console.warn('[templateStore] failed to clear legacy customTemplates:', err);
+      }
+    }
+    // Dedupe defensively — drop anything whose id collides with current
+    // defaults (cleanup for historical pollution bug).
+    const savedCustomNoteTemplates = perFileCustoms.filter(t => !DEFAULT_TEMPLATE_IDS.has(t.id));
     if (savedCustomNoteTemplates.length > 0) {
       updates.noteTemplates = [...DEFAULT_NOTE_TEMPLATES, ...savedCustomNoteTemplates];
     } else {
       updates.noteTemplates = DEFAULT_NOTE_TEMPLATES;
     }
     if (vaultConfig.enabledTemplateIds) {
-      updates.enabledTemplateIds = vaultConfig.enabledTemplateIds;
+      // Stage 5.0.5a (2026-05-16) — filter out stale IDs from old 12-template
+      // registry that no longer resolve in DEFAULT_NOTE_TEMPLATES.
+      const allValidIds = new Set([
+        ...DEFAULT_NOTE_TEMPLATES.map(t => t.id),
+        ...savedCustomNoteTemplates.map(t => t.id),
+      ]);
+      const survived = vaultConfig.enabledTemplateIds.filter(id => allValidIds.has(id));
+      // v16 fix (2026-05-16, HanBin) — auto-include any custom templates that
+      // are NOT yet in enabledTemplateIds. Without this, templates created
+      // before the v12 auto-enable fix stay hidden from TemplateSelector.
+      const survivedSet = new Set(survived);
+      for (const t of savedCustomNoteTemplates) {
+        if (!survivedSet.has(t.id)) survived.push(t.id);
+      }
+      updates.enabledTemplateIds = survived.length > 0
+        ? survived
+        : DEFAULT_NOTE_TEMPLATES.map(t => t.id);
     } else {
-      updates.enabledTemplateIds = DEFAULT_NOTE_TEMPLATES.map(t => t.id);
+      // No saved enabledTemplateIds — enable all defaults + customs.
+      updates.enabledTemplateIds = [
+        ...DEFAULT_NOTE_TEMPLATES.map(t => t.id),
+        ...savedCustomNoteTemplates.map(t => t.id),
+      ];
     }
 
     // Shortcuts

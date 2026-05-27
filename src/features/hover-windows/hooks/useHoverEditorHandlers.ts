@@ -692,6 +692,10 @@ export interface UseKeyboardShortcutsParams {
   deleteNote: (filePath: string) => Promise<void>;
   deleteFolder: (folderPath: string) => Promise<void>;
   refreshFileTree: () => void;
+  /** Stage 5.0.9 (2026-05-16) — required for Ctrl+W / Esc close hooks. */
+  handleClose: () => void;
+  /** Hover-editor root ref — used to scope Esc/Ctrl+W to the focused hover. */
+  hoverEditorRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function useKeyboardShortcuts({
@@ -703,9 +707,44 @@ export function useKeyboardShortcuts({
   deleteNote,
   deleteFolder,
   refreshFileTree,
+  handleClose,
+  hoverEditorRef,
 }: UseKeyboardShortcutsParams) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Stage 5.0.9 (2026-05-16) — Esc / Ctrl+W close contract.
+      //
+      // Scope: only fire when focus is inside THIS hover. Without this guard
+      // every hover would react to global Esc and they'd all close in sync.
+      // Also skip when an editor-side popover (slash / wikilink / attachment
+      // / context-menu) is open — those own Esc first.
+      const focusInThisHover = hoverEditorRef.current?.contains(document.activeElement);
+      if (focusInThisHover) {
+        // Ctrl+W: always close. Hover is a logical "tab" the user expects W
+        // to dismiss (Tauri's system Ctrl+W is intercepted because hovers
+        // are overlay elements inside the main window).
+        if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'w') {
+          e.preventDefault();
+          handleClose();
+          return;
+        }
+        // Esc: close ONLY if focus isn't inside the editor body. The editor
+        // uses Esc for selection cancel / popover dismiss; we don't want to
+        // hijack that. Header buttons / panels are fair game.
+        if (e.key === 'Escape') {
+          const target = document.activeElement as HTMLElement | null;
+          const insideEditor = target?.closest('.tiptap-editor, .ProseMirror, .sketch-editor');
+          const popoverOpen = !!document.querySelector(
+            '.tippy-box[data-state="visible"], .editor-context-menu, .context-menu',
+          );
+          if (!insideEditor && !popoverOpen) {
+            e.preventDefault();
+            handleClose();
+            return;
+          }
+        }
+      }
+
       // Ctrl+M: Toggle comments/memo panel
       if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'm') {
         e.preventDefault();
@@ -770,7 +809,7 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [winFilePath, vaultPath, setShowComments, setShowTags, showConfirmDelete, deleteNote, deleteFolder, refreshFileTree]);
+  }, [winFilePath, vaultPath, setShowComments, setShowTags, showConfirmDelete, deleteNote, deleteFolder, refreshFileTree, handleClose, hoverEditorRef]);
 }
 
 // ========== FILE DROP HOOK ==========

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { memoCommands } from '../../core/services/tauriCommands';
 import { useVaultPath } from '../../core/stores/fileTreeStore';
 import { hoverActions } from '../hover-windows/stores/hoverStore';
@@ -6,6 +7,10 @@ import { useCalendarRefreshTrigger } from '../../core/stores/refreshStore';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { t, tf } from '../../core/utils/i18n';
 import type { CalendarMemo, CalendarViewMode } from '../../core/types';
+// 5.0.7d (2026-05-17, HanBin) — task/memo toggle migrates to design-system
+// SegmentedControl + IconButton for prev/next month. Weekday + month labels
+// route through i18n (no more hardcoded English/Korean arrays).
+import { SegmentedControl, IconButton } from '../../design-system/components';
 
 function Calendar() {
   const vaultPath = useVaultPath();
@@ -153,9 +158,15 @@ function Calendar() {
     return memosByDate.has(dateStr);
   };
 
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'];
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // 5.0.7d — i18n weekday + month labels (Korean default, English fallback).
+  const monthNames = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => t(`calMonth${i}`, language)),
+    [language],
+  );
+  const dayNames = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => t(`calWeekday${i}`, language)),
+    [language],
+  );
 
   const getMemoCountForDate = (day: number): number => {
     const year = currentDate.getFullYear();
@@ -178,26 +189,32 @@ function Calendar() {
       {/* Header with toggle */}
       <div className="calendar-header">
         <div className="calendar-nav">
-          <button onClick={() => changeMonth(-1)} className="calendar-nav-btn">‹</button>
+          <IconButton
+            icon={<ChevronLeft size={16} strokeWidth={2} />}
+            aria-label={t('calendarPrevMonth', language)}
+            size="sm"
+            onClick={() => changeMonth(-1)}
+          />
           <span className="calendar-month-year">
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </span>
-          <button onClick={() => changeMonth(1)} className="calendar-nav-btn">›</button>
+          <IconButton
+            icon={<ChevronRight size={16} strokeWidth={2} />}
+            aria-label={t('calendarNextMonth', language)}
+            size="sm"
+            onClick={() => changeMonth(1)}
+          />
         </div>
-        <div className="calendar-toggle">
-          <button
-            className={`calendar-toggle-btn ${viewMode === 'task' ? 'active' : ''}`}
-            onClick={() => setViewMode('task')}
-          >
-            {t('calendarTask', language)}
-          </button>
-          <button
-            className={`calendar-toggle-btn ${viewMode === 'memo' ? 'active' : ''}`}
-            onClick={() => setViewMode('memo')}
-          >
-            {t('calendarMemo', language)}
-          </button>
-        </div>
+        <SegmentedControl
+          size="sm"
+          value={viewMode}
+          onChange={(v) => setViewMode(v as CalendarViewMode)}
+          options={[
+            { value: 'task', label: t('calendarTask', language) },
+            { value: 'memo', label: t('calendarMemo', language) },
+          ]}
+          ariaLabel={t('calendarViewMode', language)}
+        />
       </div>
 
       {/* Main content: calendar grid left, memo list right */}

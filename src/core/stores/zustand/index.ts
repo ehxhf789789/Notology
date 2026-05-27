@@ -51,12 +51,7 @@ export {
 export {
   useModalStore,
   useTemplateSelectorState,
-  useContactInputModalState,
   useTitleInputModalState,
-  useMeetingInputModalState,
-  usePaperInputModalState,
-  useLiteratureInputModalState,
-  useEventInputModalState,
   useConfirmDeleteState,
   useAlertModalState,
   useRenameDialogState,

@@ -18,46 +18,46 @@
 .rename-dialog {
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-12);
   width: 360px;
-  padding: var(--space-8);
+  padding: var(--sp-4);
   box-shadow: var(--sh-lg);
 }
 
 .rename-dialog-title {
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   font-weight: 600;
   color: var(--tx-1);
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--sp-3);
 }
 
 .rename-dialog-input {
   width: 100%;
   padding: 8px 10px;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   color: var(--tx-1);
   background-color: var(--bg-base);
   border: 0.5px solid var(--sep);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   outline: none;
   box-sizing: border-box;
 }
 
 .rename-dialog-input:focus {
-  border-color: #7aa2f7;
+  border-color: var(--tx-1);
 }
 
 .rename-dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   margin-top: 14px;
 }
 
 .rename-dialog-btn {
   padding: 6px 14px;
-  font-size: var(--font-base);
-  border-radius: var(--radius-sm);
+  font-size: var(--fs-13);
+  border-radius: var(--r-6);
   border: none;
   cursor: pointer;
 }
@@ -72,11 +72,11 @@
 }
 
 .rename-dialog-btn.confirm {
-  background-color: #7aa2f7;
-  color: #1e1e1e;
+  background-color: var(--tx-1);
+  color: #fff;
   font-weight: 600;
 }
 
 .rename-dialog-btn.confirm:hover {
-  background-color: #89b4fa;
+  background-color: color-mix(in srgb, var(--tx-1) 80%, white);
 }

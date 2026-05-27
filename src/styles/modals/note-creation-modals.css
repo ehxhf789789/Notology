@@ -1,28 +1,20 @@
 /* ===== Note Creation Modals ===== */
 
-/* Title Input Modal */
+/* Title Input Modal — chrome from .modal-shell, bespoke only sizes. */
 .title-input-modal {
-  background-color: var(--bg-elevated);
-  border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-xl);
   width: 420px;
   max-width: 90vw;
-  box-shadow: var(--shadow-xl);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: modalEnter 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .title-input-header {
   padding: 16px 20px;
-  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
-  font-size: var(--font-xl);
+  background: linear-gradient(135deg, var(--c-gray) 0%, color-mix(in srgb, var(--c-gray) 80%, black) 100%);
+  font-size: var(--fs-16);
   font-weight: 600;
   color: #ffffff;
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--sp-3);
 }
 
 .title-input-header::before {
@@ -46,7 +38,7 @@
 .title-input-template-info {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-6);
+  gap: var(--sp-3);
   padding: 16px 18px;
   background-color: var(--bg-app);
   border-bottom: 0.5px solid var(--sep-l);
@@ -56,7 +48,82 @@
   width: 32px;
   height: 32px;
   flex-shrink: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
+}
+
+/* v18 (2026-05-16, HanBin) — lucide-rendered icon tile. Replaces the old
+   CSS-background `.icon-${type}` approach which left custom templates
+   (TEST3 etc.) with a blank square. Color is set inline from the
+   template's customColor (or preset hex). */
+.title-input-template-icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--r-8);
+}
+
+/* v18 — inline variable input section (the trigger HanBin asked for:
+   "이 창에서 진행되어야 한다"). Sits between the title field and the
+   tags accordion. Hidden entirely when the template declares no vars. */
+.title-input-vars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+}
+.title-input-vars__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.title-input-vars__group-label {
+  font-size: var(--fs-11);
+  font-weight: 600;
+  color: var(--tx-3);
+  text-transform: none;
+  letter-spacing: 0.5px;
+}
+.title-input-vars__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.title-input-vars__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--fs-12);
+  color: var(--tx-2);
+}
+.title-input-vars__token {
+  margin-left: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-11);
+  color: var(--tx-4);
+  background: var(--bg-elev-2);
+  padding: 1px 6px;
+  border-radius: var(--r-4);
+}
+
+/* v18 — required-field error helper for the title (was a blocking alert();
+   now matches the inline error pattern used elsewhere). */
+.title-input-field.has-error {
+  border-color: var(--c-red, #ef4444);
+}
+.title-input-error-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: var(--fs-11);
+  color: var(--c-red, #ef4444);
 }
 
 .title-input-template-details {
@@ -65,14 +132,14 @@
 }
 
 .title-input-template-name {
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   font-weight: 600;
   color: var(--tx-1);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--sp-1);
 }
 
 .title-input-template-desc {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-3);
   line-height: 1.4;
 }
@@ -84,18 +151,18 @@
 .title-input-field {
   width: 100%;
   padding: 8px 12px;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   background-color: var(--bg-base);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   color: var(--tx-1);
   outline: none;
-  transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
+  transition: border-color var(--dur-200), box-shadow var(--dur-200);
 }
 
 .title-input-field:focus {
-  border-color: var(--c-blue);
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 .title-input-actions {
@@ -103,23 +170,23 @@
   border-top: 0.5px solid var(--sep-l);
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-5);
+  gap: var(--sp-3);
 }
 
 .title-input-btn {
   padding: 6px 14px;
-  font-size: var(--font-md);
-  border-radius: var(--radius-sm);
+  font-size: var(--fs-13);
+  border-radius: var(--r-6);
   border: none;
   cursor: pointer;
   font-weight: 500;
-  transition: background-color var(--duration-normal);
+  transition: background-color var(--dur-200);
 }
 
 .title-input-cancel {
   background-color: var(--bg-hover);
   color: var(--tx-2);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
 }
 
 .title-input-cancel:hover {
@@ -127,9 +194,9 @@
 }
 
 .title-input-submit {
-  background-color: var(--c-blue);
+  background-color: var(--tx-1);
   color: #ffffff;
-  transition: background-color var(--duration-normal), transform var(--duration-fast), box-shadow var(--duration-normal);
+  transition: background-color var(--dur-200), transform var(--dur-150), box-shadow var(--dur-200);
 }
 
 .title-input-submit:hover {
@@ -140,10 +207,10 @@
 .meeting-input-modal {
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-xl);
+  border-radius: var(--r-12);
   width: 480px;
   max-width: 90vw;
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--sh-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -152,13 +219,13 @@
 
 .meeting-input-header {
   padding: 16px 20px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  font-size: var(--font-xl);
+  background: linear-gradient(135deg, var(--tx-1) 0%, color-mix(in srgb, var(--tx-1) 80%, black) 100%);
+  font-size: var(--fs-16);
   font-weight: 600;
   color: #ffffff;
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--sp-3);
 }
 
 .meeting-input-header::before {
@@ -184,7 +251,7 @@
 .meeting-input-field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--sp-2);
 }
 
 .meeting-input-row {
@@ -194,22 +261,22 @@
 }
 
 .meeting-input-label {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--tx-2);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.5px;
 }
 
 .meeting-input-input {
   padding: 8px 12px;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   background-color: var(--bg-base);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   color: var(--tx-1);
   outline: none;
-  transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
+  transition: border-color var(--dur-200), box-shadow var(--dur-200);
 }
 
 .meeting-input-input::placeholder {
@@ -217,30 +284,30 @@
 }
 
 .meeting-input-input:focus {
-  border-color: var(--accent-color, var(--c-blue));
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 .meeting-time-selects {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--sp-2);
 }
 
 .meeting-input-select {
   padding: 8px 12px;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   background-color: var(--bg-base);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-1);
   outline: none;
   cursor: pointer;
   flex: 1;
-  transition: border-color var(--duration-normal);
+  transition: border-color var(--dur-200);
 }
 
 .meeting-input-select:focus {
-  border-color: var(--accent-color, var(--c-blue));
+  border-color: var(--tx-1);
 }
 
 .meeting-input-select option {
@@ -253,23 +320,23 @@
   border-top: 0.5px solid var(--sep-l);
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-5);
+  gap: var(--sp-3);
 }
 
 .meeting-input-btn {
   padding: 6px 14px;
-  font-size: var(--font-md);
-  border-radius: var(--radius-sm);
+  font-size: var(--fs-13);
+  border-radius: var(--r-6);
   border: none;
   cursor: pointer;
   font-weight: 500;
-  transition: background-color var(--duration-normal);
+  transition: background-color var(--dur-200);
 }
 
 .meeting-input-cancel {
   background-color: var(--bg-hover);
   color: var(--tx-2);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
 }
 
 .meeting-input-cancel:hover {
@@ -277,9 +344,9 @@
 }
 
 .meeting-input-submit {
-  background-color: var(--c-blue);
+  background-color: var(--tx-1);
   color: #ffffff;
-  transition: background-color var(--duration-normal), transform var(--duration-fast), box-shadow var(--duration-normal);
+  transition: background-color var(--dur-200), transform var(--dur-150), box-shadow var(--dur-200);
 }
 
 .meeting-input-submit:hover {
@@ -296,10 +363,10 @@
   top: 100%;
   left: 0;
   right: 0;
-  margin-top: var(--space-2);
+  margin-top: var(--sp-1);
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   box-shadow: var(--sh-md);
   max-height: 240px;
   overflow-y: auto;
@@ -309,10 +376,10 @@
 .participant-suggestion-item {
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--sp-3);
   padding: 8px 12px;
   cursor: pointer;
-  transition: background-color var(--duration-fast);
+  transition: background-color var(--dur-150);
 }
 
 .participant-suggestion-item:hover,
@@ -323,13 +390,13 @@
 .participant-suggestion-avatar {
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-full);
-  background-color: var(--c-blue);
+  border-radius: var(--r-pill);
+  background-color: var(--tx-1);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -340,13 +407,13 @@
 }
 
 .participant-suggestion-name {
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   font-weight: 500;
   color: var(--tx-1);
 }
 
 .participant-suggestion-org {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-2);
   margin-top: 1px;
 }
@@ -355,37 +422,37 @@
 .participant-chips-container {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--sp-2);
   padding: 8px 10px;
   background-color: var(--bg-base);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   min-height: 40px;
   align-items: center;
   cursor: text;
-  transition: border-color var(--duration-normal);
+  transition: border-color var(--dur-200);
 }
 
 .participant-chips-container:focus-within {
-  border-color: var(--c-blue);
+  border-color: var(--tx-1);
 }
 
 .participant-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   padding: 4px 8px;
   background-color: var(--bg-hover);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-xl);
-  font-size: var(--font-base);
+  border-radius: var(--r-12);
+  font-size: var(--fs-13);
   color: var(--tx-1);
-  font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
+  font-family: var(--app-font, "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif);
 }
 
 .participant-chip.contact {
-  background-color: rgba(59, 130, 246, 0.2);
-  border-color: #3b82f6;
+  background-color: color-mix(in srgb, var(--tx-1) 20%, transparent);
+  border-color: var(--tx-1);
   border-width: 2px;
   color: var(--tx-1);
 }
@@ -396,26 +463,26 @@
 
 .participant-chip-remove {
   padding: 0;
-  margin-left: var(--space-1);
+  margin-left: var(--sp-1);
   width: 16px;
   height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   line-height: 1;
   color: inherit;
   background: none;
   border: none;
-  border-radius: var(--radius-full);
+  border-radius: var(--r-pill);
   cursor: pointer;
   opacity: 0.6;
-  transition: opacity var(--duration-fast), background-color var(--duration-fast);
+  transition: opacity var(--dur-150), background-color var(--dur-150);
 }
 
 .participant-chip-remove:hover {
   opacity: 1;
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: var(--bg-hover);
 }
 
 .participant-input-inline {
@@ -425,9 +492,9 @@
   background: transparent;
   border: none;
   outline: none;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   color: var(--tx-1);
-  font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
+  font-family: var(--app-font, "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif);
 }
 
 .participant-input-inline::placeholder {
@@ -436,21 +503,21 @@
 
 /* Tag Input Section (for note creation modals) */
 .tag-input-section {
-  margin-top: var(--space-4);
+  margin-top: var(--sp-2);
   border: 0.5px solid var(--sep);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   overflow: hidden;
 }
 
 .tag-input-section-header {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   padding: 10px 12px;
   background-color: var(--bg-hover);
   cursor: pointer;
   user-select: none;
-  transition: background-color var(--duration-normal);
+  transition: background-color var(--dur-200);
 }
 
 .tag-input-section-header:hover {
@@ -458,9 +525,9 @@
 }
 
 .tag-input-collapse-icon {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-2);
-  transition: transform var(--duration-normal);
+  transition: transform var(--dur-200);
 }
 
 .tag-input-collapse-icon.collapsed {
@@ -468,17 +535,17 @@
 }
 
 .tag-input-section-title {
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   font-weight: 500;
   color: var(--tx-1);
 }
 
 .tag-input-section-count {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-2);
   background-color: var(--bg-elevated);
   padding: 2px 6px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-12);
 }
 
 .tag-input-section-content {
@@ -489,37 +556,37 @@
 .tag-input-facet-row {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   padding: 6px 0;
 }
 
 .tag-input-facet-label {
   width: 40px;
   flex-shrink: 0;
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-2);
-  padding-top: var(--space-2);
+  padding-top: var(--sp-1);
 }
 
 .tag-input-facet-content {
   flex: 1;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--sp-2);
   align-items: center;
 }
 
 .tag-input-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   padding: 3px 8px;
-  font-size: var(--font-sm);
-  font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  font-size: var(--fs-11);
+  font-family: var(--app-font, "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif);
   color: var(--tx-1);
   background-color: var(--accent-primary);
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
 }
 
 /* Category-specific tag input chip colors (dark mode default) */
@@ -591,8 +658,8 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .tag-input-chip-remove {
   padding: 0;
-  margin-left: var(--space-1);
-  font-size: var(--font-lg);
+  margin-left: var(--sp-1);
+  font-size: var(--fs-14);
   line-height: 1;
   color: inherit;
   background: none;
@@ -612,13 +679,13 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   align-items: center;
   justify-content: center;
   padding: 0;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   color: var(--tx-2);
   background-color: transparent;
   border: 1px dashed var(--sep);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
-  transition: all var(--duration-normal);
+  transition: all var(--dur-200);
 }
 
 .tag-input-add-btn:hover {
@@ -630,11 +697,11 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   flex: 1;
   min-width: 100px;
   padding: 3px 6px;
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-1);
   background-color: var(--bg-app);
   border: 1px solid var(--accent-primary);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   outline: none;
 }
 
@@ -646,7 +713,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .tag-input-suggestions {
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   box-shadow: var(--sh-md);
   max-height: 200px;
   overflow-y: auto;
@@ -657,28 +724,28 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   display: block;
   width: 100%;
   padding: 6px 10px;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-1);
   background: none;
   border: none;
   text-align: left;
   cursor: pointer;
-  transition: background-color var(--duration-fast);
+  transition: background-color var(--dur-150);
 }
 
 .tag-input-suggestion-item:hover,
 .tag-input-suggestion-item.selected {
   background-color: var(--accent-primary);
-  color: #111;
+  color: #fff;
 }
 
 /* Tag Context Menu */
 .tag-context-menu {
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-12);
   box-shadow: var(--sh-md);
-  padding: var(--space-6);
+  padding: var(--sp-3);
   min-width: 200px;
   max-height: min(500px, calc(100vh - 80px));
   overflow-y: auto;
@@ -693,45 +760,45 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .tag-context-menu::-webkit-scrollbar-thumb {
-  background: var(--border-color, #3c3c3c);
-  border-radius: var(--radius-sm);
+  background: var(--sep-l);
+  border-radius: var(--r-6);
 }
 
 .tag-context-menu::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted, #666);
+  background: var(--tx-3);
 }
 
 .tag-context-menu-header {
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   font-weight: 600;
   color: var(--tx-1);
-  padding-bottom: var(--space-4);
+  padding-bottom: var(--sp-2);
   border-bottom: 0.5px solid var(--sep);
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--sp-3);
 }
 
 .tag-context-menu-section {
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--sp-3);
 }
 
 .tag-context-menu-label {
   display: block;
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-2);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--sp-2);
 }
 
 .tag-context-menu-color-row {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-2);
 }
 
 .tag-context-menu-color-input {
   width: 32px;
   height: 32px;
   border: 0.5px solid var(--sep);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
   background: transparent;
 }
@@ -742,11 +809,11 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   color: var(--tx-2);
   background-color: transparent;
   border: 1px dashed var(--sep);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
 }
 
@@ -762,29 +829,29 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .tag-context-menu-preview {
   flex: 1;
   padding: 4px 10px;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 600;
   color: #fff;
   text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   text-align: center;
 }
 
 .tag-context-menu-actions {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   justify-content: flex-end;
-  padding-top: var(--space-4);
+  padding-top: var(--sp-2);
   border-top: 0.5px solid var(--sep);
-  margin-top: var(--space-2);
+  margin-top: var(--sp-1);
 }
 
 .tag-context-menu-btn {
   padding: 6px 12px;
-  font-size: var(--font-base);
-  border-radius: var(--radius-sm);
+  font-size: var(--fs-13);
+  border-radius: var(--r-6);
   cursor: pointer;
-  transition: all var(--duration-normal);
+  transition: all var(--dur-200);
 }
 
 .tag-context-menu-remove {
@@ -805,27 +872,27 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .tag-context-menu-save:hover {
-  background-color: #5a8be0;
+  background-color: color-mix(in srgb, var(--tx-1) 80%, black);
 }
 
 /* Tag Context Menu Preset Grid */
 .tag-context-menu-preset-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: var(--space-2);
+  gap: var(--sp-1);
 }
 
 .tag-context-menu-preset-btn {
   width: 28px;
   height: 28px;
   border: 2px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
-  transition: all var(--duration-fast);
+  transition: all var(--dur-150);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-2);
 }
 
@@ -836,7 +903,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .tag-context-menu-preset-btn.active {
   border-color: #fff;
-  box-shadow: var(--shadow-focus);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 .tag-context-menu-preset-btn.preset-none {
@@ -857,20 +924,20 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .tag-context-menu-scheme-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: var(--space-3);
+  gap: var(--sp-2);
 }
 
 .tag-context-menu-scheme-btn {
   width: 36px;
   height: 36px;
   border: 3px solid;
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   cursor: pointer;
-  transition: all var(--duration-fast);
+  transition: all var(--dur-150);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   color: var(--tx-2);
 }
 
@@ -885,7 +952,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .tag-context-menu-scheme-btn.preset-none {
   border: 2px dashed var(--sep);
-  font-size: var(--font-xl);
+  font-size: var(--fs-16);
 }
 
 .tag-context-menu-scheme-btn.preset-none:hover {
@@ -898,12 +965,12 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .tag-context-menu-preview-section {
-  margin-top: var(--space-6);
-  padding-top: var(--space-5);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
   border-top: 0.5px solid var(--sep);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--sp-2);
 }
 
 /* Settings Tag Color List Updates */
@@ -911,9 +978,9 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   width: 20px;
   height: 20px;
   border: 2px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
-  transition: all var(--duration-fast);
+  transition: all var(--dur-150);
 }
 
 .tag-color-preset-btn:hover {
@@ -922,14 +989,14 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .tag-color-preset-btn.active {
   border-color: #fff;
-  box-shadow: var(--shadow-focus);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 /* Settings Tag Color Scheme Grid (11 items: 10 colors + no border) */
 .tag-color-scheme-grid {
   display: grid !important;
   grid-template-columns: repeat(11, 1fr);
-  gap: var(--space-2);
+  gap: var(--sp-1);
   flex: 1;
 }
 
@@ -937,8 +1004,8 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   width: 24px;
   height: 24px;
   border: 2px solid !important;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-sm);
+  border-radius: var(--r-6);
+  font-size: var(--fs-11);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -946,7 +1013,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .tag-color-scheme-btn.active {
-  box-shadow: var(--shadow-focus);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 .tag-color-scheme-btn.preset-none {
@@ -962,10 +1029,10 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .paper-input-modal {
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-xl);
+  border-radius: var(--r-12);
   width: 480px;
   max-width: 90vw;
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--sh-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -974,13 +1041,13 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .paper-input-header {
   padding: 16px 20px;
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  font-size: var(--font-xl);
+  background: linear-gradient(135deg, var(--c-orange) 0%, color-mix(in srgb, var(--c-orange) 80%, black) 100%);
+  font-size: var(--fs-16);
   font-weight: 600;
   color: #ffffff;
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--sp-3);
 }
 
 .paper-input-header::before {
@@ -1009,7 +1076,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .paper-input-field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--sp-2);
 }
 
 .paper-input-row {
@@ -1019,22 +1086,22 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .paper-input-label {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--tx-2);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.5px;
 }
 
 .paper-input-input {
   padding: 8px 12px;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   background-color: var(--bg-base);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
   color: var(--tx-1);
   outline: none;
-  transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
+  transition: border-color var(--dur-200), box-shadow var(--dur-200);
 }
 
 .paper-input-input::placeholder {
@@ -1042,32 +1109,32 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .paper-input-input:focus {
-  border-color: var(--accent-color, var(--c-blue));
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 .paper-input-actions {
   padding: 12px 18px;
-  border-top: 1px solid var(--border-color, #3c3c3c);
+  border-top: 1px solid var(--sep-l);
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-5);
+  gap: var(--sp-3);
 }
 
 .paper-input-btn {
   padding: 6px 14px;
-  font-size: var(--font-md);
-  border-radius: var(--radius-sm);
+  font-size: var(--fs-13);
+  border-radius: var(--r-6);
   border: none;
   cursor: pointer;
   font-weight: 500;
-  transition: background-color var(--duration-normal);
+  transition: background-color var(--dur-200);
 }
 
 .paper-input-cancel {
   background-color: var(--bg-elevated);
   color: var(--tx-2);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
 }
 
 .paper-input-cancel:hover {
@@ -1075,9 +1142,9 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .paper-input-submit {
-  background-color: var(--c-blue);
+  background-color: var(--tx-1);
   color: #ffffff;
-  transition: background-color var(--duration-normal), transform var(--duration-fast), box-shadow var(--duration-normal);
+  transition: background-color var(--dur-200), transform var(--dur-150), box-shadow var(--dur-200);
 }
 
 .paper-input-submit:hover {
@@ -1095,10 +1162,10 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .literature-input-modal {
   background-color: var(--bg-app);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-xl);
+  border-radius: var(--r-12);
   width: 480px;
   max-width: 90vw;
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--sh-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1107,13 +1174,13 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .literature-input-header {
   padding: 16px 20px;
-  background: linear-gradient(135deg, var(--color-warning) 0%, #ca8a04 100%);
-  font-size: var(--font-xl);
+  background: linear-gradient(135deg, var(--color-warning) 0%, color-mix(in srgb, var(--color-warning) 80%, black) 100%);
+  font-size: var(--fs-16);
   font-weight: 600;
   color: #ffffff;
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--sp-3);
 }
 
 .literature-input-header::before {
@@ -1127,7 +1194,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .literature-input-header-text {
-  color: var(--text-primary, #e0e0e0);
+  color: var(--tx-1);
 }
 
 .literature-input-body {
@@ -1142,7 +1209,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .literature-input-field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--sp-2);
 }
 
 .literature-input-row {
@@ -1152,22 +1219,22 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .literature-input-label {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--tx-2);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.5px;
 }
 
 .literature-input-input {
   padding: 8px 12px;
-  font-size: var(--font-lg);
-  background-color: var(--bg-primary, #1e1e1e);
-  border: 1px solid var(--border-color, #3c3c3c);
-  border-radius: var(--radius-md);
-  color: var(--text-primary, #e0e0e0);
+  font-size: var(--fs-14);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+  color: var(--tx-1);
   outline: none;
-  transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
+  transition: border-color var(--dur-200), box-shadow var(--dur-200);
 }
 
 .literature-input-input::placeholder {
@@ -1175,32 +1242,32 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .literature-input-input:focus {
-  border-color: var(--accent-color, var(--c-blue));
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 .literature-input-actions {
   padding: 12px 18px;
-  border-top: 1px solid var(--border-color, #3c3c3c);
+  border-top: 1px solid var(--sep-l);
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-5);
+  gap: var(--sp-3);
 }
 
 .literature-input-btn {
   padding: 6px 14px;
-  font-size: var(--font-md);
-  border-radius: var(--radius-sm);
+  font-size: var(--fs-13);
+  border-radius: var(--r-6);
   border: none;
   cursor: pointer;
   font-weight: 500;
-  transition: background-color var(--duration-normal);
+  transition: background-color var(--dur-200);
 }
 
 .literature-input-cancel {
   background-color: var(--bg-elevated);
   color: var(--tx-2);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
 }
 
 .literature-input-cancel:hover {
@@ -1208,9 +1275,9 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .literature-input-submit {
-  background-color: var(--c-blue);
+  background-color: var(--tx-1);
   color: #ffffff;
-  transition: background-color var(--duration-normal), transform var(--duration-fast), box-shadow var(--duration-normal);
+  transition: background-color var(--dur-200), transform var(--dur-150), box-shadow var(--dur-200);
 }
 
 .literature-input-submit:hover {
@@ -1228,10 +1295,10 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .event-input-modal {
   background-color: var(--bg-app);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-xl);
+  border-radius: var(--r-12);
   width: 480px;
   max-width: 90vw;
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--sh-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1240,13 +1307,13 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .event-input-header {
   padding: 16px 20px;
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  font-size: var(--font-xl);
+  background: linear-gradient(135deg, var(--c-purple) 0%, color-mix(in srgb, var(--c-purple) 80%, black) 100%);
+  font-size: var(--fs-16);
   font-weight: 600;
   color: #ffffff;
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--sp-3);
 }
 
 .event-input-header::before {
@@ -1272,7 +1339,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .event-input-field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--sp-2);
 }
 
 .event-input-row {
@@ -1282,22 +1349,22 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .event-input-label {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 600;
   color: var(--tx-2);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.5px;
 }
 
 .event-input-input {
   padding: 8px 12px;
-  font-size: var(--font-lg);
-  background-color: var(--bg-primary, #1e1e1e);
-  border: 1px solid var(--border-color, #3c3c3c);
-  border-radius: var(--radius-md);
-  color: var(--text-primary, #e0e0e0);
+  font-size: var(--fs-14);
+  background-color: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+  color: var(--tx-1);
   outline: none;
-  transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
+  transition: border-color var(--dur-200), box-shadow var(--dur-200);
 }
 
 .event-input-input::placeholder {
@@ -1305,32 +1372,32 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .event-input-input:focus {
-  border-color: var(--accent-color, var(--c-blue));
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 .event-input-actions {
   padding: 12px 18px;
-  border-top: 1px solid var(--border-color, #3c3c3c);
+  border-top: 1px solid var(--sep-l);
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-5);
+  gap: var(--sp-3);
 }
 
 .event-input-btn {
   padding: 6px 14px;
-  font-size: var(--font-md);
-  border-radius: var(--radius-sm);
+  font-size: var(--fs-13);
+  border-radius: var(--r-6);
   border: none;
   cursor: pointer;
   font-weight: 500;
-  transition: background-color var(--duration-normal);
+  transition: background-color var(--dur-200);
 }
 
 .event-input-cancel {
   background-color: var(--bg-elevated);
   color: var(--tx-2);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
 }
 
 .event-input-cancel:hover {
@@ -1338,9 +1405,9 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .event-input-submit {
-  background-color: var(--c-blue);
+  background-color: var(--tx-1);
   color: #ffffff;
-  transition: background-color var(--duration-normal), transform var(--duration-fast), box-shadow var(--duration-normal);
+  transition: background-color var(--dur-200), transform var(--dur-150), box-shadow var(--dur-200);
 }
 
 .event-input-submit:hover {
@@ -1353,7 +1420,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 .literature-input-submit:hover,
 .event-input-submit:hover {
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--tx-1) 30%, transparent);
 }
 
 .title-input-submit:active,
@@ -1365,25 +1432,18 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   box-shadow: none;
 }
 
-/* Confirm Delete Modal */
+/* Confirm Delete Modal — chrome from .modal-shell, bespoke only sizes. */
 .confirm-delete-modal {
-  background-color: var(--bg-app);
-  border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-lg);
   width: 380px;
   max-width: 90vw;
-  box-shadow: var(--sh-lg);
-  display: flex;
-  flex-direction: column;
-  animation: modalEnter 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .confirm-delete-header {
   padding: 14px 18px;
   border-bottom: 0.5px solid var(--sep-l);
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   font-weight: 600;
-  color: #e06c75;
+  color: var(--c-red);
 }
 
 .confirm-delete-body {
@@ -1392,7 +1452,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .confirm-delete-message {
   color: var(--tx-1);
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   margin: 0 0 8px 0;
 }
 
@@ -1403,7 +1463,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .confirm-delete-warning {
   color: var(--tx-3);
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   margin: 0;
 }
 
@@ -1412,17 +1472,17 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
   border-top: 0.5px solid var(--sep-l);
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-5);
+  gap: var(--sp-3);
 }
 
 .confirm-delete-btn {
   padding: 6px 14px;
-  font-size: var(--font-md);
-  border-radius: var(--radius-sm);
+  font-size: var(--fs-13);
+  border-radius: var(--r-6);
   border: none;
   cursor: pointer;
   font-weight: 500;
-  transition: background-color var(--duration-normal);
+  transition: background-color var(--dur-200);
 }
 
 .confirm-delete-cancel {
@@ -1435,33 +1495,26 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 }
 
 .confirm-delete-confirm {
-  background-color: #e06c75;
+  background-color: var(--c-red);
   color: #ffffff;
 }
 
 .confirm-delete-confirm:hover {
-  background-color: #d95763;
+  background-color: color-mix(in srgb, var(--c-red) 80%, black);
 }
 
-/* Alert Modal */
+/* Alert Modal — chrome from .modal-shell, bespoke only sizes. */
 .alert-modal {
-  background-color: var(--bg-app);
-  border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-lg);
   width: 420px;
   max-width: 90vw;
-  box-shadow: var(--sh-lg);
-  display: flex;
-  flex-direction: column;
-  animation: modalEnter 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .alert-modal-header {
   padding: 14px 18px;
   border-bottom: 0.5px solid var(--sep-l);
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   font-weight: 600;
-  color: #f0a020;
+  color: var(--c-orange);
 }
 
 .alert-modal-body {
@@ -1470,7 +1523,7 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .alert-modal-message {
   color: var(--tx-1);
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   margin: 0;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -1485,14 +1538,14 @@ html[data-theme="light"] .tag-input-chip.tag-ctx {
 
 .alert-modal-btn {
   padding: 6px 18px;
-  font-size: var(--font-md);
-  border-radius: var(--radius-sm);
+  font-size: var(--fs-13);
+  border-radius: var(--r-6);
   border: none;
   cursor: pointer;
   font-weight: 500;
-  background-color: var(--c-blue);
+  background-color: var(--tx-1);
   color: #ffffff;
-  transition: background-color var(--duration-normal);
+  transition: background-color var(--dur-200);
 }
 
 .alert-modal-btn:hover {

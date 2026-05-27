@@ -9,6 +9,14 @@ import { emit } from '@tauri-apps/api/event';
 // Track open hover windows: label -> { webview, filePath }
 const openWindows = new Map<string, { webview: WebviewWindow; filePath: string }>();
 
+// In-flight open requests keyed by normalized file path. Without this, a
+// fast double-click (or two listeners on the same chip) can both pass the
+// `openWindows` dedup check before either has called `openWindows.set()`,
+// causing two `create_hover_window` invocations with different labels.
+// Manifestation: log shows two `hover-<hash>-N` / `hover-<hash>-N+1` windows
+// for the same file path at the same timestamp.
+const openInFlight = new Map<string, Promise<WebviewWindow | null>>();
+
 // Counter for unique window IDs
 let windowCounter = 0;
 
@@ -80,12 +88,34 @@ function detectFileType(path: string): string {
  * @param noteType - Optional note type for taskbar icon (e.g., 'MTG', 'EVENT', 'NOTE')
  */
 export async function openHoverWindow(filePath: string, vaultPath?: string, noteType?: string): Promise<WebviewWindow | null> {
+  const normalizedPath = normalizePath(filePath);
+
+  // Dedupe in-flight opens for the same file. Two fast clicks (or two
+  // listeners firing on the same chip) both pass the openWindows check
+  // before either registers, otherwise. See `openInFlight` comment above.
+  const pending = openInFlight.get(normalizedPath);
+  if (pending) return pending;
+
+  const job = (async (): Promise<WebviewWindow | null> => {
   try {
     // Check if already open for this file path (normalize for comparison)
-    const normalizedPath = normalizePath(filePath);
     for (const [label, entry] of openWindows) {
       if (normalizePath(entry.filePath) === normalizedPath) {
         try {
+          // HanBin 2026-05-14: restore from minimized BEFORE focusing.
+          // `setFocus()` on Windows is a no-op when the target window is
+          // in the SW_MINIMIZE state — the user would click "새노트" in
+          // the main window again and see no visible change (the hover
+          // stays in the taskbar). `unminimize()` + `show()` + `setFocus()`
+          // covers the three states: minimized / hidden / visible-blurred.
+          const minimized = await entry.webview.isMinimized().catch(() => false);
+          if (minimized) {
+            await entry.webview.unminimize();
+          }
+          const visible = await entry.webview.isVisible().catch(() => true);
+          if (!visible) {
+            await entry.webview.show();
+          }
           await entry.webview.setFocus();
           return entry.webview;
         } catch {
@@ -104,7 +134,8 @@ export async function openHoverWindow(filePath: string, vaultPath?: string, note
     const encodedVault = vaultPath ? encodeURIComponent(vaultPath) : '';
 
     // Build URL with resolved theme (resolve 'system' to actual light/dark for Rust native bg)
-    const rawTheme = document.documentElement.dataset.theme || 'dark';
+    const rawTheme = document.documentElement.dataset.theme
+      || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
     const resolvedTheme = rawTheme === 'system'
       ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
       : rawTheme;
@@ -171,6 +202,14 @@ export async function openHoverWindow(filePath: string, vaultPath?: string, note
   } catch (error) {
     console.error('[multiWindow] Failed to open hover window:', error);
     return null;
+  }
+  })();
+
+  openInFlight.set(normalizedPath, job);
+  try {
+    return await job;
+  } finally {
+    openInFlight.delete(normalizedPath);
   }
 }
 

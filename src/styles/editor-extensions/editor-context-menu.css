@@ -1,12 +1,15 @@
 /* ===== Editor Context Menu ===== */
 
+/* v5.5 (2026-05-16) — popover visual IA unification (HanBin):
+   tokens aligned with slash-palette so right-click + slash + [[ + // + atom
+   menus all read as one design family. */
 .editor-context-menu {
   position: fixed;
-  background: var(--bg-elevated);
-  border: 0.5px solid var(--sep);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--sh-lg);
-  padding: var(--space-2);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-pop);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-xs);
   min-width: 180px;
   max-height: min(500px, calc(100vh - 80px));
   overflow-y: auto;
@@ -35,12 +38,12 @@
 }
 
 .editor-context-menu::-webkit-scrollbar-thumb {
-  background: var(--border-color, #3c3c3c);
-  border-radius: var(--radius-sm);
+  background: var(--sep-l);
+  border-radius: var(--r-6);
 }
 
 .editor-context-menu::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted, #666666);
+  background: var(--tx-3);
 }
 
 .editor-context-menu-item {
@@ -51,13 +54,13 @@
   background: none;
   border: none;
   color: var(--tx-1);
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   cursor: pointer;
   text-align: left;
   position: relative;
-  border-radius: var(--radius-sm);
-  margin: 0 var(--space-1);
-  transition: background var(--duration-fast) ease;
+  border-radius: var(--r-6);
+  margin: 0 var(--sp-1);
+  transition: background var(--dur-150) ease;
 }
 
 .editor-context-menu-item:hover {
@@ -65,15 +68,15 @@
 }
 
 .editor-context-menu-item.active {
-  color: #7aa2f7;
+  color: var(--tx-1);
 }
 
 .editor-context-menu-item.active::before {
   content: '\2713';
   position: absolute;
   left: 3px;
-  font-size: var(--font-sm);
-  color: #7aa2f7;
+  font-size: var(--fs-11);
+  color: var(--tx-1);
 }
 
 .editor-context-menu-item.delete {
@@ -81,7 +84,7 @@
 }
 
 .editor-context-menu-item.delete:hover {
-  background: #4a2020;
+  background: color-mix(in srgb, var(--c-red) 20%, var(--bg-base));
 }
 
 .editor-context-menu-item.has-submenu {
@@ -94,11 +97,11 @@
 }
 
 .editor-context-menu-item.ecm-memo-item {
-  color: #7eb8da;
+  color: var(--c-teal);
 }
 
 .editor-context-menu-item.ecm-memo-item:hover {
-  background: #1e3a5f;
+  background: var(--bg-sel);
 }
 
 .ecm-label {
@@ -106,15 +109,15 @@
 }
 
 .ecm-shortcut {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
-  margin-left: var(--space-8);
+  margin-left: var(--sp-4);
 }
 
 .ecm-arrow {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
-  margin-left: var(--space-4);
+  margin-left: var(--sp-2);
 }
 
 .editor-context-menu-separator {
@@ -126,9 +129,9 @@
 .cell-color-preview {
   width: 16px;
   height: 16px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   border: 0.5px solid var(--sep);
-  margin-right: var(--space-4);
+  margin-right: var(--sp-2);
   flex-shrink: 0;
 }
 
@@ -137,9 +140,9 @@
   position: fixed;
   background: var(--bg-elevated);
   border: 0.5px solid var(--sep);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-12);
   box-shadow: var(--sh-lg);
-  padding: var(--space-2);
+  padding: var(--sp-1);
   min-width: 140px;
   z-index: var(--z-top);
   animation: submenuSlideIn 0.12s ease-out;
@@ -163,8 +166,8 @@
   top: -4px;
   background: var(--bg-elevated);
   border: 0.5px solid var(--sep);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 6px 20px var(--shadow-color);
+  border-radius: var(--r-12);
+  box-shadow: 0 6px 20px var(--sh-color);
   padding: 4px 0;
   min-width: 140px;
   z-index: var(--z-top) !important;

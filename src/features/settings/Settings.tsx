@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback, useSyncExternalStore } from 'react';
+import { useState, useEffect, useMemo, useCallback, useSyncExternalStore } from 'react';
 import { SettingsRegistry } from './SettingsRegistry';
+import { Toggle, Button } from '../../design-system/components';
 
 // Feature plugin registrations (side-effect imports done in main.tsx)
 import { useVaultPath } from '../../core/stores/fileTreeStore';
@@ -9,23 +10,19 @@ import { refreshActions } from '../../core/stores/refreshStore';
 import { t, tf } from '../../core/utils/i18n';
 import NoteTemplateEditor from '../templates/NoteTemplateEditor';
 import KeyboardShortcuts from './KeyboardShortcuts';
+import { SettingsRow } from './SettingsRow';
+import { TemplateMigrationModal } from '../templates/TemplateMigrationModal';
+import { useUnmatchedNoteTypes, noteTypeCacheActions } from '../content-cache/stores/noteTypeCacheStore';
 import type { NoteTemplate } from '../../core/types';
 import { getUnusedTags, removeUnusedTags } from '../tags/tagOntologyUtils';
-import { Moon, Sun, Monitor } from 'lucide-react';
+import { Moon, Sun, Monitor, X, SlidersHorizontal, Palette, FileEdit, AppWindow, FileText, Keyboard, Wrench, Pencil, Trash2, Puzzle, Plus, Type as TypeIcon, Save, Languages, Hash, ToggleLeft, Share2, AlertTriangle } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
-interface WindowSizePreset {
-  id: string;
-  labelKey: 'windowSizeSmall' | 'windowSizeMedium' | 'windowSizeLarge' | 'windowSizeWide';
-  width: number;
-  height: number;
-}
-
-const WINDOW_SIZE_PRESETS: WindowSizePreset[] = [
-  { id: 'small', labelKey: 'windowSizeSmall', width: 600, height: 500 },
-  { id: 'medium', labelKey: 'windowSizeMedium', width: 800, height: 600 },
-  { id: 'large', labelKey: 'windowSizeLarge', width: 1000, height: 800 },
-  { id: 'wide', labelKey: 'windowSizeWide', width: 1200, height: 700 },
-];
+// 5.0.6ah (2026-05-17, HanBin) — WINDOW_SIZE_PRESETS removed. The
+// preset picker was a dummy: setHoverDefaultSize() wrote to the store
+// but no hover-window-creation code path ever read those values back.
+// Restoring the picker as a real feature needs hover-window integration
+// on the OPEN side; deferred until that work happens.
 
 interface SettingsProps {
   onClose: () => void;
@@ -37,10 +34,17 @@ function Settings({ onClose }: SettingsProps) {
   const vaultPath = useVaultPath();
   const {
     toolbarDefaultCollapsed, setToolbarDefaultCollapsed,
-    hoverZoomEnabled, setHoverZoomEnabled, hoverZoomLevel, hoverDefaultWidth, hoverDefaultHeight, setHoverDefaultSize,
+    hoverZoomEnabled, setHoverZoomEnabled, hoverZoomLevel, setHoverZoomLevel,
     theme, setTheme, font, setFont, customFonts, selectedCustomFont, addCustomFont, removeCustomFont, language, setLanguage,
     devMode, setDevMode,
     confirmAttachmentDelete, setConfirmAttachmentDelete,
+    autoSaveDelay, setAutoSaveDelay,
+    // 5.0.6ah — fontSize / lineHeight / spellCheck removed: their store
+    // values were never consumed by any editor surface, so the toggles
+    // they powered in Settings were dummies.
+    // v22 (2026-05-23) — graphSettings UI surfaces removed from this dialog;
+    // controls live in GraphView's own overlay. Store values still mutated
+    // by GraphView, so the destructure here is intentionally absent.
   } = useSettingsStore();
   const {
     noteTemplates, enabledTemplateIds, addNoteTemplate, updateNoteTemplate, removeNoteTemplate, toggleTemplateEnabled,
@@ -52,6 +56,13 @@ function Settings({ onClose }: SettingsProps) {
   const [newFontName, setNewFontName] = useState('');
   const [newFontFamily, setNewFontFamily] = useState('');
   const [showAddFontModal, setShowAddFontModal] = useState(false);
+
+  // 5.0.5a-migration — entry to TemplateMigrationModal + live count badge.
+  // Refresh on mount so the badge reflects current vault state.
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
+  const unmatchedTypes = useUnmatchedNoteTypes();
+  const unmatchedCount = Array.from(unmatchedTypes.values()).reduce((a, b) => a + b, 0);
+  useEffect(() => { noteTypeCacheActions.refreshCache(); }, []);
 
   // Unused tag cleanup state
   const [unusedTags, setUnusedTags] = useState<string[]>([]);
@@ -90,12 +101,8 @@ function Settings({ onClose }: SettingsProps) {
     }
   }, [vaultPath, unusedTags]);
 
-  // Find current size preset
-  const currentSizePreset = useMemo(() => {
-    return WINDOW_SIZE_PRESETS.find(
-      p => p.width === hoverDefaultWidth && p.height === hoverDefaultHeight
-    )?.id || 'custom';
-  }, [hoverDefaultWidth, hoverDefaultHeight]);
+  // 5.0.6ah — currentSizePreset memo removed alongside the dummy
+  // WINDOW_SIZE_PRESETS picker.
 
   // Plugin tabs from SettingsRegistry
   const pluginTabs = useSyncExternalStore(
@@ -103,13 +110,32 @@ function Settings({ onClose }: SettingsProps) {
     SettingsRegistry.getPlugins,
   );
 
-  const TABS: { id: SettingsTab; label: string }[] = [
-    { id: 'general', label: t('general', language) },
-    { id: 'editor', label: t('editor', language) },
-    { id: 'templates', label: t('templates', language) },
-    { id: 'shortcuts', label: t('shortcuts', language) },
-    ...pluginTabs.map(p => ({ id: p.id, label: (p.icon ? p.icon + ' ' : '') + p.label })),
-    { id: 'developer', label: t('developer', language) },
+  // 5.0.6b (2026-05-17, HanBin) — tabs now declare a lucide icon. Replaces
+  // the inconsistent state where built-in tabs were text-only and plugin
+  // tabs jammed an emoji onto the label string ("🔄 Sync"). Plugin tabs
+  // can still ship an emoji via `plugin.icon` as a fallback when they
+  // don't pre-pack a lucide name, but every built-in uses lucide for
+  // visual consistency with the rest of the app chrome.
+  // 5.0.6c (2026-05-17, HanBin) — 8-tab structure. Splits Appearance out
+  // of General (was: theme/font/lang lumped together) and pulls Window
+  // out of Editor (was: editor toolbar + popup zoom + default size all
+  // crammed into "Editor"). Each tab now has one clear concern.
+  const TABS: { id: SettingsTab; label: string; Icon: LucideIcon; emoji?: string }[] = [
+    { id: 'general',    label: t('general', language),    Icon: SlidersHorizontal },
+    { id: 'appearance', label: t('appearance', language), Icon: Palette },
+    { id: 'editor',     label: t('editor', language),     Icon: FileEdit },
+    { id: 'window',     label: t('window', language),     Icon: AppWindow },
+    { id: 'templates',  label: t('templates', language),  Icon: FileText },
+    { id: 'shortcuts',  label: t('shortcuts', language),  Icon: Keyboard },
+    ...pluginTabs.map(p => ({
+      id: p.id,
+      // 5.0.6d — plugin label can be a string or resolver function.
+      // Resolver pattern lets the label react to language switches.
+      label: typeof p.label === 'function' ? p.label() : p.label,
+      Icon: p.Icon ?? Puzzle,
+      emoji: p.Icon ? undefined : p.icon,
+    })),
+    { id: 'developer',  label: t('developer', language),  Icon: Wrench },
   ];
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -138,34 +164,45 @@ function Settings({ onClose }: SettingsProps) {
       <div className="settings-modal">
         <div className="settings-modal-header">
           <h2 className="settings-modal-title">{t('settings', language)}</h2>
-          <button className="settings-modal-close" onClick={onClose}>×</button>
+          <button
+            className="settings-modal-close"
+            onClick={onClose}
+            aria-label={t('close', language)}
+            title={t('close', language)}
+          >
+            <X size={16} strokeWidth={2} />
+          </button>
         </div>
 
         <div className="settings-modal-content">
           {/* Tab Navigation */}
           <nav className="settings-tabs">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {TABS.map((tab) => {
+              const TabIcon = tab.Icon;
+              return (
+                <button
+                  key={tab.id}
+                  className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  <TabIcon size={14} strokeWidth={2} aria-hidden="true" />
+                  <span className="settings-tab-label">{tab.label}</span>
+                  {tab.emoji && <span className="settings-tab-emoji" aria-hidden="true">{tab.emoji}</span>}
+                </button>
+              );
+            })}
           </nav>
 
           {/* Tab Content */}
           <div className="settings-tab-content">
-            {activeTab === 'general' && (
+            {activeTab === 'appearance' && (
               <div className="settings-panel">
                 <section className="settings-section">
-                  <h3 className="settings-section-title">{t('appearance', language)}</h3>
-                  <div className="settings-row">
-                    <div className="settings-row-info">
-                      <span className="settings-row-label">{t('theme', language)}</span>
-                      <span className="settings-row-desc">{t('themeDesc', language)}</span>
-                    </div>
+                  <h3 className="settings-section-title">
+                    <Palette size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>{t('appearance', language)}</span>
+                  </h3>
+                  <SettingsRow label={t('theme', language)} description={t('themeDesc', language)}>
                     <div className="settings-theme-toggle">
                       {(['dark', 'light', 'system'] as const).map(mode => (
                         <button
@@ -178,12 +215,26 @@ function Settings({ onClose }: SettingsProps) {
                         </button>
                       ))}
                     </div>
-                  </div>
-                  <div className="settings-row">
-                    <div className="settings-row-info">
-                      <span className="settings-row-label">{t('font', language)}</span>
-                      <span className="settings-row-desc">{t('fontDesc', language)}</span>
-                    </div>
+                  </SettingsRow>
+                  {/* 5.0.6ah (2026-05-17, HanBin) — dummy rows removed.
+                      HanBin: "실제 동작하지 않는다면, 이런 방식의 더미
+                      기능은 모두 제거해. 실제로 동작가능하고 변경할 수
+                      있는 기능만 설정창에 구비하라고." Audit found:
+                        • spellCheck — editor hardcodes `spellcheck='false'`
+                                       (editorPool / ContainerView); store
+                                       value is never read. Toggle had
+                                       zero effect.
+                        • fontSize  — store has setter but no consumer
+                                       (only mobile SettingsView uses it,
+                                       desktop editor ignores).
+                        • lineHeight — same as fontSize.
+                      Rows + the corresponding store hooks (fontSize /
+                      lineHeight / spellCheck) are gone from this UI. The
+                      store fields stay for now so persisted vault config
+                      doesn't blow up; a later cleanup can drop them
+                      entirely once consumer side is wired or confirmed
+                      dead. */}
+                  <SettingsRow label={t('font', language)} description={t('fontDesc', language)}>
                     <select
                       className="settings-select"
                       value={font === 'custom' ? `custom:${selectedCustomFont}` : font}
@@ -205,48 +256,56 @@ function Settings({ onClose }: SettingsProps) {
                         <option key={cf.name} value={`custom:${cf.name}`}>{cf.name}</option>
                       ))}
                     </select>
-                  </div>
+                  </SettingsRow>
 
-                  {/* Custom Fonts Section */}
-                  <div className="settings-row">
-                    <div className="settings-row-info">
+                  {/* 5.0.6b (2026-05-17, HanBin) — Custom Fonts row uses the
+                      block variant so the registered-font list sits BELOW the
+                      "+ 추가" button instead of overflowing the row's flex
+                      layout. Previously the list rendered as a sibling of
+                      the row, breaking the section's visual hierarchy. */}
+                  <div className="settings-row settings-row--block">
+                    <div className="settings-row-info settings-row-info--inline">
                       <span className="settings-row-label">{t('customFonts', language)}</span>
                       <span className="settings-row-desc">{t('addSystemFont', language)}</span>
+                      <button
+                        className="settings-action-btn"
+                        onClick={() => setShowAddFontModal(true)}
+                      >
+                        + {t('addFont', language)}
+                      </button>
                     </div>
-                    <button
-                      className="settings-action-btn"
-                      onClick={() => setShowAddFontModal(true)}
-                    >
-                      + {t('addFont', language)}
-                    </button>
+                    {customFonts.length > 0 && (
+                      <div className="custom-fonts-list">
+                        {customFonts.map(cf => (
+                          <div key={cf.name} className="custom-font-item">
+                            <span className="custom-font-name" style={{ fontFamily: cf.family }}>{cf.name}</span>
+                            <span className="custom-font-family">{cf.family}</span>
+                            <button
+                              className="custom-font-remove"
+                              onClick={() => removeCustomFont(cf.name, vaultPath)}
+                              title={t('removeFont', language)}
+                              aria-label={t('removeFont', language)}
+                            >
+                              <X size={12} strokeWidth={2} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-
-                  {customFonts.length > 0 && (
-                    <div className="custom-fonts-list">
-                      {customFonts.map(cf => (
-                        <div key={cf.name} className="custom-font-item">
-                          <span className="custom-font-name" style={{ fontFamily: cf.family }}>{cf.name}</span>
-                          <span className="custom-font-family">{cf.family}</span>
-                          <button
-                            className="custom-font-remove"
-                            onClick={() => removeCustomFont(cf.name, vaultPath)}
-                            title={t('removeFont', language)}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </section>
 
+              </div>
+            )}
+
+            {activeTab === 'general' && (
+              <div className="settings-panel">
                 <section className="settings-section">
-                  <h3 className="settings-section-title">{t('languageRegion', language)}</h3>
-                  <div className="settings-row">
-                    <div className="settings-row-info">
-                      <span className="settings-row-label">{t('language', language)}</span>
-                      <span className="settings-row-desc">{t('languageDesc', language)}</span>
-                    </div>
+                  <h3 className="settings-section-title">
+                    <Languages size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>{t('languageRegion', language)}</span>
+                  </h3>
+                  <SettingsRow label={t('language', language)} description={t('languageDesc', language)}>
                     <select
                       className="settings-select"
                       value={language}
@@ -255,7 +314,35 @@ function Settings({ onClose }: SettingsProps) {
                       <option value="ko">한국어</option>
                       <option value="en">English</option>
                     </select>
-                  </div>
+                  </SettingsRow>
+                </section>
+
+                {/* 5.0.6h Phase 1 (2026-05-17, HanBin) — Settings was the
+                    "main control" surface but General had only one row.
+                    Auto-save delay was defined in settingsStore but had no
+                    UI; the editor saved on a hard-coded 1000ms regardless
+                    of the stored value. Exposing it here makes it a real
+                    knob. Stepped select (250/500/1000/2000/4000) matches
+                    the actual useful range — sub-second loses NAS write
+                    coalescing, multi-second feels laggy. */}
+                <section className="settings-section">
+                  <h3 className="settings-section-title">
+                    <Save size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>{t('autoSaveLabel', language)}</span>
+                  </h3>
+                  <SettingsRow label={t('autoSaveLabel', language)} description={t('autoSaveDesc', language)}>
+                    <select
+                      className="settings-select"
+                      value={String(autoSaveDelay)}
+                      onChange={e => setAutoSaveDelay(parseInt(e.target.value, 10), vaultPath)}
+                    >
+                      <option value="250">250 ms</option>
+                      <option value="500">500 ms</option>
+                      <option value="1000">1000 ms</option>
+                      <option value="2000">2000 ms</option>
+                      <option value="4000">4000 ms</option>
+                    </select>
+                  </SettingsRow>
                 </section>
               </div>
             )}
@@ -263,85 +350,102 @@ function Settings({ onClose }: SettingsProps) {
             {activeTab === 'editor' && (
               <div className="settings-panel">
                 <section className="settings-section">
-                  <h3 className="settings-section-title">{t('editingToolbar', language)}</h3>
-                  <div className="settings-row">
-                    <div className="settings-row-info">
-                      <span className="settings-row-label">{t('defaultCollapsed', language)}</span>
-                      <span className="settings-row-desc">{t('defaultCollapsedDesc', language)}</span>
-                    </div>
-                    <button
-                      className={`settings-toggle-btn ${toolbarDefaultCollapsed ? 'active' : ''}`}
-                      onClick={() => setToolbarDefaultCollapsed(!toolbarDefaultCollapsed, vaultPath)}
-                    >
-                      {toolbarDefaultCollapsed ? t('on', language) : t('off', language)}
-                    </button>
-                  </div>
+                  <h3 className="settings-section-title">
+                    <FileEdit size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>{t('editingToolbar', language)}</span>
+                  </h3>
+                  <SettingsRow label={t('defaultCollapsed', language)} description={t('defaultCollapsedDesc', language)}>
+                    <Toggle
+                      checked={toolbarDefaultCollapsed}
+                      onChange={e => setToolbarDefaultCollapsed(e.currentTarget.checked, vaultPath)}
+                      aria-label={t('defaultCollapsed', language)}
+                    />
+                  </SettingsRow>
                   {/* Track B Phase B-3 PART 6 (HanBin 2026-05-13): toggle the
                       attachment-deletion confirmation modal. */}
-                  <div className="settings-row">
-                    <div className="settings-row-info">
-                      <span className="settings-row-label">{t('confirmAttachmentDeleteLabel', language)}</span>
-                      <span className="settings-row-desc">{t('confirmAttachmentDeleteHint', language)}</span>
+                  <SettingsRow label={t('confirmAttachmentDeleteLabel', language)} description={t('confirmAttachmentDeleteHint', language)}>
+                    <Toggle
+                      checked={confirmAttachmentDelete}
+                      onChange={e => setConfirmAttachmentDelete(e.currentTarget.checked, vaultPath)}
+                      aria-label={t('confirmAttachmentDeleteLabel', language)}
+                    />
+                  </SettingsRow>
+                </section>
+
+                {/* 5.0.6b (2026-05-17, HanBin) — Suggestion Triggers moved here
+                    from the Shortcuts tab. The `[[` / `//` / `/` triggers are
+                    INPUT semantics inside the editor — they belong with editor
+                    settings, not with key-binding configuration. The `@` row
+                    was removed because mention is not actually wired. */}
+                <section className="settings-section">
+                  <h3 className="settings-section-title">
+                    <Hash size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>{t('suggestionTriggers', language)}</span>
+                  </h3>
+                  <p className="settings-section-desc">{t('suggestionTriggersDesc', language)}</p>
+                  <div className="suggestion-triggers-list">
+                    <div className="suggestion-trigger-item">
+                      <code className="trigger-code">[[</code>
+                      <span className="trigger-desc">{t('triggerWikiLink', language)}</span>
                     </div>
-                    <button
-                      className={`settings-toggle-btn ${confirmAttachmentDelete ? 'active' : ''}`}
-                      onClick={() => setConfirmAttachmentDelete(!confirmAttachmentDelete, vaultPath)}
-                    >
-                      {confirmAttachmentDelete ? t('on', language) : t('off', language)}
-                    </button>
+                    <div className="suggestion-trigger-item">
+                      <code className="trigger-code">//</code>
+                      <span className="trigger-desc">{t('triggerAttachment', language)}</span>
+                    </div>
+                    <div className="suggestion-trigger-item">
+                      <code className="trigger-code">/</code>
+                      <span className="trigger-desc">{t('triggerSlash', language)}</span>
+                    </div>
                   </div>
                 </section>
 
+                {/* v22 (HanBin 2026-05-23) — graph section removed.
+                    Reason: every graph control (toggles, sliders, reset)
+                    now lives in the graph-tab's own overlay panel where
+                    the user sees live preview. Duplicating two of those
+                    toggles here was confusing and inverted the "one
+                    canonical control" rule. Settings keeps the data
+                    (graphSettings store) but no UI surface here. */}
+              </div>
+            )}
+
+            {activeTab === 'window' && (
+              <div className="settings-panel">
                 <section className="settings-section">
-                  <h3 className="settings-section-title">{t('popupWindow', language)}</h3>
-                  <div className="settings-row">
-                    <div className="settings-row-info">
-                      <span className="settings-row-label">{t('ctrlScrollZoom', language)}</span>
-                      <span className="settings-row-desc">{t('ctrlScrollZoomDesc', language)}</span>
-                    </div>
-                    <button
-                      className={`settings-toggle-btn ${hoverZoomEnabled ? 'active' : ''}`}
-                      onClick={() => setHoverZoomEnabled(!hoverZoomEnabled, vaultPath)}
-                    >
-                      {hoverZoomEnabled ? t('on', language) : t('off', language)}
-                    </button>
-                  </div>
+                  <h3 className="settings-section-title">
+                    <AppWindow size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>{t('popupWindow', language)}</span>
+                  </h3>
+                  <SettingsRow label={t('ctrlScrollZoom', language)} description={t('ctrlScrollZoomDesc', language)}>
+                    <Toggle
+                      checked={hoverZoomEnabled}
+                      onChange={e => setHoverZoomEnabled(e.currentTarget.checked, vaultPath)}
+                      aria-label={t('ctrlScrollZoom', language)}
+                    />
+                  </SettingsRow>
                   {hoverZoomEnabled && (
-                    <div className="settings-row">
-                      <div className="settings-row-info">
-                        <span className="settings-row-label">{t('currentZoomLevel', language)}</span>
-                        <span className="settings-row-desc">{hoverZoomLevel}% (50% ~ 200%)</span>
-                      </div>
-                    </div>
+                    <SettingsRow
+                      label={t('currentZoomLevel', language)}
+                      description={`${hoverZoomLevel}% (50% – 200%)`}
+                    >
+                      <input
+                        type="range"
+                        className="settings-range"
+                        min={50}
+                        max={200}
+                        step={10}
+                        value={hoverZoomLevel}
+                        onChange={e => setHoverZoomLevel(parseInt(e.target.value, 10), vaultPath)}
+                        aria-label={t('currentZoomLevel', language)}
+                      />
+                    </SettingsRow>
                   )}
-                  <div className="settings-row">
-                    <div className="settings-row-info">
-                      <span className="settings-row-label">{t('defaultWindowSize', language)}</span>
-                      <span className="settings-row-desc">{t('defaultWindowSizeDesc', language)}</span>
-                    </div>
-                  </div>
-                  <div className="window-size-selector">
-                    {WINDOW_SIZE_PRESETS.map(preset => (
-                      <button
-                        key={preset.id}
-                        className={`window-size-option ${currentSizePreset === preset.id ? 'active' : ''}`}
-                        onClick={() => setHoverDefaultSize(preset.width, preset.height, vaultPath)}
-                        title={`${preset.width} × ${preset.height}`}
-                      >
-                        <div className="window-size-preview-container">
-                          <div
-                            className="window-size-preview"
-                            style={{
-                              width: `${(preset.width / 1400) * 100}%`,
-                              height: `${(preset.height / 900) * 100}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="window-size-label">{t(preset.labelKey, language)}</span>
-                        <span className="window-size-dimensions">{preset.width} × {preset.height}</span>
-                      </button>
-                    ))}
-                  </div>
+                  {/* 5.0.6ah — "기본 창 크기" preset grid removed. Audit
+                      found hoverDefaultWidth / hoverDefaultHeight have
+                      zero consumers outside settingsStore + this Settings
+                      UI. setHoverDefaultSize() persisted a value that
+                      hover-window creation never read, so the picker was
+                      a dummy. */}
                 </section>
               </div>
             )}
@@ -368,46 +472,103 @@ function Settings({ onClose }: SettingsProps) {
                 ) : (
                   <section className="settings-section">
                     <div className="settings-section-header">
-                      <h3 className="settings-section-title">{t('noteTemplates', language)}</h3>
-                      <button
-                        className="template-add-btn-v2"
-                        onClick={() => setIsCreatingNoteTemplate(true)}
-                        title={t('newTemplate', language)}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-                          <path d="M7 0a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2H8v5a1 1 0 1 1-2 0V8H1a1 1 0 0 1 0-2h5V1a1 1 0 0 1 1-1z"/>
-                        </svg>
-                        <span>{t('newTemplate', language)}</span>
-                      </button>
+                      <h3 className="settings-section-title">
+                        <FileText size={14} strokeWidth={2} aria-hidden="true" />
+                        <span>{t('noteTemplates', language)}</span>
+                      </h3>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        {/* 5.0.5a-migration — migration entry. Visible always
+                            (so users discover the tool); count badge appears
+                            only when there's actual work to do. */}
+                        <Button
+                          variant="secondary"
+                          size="md"
+                          leftIcon={<AlertTriangle size={14} strokeWidth={2} />}
+                          onClick={() => setShowMigrationModal(true)}
+                          title={t('tplMigrateBtn', language)}
+                        >
+                          {t('tplMigrateBtn', language)}
+                          {unmatchedCount > 0 && (
+                            <span className="tpl-migrate-trigger-badge">
+                              {tf('tplMigrateBadge', language, { count: String(unmatchedCount) })}
+                            </span>
+                          )}
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="md"
+                          leftIcon={<Plus size={14} strokeWidth={2} />}
+                          onClick={() => setIsCreatingNoteTemplate(true)}
+                          title={t('newTemplate', language)}
+                        >
+                          {t('newTemplate', language)}
+                        </Button>
+                      </div>
                     </div>
                     <p className="settings-section-desc">{t('noteTemplatesDesc', language)}</p>
-                    <div className="template-grid">
-                      {noteTemplates.map(nt => {
+                    {(() => {
+                      // 5.0.6f (2026-05-17, HanBin) — template card rendering
+                      // overhaul. Three things were broken in the prior pass:
+                      //   1) `isBuiltIn` only matched legacy `note-*` ids, so
+                      //      the new defaults (`tpl-entity` / `tpl-document` /
+                      //      `tpl-sketch`) showed edit/delete actions and
+                      //      could be removed accidentally.
+                      //   2) `descKeys` only mapped legacy type tags; new
+                      //      ENTITY type (and any custom prefix) fell through
+                      //      to "사용자 정의 템플릿", which made every card
+                      //      look identical regardless of role.
+                      //   3) Color signal was split between two CSS systems —
+                      //      the header bar read `--template-color` (driven
+                      //      by `cssclasses` token or customColor) while the
+                      //      corner chip read `icon-${type}` (driven by the
+                      //      type tag's class). Defaults whose cssclasses
+                      //      didn't line up with the legacy type tag showed
+                      //      mismatched colors (e.g. "개체" got a yellow bar
+                      //      + a purple chip). The chip now ALWAYS resolves
+                      //      through the same color the bar uses.
+                      const isBuiltIn = (id: string) =>
+                        id.startsWith('tpl-') ||
+                        (id.startsWith('note-') && !id.startsWith('note-custom-'));
+                      const descKeys: Record<string, string> = {
+                        'NOTE': 'templateDescNoteShort',
+                        'ENTITY': 'templateDescEntityShort',
+                        'DOC': 'templateDescDocumentShort',
+                        'SKETCH': 'templateDescSketchShortV2',
+                        'MTG': 'templateDescMtgShort',
+                        'SEM': 'templateDescSemShort',
+                        'EVENT': 'templateDescEventShort',
+                        'OFA': 'templateDescOfaShort',
+                        'PAPER': 'templateDescPaperShort',
+                        'LIT': 'templateDescLitShort',
+                        'DATA': 'templateDescDataShort',
+                        'THEO': 'templateDescTheoShort',
+                        'CONTACT': 'templateDescContactShort',
+                        'SETUP': 'templateDescSetupShort',
+                      };
+                      const resolveColor = (nt: NoteTemplate): string | undefined => {
+                        if (nt.customColor) return nt.customColor;
+                        const css = nt.frontmatter.cssclasses?.[0];
+                        if (css && css.endsWith('-type')) {
+                          // resolves through CSS var (defined in note-type-colors.css);
+                          // resolveTileColor in TemplateSelector uses the same pattern.
+                          return `var(--${css.replace(/-type$/, '')}-color)`;
+                        }
+                        return undefined;
+                      };
+                      const defaults = noteTemplates.filter(t => isBuiltIn(t.id));
+                      const customs = noteTemplates.filter(t => !isBuiltIn(t.id));
+                      const renderCard = (nt: NoteTemplate) => {
                         const typeClass = nt.frontmatter.cssclasses?.[0] || '';
-                        const noteType = nt.frontmatter.type?.toLowerCase() || 'note';
                         const customColor = nt.customColor;
-                        const isBuiltIn = nt.id.startsWith('note-') && !nt.id.startsWith('note-custom-');
+                        const builtIn = isBuiltIn(nt.id);
                         const isEnabled = enabledTemplateIds.includes(nt.id);
-                        const descKeys: Record<string, string> = {
-                          'NOTE': 'templateDescNoteShort',
-                          'SKETCH': 'templateDescSketchShort',
-                          'MTG': 'templateDescMtgShort',
-                          'SEM': 'templateDescSemShort',
-                          'EVENT': 'templateDescEventShort',
-                          'OFA': 'templateDescOfaShort',
-                          'PAPER': 'templateDescPaperShort',
-                          'LIT': 'templateDescLitShort',
-                          'DATA': 'templateDescDataShort',
-                          'THEO': 'templateDescTheoShort',
-                          'CONTACT': 'templateDescContactShort',
-                          'SETUP': 'templateDescSetupShort',
-                        };
                         const descKey = descKeys[nt.frontmatter.type || 'NOTE'] || 'templateDescCustomShort';
+                        const cardColor = resolveColor(nt);
                         return (
                           <div
                             key={nt.id}
-                            className={`template-card${typeClass ? ' ' + typeClass : ''}${customColor ? ' has-custom-color' : ''}${!isEnabled ? ' template-disabled' : ''}`}
-                            style={customColor ? { '--template-color': customColor } as React.CSSProperties : undefined}
+                            className={`template-card${typeClass ? ' ' + typeClass : ''}${customColor ? ' has-custom-color' : ''}${!isEnabled ? ' template-disabled' : ''}${builtIn ? ' is-built-in' : ''}`}
+                            style={cardColor ? { '--template-color': cardColor } as React.CSSProperties : undefined}
                           >
                             <div className="template-card-header">
                               <label className="template-card-checkbox">
@@ -418,8 +579,8 @@ function Settings({ onClose }: SettingsProps) {
                                 />
                               </label>
                               <span
-                                className={`template-card-icon icon-${noteType}`}
-                                style={customColor ? { backgroundColor: customColor } : undefined}
+                                className="template-card-icon"
+                                style={cardColor ? { backgroundColor: cardColor } : undefined}
                               />
                             </div>
                             <div className="template-card-body">
@@ -427,7 +588,7 @@ function Settings({ onClose }: SettingsProps) {
                                 <span className="template-card-name">{nt.name}</span>
                                 <span
                                   className="template-card-prefix"
-                                  style={customColor ? { color: customColor, borderColor: customColor } : undefined}
+                                  style={cardColor ? { color: cardColor, borderColor: cardColor } : undefined}
                                 >
                                   {nt.prefix}
                                 </span>
@@ -435,27 +596,56 @@ function Settings({ onClose }: SettingsProps) {
                               <p className="template-card-desc">{t(descKey, language)}</p>
                             </div>
                             <div className="template-card-footer">
-                              {isBuiltIn ? (
+                              {builtIn ? (
                                 <span className="template-card-badge">{t('builtIn', language)}</span>
                               ) : (
                                 <div className="template-card-actions">
-                                  <button className="template-card-action-btn" onClick={() => setEditingNoteTemplate(nt)}>
-                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                                      <path d="M9.1 1.2a1 1 0 0 1 1.4 0l.3.3a1 1 0 0 1 0 1.4l-7 7-2.1.4.4-2.1 7-7zM8 2.6L2.2 8.4l-.2.9.9-.2L8.7 3.3 8 2.6z"/>
-                                    </svg>
+                                  <button
+                                    className="template-card-action-btn"
+                                    onClick={() => setEditingNoteTemplate(nt)}
+                                    title={t('templateMenuEdit', language)}
+                                    aria-label={t('templateMenuEdit', language)}
+                                  >
+                                    <Pencil size={12} strokeWidth={2} />
                                   </button>
-                                  <button className="template-card-action-btn delete" onClick={() => removeNoteTemplate(nt.id, vaultPath)}>
-                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                                      <path d="M4.5 1.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5V2h2.5a.5.5 0 0 1 0 1H2a.5.5 0 0 1 0-1h2.5v-.5zM3 4v6.5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4H3zm2 1.5a.5.5 0 0 1 1 0v4a.5.5 0 0 1-1 0v-4zm2.5 0a.5.5 0 0 1 1 0v4a.5.5 0 0 1-1 0v-4z"/>
-                                    </svg>
+                                  <button
+                                    className="template-card-action-btn delete"
+                                    onClick={() => removeNoteTemplate(nt.id, vaultPath)}
+                                    title={t('templateMenuDelete', language)}
+                                    aria-label={t('templateMenuDelete', language)}
+                                  >
+                                    <Trash2 size={12} strokeWidth={2} />
                                   </button>
                                 </div>
                               )}
                             </div>
                           </div>
-                        )
-                      })}
-                    </div>
+                        );
+                      };
+                      return (
+                        <>
+                          {defaults.length > 0 && (
+                            <div className="template-group">
+                              <div className="template-group-label">{t('defaultTemplates', language)}</div>
+                              <div className="template-grid">
+                                {defaults.map(renderCard)}
+                              </div>
+                            </div>
+                          )}
+                          {customs.length > 0 && (
+                            <div className="template-group">
+                              <div className="template-group-label">{t('customTemplates', language)}</div>
+                              <div className="template-grid">
+                                {customs.map(renderCard)}
+                              </div>
+                            </div>
+                          )}
+                          {defaults.length === 0 && customs.length === 0 && (
+                            <div className="template-empty">{t('noSearchResultsTemplate', language)}</div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </section>
                 )}
               </div>
@@ -463,51 +653,44 @@ function Settings({ onClose }: SettingsProps) {
 
             {activeTab === 'shortcuts' && (
               <div className="settings-panel">
+                {/* 5.0.6b (2026-05-17, HanBin) — Suggestion Triggers section
+                    moved out to the Editor tab. Keybindings only here.
+                    The `@` mention trigger was removed entirely — mention
+                    UI is not wired and the row was misleading. */}
                 <KeyboardShortcuts
                   customShortcuts={customShortcuts}
                   onUpdateShortcuts={(shortcuts) => setCustomShortcuts(shortcuts, vaultPath)}
                 />
-
-                {/* Suggestion Triggers Section */}
-                <section className="settings-section suggestion-triggers-section">
-                  <h3 className="settings-section-title">{t('suggestionTriggers', language)}</h3>
-                  <p className="settings-section-desc">{t('suggestionTriggersDesc', language)}</p>
-                  <div className="suggestion-triggers-list">
-                    <div className="suggestion-trigger-item">
-                      <code className="trigger-code">[[</code>
-                      <span className="trigger-desc">{t('triggerWikiLink', language)}</span>
-                    </div>
-                    <div className="suggestion-trigger-item">
-                      <code className="trigger-code">@</code>
-                      <span className="trigger-desc">{t('triggerMention', language)}</span>
-                    </div>
-                    <div className="suggestion-trigger-item">
-                      <code className="trigger-code">//</code>
-                      <span className="trigger-desc">{t('triggerAttachment', language)}</span>
-                    </div>
-                  </div>
-                </section>
               </div>
             )}
 
             {activeTab === 'developer' && (
               <div className="settings-panel">
                 <section className="settings-section">
-                  <h3 className="settings-section-title">{t('developerTools', language)}</h3>
-                  <div className="settings-row">
-                    <div className="settings-row-info">
-                      <span className="settings-row-label">{t('devModeLabel', language)}</span>
-                      <span className="settings-row-desc">{t('devModeDesc', language)}</span>
-                    </div>
-                    <button
-                      className={`settings-toggle-btn ${devMode ? 'active' : ''}`}
-                      onClick={() => setDevMode(!devMode)}
-                    >
-                      {devMode ? t('on', language) : t('off', language)}
-                    </button>
-                  </div>
+                  <h3 className="settings-section-title">
+                    <Wrench size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>{t('developerTools', language)}</span>
+                  </h3>
+                  <SettingsRow label={t('devModeLabel', language)} description={t('devModeDesc', language)}>
+                    <Toggle
+                      checked={devMode}
+                      onChange={e => setDevMode(e.currentTarget.checked)}
+                      aria-label={t('devModeLabel', language)}
+                    />
+                  </SettingsRow>
                 </section>
 
+                {/* 2026-05-24 (HanBin) — Manual vault repair trigger.
+                    Visible in the Dev Mode tab regardless of devMode toggle —
+                    the toggle gates *risky* developer UI, but vault repair is
+                    safe (backup-and-verify), and HanBin's Q4 decision was to
+                    make the manual trigger live here so users can re-run on
+                    demand even after the first-open auto-prompt was dismissed. */}
+                <VaultRepairSection language={language} />
+
+                {/* Phase 1 B3 (2026-05-24) — full vault snapshot manager.
+                    Foundational safety net for legacy vault migration. */}
+                <VaultSnapshotManager language={language} />
               </div>
             )}
 
@@ -519,6 +702,12 @@ function Settings({ onClose }: SettingsProps) {
           </div>
         </div>
       </div>
+
+      {/* 5.0.5a-migration — unidentified-template migration modal */}
+      <TemplateMigrationModal
+        open={showMigrationModal}
+        onClose={() => setShowMigrationModal(false)}
+      />
 
       {/* Add Font Modal */}
       {showAddFontModal && (
@@ -619,3 +808,76 @@ function Settings({ onClose }: SettingsProps) {
 }
 
 export default Settings;
+
+// ─── VaultRepairSection (HanBin 2026-05-24) ──────────────────────────
+// Standalone subcomponent so the Settings parent stays focused on its
+// own state. Lives in the Dev Mode tab; orchestrates scan → modal flow.
+import VaultRepairModal from '../sync_v2/components/VaultRepairModal';
+import { VaultSnapshotManager } from '../sync_v2/components/VaultSnapshotManager';
+import { syncV2Commands, type VaultRepairReport } from '../sync_v2/syncV2Commands';
+
+function VaultRepairSection({ language }: { language: LanguageSetting }) {
+  const ko = language === 'ko';
+  const [scanning, setScanning] = useState(false);
+  const [report, setReport] = useState<VaultRepairReport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const onScan = async () => {
+    setScanning(true);
+    setError(null);
+    try {
+      const r = await syncV2Commands.vaultRepairScan();
+      setReport(r);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  return (
+    <>
+      <section className="settings-section">
+        <h3 className="settings-section-title">
+          <Wrench size={14} strokeWidth={2} aria-hidden="true" />
+          <span>{ko ? '보관소 정합성 검사 · 복구' : 'Vault repair'}</span>
+        </h3>
+        <SettingsRow
+          label={ko ? '수동 검사 실행' : 'Run manual scan'}
+          description={
+            ko
+              ? '레거시 _att/ 폴더, sketch 외부 경로, 깨진 wikilink, 다중 공유 ref, 고아 blob 등 7개 패턴을 검사하고 자동 복구합니다. 안전: 모든 변경 전 .legacy/repair_<시간>/ 폴더에 백업합니다.'
+              : 'Scans for 7 patterns (legacy _att/ folders, sketch external paths, broken wikilinks, multi-shared refs, orphan blobs, etc.) and auto-repairs. Safety: all changes are backed up under .legacy/repair_<ts>/ first.'
+          }
+        >
+          <Button onClick={onScan} disabled={scanning} variant="secondary" size="sm">
+            {scanning ? (ko ? '검사 중...' : 'Scanning...') : (ko ? '검사 실행' : 'Run scan')}
+          </Button>
+        </SettingsRow>
+        {error && (
+          <div style={{
+            padding: '8px 12px',
+            background: 'color-mix(in srgb, var(--c-red, #ef4444) 12%, transparent)',
+            color: 'var(--tx-2)',
+            fontSize: 'var(--fs-12)',
+            borderRadius: 6,
+          }}>{error}</div>
+        )}
+        {report && !report.repairRecommended && !scanning && (
+          <div style={{
+            padding: '8px 12px',
+            background: 'var(--bg-elevated)',
+            color: 'var(--tx-2)',
+            fontSize: 'var(--fs-12)',
+            borderRadius: 6,
+          }}>
+            {ko ? '✅ 보관소 상태 정상 — 자동 복구할 항목이 없습니다.' : '✅ Vault is consistent — nothing to repair.'}
+          </div>
+        )}
+      </section>
+      {report && report.repairRecommended && (
+        <VaultRepairModal report={report} onClose={() => setReport(null)} />
+      )}
+    </>
+  );
+}

@@ -1,5 +1,6 @@
 import React from 'react';
-import type { NoteMetadata, SearchResult, AttachmentInfo } from '../../core/types';
+import { AlertTriangle } from 'lucide-react';
+import type { NoteMetadata, SearchResult } from '../../core/types';
 import type { LanguageSetting } from '../../core/utils/i18n';
 import { t, tf } from '../../core/utils/i18n';
 import {
@@ -11,6 +12,14 @@ import {
   inferNoteType,
 } from './searchHelpers';
 import { getAttachmentCategory } from '../suggestions/attachmentCategory';
+import { useRegisteredTypes, isUnmatchedNoteType, findTemplateByType } from '../templates/templateRegistryUtils';
+import { useTemplateStore } from '../templates/stores/templateStore';
+// 5.0.7a (2026-05-17, HanBin) — initially tried wrapping ContentResultCard
+// in design-system <Card interactive density="compact">, but Card's chrome
+// (rounded box + shadow + padding) double-styled the existing row design
+// (border-left color strip + bg-gradient). Reverted to raw <div>; full
+// <SearchResultCard> primitive extraction is deferred to 5.0.7-followup
+// once Card has a "row" variant or the row CSS migrates to tokens-only.
 
 // ============================================================================
 // Frontmatter result row
@@ -27,8 +36,26 @@ interface FrontmatterResultRowProps {
   onSelect?: (path: string) => void;
   isMultiSelected?: boolean;
   onMultiClick?: (e: React.MouseEvent, note: NoteMetadata) => boolean;
+  /**
+   * 11th hotfix (2026-05-19, HanBin) — explicit checkbox toggle for
+   * multi-select. Independent of `onMultiClick` (the Ctrl/Shift+click
+   * path); used by the leading checkbox cell. Caller maintains the same
+   * selection Set behind both entry points.
+   */
+  onCheckboxToggle?: (e: React.MouseEvent, note: NoteMetadata) => void;
+  /**
+   * 11th hotfix follow-up #2 (2026-05-19, HanBin) — selection-mode flag.
+   * Driven by the toolbar's selection-mode toggle (NOT by whether
+   * selection is non-empty). When true:
+   *   • the leading 36px checkbox cell renders
+   *   • a plain row click toggles selection instead of opening the note
+   * When false the row behaves like a normal entry: click opens the
+   * note, no checkbox column.
+   */
+  selectionActive?: boolean;
   style?: React.CSSProperties; // Virtual list positioning
   tagSortCategory?: string | null; // Active tag category for highlighting
+  selectRowLabel?: string;
 }
 
 export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
@@ -42,8 +69,11 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
   onSelect,
   isMultiSelected,
   onMultiClick,
+  onCheckboxToggle,
+  selectionActive,
   style,
   tagSortCategory,
+  selectRowLabel,
 }: FrontmatterResultRowProps) {
   const noteType = noteTypeToCssClass(note.note_type);
   const fileName = note.path.split(/[/\\]/).pop()?.replace(/\.md$/, '') || note.title;
@@ -51,16 +81,42 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
   const customColor = getTemplateCustomColor(note.note_type);
   const isContainer = note.note_type?.toUpperCase() === 'CONTAINER';
   const isSelected = selectedPath === note.path;
+  // 5.0.5a-migration A — flag rows whose frontmatter type doesn't match
+  // any current template. The row picks up `.search-row--unmatched`
+  // styling and the type cell shows an AlertTriangle prefix.
+  const registeredTypes = useRegisteredTypes();
+  const noteTemplates = useTemplateStore(s => s.noteTemplates);
+  const matchedTemplate = findTemplateByType(note.note_type, noteTemplates);
+  const isUnmatched = !isContainer && isUnmatchedNoteType(note.note_type, registeredTypes);
+  // 5.0.5a-migration A2 — show the TEMPLATE NAME (e.g., "문서", "테스트3")
+  // instead of the raw frontmatter.type token ("Note", "TEST3"). For
+  // unmatched rows show the raw type so the user sees what's actually
+  // on disk, prefixed by the warning icon.
+  const typeLabel = matchedTemplate
+    ? matchedTemplate.name
+    : (note.note_type || '—');
 
   // mousedown fires ~50-100ms before click — faster trigger for double-click pre-creation
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0 || e.ctrlKey || e.shiftKey || e.metaKey) return;
     if (isContainer) return;
+    // 11th hotfix follow-up (2026-05-19) — in selection-mode (one or more
+    // rows already checked), defer to click so it can toggle selection
+    // instead of opening the note here. Without this, mousedown would
+    // fire `onNoteClick` and open the note before the user finishes
+    // building their selection.
+    if (selectionActive) return;
     onNoteClick(note.path, note.note_type);
   };
 
   const handleClick = (e: React.MouseEvent) => {
     if (onMultiClick && onMultiClick(e, note)) return;
+    // Selection-mode: plain click on a row becomes a selection toggle so
+    // the user can build the set without holding modifier keys.
+    if (selectionActive && !isContainer && onCheckboxToggle) {
+      onCheckboxToggle(e, note);
+      return;
+    }
     if (isContainer && onSelect) {
       onSelect(note.path);
     }
@@ -79,7 +135,7 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
 
   return (
     <div
-      className={`search-row search-grid-row${noteType ? ' ' + noteType : ''}${customColor ? ' has-custom-color' : ''}${isMultiSelected ? ' multi-selected' : ''}`}
+      className={`search-row search-grid-row${noteType ? ' ' + noteType : ''}${customColor ? ' has-custom-color' : ''}${isMultiSelected ? ' multi-selected' : ''}${isUnmatched ? ' search-row--unmatched' : ''}`}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
@@ -87,8 +143,42 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
       onContextMenu={(e) => onContextMenu(e, note)}
       style={rowStyle}
     >
+      {/* 11th hotfix follow-up #4 (2026-05-19) — back to native input but
+          styled via `appearance: none` + custom CSS to match the design
+          system's checkbox visual (border, radius, accent fill).
+          Why not the DS <Checkbox> primitive: it wraps in <label>, so a
+          click on the visible box auto-triggers a second click event on
+          the inner <input> via the label/input link. That second click
+          also bubbles to the cell, so our toggle fires twice and the
+          visual state never moves. Native input + pointer-events:none
+          on the input means clicks always hit the cell exactly once. */}
+      {selectionActive && (
+        <div
+          className="search-td search-td-checkbox"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCheckboxToggle?.(e, note);
+          }}
+        >
+          <input
+            type="checkbox"
+            className="search-row-checkbox"
+            checked={!!isMultiSelected}
+            aria-label={selectRowLabel ?? 'Select row'}
+            readOnly
+            tabIndex={-1}
+            onChange={() => { /* state managed by parent — cell click drives it */ }}
+          />
+        </div>
+      )}
       <div className="search-td search-title">{highlightText(displayName, frontmatterQuery)}</div>
-      <div className="search-td search-type">{noteTypeToFullName(note.note_type)}</div>
+      <div className="search-td search-type">
+        {isUnmatched && (
+          <AlertTriangle size={11} className="search-type__unmatched-icon" aria-hidden="true" />
+        )}
+        {typeLabel}
+      </div>
       <div className="search-td search-tags">
         {note.tags.length > 0 ? (
           note.tags.map(tag => {
@@ -132,6 +222,15 @@ interface ContentResultCardProps {
   getTemplateCustomColor: (noteType: string) => string | undefined;
   onNoteClick: (path: string, noteType?: string) => void;
   onNoteHover: (path: string) => void;
+  /** Optional vault root path for displaying vault-relative paths. */
+  vaultPath?: string | null;
+}
+
+function countOccurrences(haystack: string, needle: string): number {
+  if (!needle) return 0;
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(escaped, 'gi');
+  return (haystack.match(re) || []).length;
 }
 
 export const ContentResultCard = React.memo(function ContentResultCard({
@@ -140,20 +239,38 @@ export const ContentResultCard = React.memo(function ContentResultCard({
   getTemplateCustomColor,
   onNoteClick,
   onNoteHover,
+  vaultPath,
 }: ContentResultCardProps) {
   const fileName = result.path.split(/[/\\]/).pop()?.replace(/\.md$/, '') || '';
   const noteType = inferNoteType(fileName);
-  // Check if this is a folder note (FolderName/FolderName.md pattern)
   const pathParts = result.path.split(/[/\\]/);
   const fileNameWithoutExt = pathParts.pop()?.replace(/\.md$/, '') || '';
   const parentFolderName = pathParts[pathParts.length - 1] || '';
   const isFolderNote = fileNameWithoutExt === parentFolderName;
-  // Use fileName instead of title to show full name including _1, _2 suffixes
-  // Display underscores as spaces for better readability
   const displayTitle = (fileName || result.title).replace(/_/g, ' ');
-  // Get custom color for the note type
   const typeForColor = noteType?.replace('-type', '') || '';
   const customColor = getTemplateCustomColor(typeForColor);
+
+  // 2026-05-22 — vault-relative path (drop the absolute `C:/Users/...`
+  // prefix). Fallback to last-two segments when vaultPath is missing.
+  const relPath = (() => {
+    const norm = result.path.replace(/\\/g, '/');
+    if (vaultPath) {
+      const root = vaultPath.replace(/\\/g, '/').replace(/\/$/, '') + '/';
+      if (norm.toLowerCase().startsWith(root.toLowerCase())) return norm.slice(root.length);
+    }
+    return norm.split('/').slice(-2).join('/');
+  })();
+
+  // 2026-05-22 — prefer multi-snippet list from the Rust side; fall back
+  // to the single legacy snippet for older index data.
+  const allSnippets = (result.snippets && result.snippets.length > 0)
+    ? result.snippets
+    : [result.snippet];
+  const matchCount = contentsQuery.trim()
+    ? allSnippets.reduce((sum, s) => sum + countOccurrences(s, contentsQuery), 0)
+      + countOccurrences(displayTitle, contentsQuery)
+    : 0;
 
   return (
     <div
@@ -166,167 +283,28 @@ export const ContentResultCard = React.memo(function ContentResultCard({
       onMouseEnter={() => onNoteHover(result.path)}
       style={customColor ? { '--template-color': customColor } as React.CSSProperties : undefined}
     >
-      <div className="search-content-title">{highlightText(displayTitle, contentsQuery)}</div>
-      <div className="search-content-snippet">{highlightText(result.snippet, contentsQuery)}</div>
-      <div className="search-content-path">{result.path.split(/[/\\]/).slice(-2).join('/')}</div>
+      <div className="search-content-header">
+        <span className="search-content-title">{highlightText(displayTitle, contentsQuery)}</span>
+        {matchCount > 0 && (
+          <span className="search-content-match-count">{matchCount}</span>
+        )}
+      </div>
+      {allSnippets.map((s, i) => (
+        <div key={i} className="search-content-snippet">{highlightText(s, contentsQuery)}</div>
+      ))}
+      <div className="search-content-path">{relPath}</div>
     </div>
   );
 });
 
-// ============================================================================
-// Attachment result row
-// ============================================================================
-
-interface AttachmentResultRowProps {
-  att: AttachmentInfo;
-  attachmentsQuery: string;
-  isSelected: boolean;
-  onAttachmentClick: (e: React.MouseEvent, att: AttachmentInfo) => void;
-  onAttachmentContextMenu: (e: React.MouseEvent, att: AttachmentInfo) => void;
-  language: LanguageSetting;
-}
-
-export const AttachmentResultRow = React.memo(function AttachmentResultRow({
-  att,
-  attachmentsQuery,
-  isSelected,
-  onAttachmentClick,
-  onAttachmentContextMenu,
-  language,
-}: AttachmentResultRowProps) {
-  const category = getAttachmentCategory(att.file_name);
-  return (
-    <tr
-      key={att.path}
-      className={`search-row att-row-${category}${isSelected ? ' selected' : ''}${att.is_conflict ? ' conflict-file' : ''}`}
-      onClick={(e) => onAttachmentClick(e, att)}
-      onContextMenu={(e) => onAttachmentContextMenu(e, att)}
-      title={att.is_conflict ? tf('syncConflictFileTitle', language, { original: att.conflict_original || '' }) : undefined}
-    >
-      <td className="search-td search-title">
-        {att.is_conflict && <span className="conflict-badge">{t('conflictBadge', language)}</span>}
-        {highlightText(att.file_name, attachmentsQuery)}
-      </td>
-      <td className="search-td search-note-path">{highlightText(att.note_relative_path, attachmentsQuery)}</td>
-      <td className="search-td search-inferred-path">{highlightText(att.inferred_note_path, attachmentsQuery)}</td>
-      <td className="search-td search-container">{highlightText(att.container, attachmentsQuery)}</td>
-    </tr>
-  );
-});
+// `AttachmentResultRow` retired 2026-05-20 along with the legacy
+// `searchCommands.searchAttachments` flow. `AttachmentsTab` v2 owns row
+// rendering now (with the AttachmentRef store).
 
 // ============================================================================
 // Details result card
 // ============================================================================
 
-interface DetailsResultCardProps {
-  note: NoteMetadata;
-  getTemplateCustomColor: (noteType: string) => string | undefined;
-  onNoteClick: (path: string, noteType?: string) => void;
-  onNoteHover: (path: string) => void;
-  onContextMenu: (e: React.MouseEvent, note: NoteMetadata) => void;
-  onTagClick: (tag: string) => void;
-  language: LanguageSetting;
-  selectedPath?: string | null;
-  onSelect?: (path: string) => void;
-  isMultiSelected?: boolean;
-  onMultiClick?: (e: React.MouseEvent, note: NoteMetadata) => boolean;
-  tagSortCategory?: string | null;
-}
-
-export const DetailsResultCard = React.memo(function DetailsResultCard({
-  note,
-  getTemplateCustomColor,
-  onNoteClick,
-  onNoteHover,
-  onContextMenu,
-  onTagClick,
-  language,
-  selectedPath,
-  onSelect,
-  isMultiSelected,
-  onMultiClick,
-  tagSortCategory,
-}: DetailsResultCardProps) {
-  const noteType = noteTypeToCssClass(note.note_type);
-  const fileName = note.path.split(/[/\\]/).pop()?.replace(/\.md$/, '') || note.title;
-  // Display underscores as spaces for better readability
-  const displayName = fileName.replace(/_/g, ' ');
-  const containerPath = note.path.split(/[/\\]/).slice(0, -1).pop() || '';
-  const customColor = getTemplateCustomColor(note.note_type);
-  const isContainer = note.note_type?.toUpperCase() === 'CONTAINER';
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0 || e.ctrlKey || e.shiftKey || e.metaKey) return;
-    if (isContainer) return;
-    onNoteClick(note.path, note.note_type);
-  };
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (onMultiClick && onMultiClick(e, note)) return;
-    if (isContainer && onSelect) {
-      onSelect(note.path);
-    }
-  };
-
-  // Container: double-click navigates into the folder
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    if (!isContainer) return;
-    e.preventDefault();
-    onNoteClick(note.path, note.note_type);
-  };
-
-  return (
-    <div
-      key={note.path}
-      className={`search-details-item${noteType ? ' ' + noteType : ''}${customColor ? ' has-custom-color' : ''}${isMultiSelected ? ' multi-selected' : ''}`}
-      onMouseDown={handleMouseDown}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
-      onMouseEnter={() => onNoteHover(note.path)}
-      onContextMenu={(e) => onContextMenu(e, note)}
-      style={customColor ? { '--template-color': customColor } as React.CSSProperties : undefined}
-    >
-      <div className="search-details-header">
-        <span className="search-details-title">{displayName}</span>
-        <span className="search-details-type">{noteTypeToFullName(note.note_type)}</span>
-      </div>
-      <div className="search-details-meta">
-        <span className="search-details-container">{containerPath}</span>
-        <span className="search-details-dates">
-          {t('createdDate', language)}: {formatDate(note.created)} | {t('modifiedDate', language)}: {formatDate(note.modified)}
-        </span>
-      </div>
-      {note.tags.length > 0 && (
-        <div className="search-details-tags">
-          {note.tags.map(tag => {
-            const categoryClass = getTagCategoryClass(tag);
-            // Extract display name without namespace prefix
-            let displayTag = tag;
-            if (tag.startsWith('domain/')) displayTag = tag.substring(7);
-            else if (tag.startsWith('who/')) displayTag = tag.substring(4);
-            else if (tag.startsWith('org/')) displayTag = tag.substring(4);
-            else if (tag.startsWith('ctx/')) displayTag = tag.substring(4);
-            const isDimmed = tagSortCategory ? !tag.startsWith(tagSortCategory + '/') : false;
-            return (
-              <span
-                key={tag}
-                className={`search-tag${categoryClass ? ' ' + categoryClass : ''}${isDimmed ? ' tag-dimmed' : ''}`}
-                onClick={e => {
-                  e.stopPropagation();
-                  onTagClick(tag);
-                }}
-              >
-                {displayTag}
-              </span>
-            );
-          })}
-        </div>
-      )}
-      {note.comment_count > 0 && (
-        <div className="search-details-comments">
-          {tf('commentCountLabel', language, { count: note.comment_count })}
-        </div>
-      )}
-    </div>
-  );
-});
+// 5.0.7a (2026-05-17, HanBin) — `DetailsResultCard` removed alongside the
+// Details tab. Frontmatter row click will surface this metadata via an
+// inline expand panel in a follow-up sub-stage.

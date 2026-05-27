@@ -161,7 +161,7 @@ export function createFromTemplate(
       frontmatter.state.workflow = 'draft';
       frontmatter.state.confidence = 'unverified';
       frontmatter.state.maturity = 1;
-      (frontmatter as any).canvas = true;  // Enable canvas mode for SKETCH notes
+      (frontmatter as any).sketch = true;  // Enable sketch mode for SKETCH notes
       // NO hardcoded tags - use template tagCategories instead
       break;
   }

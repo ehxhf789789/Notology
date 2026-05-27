@@ -1,52 +1,27 @@
 import { useEffect } from 'react';
 import {
-  hoverActions,
-  fileTreeActions,
-  refreshActions,
   modalActions,
   uiActions,
   useVaultPath,
   useSelectedContainer,
   useCustomShortcuts,
-  useNoteTemplates,
   useContainerConfigs,
-  useLanguage,
   useShowHoverPanel,
   useUIStore,
 } from '../stores/zustand';
-import { createNoteWithTemplate } from '../stores/appActions';
+import { createNoteFromTemplateInteractive } from '../stores/appActions';
 import { DEFAULT_SHORTCUTS, getActiveKeys, parseShortcut } from '../utils/shortcuts';
-import { t } from '../utils/i18n';
 
-// Template description keys for Ctrl+N detailed popup
-const TEMPLATE_DESC_KEYS: Record<string, string> = {
-  'NOTE': 'templateDescNote',
-  'SKETCH': 'templateDescSketch',
-  'MTG': 'templateDescMtg',
-  'SEM': 'templateDescSem',
-  'EVENT': 'templateDescEvent',
-  'OFA': 'templateDescOfa',
-  'PAPER': 'templateDescPaper',
-  'LIT': 'templateDescLit',
-  'DATA': 'templateDescData',
-  'THEO': 'templateDescTheo',
-  'CONTACT': 'templateDescContact',
-  'SETUP': 'templateDescSetup',
-};
+// v18 (2026-05-16, HanBin) — wizard/title/special-modal branching extracted
+// into `createNoteFromTemplateInteractive` so all three entry points share
+// one flow. TEMPLATE_DESC_KEYS and related i18n now live inside that action.
 
 export function useAppKeyboardShortcuts() {
   const vaultPath = useVaultPath();
   const selectedContainer = useSelectedContainer();
   const customShortcuts = useCustomShortcuts();
-  const noteTemplates = useNoteTemplates();
   const containerConfigs = useContainerConfigs();
-  const language = useLanguage();
   const showHoverPanel = useShowHoverPanel();
-
-  // Stable action references
-  const openHoverFile = hoverActions.open;
-  const refreshFileTree = fileTreeActions.refreshFileTree;
-  const incrementSearchRefresh = refreshActions.incrementSearchRefresh;
 
   useEffect(() => {
     const getShortcutKeys = (id: string) => {
@@ -115,98 +90,29 @@ export function useAppKeyboardShortcuts() {
         return ctrlMatch && shiftMatch && altMatch && keyMatch;
       };
 
-      // New note (Ctrl+N) - only works when container/folder is selected
+      // New note (Ctrl+N) - only works when container/folder is selected.
+      // v18 (2026-05-16, HanBin) — wizard / special-modal / title-modal
+      // branching was duplicated across this hook, ContainerView, and
+      // RibbonBar (3 call sites, only this one had the wizard branch →
+      // user-input vars never prompted from the other two). Now all three
+      // route through `createNoteFromTemplateInteractive` in appActions.
       if (checkShortcut('newNote')) {
         e.preventDefault();
-        // Only allow note creation when a container or folder is selected
         if (vaultPath && selectedContainer) {
-          // Check if inside a Storage container
           const storageTemplateId = getStorageTemplateId();
-
-          // Templates that have their own input modals (skip TitleInputModal)
-          const SPECIAL_TEMPLATE_IDS = ['note-contact', 'note-mtg', 'note-paper', 'note-lit', 'note-event'];
-
           if (storageTemplateId) {
-            // Storage container: skip template selector
             const rootPath = getRootContainerPath(selectedContainer);
             const targetPath = rootPath || selectedContainer;
-
-            // Check if this template has its own input modal
-            if (SPECIAL_TEMPLATE_IDS.includes(storageTemplateId)) {
-              // Special templates: directly call createNoteWithTemplate (it will show its own modal)
-              createNoteWithTemplate('', storageTemplateId, targetPath)
-                .then(async (notePath) => {
-                  await refreshFileTree();
-                  incrementSearchRefresh();
-                  openHoverFile(notePath);
-                })
-                .catch(err => console.error('Failed to create note:', err));
-            } else {
-              // Regular templates: show title input modal first
-              const template = noteTemplates.find(t => t.id === storageTemplateId);
-              const noteType = template?.frontmatter?.type?.toLowerCase() || template?.prefix?.toLowerCase() || 'note';
-              const templateInfo = template ? {
-                name: template.name,
-                prefix: template.prefix,
-                description: t(TEMPLATE_DESC_KEYS[template.prefix.toUpperCase()] || 'templateDescCustom', language),
-                noteType,
-                customColor: template.customColor,
-              } : undefined;
-
-              modalActions.showTitleInputModal(async (result) => {
-                if (result.title.trim()) {
-                  try {
-                    const notePath = await createNoteWithTemplate(result.title.trim(), storageTemplateId, targetPath);
-                    await refreshFileTree();
-                    incrementSearchRefresh();
-                    openHoverFile(notePath);
-                  } catch (err) {
-                    console.error('Failed to create note:', err);
-                  }
-                }
-              }, t('enterNoteTitlePlaceholder', language), t('newNoteDefault', language), templateInfo);
-            }
+            createNoteFromTemplateInteractive(storageTemplateId, targetPath);
           } else {
-            // Standard container: show template selector
+            // Standard container: pick a template (centered dialog), then
+            // hand off to the shared interactive flow.
             modalActions.showTemplateSelector(
-              { x: Math.round(window.innerWidth / 2 - 150), y: Math.round(window.innerHeight / 2 - 200) },
+              { x: 0, y: 0 },
               (templateId: string) => {
-                // Check if this template has its own input modal
-                if (SPECIAL_TEMPLATE_IDS.includes(templateId)) {
-                  // Special templates: directly call createNoteWithTemplate
-                  createNoteWithTemplate('', templateId, selectedContainer)
-                    .then(async (notePath) => {
-                      await refreshFileTree();
-                      incrementSearchRefresh();
-                      openHoverFile(notePath);
-                    })
-                    .catch(err => console.error('Failed to create note:', err));
-                } else {
-                  // Regular templates: show title input modal
-                  const template = noteTemplates.find(t => t.id === templateId);
-                  const noteType = template?.frontmatter?.type?.toLowerCase() || template?.prefix?.toLowerCase() || 'note';
-                  const templateInfo = template ? {
-                    name: template.name,
-                    prefix: template.prefix,
-                    description: t(TEMPLATE_DESC_KEYS[template.prefix.toUpperCase()] || 'templateDescCustom', language),
-                    noteType,
-                    customColor: template.customColor,
-                  } : undefined;
-
-                  modalActions.showTitleInputModal(async (result) => {
-                    if (result.title.trim()) {
-                      try {
-                        const notePath = await createNoteWithTemplate(result.title.trim(), templateId, selectedContainer);
-                        await refreshFileTree();
-                        incrementSearchRefresh();
-                        openHoverFile(notePath);
-                      } catch (err) {
-                        console.error('Failed to create note:', err);
-                      }
-                    }
-                  }, t('enterNoteTitlePlaceholder', language), t('newNoteDefault', language), templateInfo);
-                }
-              }
+                createNoteFromTemplateInteractive(templateId, selectedContainer);
+              },
+              'centered',
             );
           }
         }
@@ -287,5 +193,5 @@ export function useAppKeyboardShortcuts() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [vaultPath, customShortcuts, showHoverPanel, selectedContainer, noteTemplates, containerConfigs, language, openHoverFile, refreshFileTree, incrementSearchRefresh]);
+  }, [vaultPath, customShortcuts, showHoverPanel, selectedContainer, containerConfigs]);
 }

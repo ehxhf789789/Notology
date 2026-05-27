@@ -12,7 +12,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use tantivy::collector::TopDocs;
-use tantivy::query::{BooleanQuery, Occur, QueryParser, TermQuery};
+use tantivy::query::{BooleanQuery, Occur, Query, QueryParser, RegexQuery, TermQuery};
 use tantivy::schema::*;
 use tantivy::tokenizer::*;
 use tantivy::{doc, Index, IndexReader, IndexWriter, ReloadPolicy, TantivyDocument};
@@ -202,7 +202,13 @@ impl IndexMetadata {
 pub struct SearchResult {
     pub path: String,
     pub title: String,
+    /// First (best) snippet — kept for backward compatibility with any
+    /// caller that still reads the single-snippet field.
     pub snippet: String,
+    /// Up to 5 distinct, non-overlapping match excerpts (2026-05-22).
+    /// Lets the UI surface "this note matches in N places" instead of
+    /// only the first hit. Newer code should prefer this list.
+    pub snippets: Vec<String>,
     pub score: f32,
 }
 
@@ -313,10 +319,24 @@ impl Tokenizer for CjkTokenizer {
                 offset += char_len;
                 i += 1;
             } else if ch.is_alphanumeric() {
-                // Collect Latin word
+                // Collect Latin word.
+                //
+                // 2026-05-24 (HanBin) — CRITICAL: the inner stop condition
+                // must also exclude CJK chars. `char::is_alphanumeric()`
+                // returns true for Hangul / Kanji etc. (they're in the
+                // Unicode "Letter" category), so without the guard a
+                // mixed string like `"BIM로그마이닝"` got swallowed into
+                // a single token `"bim로그마이닝"`. A user search for
+                // `"BIM"` then couldn't find it (the index had a giant
+                // mixed token, not a plain `"bim"` token). With the
+                // guard the same input emits `"bim"` + CJK char tokens
+                // + bigrams separately, and `"BIM"` searches hit.
                 let word_start = offset;
                 let mut word = String::new();
-                while i < chars.len() && chars[i].is_alphanumeric() {
+                while i < chars.len()
+                    && chars[i].is_alphanumeric()
+                    && !is_cjk_char(chars[i])
+                {
                     word.push(chars[i]);
                     offset += chars[i].len_utf8();
                     i += 1;
@@ -426,6 +446,78 @@ fn is_valid_suggestion_word(word: &str) -> bool {
         ];
         !STOPWORDS.contains(&lower.as_str())
     }
+}
+
+/// Extract up to `max_count` non-overlapping snippets around query
+/// occurrences. Each snippet is roughly `max_len` chars centered on a
+/// match. Order: by position in text (ascending). Non-overlapping rule:
+/// two matches whose `match_pos` falls within `max_len` of each other
+/// are coalesced into a single snippet (the earlier one). 2026-05-22.
+fn extract_snippets(text: &str, query: &str, max_len: usize, max_count: usize) -> Vec<String> {
+    if text.is_empty() {
+        return vec![];
+    }
+    let query_terms: Vec<String> = query
+        .split_whitespace()
+        .filter(|t| !t.is_empty())
+        .map(|t| t.to_lowercase())
+        .collect();
+    if query_terms.is_empty() {
+        return vec![text.chars().take(max_len).collect()];
+    }
+    let text_lower = text.to_lowercase();
+
+    // Walk byte positions, collecting non-overlapping match centers.
+    let mut centers: Vec<usize> = Vec::new();
+    for term in &query_terms {
+        let mut start = 0usize;
+        while let Some(rel) = text_lower[start..].find(term.as_str()) {
+            let pos = start + rel;
+            centers.push(pos);
+            start = pos + term.len();
+            if centers.len() >= max_count * query_terms.len() * 2 {
+                break;
+            }
+        }
+    }
+    if centers.is_empty() {
+        return vec![text.chars().take(max_len).collect()];
+    }
+    centers.sort_unstable();
+
+    // Coalesce centers whose extracted windows would overlap.
+    let stride = max_len; // any two centers within `max_len` bytes → same snippet
+    let mut picked: Vec<usize> = Vec::new();
+    for &c in &centers {
+        if let Some(&last) = picked.last() {
+            if c.saturating_sub(last) < stride {
+                continue;
+            }
+        }
+        picked.push(c);
+        if picked.len() >= max_count {
+            break;
+        }
+    }
+
+    // Emit each picked center as a char-safe snippet.
+    let mut out: Vec<String> = Vec::with_capacity(picked.len());
+    for &byte_pos in &picked {
+        // Map byte position back to char position so we don't split UTF-8.
+        let char_pos = text[..byte_pos].chars().count();
+        let total_chars = text.chars().count();
+        let pre = (max_len / 3).min(char_pos);
+        let start_char = char_pos - pre;
+        let take = max_len.min(total_chars - start_char);
+        let raw: String = text.chars().skip(start_char).take(take).collect();
+        let trimmed = raw.trim();
+        if start_char > 0 {
+            out.push(format!("...{}", trimmed));
+        } else {
+            out.push(trimmed.to_string());
+        }
+    }
+    out
 }
 
 /// Extract a snippet from text around the query terms
@@ -652,24 +744,11 @@ impl SearchIndex {
             }
         }
 
-        #[cfg(target_os = "macos")]
+        // Non-Windows: use dirs crate for cross-platform support (macOS, Linux, Android)
+        #[cfg(not(target_os = "windows"))]
         {
-            if let Ok(home) = std::env::var("HOME") {
-                return PathBuf::from(home)
-                    .join("Library")
-                    .join("Application Support")
-                    .join("Notology")
-                    .join("indices")
-                    .join(format!("{:016x}", vault_hash));
-            }
-        }
-
-        #[cfg(target_os = "linux")]
-        {
-            if let Ok(home) = std::env::var("HOME") {
-                return PathBuf::from(home)
-                    .join(".local")
-                    .join("share")
+            if let Some(data_dir) = dirs::data_local_dir() {
+                return data_dir
                     .join("notology")
                     .join("indices")
                     .join(format!("{:016x}", vault_hash));
@@ -1111,13 +1190,20 @@ impl SearchIndex {
         let note_type = extract_note_type(&frontmatter);
         let created = extract_date_field(&frontmatter, "created");
         let modified = extract_date_field(&frontmatter, "modified");
-        let wiki_links = extract_wiki_links(&content);
+        let mut wiki_links = extract_wiki_links(&content);
 
         let path_str = path.to_string_lossy().to_string();
 
         // Extract searchable text from body (handles SKETCH canvas nodes)
         let raw_body = if note_type.to_uppercase() == "SKETCH" {
-            Self::extract_canvas_text(&body)
+            // Also extract file node references as wiki links
+            let file_links = Self::extract_sketch_file_links(&body);
+            for link in file_links {
+                if !wiki_links.contains(&link) {
+                    wiki_links.push(link);
+                }
+            }
+            Self::extract_sketch_text(&body)
         } else {
             body.clone()
         };
@@ -1434,7 +1520,7 @@ impl SearchIndex {
 
         // Extract searchable text from body
         let raw_body = if note_type.to_uppercase() == "SKETCH" {
-            Self::extract_canvas_text(&body)
+            Self::extract_sketch_text(&body)
         } else {
             body
         };
@@ -1505,7 +1591,7 @@ impl SearchIndex {
         // Extract searchable text from body
         let searchable_body = if note_type.to_uppercase() == "SKETCH" {
             // For SKETCH notes, extract text from canvas nodes
-            Self::extract_canvas_text(&body)
+            Self::extract_sketch_text(&body)
         } else {
             body.clone()
         };
@@ -1532,8 +1618,41 @@ impl SearchIndex {
         Ok(())
     }
 
-    /// Extract text from canvas nodes in SKETCH notes
-    fn extract_canvas_text(body: &str) -> String {
+    /// Extract file node references from SKETCH notes as wiki link targets
+    fn extract_sketch_file_links(body: &str) -> Vec<String> {
+        use serde_json::Value;
+
+        if let Ok(json) = serde_json::from_str::<Value>(body) {
+            if let Some(nodes) = json.get("nodes").and_then(|v| v.as_array()) {
+                return nodes
+                    .iter()
+                    .filter_map(|node| {
+                        let node_type = node.get("type").and_then(|v| v.as_str())?;
+                        if node_type == "file" {
+                            let file_ref = node.get("file").and_then(|v| v.as_str())?;
+                            // Strip extension to get wiki link name
+                            let name = std::path::Path::new(file_ref)
+                                .file_stem()
+                                .map(|s| s.to_string_lossy().to_string())
+                                .unwrap_or_else(|| file_ref.to_string());
+                            if !name.is_empty() {
+                                Some(name)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+            }
+        }
+
+        Vec::new()
+    }
+
+    /// Extract text from sketch nodes in SKETCH notes
+    fn extract_sketch_text(body: &str) -> String {
         use serde_json::Value;
 
         // Try to parse as JSON
@@ -1563,9 +1682,54 @@ impl SearchIndex {
         let query_parser =
             QueryParser::for_index(&self.index, vec![self.f_title, self.f_body]);
 
-        let query = match query_parser.parse_query(query_str) {
-            Ok(q) => q,
-            Err(_) => return Ok(vec![]), // Invalid query (e.g. "**") → return empty results
+        // 2026-05-24 (HanBin) — substring search for simple Latin queries.
+        //
+        // Tantivy's default tokenization is whole-word: a query for `"BIM"`
+        // only matches the exact term `"bim"`. The first iteration of this
+        // fix appended `*` to get prefix match (so `"BIM"` matched
+        // `"bimroi"`), but the user then asked why `"roi"` didn't match
+        // `"bimroi"` — it's an infix, not a prefix.
+        //
+        // Real fix: build a `RegexQuery` with pattern `.*<escaped>.*`
+        // over both title + body fields. Tantivy evaluates this against
+        // the term dictionary, so it's reasonably fast for personal-size
+        // vaults (10k–100k notes). For larger corpora a true ngram
+        // tokenizer would be more scalable, but the index-size blowup
+        // (~5–10×) isn't worth it at this scale.
+        //
+        // We only do this for *simple* queries — single word, ASCII only,
+        // no Tantivy operator chars. CJK queries already match well via
+        // the bigram tokenizer (no change needed). Advanced queries with
+        // operators (`field:value`, `"phrase"`, parens, …) pass through
+        // to the standard QueryParser unchanged.
+        let trimmed = query_str.trim();
+        let is_simple_latin = !trimmed.is_empty()
+            && !trimmed.chars().any(|c| is_cjk_char(c)
+                || c.is_whitespace()
+                || matches!(c, '*' | '?' | '"' | '(' | ')' | ':' | '+' | '-' | '~' | '\\' | '[' | ']'));
+
+        let query: Box<dyn Query> = if is_simple_latin {
+            // Lowercase to match the tokenizer's lowercase normalization.
+            // Escape regex metacharacters in case the user typed `.` etc.
+            let lower = trimmed.to_lowercase();
+            let escaped = regex::escape(&lower);
+            let pattern = format!(".*{}.*", escaped);
+            let mut subs: Vec<(Occur, Box<dyn Query>)> = Vec::with_capacity(2);
+            if let Ok(rq) = RegexQuery::from_pattern(&pattern, self.f_body) {
+                subs.push((Occur::Should, Box::new(rq)));
+            }
+            if let Ok(rq) = RegexQuery::from_pattern(&pattern, self.f_title) {
+                subs.push((Occur::Should, Box::new(rq)));
+            }
+            if subs.is_empty() {
+                return Ok(vec![]);
+            }
+            Box::new(BooleanQuery::new(subs))
+        } else {
+            match query_parser.parse_query(query_str) {
+                Ok(q) => q,
+                Err(_) => return Ok(vec![]),
+            }
         };
 
         let top_docs = searcher
@@ -1593,12 +1757,18 @@ impl SearchIndex {
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
 
-            let snippet = extract_snippet(body_text, query_str, 150);
+            // 2026-05-22 — return up to 5 non-overlapping snippets so
+            // long notes with multiple hits surface every match. The
+            // legacy single-`snippet` field carries the first one to
+            // keep any pre-multi-snippet consumer compiling.
+            let snippets = extract_snippets(body_text, query_str, 150, 5);
+            let snippet = snippets.first().cloned().unwrap_or_default();
 
             results.push(SearchResult {
                 path,
                 title,
                 snippet,
+                snippets,
                 score,
             });
         }
@@ -2061,7 +2231,23 @@ impl SearchIndex {
             let title = doc.get_first(self.f_title).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let note_type = doc.get_first(self.f_note_type).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let tags: Vec<String> = doc.get_all(self.f_tags).filter_map(|v| v.as_str().map(|s| s.to_string())).collect();
-            let wiki_links: Vec<String> = doc.get_all(self.f_wiki_links).filter_map(|v| v.as_str().map(|s| s.to_string())).collect();
+            let mut wiki_links: Vec<String> = doc.get_all(self.f_wiki_links).filter_map(|v| v.as_str().map(|s| s.to_string())).collect();
+
+            // 2026-05-24 (HanBin) — sketch note-link extraction. The Tantivy
+            // `f_wiki_links` field only captures inline `[[wikilinks]]` from
+            // the body parser. Sketch/canvas notes store their content as
+            // JSON, and note references live inside `type:'link'` nodes
+            // (post-migration) or legacy `type:'file'` .md nodes
+            // (pre-migration). Without this step the graph view shows
+            // sketches as orphan from the notes they're meant to reference.
+            // Cheap: skipped instantly for non-canvas notes via the
+            // `is_canvas_note` guard inside `scan_sketch_note_links`.
+            if let Ok(content) = fs::read_to_string(&path) {
+                let sketch_links = crate::features::sync_v2::sketch_scan::scan_sketch_note_links(&content);
+                for link in sketch_links {
+                    wiki_links.push(link);
+                }
+            }
 
             let p = Path::new(&path);
             let stem = p.file_stem().map(|s| s.to_string_lossy().to_lowercase()).unwrap_or_default();
@@ -2201,46 +2387,173 @@ impl SearchIndex {
             }
         }
 
-        // Scan attachments if requested
+        // 2026-05-23 (HanBin) — CRITICAL FIX. The previous implementation
+        // walked `<note_stem>_att/` folders on disk to find attachments.
+        // That convention is **legacy** — sync_v2 migrated all attachments
+        // into CAS storage under `.notology/cas/blobs/<sha>` and the
+        // user-visible filenames live as hardlinks in `.notology/.attachments/`.
+        // The legacy folders are deleted after a successful migration, so
+        // the old scan returns 0 attachments for every modern vault.
+        //
+        // That explained the user's report: notes display wikilink chips
+        // for attachments (because the editor resolves them through the
+        // AttachmentStore index at render time), but the Attachments tab
+        // and the graph view both reported "0개 첨부" because both code
+        // paths still walked the legacy folder structure.
+        //
+        // New implementation: query the AttachmentStore directly. The
+        // `linked_notes` field on each `AttachmentRef` enumerates the
+        // note-ids that reference the attachment. We resolve note-ids
+        // back to absolute paths via a one-shot frontmatter scan keyed
+        // off `note_paths` (only re-reads the .md bodies, no full reindex).
+        //
+        // If `include_attachments=false`, the entire block is skipped to
+        // preserve the original toggle semantics.
         if include_attachments {
+            use crate::features::sync_v2::attachment_store::AttachmentStore;
+            use crate::core::note_id::read_id_from_content;
+
+            // Build note_id → note_path map by reading the frontmatter
+            // `id:` field from each indexed note. Falls back to filename
+            // stem so pre-migration notes (no frontmatter id yet) still
+            // resolve, matching `attachment_reconcile::note_id_for`.
+            let mut note_id_to_path: std::collections::HashMap<String, String> =
+                std::collections::HashMap::new();
             for note_path in &note_paths {
-                let p = Path::new(note_path);
-                let note_stem = p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-                if note_stem.is_empty() { continue; }
-                if let Some(parent) = p.parent() {
-                    let att_folder = parent.join(format!("{}_att", note_stem));
-                    if att_folder.is_dir() {
-                        if let Ok(entries) = fs::read_dir(&att_folder) {
-                            for entry in entries.filter_map(|e| e.ok()) {
-                                let entry_path = entry.path();
-                                if !entry_path.is_file() { continue; }
-                                let file_name = entry_path.file_name()
-                                    .map(|n| n.to_string_lossy().to_string())
-                                    .unwrap_or_default();
-                                // Skip comments.json
-                                if file_name == "comments.json" { continue; }
-                                let att_path_str = entry_path.to_string_lossy().to_string();
-                                nodes.push(GraphNode {
-                                    id: att_path_str.clone(),
-                                    label: file_name,
-                                    node_type: "attachment".to_string(),
-                                    note_type: String::new(),
-                                    path: att_path_str.clone(),
-                                    is_folder_note: false,
-                                    tag_namespace: String::new(),
-                                    memo_count: 0,
-                                    task_count: 0,
-                                    has_unresolved_tasks: false,
-                                });
-                                edges.push(GraphEdge {
-                                    source: note_path.clone(),
-                                    target: att_path_str,
-                                    edge_type: "attachment".to_string(),
-                                });
+                if let Ok(content) = fs::read_to_string(note_path) {
+                    let nid = read_id_from_content(&content).unwrap_or_else(|| {
+                        Path::new(note_path)
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("")
+                            .to_string()
+                    });
+                    if !nid.is_empty() {
+                        note_id_to_path.insert(nid.to_lowercase(), note_path.clone());
+                    }
+                }
+            }
+
+            let mut store_refs_total = 0usize;
+            let mut att_nodes_added = 0usize;
+            let mut att_edges_added = 0usize;
+            let mut shadow_md_skipped = 0usize;
+            let mut unresolved_note_ids: std::collections::HashSet<String> =
+                std::collections::HashSet::new();
+
+            // 2026-05-24 (HanBin) — shadow-md filter. An AttachmentRef whose
+            // `original_name` matches an existing .md note in the vault is
+            // necessarily bogus (the user's data model says .md attachments
+            // are only legitimate when they DON'T shadow an existing note).
+            // Such refs come from the old buggy WikiLinkSearch flow that
+            // misrouted note references through the attachment pipeline.
+            // We filter them out at display time so the graph is clean
+            // even before vault_repair P8 runs. The ref itself stays on
+            // disk (no destructive change) — Dev Mode repair purges them.
+            let vault_md_set: std::collections::HashSet<String> = note_paths
+                .iter()
+                .filter_map(|p| {
+                    Path::new(p)
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .map(|s| s.to_lowercase())
+                })
+                .collect();
+
+            match AttachmentStore::new(self.vault_path.clone()) {
+                Ok(store) => {
+                    for r in store.all_refs() {
+                        store_refs_total += 1;
+
+                        // Skip shadow .md refs.
+                        let is_md = r.original_name.to_lowercase().ends_with(".md");
+                        if is_md && vault_md_set.contains(&r.original_name.to_lowercase()) {
+                            shadow_md_skipped += 1;
+                            continue;
+                        }
+
+                        // Display basename = user-visible filename (after
+                        // any collision-suffixing during migration). This
+                        // is what the wikilink chip shows.
+                        let label = std::path::Path::new(&r.display_path)
+                            .file_name()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or(&r.original_name)
+                            .to_string();
+
+                        // Resolve linked_notes → note_paths that survived
+                        // the container_path filter. Skip refs with no
+                        // resolvable notes in the current view (orphan or
+                        // out-of-container).
+                        let mut local_edges: Vec<String> = Vec::new();
+                        for note_id in &r.linked_notes {
+                            let nid_lower = note_id.to_lowercase();
+                            if let Some(note_path) = note_id_to_path.get(&nid_lower) {
+                                local_edges.push(note_path.clone());
+                            } else {
+                                unresolved_note_ids.insert(note_id.clone());
                             }
+                        }
+                        if local_edges.is_empty() {
+                            continue;
+                        }
+
+                        // Push the attachment node ONCE; then one edge per
+                        // linked note. Node id = attachment_id (stable
+                        // across renames); path = display_path so the
+                        // info-bubble + double-click can resolve the file
+                        // through `convertFileSrc`.
+                        nodes.push(GraphNode {
+                            id: r.attachment_id.clone(),
+                            label,
+                            node_type: "attachment".to_string(),
+                            note_type: String::new(),
+                            path: r.display_path.clone(),
+                            is_folder_note: false,
+                            tag_namespace: String::new(),
+                            memo_count: 0,
+                            task_count: 0,
+                            has_unresolved_tasks: false,
+                        });
+                        att_nodes_added += 1;
+                        for src_note in local_edges {
+                            edges.push(GraphEdge {
+                                source: src_note,
+                                target: r.attachment_id.clone(),
+                                edge_type: "attachment".to_string(),
+                            });
+                            att_edges_added += 1;
                         }
                     }
                 }
+                Err(e) => {
+                    log::warn!(
+                        "[get_graph_data] AttachmentStore::new failed for {:?}: {}",
+                        self.vault_path, e
+                    );
+                }
+            }
+
+            log::info!(
+                "[get_graph_data] attachment scan (store-backed): refs_total={} added_nodes={} added_edges={} shadow_md_skipped={} unresolved_note_ids={} note_id_map_size={}",
+                store_refs_total,
+                att_nodes_added,
+                att_edges_added,
+                shadow_md_skipped,
+                unresolved_note_ids.len(),
+                note_id_to_path.len()
+            );
+            if !unresolved_note_ids.is_empty() {
+                // Print up to 10 for diagnosis. A high count means the
+                // auto-reconcile (sync_engine.rs:297) hasn't run yet OR
+                // notes still carry stem-ids while refs hold timestamp-ids
+                // (or vice versa). Recommend running attachment_reconcile.
+                let sample: Vec<&String> =
+                    unresolved_note_ids.iter().take(10).collect();
+                log::warn!(
+                    "[get_graph_data] sample unresolved note_ids (refs link to these but no .md in view): {:?}",
+                    sample
+                );
             }
         }
 

@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { EditorContent } from '@tiptap/react';
 import type { Editor } from '@tiptap/core';
 import { fileCommands, searchCommands, memoCommands } from '../../core/services/tauriCommands';
 import { editorPool } from '../../core/editor/editorPool';
 import { isHoverWindow } from '../../core/utils/multiWindow';
 import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
-import { Tags, MessageSquare, Minus, X } from 'lucide-react';
+import { Tags, MessageSquare, Minus, X, ListTree } from 'lucide-react';
 import { SyncStatusIndicator, type SyncStatus } from '../shared/SyncStatusIndicator';
 import { useIsClosing, useIsMinimizing } from './stores/hoverStore';
 import { refreshActions } from '../../core/stores/refreshStore';
@@ -17,6 +17,8 @@ import { registerEditorSave, unregisterEditorSave } from '../../core/editor/edit
 import { notifyFileSaved, notifySearchIndexUpdated } from '../../core/utils/windowSync';
 import { saveComments } from '../comments/comments';
 import EditorToolbar from '../note-editor/EditorToolbar';
+import EditorBubbleMenu from '../note-editor/EditorBubbleMenu';
+import OutlinePanel from '../outline/OutlinePanel';
 import EditorContextMenu from '../note-editor/EditorContextMenu';
 import CommentPanel from '../comments/CommentPanel';
 import Search from '../search/Search';
@@ -25,10 +27,42 @@ import TagPanel from '../tags/TagPanel';
 import { hoverWindowPropsAreEqual, type HoverEditorWindowProps } from './hoverAnimationUtils';
 import { preprocessWikiLinks } from '../../core/utils/wikiLinkPreprocess';
 import { useDropTarget } from '../../core/hooks/useDragDrop';
+import { useSlashAttachmentListener } from '../slash-command';
 import { EventBus } from '../../core/infrastructure/eventBus';
 import { removeOrphanWikiLinkNodes, consumeFailedAdds } from '../sync_v2/orphanRemoval';
 import { contentCacheActions } from '../content-cache/stores/contentCacheStore';
+import { getTemplateCustomColor } from '../content-cache/noteTypeHelpers';
 import { useFileLookupStore } from '../../core/stores/fileLookupStore';
+import { useSettingsStore, type PaperStyle } from '../../core/stores/settingsStore';
+
+/**
+ * Round 2 R3 v6 (HanBin 2026-05-23) — paper pattern.
+ *
+ * Strategy switch from background-pattern → per-element text-decoration
+ * for the RULED style. Background patterns can't follow Korean characters
+ * (which fill the full em-box, leaving no half-leading gap), so any tile-
+ * positioned line cuts through text. text-decoration positions itself
+ * relative to each text line's OWN baseline + element font-size, so it
+ * naturally adapts to every element type (h1/h2/h3/p/li) and to every
+ * wrap-line within a multi-line paragraph.
+ *
+ * Dot / Grid stay as continuous-lattice CSS background patterns on the
+ * editor element — those work fine because they're decorative grids, not
+ * baseline-anchored lines.
+ *
+ * Plain → no decoration, no background.
+ *
+ * All this is now driven by a `data-paper` attribute on `.tiptap-editor`,
+ * with the actual rules living in editor.css (see ".tiptap-editor[data-paper=…]"
+ * block) so cascade order is predictable and CSS does the heavy lifting.
+ */
+function applyPaperPatternToEditorDOM(
+  dom: HTMLElement | null,
+  style: PaperStyle,
+) {
+  if (!dom) return;
+  dom.setAttribute('data-paper', style);
+}
 
 // Extracted hooks
 import { useHoverEditorStores, useFileResolution } from './hooks/useHoverEditorState';
@@ -91,6 +125,34 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   const [body, setBody] = useState('');
   const isSketchNote = !!((frontmatter as any)?.sketch || (frontmatter as any)?.canvas || (!frontmatter && body.trimStart().startsWith('{') && body.includes('"nodes":')));
   const [isDirty, setIsDirty] = useState(false);
+
+  // Round 2 R3 — paper pattern for this note. Per-note override via
+  // frontmatter `paper:`, falling back to the global settingsStore default.
+  // Sketch notes skip this entirely (their canvas has its own visual model).
+  const globalPaperStyle = useSettingsStore(s => s.paperStyle);
+  const [paperStyle, setPaperStyle] = useState<PaperStyle>(globalPaperStyle);
+  useEffect(() => {
+    if (isSketchNote) return;
+    const fm = frontmatter as { paper?: unknown } | null;
+    const fromFm = typeof fm?.paper === 'string' ? fm.paper : null;
+    const next: PaperStyle = (fromFm === 'plain' || fromFm === 'ruled')
+      ? fromFm
+      : globalPaperStyle;
+    setPaperStyle(next);
+  }, [frontmatter, globalPaperStyle, isSketchNote]);
+
+  const handlePaperStyleChange = useCallback((next: PaperStyle) => {
+    setPaperStyle(next);
+    // Persist to this note's frontmatter so re-opens preserve the choice.
+    setFrontmatter(prev => ({ ...(prev ?? {}), paper: next } as NoteFrontmatter));
+    setIsDirty(true);
+  }, []);
+  // Round 2 R3 (fix) — directly stamp data-paper onto the editor's view DOM
+  // (the .tiptap-editor element). EditorContent mounts the ProseMirror view
+  // as a grandchild of the wrapper, and the editor pool reuses one DOM node
+  // across hover windows so a React-wrapper data attribute alone was getting
+  // bypassed. Setting it on the actual rendered element guarantees the CSS
+  // selector .tiptap-editor[data-paper="X"] matches.
   const mtimeOnLoadRef = useRef<number>(0) as React.MutableRefObject<number> & { current: number; __lastUpdateAt?: number };
   const lastSavedBodyRef = useRef<string | null>(null); // Tracks what WE last wrote/loaded from disk
   // Initialize lastSavedBodyRef when content is loaded (isDirty becomes false)
@@ -98,6 +160,9 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     if (!isDirty && body) { lastSavedBodyRef.current = body; }
   }, [isDirty, body]);
   const [editorMenuPos, setEditorMenuPos] = useState<{ x: number; y: number } | null>(null);
+  // Stage 5.0.4b-4 (2026-05-16) — outline panel visibility. Local state because
+  // it's editor-side concern, not a saved-per-vault preference like showTags.
+  const [showOutline, setShowOutline] = useState(false);
   const [sketchData, setSketchData] = useState<SketchData>({ nodes: [], edges: [] });
   const [sketchSelection, setSketchSelection] = useState<SketchSelection | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -204,6 +269,23 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   const [editor, setEditor] = useState<Editor | null>(null);
   const editorRef = useRef<Editor | null>(null);
   const editorAcquiredRef = useRef(false);
+
+  // Round 2 R3 v4 — apply paper pattern directly to the editor's view DOM.
+  // useLayoutEffect (not useEffect) so the style is set synchronously after
+  // commit, before the browser paints — eliminates the "no pattern visible
+  // for one frame after picking" flicker.
+  // Pool reuse — the same view.dom may travel between hover windows, so we
+  // always re-apply on (editor, paperStyle) change. Sketch notes skip.
+  useLayoutEffect(() => {
+    if (!editor || isSketchNote) {
+      applyPaperPatternToEditorDOM(editor?.view?.dom as HTMLElement | null, 'plain');
+      return;
+    }
+    applyPaperPatternToEditorDOM(editor.view.dom as HTMLElement, paperStyle);
+    return () => {
+      applyPaperPatternToEditorDOM(editor.view?.dom as HTMLElement | null, 'plain');
+    };
+  }, [editor, paperStyle, isSketchNote]);
 
   useEffect(() => {
     if (editorAcquiredRef.current) return;
@@ -694,6 +776,8 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     deleteNote: appStoreActionsRef.current.deleteNote,
     deleteFolder: appStoreActionsRef.current.deleteFolder,
     refreshFileTree: appStoreActionsRef.current.refreshFileTree,
+    handleClose,
+    hoverEditorRef,
   });
 
   // ========== FILE DROP (extracted hook) ==========
@@ -712,6 +796,11 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
     win.filePath,
     handleFileDrop
   );
+
+  // Stage 5.0.4b-2 part B (2026-05-15): wire the slash palette's "첨부파일"
+  // command — opens a file picker, inserts wikilink chip(s) at the cursor,
+  // and fires `attachment_add` in the background (same pipeline as drop).
+  useSlashAttachmentListener(editor, win.filePath);
 
   // ========== COMPUTED VALUES ==========
   const fileName = win.filePath.split(/[/\\]/).pop()?.replace(/\.md$/, '') || '';
@@ -737,14 +826,18 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   const noteTypeClass = frontmatter?.type ? `${frontmatter.type.toLowerCase()}-type` : '';
   const inMultiWindowMode = isHoverWindow();
 
+  // v18 fix (2026-05-16, HanBin) — defer to the shared helper so the editor
+  // gets the same color resolution as the note list / search rows. The
+  // helper returns:
+  //   1. template.customColor if set (HSL picker / custom hex)
+  //   2. PRESET_HEX[kind] if cssclasses[0] matches a known preset (so a
+  //      user picking "Pink (SKETCH)" preset still tints the editor)
+  //   3. undefined otherwise (built-in CSS rules take over)
+  // Without this fallback, picking a preset would color the note list but
+  // leave the editor stuck on the default note-type (purple) styling.
   const templateCustomColor = useMemo(() => {
     if (!frontmatter?.type) return undefined;
-    const noteType = frontmatter.type.toLowerCase();
-    const template = noteTemplates.find(t =>
-      t.frontmatter.type?.toLowerCase() === noteType ||
-      t.prefix.toLowerCase() === noteType
-    );
-    return template?.customColor;
+    return getTemplateCustomColor(frontmatter.type.toLowerCase(), noteTemplates);
   }, [frontmatter?.type, noteTemplates]);
 
   const syncStatus: SyncStatus = conflictState ? 'conflict'
@@ -787,15 +880,39 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         <span className="hover-editor-title">{displayFileName}</span>
         <SyncStatusIndicator status={syncStatus} deviceName={remoteLock?.hostname} />
         <div className="hover-editor-header-actions">
+          {/* Stage 5.0.9 (2026-05-16) — Tab order is left-to-right by DOM
+              source order. Each interactive button has an explicit aria-label
+              for screen-readers (title alone isn't always announced). Toggle
+              state communicated via aria-pressed. */}
           {!isAttachmentFile && (
             <>
+              {/* Stage 5.0.4b-4: outline toggle. Available for all notes incl.
+                  container notes (folder notes can have headings too).
+                  v20 (2026-05-16, HanBin) — hidden on sketch notes: sketches
+                  are canvases with no headings, so an outline is meaningless
+                  ("스케치 노트에서는 outliner와 같은 기능이 없어야지"). */}
+              {!isSketchNote && (
+                <button
+                  className={`hover-editor-fm-toggle ${showOutline ? 'active' : ''}`}
+                  onClick={() => setShowOutline(v => !v)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  title={t('outline', language)}
+                  aria-label={t('outline', language)}
+                  aria-pressed={showOutline}
+                >
+                  <ListTree size={14} />
+                </button>
+              )}
               {!isContainerNote && (
                 <button
                   className={`hover-editor-fm-toggle ${commentHandlers.showTags ? 'active' : ''}`}
                   onClick={() => commentHandlers.setShowTags(!commentHandlers.showTags)}
                   onMouseDown={(e) => e.stopPropagation()}
                   onDoubleClick={(e) => e.stopPropagation()}
-                  title={t('tags', language)}
+                  title={`${t('tags', language)} (Ctrl+Shift+M)`}
+                  aria-label={t('tags', language)}
+                  aria-pressed={commentHandlers.showTags}
                 >
                   <Tags size={14} />
                 </button>
@@ -805,7 +922,9 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
                 onClick={commentHandlers.handleToggleComments}
                 onMouseDown={(e) => e.stopPropagation()}
                 onDoubleClick={(e) => e.stopPropagation()}
-                title={t('memo', language)}
+                title={`${t('memo', language)} (Ctrl+M)`}
+                aria-label={t('memo', language)}
+                aria-pressed={commentHandlers.showComments}
               >
                 <MessageSquare size={14} />
               </button>
@@ -817,6 +936,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
             onMouseDown={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
             title={t('minimize', language)}
+            aria-label={t('minimize', language)}
           >
             <Minus size={14} />
           </button>
@@ -825,12 +945,23 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
             onClick={handleClose}
             onMouseDown={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
+            title={`${t('close', language)} (Ctrl+W / Esc)`}
+            aria-label={t('close', language)}
           >
             <X size={14} />
           </button>
         </div>
       </div>
-      {!isSketchNote && <EditorToolbar editor={editor} defaultCollapsed={toolbarDefaultCollapsed} />}
+      {!isSketchNote && (
+        <EditorToolbar
+          editor={editor}
+          defaultCollapsed={toolbarDefaultCollapsed}
+          paperStyle={paperStyle}
+          onPaperStyleChange={handlePaperStyleChange}
+          vaultPath={null}
+        />
+      )}
+      {!isSketchNote && <EditorBubbleMenu editor={editor as Editor} />}
       {conflictState && (
         <div className="hover-editor-conflict-bar">
           <span className="conflict-bar-message">{t('conflictDetected', language)}</span>
@@ -878,6 +1009,10 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         <div
           ref={editorBodyRef}
           className={`hover-editor-body${frontmatter?.cssclasses ? ' ' + frontmatter.cssclasses.join(' ') : ''}`}
+          // Round 2 R3 v4 — paper pattern is applied to the editor's view DOM
+          // (.tiptap-editor) by useLayoutEffect above, NOT here. This keeps the
+          // pattern aligned with the editor's own padding + font-size rhythm.
+          data-paper={!isSketchNote ? paperStyle : undefined}
           style={isSketchNote ? undefined : { zoom: hoverZoomLevel / 100 }}
         >
           {(isContentLoading || (!editor && !isSketchNote)) ? (
@@ -927,17 +1062,22 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
             initialTaskMode={commentHandlers.pendingTaskMode}
           />
         )}
-        {commentHandlers.showTags && vaultPath && !folderPath && (
+        {/* Stage 5.0.4b-4 (2026-05-16) — unified panel placement.
+            Previously TagPanel split between right-sidebar (no folderPath) and
+            below-section (with folderPath). Now both folder and non-folder
+            notes render TagPanel as a right-sidebar inside `.hover-editor-content-row`,
+            matching CommentPanel's placement contract per plan §18d. */}
+        {commentHandlers.showTags && vaultPath && (
           <div className="hover-editor-tag-panel">
             <TagPanel filePath={win.filePath} vaultPath={vaultPath} onSaved={commentHandlers.handleTagPanelSaved} />
           </div>
         )}
+        {/* v20 — outline panel suppressed for sketches even if state somehow stays
+            true from a prior non-sketch note (defense-in-depth). */}
+        {showOutline && editor && !isSketchNote && (
+          <OutlinePanel editor={editor as Editor} />
+        )}
       </div>
-      {commentHandlers.showTags && vaultPath && folderPath && (
-        <div className="hover-editor-tag-section" data-drop-target={`hover-editor-${win.id}`}>
-          <TagPanel filePath={win.filePath} vaultPath={vaultPath} onSaved={commentHandlers.handleTagPanelSaved} />
-        </div>
-      )}
       {folderPath && (
         <div className="hover-editor-search-section" data-drop-target={`hover-editor-${win.id}`}>
           <Search

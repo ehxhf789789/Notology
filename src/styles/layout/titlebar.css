@@ -3,9 +3,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 32px;
-  background-color: var(--bg-primary, #1e1e1e);
-  border-bottom: 1px solid var(--border-color, #3c3c3c);
+  height: var(--h-titlebar);
+  background-color: var(--bg-base);
+  border-bottom: 0.5px solid var(--sep-l);
   flex-shrink: 0;
   cursor: default;
   user-select: none;
@@ -14,8 +14,8 @@
 .titlebar-left {
   display: flex;
   align-items: center;
-  padding-left: var(--space-6);
-  gap: var(--space-3);
+  padding-left: var(--sp-3);
+  gap: var(--sp-2);
 }
 
 .titlebar-icon {
@@ -25,7 +25,7 @@
 }
 
 .titlebar-title {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-2);
   font-weight: 500;
 }
@@ -33,21 +33,21 @@
 .titlebar-vault-btn {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  margin-left: var(--space-6);
-  padding: 4px 10px;
+  gap: var(--sp-1);
+  margin-left: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
   background: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-pill);
   color: var(--tx-3);
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) var(--ease-out);
 }
 
 .titlebar-vault-btn:hover {
   background: var(--bg-hover);
-  border-color: var(--c-blue);
+  border-color: var(--tx-1);
   color: var(--tx-1);
 }
 
@@ -61,57 +61,53 @@
 .titlebar-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-right: var(--space-6);
+  gap: var(--sp-1);
+  margin-right: var(--sp-2);
 }
 
 .titlebar-action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
-  height: 28px;
-  padding: 0 10px;
-  background: var(--bg-elevated);
-  border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
+  gap: var(--sp-1);
+  height: 26px;
+  padding: 0 var(--sp-2);
+  background: transparent;
+  border: 0.5px solid transparent;
+  border-radius: var(--r-6);
   color: var(--tx-2);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) var(--ease-out);
 }
 
 .titlebar-action-btn:hover {
   background: var(--bg-hover);
   color: var(--tx-1);
-  border-color: var(--sep);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-xs);
 }
 
 .titlebar-action-btn:active {
-  transform: translateY(0);
-  box-shadow: none;
+  transform: scale(0.96);
 }
 
 .titlebar-action-btn.active {
-  background: rgba(100, 150, 255, 0.2);
-  color: #6496ff;
-  border-color: rgba(100, 150, 255, 0.4);
+  background: color-mix(in srgb, var(--tx-1) 15%, transparent);
+  color: var(--tx-1);
 }
 
 .hover-panel-badge {
-  font-size: var(--font-sm);
+  font-size: var(--fs-10);
   font-weight: 600;
-  background: rgba(100, 150, 255, 0.3);
-  color: #a0c4ff;
-  padding: 1px 6px;
-  border-radius: var(--radius-lg);
-  min-width: 18px;
+  background: color-mix(in srgb, var(--tx-1) 25%, transparent);
+  color: var(--tx-1);
+  padding: 1px var(--sp-1);
+  border-radius: var(--r-pill);
+  min-width: 16px;
   text-align: center;
+  line-height: 14px;
 }
 
 .titlebar-action-btn.active .hover-panel-badge {
-  background: rgba(100, 150, 255, 0.4);
+  background: var(--tx-1);
   color: #fff;
 }
 
@@ -145,23 +141,23 @@
 
 .titlebar-btn-panel {
   position: relative;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   border-left: 0.5px solid var(--sep-l);
-  margin-left: var(--space-2);
+  margin-left: var(--sp-1);
 }
 
 .titlebar-btn-panel.active {
-  background-color: rgba(100, 150, 255, 0.15);
-  color: #6496ff;
+  background-color: color-mix(in srgb, var(--tx-1) 15%, transparent);
+  color: var(--tx-1);
 }
 
 .titlebar-btn-panel .hover-panel-badge {
-  font-size: var(--font-xs);
+  font-size: var(--fs-10);
   font-weight: 600;
-  background: rgba(100, 150, 255, 0.4);
+  background: var(--tx-1);
   color: #fff;
-  padding: 0px 4px;
-  border-radius: var(--radius-lg);
+  padding: 0 var(--sp-1);
+  border-radius: var(--r-pill);
   min-width: 14px;
   text-align: center;
   line-height: 14px;

@@ -65,26 +65,16 @@
    monospace block that wraps cleanly on long Windows paths
    (the previous inline <code> got cut between `한글` and `test`
    because it had no break-word handling). */
+/* 5.0.8d — `.migration-modal-backup-path` removed; PathDisplay primitive
+   handles the path + reveal action surface now. Outer wrapper + label
+   styles retained — they group the "Backup location:" + PathDisplay. */
 .migration-modal-backup {
   margin: 0 0 18px 0;
-  padding: 10px 12px;
-  border-radius: var(--r-4, 6px);
-  background: color-mix(in srgb, var(--bg-app) 70%, var(--tx-2) 30%);
-  border: 1px solid var(--bdr-2, rgba(148, 163, 184, 0.2));
 }
 .migration-modal-backup-label {
   font-size: var(--fs-12, 12px);
   color: var(--tx-3, #94a3b8);
   margin-bottom: 6px;
-}
-.migration-modal-backup-path {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
-  font-size: var(--fs-11, 11px);
-  color: var(--tx-2, #cbd5e1);
-  word-break: break-all;
-  line-height: 1.45;
-  user-select: all;
-  -webkit-user-select: all;
 }
 
 .migration-modal-warn {
@@ -146,7 +136,7 @@
 
 .migration-progress-bar-fill {
   height: 100%;
-  background: var(--c-blue, #3b82f6);
+  background: var(--tx-1);
   transition: width 200ms ease-out;
 }
 
@@ -197,21 +187,21 @@
 }
 
 .migration-modal-btn-secondary:hover {
-  background: color-mix(in srgb, var(--c-blue, #3b82f6) 8%, transparent);
+  background: color-mix(in srgb, var(--tx-1) 8%, transparent);
   color: var(--tx-1, #f3f4f6);
 }
 
 .migration-modal-btn-primary {
-  background-color: var(--c-blue, #3b82f6);
+  background-color: var(--tx-1);
   color: white;
   font-weight: 600;
 }
 
 .migration-modal-btn-primary:hover {
-  background-color: color-mix(in srgb, var(--c-blue, #3b82f6) 86%, black 14%);
+  background-color: color-mix(in srgb, var(--tx-1) 86%, black 14%);
 }
 
 .migration-modal-btn:focus-visible {
-  outline: 2px solid var(--c-blue, #3b82f6);
+  outline: 2px solid var(--tx-1);
   outline-offset: 2px;
 }

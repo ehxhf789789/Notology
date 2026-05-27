@@ -15,6 +15,9 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { TextSelection } from '@tiptap/pm/state';
 import katex from 'katex';
 import { MathAutocompleteController } from '@features/suggestions/mathAutocompleteSuggestion';
+import { modalActions } from '@features/modals/stores/modalStore';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { t } from '../../utils/i18n';
 
 const MATH_DEBUG = false;
 
@@ -97,6 +100,14 @@ function createMathNodeView(isBlock: boolean) {
     // NOTE: Do NOT set dom.contentEditable = 'false' here.
     // ProseMirror manages atom node boundaries. Setting contentEditable=false
     // on the outer element breaks text selection/drag across math nodes.
+    //
+    // Stage 5.0.4b-2 (2026-05-15): explicit `draggable=true` so ProseMirror's
+    // dragstart handler picks up the node as a draggable slice. The node spec
+    // also has `draggable: true`, but mirroring it on the actual DOM element
+    // makes the behavior browser-consistent (Chromium occasionally drops the
+    // attribute synthesis path for atom nodes inside contentEditable=true
+    // roots). Required to satisfy HanBin §11 "이동" (move math by drag).
+    dom.setAttribute('draggable', 'true');
 
     const display = document.createElement(isBlock ? 'div' : 'span');
     display.className = 'math-katex';
@@ -310,6 +321,11 @@ function createMathNodeView(isBlock: boolean) {
       startEdit();
     });
 
+    // Stage 5.0.4b-2d v2 (2026-05-15) — contextmenu moved to plugin level
+    // (see MathTrigger.addProseMirrorPlugins below). dom.addEventListener
+    // was unreliable in HoverEditor's editor pool — plugin handleDOMEvents
+    // is the proven pattern.
+
     // Prevent edit container events from reaching ProseMirror
     editContainer.addEventListener('mousedown', (e) => {
       e.stopPropagation();
@@ -318,6 +334,14 @@ function createMathNodeView(isBlock: boolean) {
     inputEl.addEventListener('keydown', (e) => {
       const ke = e as KeyboardEvent;
       e.stopPropagation();
+
+      // Stage 5.0.4b-2 (2026-05-15): Korean/CJK IME safety. The Enter that
+      // confirms an IME composition fires keydown with key='Enter' and
+      // isComposing=true (or keyCode=229). Without this guard the very keypress
+      // that commits a Korean glyph into the formula would also close the
+      // edit popup — losing the in-flight character. Skip ALL action keys
+      // while composing; the next non-composition keydown handles them.
+      if (ke.isComposing || ke.keyCode === 229) return;
 
       if (autocomplete.handleKeyDown(ke)) return;
 
@@ -402,7 +426,12 @@ export const MathInline = Node.create({
   group: 'inline',
   inline: true,
   atom: true,
-  selectable: true,
+  // v3 (HanBin 2026-05-15): treat math as text-like — click → caret
+  // adjacent (natural browser behavior for contenteditable=false), Backspace
+  // deletes via PM's default atom-delete keymap. Double-click still opens
+  // the edit popup (preserved via dom.addEventListener in the NodeView).
+  selectable: false,
+  draggable: true,
 
   addAttributes() {
     return { formula: { default: '' } };
@@ -510,10 +539,44 @@ export const MathBlock = Node.create({
   name: 'mathBlock',
   group: 'block',
   atom: true,
-  selectable: true,
+  // v3 (HanBin 2026-05-15): treat as text-like atom (selectable: false).
+  // Click adjacent → caret lands there; Backspace deletes (PM default).
+  // Double-click on the NodeView still opens the edit popup.
+  selectable: false,
+  // Stage 5.0.4b-2 (2026-05-15): per HanBin §11 ("블록 줄바꿈, 이동") block
+  // math must be reorderable by drag and must allow a paragraph break after
+  // it. `draggable: true` enables ProseMirror's drag slice serialization;
+  // the Enter keymap below handles paragraph promotion when the block is
+  // selected.
+  draggable: true,
 
   addAttributes() {
     return { formula: { default: '' } };
+  },
+
+  // When the user has the block math NodeSelection'd and presses Enter,
+  // insert an empty paragraph *after* the block and place the cursor inside
+  // it. Without this, default ProseMirror behavior replaces the selected
+  // atom with a hard break / leaves the user stuck on the block.
+  addKeyboardShortcuts() {
+    return {
+      Enter: ({ editor }) => {
+        const { selection, schema, tr } = editor.state;
+        // Only handle when the selection is a NodeSelection on this block.
+        const nodeSel = selection as any;
+        if (!nodeSel.node || nodeSel.node.type.name !== 'mathBlock') return false;
+        const paragraph = schema.nodes.paragraph;
+        if (!paragraph) return false;
+        const insertPos = nodeSel.to;
+        const p = paragraph.create();
+        const newTr = tr.insert(insertPos, p);
+        const $cursor = newTr.doc.resolve(insertPos + 1);
+        newTr.setSelection(TextSelection.near($cursor, 1));
+        editor.view.dispatch(newTr);
+        editor.view.focus();
+        return true;
+      },
+    };
   },
 
   parseHTML() {
@@ -565,8 +628,54 @@ const MATH_TRIGGER_KEY = new PluginKey('mathTrigger');
 export const MathTrigger = Extension.create({
   name: 'mathTrigger',
 
+  // Stage 5.0.4b-2d v2 (2026-05-15) — atom right-click → delete menu. Moved
+  // from NodeView's dom.addEventListener to view-level handleDOMEvents
+  // because the wrapper-level listeners didn't fire reliably (HanBin smoke
+  // test). WikiLink's contextmenu handler was modified to early-skip
+  // `.math-node` targets so this plugin gets to handle them.
   addProseMirrorPlugins() {
-    return [];
+    return [
+      new Plugin({
+        key: new PluginKey('mathContextMenu'),
+        props: {
+          handleDOMEvents: {
+            contextmenu(view, event) {
+              const target = event.target as HTMLElement | null;
+              const mathDom = target?.closest('.math-node') as HTMLElement | null;
+              if (!mathDom) return false;
+              event.preventDefault();
+              event.stopPropagation();
+
+              const pos = view.posAtDOM(mathDom, 0);
+              if (typeof pos !== 'number' || pos < 0) return false;
+              const node = view.state.doc.nodeAt(pos);
+              if (!node || (node.type.name !== 'mathInline' && node.type.name !== 'mathBlock')) return false;
+
+              const isBlock = node.type.name === 'mathBlock';
+              const lang = useSettingsStore.getState().language;
+              const labelKey = isBlock ? 'deleteMathBlock' : 'deleteMathInline';
+
+              const triggerDelete = () => {
+                let pos2 = -1;
+                view.state.doc.descendants((n, p) => {
+                  if (pos2 >= 0) return false;
+                  if (n === node) { pos2 = p; return false; }
+                });
+                if (pos2 < 0) return;
+                view.dispatch(view.state.tr.delete(pos2, pos2 + node.nodeSize));
+                view.focus();
+              };
+
+              modalActions.showAtomContextMenu(
+                { x: event.clientX, y: event.clientY },
+                [{ label: t(labelKey, lang), onClick: triggerDelete, danger: true }],
+              );
+              return true;
+            },
+          },
+        },
+      }),
+    ];
   },
 });
 

@@ -57,6 +57,22 @@
   min-height: 0;
 }
 
+/* 5.0.7a section headers — non-interactive group labels that subdivide
+   the result list into "최근 / 노트 / 본문 검색 / 명령" sections so the
+   user can scan by intent, not just a flat ranked dump. */
+.command-palette__section-header {
+  padding: var(--space-md) var(--space-md) var(--space-xs);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.4px;
+  color: var(--tx-3);
+  user-select: none;
+}
+.command-palette__section-header:first-child {
+  padding-top: var(--space-xs);
+}
+
 .command-palette__row {
   display: flex;
   align-items: center;
@@ -88,6 +104,29 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Content-search rows render title + snippet stacked. The wrap groups
+   label + snippet so the trailing arrow stays right-aligned. */
+.command-palette__row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.command-palette__row-body .command-palette__row-label {
+  flex: 0 0 auto;
+}
+.command-palette__row-snippet {
+  font-size: var(--fs-caption);
+  color: var(--tx-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+.command-palette__row--with-snippet {
+  align-items: flex-start;
+}
 .command-palette__row-shortcut {
   flex-shrink: 0;
   margin-left: auto;
@@ -95,6 +134,7 @@
 .command-palette__row-trail {
   flex-shrink: 0;
   color: var(--tx-3);
+  align-self: center;
 }
 
 .command-palette__empty {

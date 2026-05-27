@@ -7,10 +7,10 @@
   top: 100%;
   left: 0;
   right: 0;
-  margin-top: var(--space-2);
+  margin-top: var(--sp-1);
   background-color: var(--bg-app);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   box-shadow: var(--sh-md);
   z-index: var(--z-dropdown);
   max-height: 400px;
@@ -19,7 +19,7 @@
 }
 
 .tag-search {
-  padding: var(--space-4);
+  padding: var(--sp-2);
   border-bottom: 0.5px solid var(--sep-l);
 }
 
@@ -28,14 +28,14 @@
   padding: 8px 12px;
   background-color: var(--bg-base);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: var(--tx-2);
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
 }
 
 .tag-search input:focus {
   outline: none;
-  border-color: var(--c-blue);
+  border-color: var(--tx-1);
 }
 
 .tag-search-results,
@@ -56,8 +56,8 @@
   cursor: pointer;
   text-align: left;
   width: 100%;
-  transition: background-color var(--duration-normal);
-  font-size: var(--font-md);
+  transition: background-color var(--dur-200);
+  font-size: var(--fs-13);
 }
 
 .tag-item:hover {
@@ -66,12 +66,12 @@
 
 /* Keyboard navigation selected state */
 .tag-item-selected {
-  background-color: var(--c-blue) !important;
-  color: #111 !important;
+  background-color: var(--tx-1) !important;
+  color: #fff !important;
 }
 
 .tag-item-selected .tag-item-breadcrumb {
-  color: rgba(0, 0, 0, 0.55);
+  color: var(--tx-2);
 }
 
 /* Disable hover effect when keyboard navigation is active */
@@ -84,14 +84,14 @@
 }
 
 .tag-item-breadcrumb {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
-  margin-top: var(--space-1);
+  margin-top: var(--sp-1);
 }
 
 .tag-item-arrow {
   color: var(--tx-3);
-  margin-left: var(--space-4);
+  margin-left: var(--sp-2);
 }
 
 .tag-item-wrapper {
@@ -110,14 +110,14 @@
   color: var(--tx-3);
   cursor: pointer;
   padding: 4px 8px;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   opacity: 0.5;
-  transition: opacity var(--duration-normal), color var(--duration-normal);
+  transition: opacity var(--dur-200), color var(--dur-200);
 }
 
 .tag-item-delete:hover {
   opacity: 1;
-  color: #ff6b6b;
+  color: var(--c-red);
 }
 
 .tag-item-rename {
@@ -126,14 +126,14 @@
   color: var(--tx-3);
   cursor: pointer;
   padding: 4px 6px;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   opacity: 0.5;
-  transition: opacity var(--duration-normal), color var(--duration-normal);
+  transition: opacity var(--dur-200), color var(--dur-200);
 }
 
 .tag-item-rename:hover {
   opacity: 1;
-  color: #4da6ff;
+  color: var(--tx-1);
 }
 
 /* ── Bulk Tag Operation Dialog ── */
@@ -151,9 +151,9 @@
 }
 
 .tag-bulk-dialog {
-  background: var(--bg-primary, #1e1e1e);
-  border: 1px solid var(--border-color, #3e3e3e);
-  border-radius: var(--radius-lg);
+  background: var(--bg-app);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-12);
   padding: 20px 24px;
   min-width: 340px;
   max-width: 420px;
@@ -162,62 +162,62 @@
 
 .tag-bulk-dialog h3 {
   margin: 0 0 12px;
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   font-weight: 600;
-  color: var(--text-primary, #ccc);
+  color: var(--tx-1);
 }
 
 .tag-bulk-tag-name {
   margin: 0 0 16px;
   padding: 6px 10px;
-  background: var(--bg-secondary, #2a2a2a);
-  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  border-radius: var(--r-6);
   font-family: monospace;
-  font-size: var(--font-md);
-  color: var(--text-secondary, #aaa);
+  font-size: var(--fs-13);
+  color: var(--tx-2);
 }
 
 .tag-bulk-info {
   margin: 8px 0 16px;
-  font-size: var(--font-md);
-  color: var(--text-secondary, #aaa);
+  font-size: var(--fs-13);
+  color: var(--tx-2);
 }
 
 .tag-bulk-form {
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--sp-3);
 }
 
 .tag-bulk-form label {
   display: block;
-  font-size: var(--font-base);
-  color: var(--text-muted, #888);
-  margin-bottom: var(--space-2);
-  margin-top: var(--space-4);
+  font-size: var(--fs-13);
+  color: var(--tx-3);
+  margin-bottom: var(--sp-1);
+  margin-top: var(--sp-2);
 }
 
 .tag-bulk-current {
   padding: 6px 10px;
-  background: var(--bg-secondary, #2a2a2a);
-  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  border-radius: var(--r-6);
   font-family: monospace;
-  font-size: var(--font-md);
-  color: var(--text-muted, #888);
+  font-size: var(--fs-13);
+  color: var(--tx-3);
 }
 
 .tag-bulk-input-row {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  background: var(--bg-secondary, #2a2a2a);
-  border: 1px solid var(--border-color, #3e3e3e);
-  border-radius: var(--radius-sm);
+  gap: var(--sp-1);
+  background: var(--bg-base);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-6);
   padding: 0 8px;
 }
 
 .tag-bulk-ns-prefix {
   font-family: monospace;
-  font-size: var(--font-md);
-  color: var(--text-muted, #888);
+  font-size: var(--fs-13);
+  color: var(--tx-3);
   white-space: nowrap;
 }
 
@@ -225,8 +225,8 @@
   flex: 1;
   border: none;
   background: transparent;
-  color: var(--text-primary, #ccc);
-  font-size: var(--font-md);
+  color: var(--tx-1);
+  font-size: var(--fs-13);
   padding: 6px 4px;
   outline: none;
 }
@@ -237,71 +237,71 @@
 
 .tag-bulk-progress-bar {
   height: 4px;
-  background: var(--bg-secondary, #2a2a2a);
-  border-radius: var(--radius-xs);
+  background: var(--bg-base);
+  border-radius: var(--r-4);
   overflow: hidden;
 }
 
 .tag-bulk-progress-fill {
   height: 100%;
-  background: #4da6ff;
-  transition: width var(--duration-normal);
-  border-radius: var(--radius-xs);
+  background: var(--tx-1);
+  transition: width var(--dur-200);
+  border-radius: var(--r-4);
 }
 
 .tag-bulk-progress-text {
   display: block;
-  margin-top: var(--space-3);
-  font-size: var(--font-base);
-  color: var(--text-muted, #888);
+  margin-top: var(--sp-2);
+  font-size: var(--fs-13);
+  color: var(--tx-3);
 }
 
 .tag-bulk-result {
   margin: 8px 0 16px;
-  font-size: var(--font-md);
-  color: #4da6ff;
+  font-size: var(--fs-13);
+  color: var(--tx-1);
 }
 
 .tag-bulk-result-error {
   margin: -8px 0 16px;
-  font-size: var(--font-base);
-  color: #ff6b6b;
+  font-size: var(--fs-13);
+  color: var(--c-red);
 }
 
 .tag-bulk-actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-4);
-  margin-top: var(--space-2);
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
 }
 
 .tag-bulk-btn-cancel,
 .tag-bulk-btn-confirm {
   padding: 6px 16px;
-  border: 1px solid var(--border-color, #3e3e3e);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-md);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-6);
+  font-size: var(--fs-13);
   cursor: pointer;
-  transition: background var(--duration-normal);
+  transition: background var(--dur-200);
 }
 
 .tag-bulk-btn-cancel {
   background: transparent;
-  color: var(--text-secondary, #aaa);
+  color: var(--tx-2);
 }
 
 .tag-bulk-btn-cancel:hover {
-  background: var(--bg-secondary, #2a2a2a);
+  background: var(--bg-base);
 }
 
 .tag-bulk-btn-confirm {
-  background: var(--c-blue);
+  background: var(--tx-1);
   color: #fff;
-  border-color: var(--c-blue);
+  border-color: var(--tx-1);
 }
 
 .tag-bulk-btn-confirm:hover {
-  background: #005fa3;
+  background: color-mix(in srgb, var(--tx-1) 80%, black);
 }
 
 .tag-bulk-btn-confirm:disabled {
@@ -310,35 +310,35 @@
 }
 
 .tag-bulk-btn-danger {
-  background: #cc3333;
-  border-color: #cc3333;
+  background: var(--c-red);
+  border-color: var(--c-red);
 }
 
 .tag-bulk-btn-danger:hover {
-  background: #aa2222;
+  background: color-mix(in srgb, var(--c-red) 80%, black);
 }
 
 .tag-empty {
-  padding: var(--space-8);
+  padding: var(--sp-4);
   text-align: center;
   color: var(--tx-3);
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-2);
 }
 
 .tag-typo-suggestions {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
 }
 
 .tag-typo-label {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-3);
 }
 
@@ -346,7 +346,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: var(--space-3);
+  gap: var(--sp-2);
 }
 
 .tag-typo-btn {
@@ -354,33 +354,33 @@
   background: var(--bg-elevated);
   color: var(--tx-1);
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
-  font-size: var(--font-md);
-  transition: background-color var(--duration-fast), border-color var(--duration-fast);
+  font-size: var(--fs-13);
+  transition: background-color var(--dur-150), border-color var(--dur-150);
 }
 
 .tag-typo-btn:hover {
   background: var(--accent-primary);
-  color: #111;
+  color: #fff;
   border-color: var(--accent-primary);
 }
 
 .tag-create-btn {
-  margin-top: var(--space-6);
+  margin-top: var(--sp-3);
   padding: 6px 12px;
-  background-color: var(--c-blue);
-  color: #ffffff;
+  background-color: var(--tx-1);
+  color: #fff;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   cursor: pointer;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   font-weight: 500;
-  transition: background-color var(--duration-normal);
+  transition: background-color var(--dur-200);
 }
 
 .tag-create-btn:hover {
-  background-color: #005a9e;
+  background-color: color-mix(in srgb, var(--tx-1) 80%, black);
 }
 
 .tag-breadcrumb {
@@ -389,19 +389,19 @@
   padding: 8px 12px;
   background-color: var(--bg-app);
   border-bottom: 0.5px solid var(--sep-l);
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--sp-1);
 }
 
 .breadcrumb-item {
   background: none;
   border: none;
-  color: var(--c-blue);
+  color: var(--tx-1);
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  transition: background-color var(--duration-normal);
+  border-radius: var(--r-6);
+  transition: background-color var(--dur-200);
 }
 
 .breadcrumb-item:hover {
@@ -411,7 +411,7 @@
 .breadcrumb-separator-wrapper {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--sp-1);
 }
 
 .breadcrumb-separator {
@@ -419,7 +419,7 @@
 }
 
 .tag-recent {
-  padding: var(--space-6);
+  padding: var(--sp-3);
   border-top: 0.5px solid var(--sep-l);
 }
 
@@ -427,26 +427,26 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--sp-2);
 }
 
 .tag-recent-title {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.5px;
 }
 
 .tag-recent-clear {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
   background: none;
   border: none;
   cursor: pointer;
   padding: 2px 4px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   opacity: 0.7;
-  transition: opacity var(--duration-fast), color var(--duration-fast);
+  transition: opacity var(--dur-150), color var(--dur-150);
 }
 
 .tag-recent-clear:hover {
@@ -457,23 +457,23 @@
 .tag-recent-list {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--sp-2);
 }
 
 .tag-chip-small {
   padding: 4px 10px;
   background-color: var(--bg-elevated);
   border: 0.5px solid var(--sep);
-  border-radius: var(--radius-xl);
+  border-radius: var(--r-16);
   color: var(--tx-2);
   cursor: pointer;
-  font-size: var(--font-sm);
-  transition: all var(--duration-normal);
+  font-size: var(--fs-11);
+  transition: all var(--dur-200);
 }
 
 .tag-chip-small:hover {
-  background-color: var(--c-blue);
-  border-color: var(--c-blue);
+  background-color: var(--tx-1);
+  border-color: var(--tx-1);
   color: #fff;
 }
 
@@ -495,25 +495,25 @@
   background: none;
   border: none;
   color: var(--tx-3);
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   line-height: 1;
   cursor: pointer;
   padding: 0 2px;
   opacity: 0.6;
-  transition: opacity var(--duration-normal), color var(--duration-normal);
+  transition: opacity var(--dur-200), color var(--dur-200);
 }
 
 .tag-chip-remove:hover {
   opacity: 1;
-  color: #ff6b6b;
+  color: var(--c-red);
 }
 
 .tag-chip-small-wrapper:hover .tag-chip-remove {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--tx-2);
 }
 
 .tag-chip-small-wrapper:hover .tag-chip-remove:hover {
-  color: #ff6b6b;
+  color: var(--c-red);
 }
 
 /* Orphan tags (deleted from ontology but still in recent list) */
@@ -541,5 +541,5 @@
 }
 
 .tag-chip-orphan .tag-chip-remove:hover {
-  color: #ff6b6b !important;
+  color: var(--c-red) !important;
 }

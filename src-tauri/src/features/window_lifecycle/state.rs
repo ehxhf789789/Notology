@@ -174,6 +174,27 @@ pub fn transition(mode: &WindowMode, event: Event) -> (WindowMode, Vec<SideEffec
             )
         }
         (MainOnly { vault, hovers }, HoverCloseRequested { label }) => {
+            // Idempotency guard (2026-05-18, HanBin) — breaks the 50k/sec
+            // dispatcher loop seen during v4.3/4.4 testing. Mechanism:
+            //   1. User closes hover → OS fires `CloseRequested` → lib.rs
+            //      dispatches HoverCloseRequested. We remove the label
+            //      from `hovers` and emit `CloseHover { label }`.
+            //   2. The CloseHover effect calls `w.close()`. Tauri's close
+            //      path on an already-closing window can re-emit
+            //      `CloseRequested`, which lib.rs translates back into
+            //      another HoverCloseRequested for the same label.
+            //   3. By now `hovers` no longer contains the label. Without
+            //      this guard the transition would still emit
+            //      `CloseHover { label }`, the effect would call
+            //      `w.close()` yet again, the cycle repeats — drowning
+            //      logs and pegging a core.
+            // Skipping both state change AND effect when the label is
+            // already gone makes the second-and-subsequent dispatches
+            // pure no-ops, so the OS-level close completes naturally
+            // and the cycle terminates.
+            if !hovers.contains(&label) {
+                return (mode.clone(), vec![]);
+            }
             let next: Vec<String> = hovers.iter().filter(|h| **h != label).cloned().collect();
             (
                 MainOnly {
@@ -377,6 +398,28 @@ mod tests {
                 hovers: vec!["h1".into(), "h2".into()]
             }
         );
+    }
+
+    #[test]
+    fn d5_x_hover_close_is_noop_when_label_already_gone() {
+        // Regression for the HoverCloseRequested infinite-loop bug
+        // (2026-05-18): a second close event for the same label (which
+        // arrives when Tauri re-emits CloseRequested as a side effect of
+        // our own w.close()) must NOT re-emit CloseHover, otherwise the
+        // dispatcher spins at thousands of events per second.
+        let (m, fx) = step(
+            WindowMode::MainOnly {
+                vault: "v1".into(),
+                hovers: vec!["h2".into()],
+            },
+            Event::HoverCloseRequested { label: "h1".into() },
+        );
+        assert_eq!(
+            m,
+            WindowMode::MainOnly { vault: "v1".into(), hovers: vec!["h2".into()] },
+            "state must not change when label isn't in hovers"
+        );
+        assert!(fx.is_empty(), "no CloseHover effect when label already gone");
     }
 
     #[test]

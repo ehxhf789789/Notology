@@ -165,7 +165,9 @@ pub fn collect_calendar_memos(
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false);
 
-            let is_task = comment.get("task").is_some();
+            let is_task = comment.get("task")
+                .map(|v| !v.is_null())
+                .unwrap_or(false);
 
             let date = if is_task {
                 comment.get("task")
@@ -189,6 +191,19 @@ pub fn collect_calendar_memos(
                 continue;
             }
 
+            // 2026-05-26 (HanBin) — extract task.dueTime ("HH:MM") for the
+            // Day-view 24-hour timeline. Only tasks carry a time; memos
+            // are placed in the "시간 미정" group regardless.
+            let due_time = if is_task {
+                comment.get("task")
+                    .and_then(|task| task.get("dueTime"))
+                    .and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string())
+            } else {
+                None
+            };
+
             memos.push(CalendarMemo {
                 id,
                 content,
@@ -198,6 +213,7 @@ pub fn collect_calendar_memos(
                 is_task,
                 resolved,
                 anchor_text,
+                due_time,
             });
         }
     }

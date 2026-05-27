@@ -23,36 +23,17 @@ const CALLOUT_TYPES: { type: CalloutType; label: string }[] = [
   { type: 'tip', label: 'Tip' },
 ];
 
-const CELL_COLORS_DARK: { color: string; key: string }[] = [
-  { color: 'transparent', key: 'cellDefault' },
-  { color: '#2d2d2d', key: 'cellDarkGray' },
-  { color: '#3c3c3c', key: 'cellGray' },
-  { color: '#1e3a5f', key: 'cellBlue' },
-  { color: '#2d4a2c', key: 'cellGreen' },
-  { color: '#5f3a1e', key: 'cellBrown' },
-  { color: '#5f1e3a', key: 'cellPurple' },
-  { color: '#4a2d2d', key: 'cellRed' },
+/** Semantic cell color keys — stored in markdown, resolved to actual colors via CSS variables */
+const CELL_COLORS: { color: string; key: string; cssVar: string }[] = [
+  { color: 'transparent', key: 'cellDefault', cssVar: '' },
+  { color: 'cell-dark-gray', key: 'cellDarkGray', cssVar: '--cell-dark-gray' },
+  { color: 'cell-gray', key: 'cellGray', cssVar: '--cell-gray' },
+  { color: 'cell-blue', key: 'cellBlue', cssVar: '--cell-blue' },
+  { color: 'cell-green', key: 'cellGreen', cssVar: '--cell-green' },
+  { color: 'cell-brown', key: 'cellBrown', cssVar: '--cell-brown' },
+  { color: 'cell-purple', key: 'cellPurple', cssVar: '--cell-purple' },
+  { color: 'cell-red', key: 'cellRed', cssVar: '--cell-red' },
 ];
-
-const CELL_COLORS_LIGHT: { color: string; key: string }[] = [
-  { color: 'transparent', key: 'cellDefault' },
-  { color: '#e5e5e5', key: 'cellDarkGray' },
-  { color: '#f0f0f0', key: 'cellGray' },
-  { color: '#dbeafe', key: 'cellBlue' },
-  { color: '#dcfce7', key: 'cellGreen' },
-  { color: '#fef3c7', key: 'cellBrown' },
-  { color: '#f3e8ff', key: 'cellPurple' },
-  { color: '#fee2e2', key: 'cellRed' },
-];
-
-function getCellColors(): { color: string; key: string }[] {
-  const theme = document.documentElement.getAttribute('data-theme');
-  if (theme === 'light') return CELL_COLORS_LIGHT;
-  if (theme === 'dark') return CELL_COLORS_DARK;
-  // System theme detection
-  if (window.matchMedia?.('(prefers-color-scheme: light)').matches) return CELL_COLORS_LIGHT;
-  return CELL_COLORS_DARK;
-}
 
 // Submenu component rendered as portal
 interface SubmenuPortalProps {
@@ -112,7 +93,11 @@ function EditorContextMenu({ editor, position, onClose, onAddMemo, onAddTask }: 
   const [showCellColorSubmenu, setShowCellColorSubmenu] = useState(false);
 
   const cellColors = useMemo(() =>
-    getCellColors().map(c => ({ color: c.color, label: t(c.key, language) })),
+    CELL_COLORS.map(c => ({
+      color: c.color,
+      label: t(c.key, language),
+      cssVar: c.cssVar,
+    })),
     [language]
   );
 
@@ -129,11 +114,27 @@ function EditorContextMenu({ editor, position, onClose, onAddMemo, onAddTask }: 
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
+    // v5.5 (2026-05-16) — HanBin: hover-window 우클릭 메뉴도 드래그 시 닫혀야 함.
+    // v5.5.1 — 단, popover 내부 스크롤(메뉴 자체가 viewport 보다 클 때)은
+    // 닫지 말 것. 호버 본문(EditorContent)의 스크롤만 닫기 트리거.
+    const handleDrag = () => onClose();
+    const handleScroll = (e: Event) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      // Scroll inside the menu or any of its submenu portals — ignore.
+      if (menuRef.current?.contains(target)) return;
+      if ((target as Element).closest?.('.editor-context-submenu-portal')) return;
+      onClose();
+    };
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEsc);
+    document.addEventListener('dragstart', handleDrag, { capture: true });
+    window.addEventListener('scroll', handleScroll, { capture: true });
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEsc);
+      document.removeEventListener('dragstart', handleDrag, { capture: true });
+      window.removeEventListener('scroll', handleScroll, { capture: true });
     };
   }, [onClose]);
 
@@ -236,16 +237,16 @@ function EditorContextMenu({ editor, position, onClose, onAddMemo, onAddTask }: 
                 key={c.color}
                 className="editor-context-menu-item"
                 onClick={() => runCommand(() => {
-                  // Try to update tableHeader first (for header cells), then tableCell
+                  const bgColor = c.color === 'transparent' ? null : c.color;
                   const chain = editor.chain().focus();
                   if (editor.isActive('tableHeader')) {
-                    chain.updateAttributes('tableHeader', { backgroundColor: c.color }).run();
+                    chain.updateAttributes('tableHeader', { backgroundColor: bgColor }).run();
                   } else {
-                    chain.updateAttributes('tableCell', { backgroundColor: c.color }).run();
+                    chain.updateAttributes('tableCell', { backgroundColor: bgColor }).run();
                   }
                 })}
               >
-                <div className="cell-color-preview" style={{ backgroundColor: c.color }} />
+                <div className="cell-color-preview" style={{ backgroundColor: c.cssVar ? `var(${c.cssVar})` : 'transparent' }} />
                 <span className="ecm-label">{c.label}</span>
               </button>
             ))}
@@ -273,8 +274,8 @@ function EditorContextMenu({ editor, position, onClose, onAddMemo, onAddTask }: 
         </>
       )}
 
-      {/* Memo / Task (only when text is selected) */}
-      {!editor.state.selection.empty && onAddMemo && (
+      {/* Memo / Task */}
+      {onAddMemo && (
         <>
           <button
             className="editor-context-menu-item ecm-memo-item"
@@ -503,6 +504,17 @@ function EditorContextMenu({ editor, position, onClose, onAddMemo, onAddTask }: 
         <span className="ecm-label">{t('codeBlock', language)}</span>
         <span className="ecm-shortcut"></span>
       </button>
+
+      {/* Insert Table (only if not already in a table) */}
+      {!editor.isActive('table') && (
+        <button
+          className="editor-context-menu-item"
+          onClick={() => runCommand(() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}
+        >
+          <span className="ecm-label">{t('insertTable', language)}</span>
+          <span className="ecm-shortcut"></span>
+        </button>
+      )}
 
       <div className="editor-context-menu-separator" />
 

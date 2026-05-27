@@ -68,6 +68,20 @@ pub struct DirtyEntry {
     pub lane: Lane,
 }
 
+/// A permanently failed entry — dropped from the active queue after 5
+/// retries. Kept in a separate table so the frontend can show "X uploads
+/// failed; click to retry" UI and the user has a chance to fix
+/// network/permission issues before the data is forgotten.
+#[derive(Clone, Debug)]
+pub struct FailedEntry {
+    pub id: i64,
+    pub op: DirtyOperation,
+    pub queued_at: DateTime<Utc>,
+    pub failed_at: DateTime<Utc>,
+    pub last_error: String,
+    pub lane: Lane,
+}
+
 /// SQLite WAL-backed dirty queue.
 pub struct DirtyQueue {
     db: Mutex<Connection>,
@@ -111,7 +125,115 @@ impl DirtyQueue {
             .map_err(|e| format!("add lane column: {}", e))?;
         }
 
+        // Round 2 R5 v5 (HanBin 2026-05-23) — permanently-failed entries
+        // table. Entries dropped after 5 retries are moved here instead of
+        // being silently deleted, so the user has a chance to fix the
+        // underlying problem (network, auth, file gone) and re-enqueue.
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS failed_changes_v2 (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                operation_json TEXT NOT NULL,
+                target_key TEXT NOT NULL,
+                queued_at INTEGER NOT NULL,
+                failed_at INTEGER NOT NULL,
+                last_error TEXT NOT NULL,
+                lane TEXT NOT NULL DEFAULT 'fast'
+            );
+            CREATE INDEX IF NOT EXISTS idx_failed_target ON failed_changes_v2(target_key);",
+        )
+        .map_err(|e| format!("create failed table: {}", e))?;
+
         Ok(Self { db: Mutex::new(conn) })
+    }
+
+    /// Record a permanently-failed entry. Called from push_worker when an
+    /// operation has exhausted its retry budget. The original queue entry
+    /// is dropped by `mark_retry` itself; this just preserves the metadata
+    /// for the failure-list UI.
+    pub fn record_failed(
+        &self,
+        op: &DirtyOperation,
+        queued_at_ms: i64,
+        last_error: &str,
+        lane: Lane,
+    ) -> Result<i64, String> {
+        let db = self.db.lock().unwrap();
+        let target_key = Self::target_key(op);
+        let op_json = serde_json::to_string(op).map_err(|e| format!("serialize failed: {}", e))?;
+        let failed_at = Utc::now().timestamp_millis();
+        db.execute(
+            "INSERT INTO failed_changes_v2 (operation_json, target_key, queued_at, failed_at, last_error, lane) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![op_json, target_key, queued_at_ms, failed_at, last_error, lane.as_str()],
+        )
+        .map_err(|e| format!("insert failed: {}", e))?;
+        Ok(db.last_insert_rowid())
+    }
+
+    /// List all permanently-failed entries. Frontend uses this to render
+    /// the failure-list / "retry all" UI.
+    pub fn list_failed(&self) -> Result<Vec<FailedEntry>, String> {
+        let db = self.db.lock().unwrap();
+        let mut stmt = db
+            .prepare(
+                "SELECT id, operation_json, queued_at, failed_at, last_error, lane FROM failed_changes_v2 ORDER BY failed_at",
+            )
+            .map_err(|e| format!("prepare failed: {}", e))?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, i64>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                ))
+            })
+            .map_err(|e| format!("query failed: {}", e))?;
+        let mut out = Vec::new();
+        for r in rows.flatten() {
+            let (id, op_json, queued_at_ms, failed_at_ms, last_error, lane_str) = r;
+            let op: DirtyOperation = match serde_json::from_str(&op_json) {
+                Ok(o) => o,
+                Err(_) => continue,
+            };
+            out.push(FailedEntry {
+                id,
+                op,
+                queued_at: DateTime::<Utc>::from_timestamp_millis(queued_at_ms).unwrap_or_else(Utc::now),
+                failed_at: DateTime::<Utc>::from_timestamp_millis(failed_at_ms).unwrap_or_else(Utc::now),
+                last_error,
+                lane: Lane::parse(&lane_str),
+            });
+        }
+        Ok(out)
+    }
+
+    /// Remove a failed entry (typically after the user re-enqueues it
+    /// via `sync_v2_retry_failed`).
+    pub fn dequeue_failed(&self, id: i64) -> Result<(), String> {
+        let db = self.db.lock().unwrap();
+        db.execute("DELETE FROM failed_changes_v2 WHERE id = ?1", params![id])
+            .map_err(|e| format!("delete failed: {}", e))?;
+        Ok(())
+    }
+
+    /// Clear all failed entries (user dismisses the failure list entirely).
+    pub fn clear_failed(&self) -> Result<usize, String> {
+        let db = self.db.lock().unwrap();
+        let n = db
+            .execute("DELETE FROM failed_changes_v2", [])
+            .map_err(|e| format!("clear failed: {}", e))?;
+        Ok(n)
+    }
+
+    /// Number of permanently-failed entries.
+    pub fn count_failed(&self) -> Result<usize, String> {
+        let db = self.db.lock().unwrap();
+        let c: i64 = db
+            .query_row("SELECT COUNT(*) FROM failed_changes_v2", [], |r| r.get(0))
+            .map_err(|e| format!("count failed: {}", e))?;
+        Ok(c as usize)
     }
 
     /// Enqueue an operation in the Fast lane. Dedup by target_key.

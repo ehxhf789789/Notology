@@ -210,10 +210,14 @@ impl AttachmentStore {
         let original_name_owned = nfc(original_name);
         let original_name = original_name_owned.as_str();
 
-        let bytes =
-            std::fs::read(source_path).map_err(|e| format!("read source {:?}: {}", source_path, e))?;
-        let sha = sha256_hex(&bytes);
-        let size_bytes = bytes.len() as u64;
+        // 2026-05-24 (HanBin) — streaming sha256 + size. Previous code
+        // loaded ENTIRE file into RAM (`std::fs::read`). For a 5 GB
+        // video that's 5 GB allocation → OOM on most machines. New:
+        // streaming hash, constant 256 KB RAM regardless of file size.
+        // Bytes themselves are only loaded later, AT MOST ONCE, for the
+        // blob write path — and even that uses streaming copy if the
+        // blob doesn't exist yet (see below).
+        let (sha, size_bytes) = crate::core::file_io::stream_sha256(source_path)?;
 
         let ext = Path::new(original_name)
             .extension()
@@ -223,71 +227,67 @@ impl AttachmentStore {
         let tier = AttachmentTier::from_extension(&ext);
         let mime_type = AttachmentTier::mime_for_extension(&ext).to_string();
 
-        // Track B Phase B-3 PART 6 — dedup matrix (HanBin 2026-05-13):
+        // 2026-05-24 (HanBin) — B-model dedup matrix (replaces the
+        // pre-2026-05-24 "Track B PART 6" matrix that auto-shared refs
+        // across notes).
         //
         //   | sha   | original_name | note_id | action                       |
         //   |-------|---------------|---------|------------------------------|
-        //   | match | match         | match   | no-op, return existing       |
-        //   | match | match         | ≠       | append note_id to ref's      |
-        //   |       |               |         | linked_notes, return same    |
-        //   |       |               |         | ref (cross-note dedup)       |
-        //   | match | ≠             | (any)   | fresh ref, share CAS blob    |
-        //   |       |               |         | (renamed copy)               |
+        //   | match | match         | match   | no-op, return existing ref   |
+        //   |       |               |         | (idempotent — same note     |
+        //   |       |               |         | re-importing the same file) |
+        //   | match | match         | ≠       | **fresh per-note ref,        |
+        //   |       |               |         | share CAS blob**             |
+        //   |       |               |         | (B-model: never share a ref) |
+        //   | match | ≠             | (any)   | fresh ref + collision suffix |
         //   | ≠     | (any)         | (any)   | fresh ref + fresh CAS blob   |
         //
-        // Rationale: the wikilink resolver looks up refs by `original_name`,
-        // so renamed copies MUST get separate refs or the chip stays orphan.
-        // But a popular file referenced from N notes should not produce N
-        // refs — they all share the same logical attachment, so we collapse
-        // them via `linked_notes`. Hard-delete unlinks one note at a time,
-        // so cross-note dedup is correctness-preserving.
-        let cross_note_match_id: Option<String> = {
-            let mut hit: Option<&AttachmentRef> = None;
-            for r in self.refs_by_id.values() {
-                if r.sha256 != sha || r.original_name != original_name {
-                    continue;
-                }
-                if r.linked_notes.iter().any(|n| n == note_id) {
-                    // Same sha + same name + already linked → no-op return.
-                    return Ok(AddOutcome {
-                        attachment_ref: r.clone(),
-                        was_deduped: true,
-                        link_method: LinkMethod::Hardlink,
-                    });
-                }
-                hit = Some(r);
+        // The OLD behavior of appending note_id to a sibling ref's
+        // linked_notes is the exact anti-pattern Batch 1 set out to
+        // eliminate. Now: each note import gets its own ref. CAS blob
+        // is still sha-deduped (disk efficiency preserved).
+        for r in self.refs_by_id.values() {
+            if r.sha256 == sha
+                && r.original_name == original_name
+                && r.linked_notes.iter().any(|n| n == note_id)
+            {
+                // Same sha + same name + already this note's ref → no-op.
+                return Ok(AddOutcome {
+                    attachment_ref: r.clone(),
+                    was_deduped: true,
+                    link_method: LinkMethod::Hardlink,
+                });
             }
-            hit.map(|r| r.attachment_id.clone())
-        };
-
-        if let Some(id) = cross_note_match_id {
-            // Same sha + same name in another note. Append this note to the
-            // existing ref's linked_notes instead of creating a duplicate.
-            self.link_to_note(&id, note_id)?;
-            let updated = self
-                .refs_by_id
-                .get(&id)
-                .cloned()
-                .ok_or_else(|| format!("attachment {} vanished mid-link", id))?;
-            return Ok(AddOutcome {
-                attachment_ref: updated,
-                was_deduped: true,
-                link_method: LinkMethod::Hardlink,
-            });
         }
+        // (Otherwise fall through to fresh-ref creation below. Cross-note
+        // shared-ref creation is GONE.)
 
         // Dedup: same sha already present?
         let was_deduped = self.blobs_by_sha.contains_key(&sha);
 
         if !was_deduped {
-            // Write CAS blob
+            // Write CAS blob via streaming copy — no full-file allocation.
+            // 2026-05-24 (HanBin) — for a 5 GB video this used to need
+            // 5 GB RAM (read source + write to atomic_write_file with
+            // the whole buffer). Now it's a chunked source → tmp →
+            // atomic-rename pipeline with 256 KB peak RAM.
             let blob_path = self.cas_path(&sha);
             if let Some(parent) = blob_path.parent() {
                 std::fs::create_dir_all(parent)
                     .map_err(|e| format!("mkdir blob parent: {}", e))?;
             }
             if !blob_path.is_file() {
-                atomic_write_file(&blob_path, &bytes)?;
+                let (_dst_sha, _dst_size) =
+                    crate::core::file_io::stream_copy_with_sha(source_path, &blob_path)?;
+                // Sanity: dst sha must match source sha (we already
+                // computed source sha above). Mismatch = source file
+                // mutated mid-import (NAS race) — refuse.
+                if _dst_sha != sha {
+                    return Err(format!(
+                        "source mutated during import: sha was {} now {}",
+                        sha, _dst_sha
+                    ));
+                }
             }
             self.blobs_by_sha.insert(
                 sha.clone(),
@@ -399,6 +399,88 @@ impl AttachmentStore {
         Ok(())
     }
 
+    /// 2026-05-24 (HanBin) — B-model migration. Clone an existing AttachmentRef
+    /// into a NEW per-note ref. Reuses the CAS blob (sha256-deduplicated;
+    /// the bytes are not re-written, just a fresh hardlink). The new ref:
+    ///   - gets a fresh `attachment_id` (monotonic)
+    ///   - has `linked_notes = [note_id]` (always length 1, per B-model invariant)
+    ///   - shares `original_name`, `mime_type`, `size_bytes`, `sha256`, `tier`
+    ///   - gets a freshly-allocated `display_path` (collision-suffixed if the
+    ///     basename is taken — e.g. `video.mp4` → `video_1.mp4`)
+    ///
+    /// This is the foundation of the B-model: same content can be referenced
+    /// by N notes, but each note owns its own ref + display hardlink. Disk
+    /// stays efficient (1 blob), conflicts on `linked_notes` mutation are
+    /// eliminated (refs are effectively immutable after creation), and note
+    /// deletion never touches another note's attachment.
+    ///
+    /// Returns the new ref (a fresh `attachment_id`, never the source's id).
+    /// Errors if the source ref doesn't exist or hardlink/copy fails.
+    pub fn clone_ref_for_note(
+        &mut self,
+        source_attachment_id: &str,
+        note_id: &str,
+    ) -> Result<AttachmentRef, String> {
+        let src = self
+            .refs_by_id
+            .get(source_attachment_id)
+            .ok_or_else(|| format!("source attachment_id {} not found", source_attachment_id))?
+            .clone();
+
+        // Verify the source blob exists; this should always be true in a
+        // consistent store, but if a prior orphan-sweep was racing we want
+        // to fail loud rather than create a ref pointing at nothing.
+        let blob_path = self.cas_path(&src.sha256);
+        if !blob_path.is_file() {
+            return Err(format!(
+                "clone_ref_for_note: source blob missing for sha {}",
+                &src.sha256
+            ));
+        }
+
+        let attachment_id = self.next_monotonic_id();
+        let display_name = self.allocate_display_name(&src.original_name, &src.sha256);
+        let display_path_rel = format!(".attachments/{}", display_name);
+        let display_abs = self.display_dir().join(&display_name);
+
+        // Hardlink (or copy fallback) display → CAS blob. Reuses the same
+        // blob bytes as the source ref — no extra disk usage.
+        let _link_method = link_or_copy(&blob_path, &display_abs)?;
+
+        let new_ref = AttachmentRef {
+            attachment_id: attachment_id.clone(),
+            original_name: src.original_name.clone(),
+            mime_type: src.mime_type.clone(),
+            size_bytes: src.size_bytes,
+            sha256: src.sha256.clone(),
+            tier: src.tier,
+            created_at: Utc::now(),
+            linked_notes: vec![note_id.to_string()],
+            display_path: display_path_rel,
+            sync_etag: None,
+            remote_path: None,
+        };
+
+        self.persist_ref(&new_ref)?;
+        self.name_to_ids
+            .entry(new_ref.original_name.clone())
+            .or_default()
+            .push(attachment_id.clone());
+        self.refs_by_id.insert(attachment_id.clone(), new_ref.clone());
+
+        Ok(new_ref)
+    }
+
+    /// **DEPRECATED for general use** as of 2026-05-24 (HanBin B-model
+    /// migration). Adding multiple notes to a single ref's `linked_notes`
+    /// violates the per-note isolation invariant. Use `clone_ref_for_note`
+    /// instead — it creates a fresh per-note ref reusing the CAS blob.
+    ///
+    /// Kept for: (a) tests asserting legacy behavior, (b) the auto-repair
+    /// process that needs to migrate pre-B-model vaults (it reads existing
+    /// multi-linked refs, splits them via `clone_ref_for_note`, then trims
+    /// the original via `unlink_from_note`). No production code path
+    /// outside `vault_repair` should call this.
     pub fn link_to_note(&mut self, attachment_id: &str, note_id: &str) -> Result<(), String> {
         let r = self
             .refs_by_id

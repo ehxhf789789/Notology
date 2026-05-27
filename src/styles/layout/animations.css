@@ -22,8 +22,17 @@
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   transform: translateZ(0);
-  transition: width var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width var(--dur-200) cubic-bezier(0.4, 0, 0.2, 1);
   background-color: var(--bg-app);
+}
+
+/* Stage 5.0.3b-simplify follow-up (2026-05-15): during drag-resize the width
+   transition above caused the sidebar to chase the cursor with a 200ms ease,
+   making the drag feel imprecise. Toggling this modifier from App.tsx's
+   startResize/handleMouseUp eliminates the lag while preserving the smooth
+   transition for collapse/expand toggles. */
+.sidebar-wrapper.sidebar-wrapper--resizing {
+  transition: none;
 }
 
 .sidebar-wrapper.open {
@@ -83,7 +92,7 @@
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   transform: translateZ(0);
-  transition: width var(--duration-normal) cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width var(--dur-200) cubic-bezier(0.4, 0, 0.2, 1);
   background-color: var(--bg-base);
 }
 
@@ -250,4 +259,22 @@
 @keyframes modalOverlayEnter {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* 5.0.12 (2026-05-17, HanBin) — `prefers-reduced-motion` blanket guard.
+   Replaces all animation/transition durations with 0.01ms so the visual
+   change still snaps to the target state but no motion is rendered. The
+   universal `*` selector is intentional — every sidebar slide, modal fade,
+   keyframe instantiation in this file (and any inherited from cascades)
+   is covered. Animation-name kept (`!important` not used) so author intent
+   stays observable in devtools. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

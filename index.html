@@ -6,24 +6,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>notology-project</title>
     <script>
-      // Hover windows: apply theme + inline bg INSTANTLY before CSS even parses
-      // Main window: no URL params, skip — CSS handles default dark bg
-      var __t = new URLSearchParams(window.location.search).get('theme');
-      if (__t) {
-        if (__t === 'system') __t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', __t);
-        // Inline style = highest priority, takes effect BEFORE <style> tag is parsed
-        document.documentElement.style.backgroundColor = __t === 'light' ? '#f5f5f5' : '#1e1e1e';
+      // Apply theme INSTANTLY before CSS parses to prevent dark/light flash
+      var __p = new URLSearchParams(window.location.search);
+      var __t = __p.get('theme');
+      if (!__t) {
+        // All windows (main, vault-selector, hover): use system preference as instant fallback
+        // This prevents the dark background flash when user is in light mode
+        __t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       }
+      if (__t === 'system') __t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', __t);
+      document.documentElement.style.backgroundColor = __t === 'light' ? '#F2F2F7' : '#000000';
+      document.documentElement.style.color = __t === 'light' ? 'rgba(0,0,0,0.92)' : 'rgba(255,255,255,0.95)';
     </script>
     <style>
-      /* Main window default (no URL param) — will be overridden by data-theme for hover windows */
-      html { background-color: #1e1e1e; }
-      html[data-theme="light"] { background-color: #f5f5f5; }
+      /* Background set by inline script above based on system preference / theme param */
       html, body, #root {
         margin: 0;
         padding: 0;
         min-height: 100vh;
+        background-color: inherit;
+        color: inherit;
       }
     </style>
   </head>

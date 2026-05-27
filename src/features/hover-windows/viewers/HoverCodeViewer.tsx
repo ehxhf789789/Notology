@@ -1,18 +1,19 @@
-import { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { Minus, X } from 'lucide-react';
-import { useHoverStore, hoverActions, useIsClosing, useIsMinimizing, HOVER_ANIMATION } from '../stores/hoverStore';
+import { useState, useEffect, memo } from 'react';
+import { fileCommands } from '../../../core/services/tauriCommands';
 import { useLanguage } from '../../../core/stores/zustand';
 import { t } from '../../../core/utils/i18n';
-import { isHoverWindow } from '../../../core/utils/multiWindow';
-import { fileCommands } from '../../../core/services/tauriCommands';
-import { runAnimation, HOVER_WINDOW_OPEN_DURATION, ANIMATION_BUFFER, hoverWindowPropsAreEqual, type HoverEditorWindowProps } from '../hoverAnimationUtils';
+import { hoverWindowPropsAreEqual, type HoverEditorWindowProps } from '../hoverAnimationUtils';
+import { HoverWindowChrome } from '../components/HoverWindowChrome';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/vs2015.css';
 
-// Conditional logging - only in development
-const DEV = import.meta.env.DEV;
-const log = DEV ? console.log.bind(console) : () => {};
+/**
+ * HoverCodeViewer — Stage 5.0.9d migration.
+ *
+ * Highlight.js renders the file body with line numbers. Chrome (titlebar /
+ * drag / resize / min / close / animation / multi-window detection) is
+ * fully owned by `<HoverWindowChrome>`. Pre-migration: ~360 lines.
+ */
 
 function getLanguageFromPath(filePath: string): string {
   const ext = filePath.split('.').pop()?.toLowerCase() || '';
@@ -29,247 +30,10 @@ function getLanguageFromPath(filePath: string): string {
   return map[ext] || 'plaintext';
 }
 
-// Code Viewer Window
 const HoverCodeViewer = memo(function HoverCodeViewer({ window: win }: HoverEditorWindowProps) {
-  const closeHoverFile = useHoverStore((s) => s.closeHoverFile);
-  const focusHoverFile = useHoverStore((s) => s.focusHoverFile);
-  const minimizeHoverFile = useHoverStore((s) => s.minimizeHoverFile);
-  const updateHoverWindow = useHoverStore((s) => s.updateHoverWindow);
   const language = useLanguage();
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const [isOpening, setIsOpening] = useState(true);
-  const isClosing = useIsClosing(win.id);
-  const isMinimizing = useIsMinimizing(win.id);
   const [code, setCode] = useState('');
   const [highlighted, setHighlighted] = useState('');
-  const dragStartRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
-  const resizeStartRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
-  const preMaximizeStateRef = useRef<{ position: { x: number; y: number }; size: { width: number; height: number } } | null>(null);
-  const hoverEditorRef = useRef<HTMLDivElement>(null);
-  const currentPosRef = useRef({ x: win.position.x, y: win.position.y });
-  const currentSizeRef = useRef({ width: win.size.width, height: win.size.height });
-  const prevCachedRef = useRef(win.cached);
-  const prevMinimizedRef = useRef(win.minimized);
-
-  // Detect cache OR minimized restoration and re-trigger opening animation
-  useEffect(() => {
-    const restoredFromCache = prevCachedRef.current === true && win.cached === false;
-    const restoredFromMinimized = prevMinimizedRef.current === true && win.minimized === false;
-
-    if (restoredFromCache) {
-      log(`[HoverWindow ${win.id.slice(-6)}] RESTORE from cache - triggering opening animation`);
-      setIsOpening(true);
-    } else if (restoredFromMinimized) {
-      log(`[HoverWindow ${win.id.slice(-6)}] RESTORE from minimized - clearing animation styles`);
-      if (hoverEditorRef.current) {
-        hoverEditorRef.current.getAnimations().forEach(a => a.cancel());
-      }
-      setIsOpening(true);
-    }
-
-    prevCachedRef.current = win.cached;
-    prevMinimizedRef.current = win.minimized;
-  }, [win.cached, win.minimized, win.id]);
-
-  // Run opening animation using Web Animations API
-  useEffect(() => {
-    if (isOpening && hoverEditorRef.current) {
-      const el = hoverEditorRef.current;
-      const startTime = performance.now();
-      log(`[HoverCodeViewer ${win.id.slice(-6)}] OPEN - Web Animation started`);
-      // Run animation using Web Animations API
-      runAnimation(el, 'open', HOVER_WINDOW_OPEN_DURATION).then(() => {
-        log(`[HoverCodeViewer ${win.id.slice(-6)}] OPEN - completed (${(performance.now() - startTime).toFixed(1)}ms)`);
-        setIsOpening(false);
-      });
-    }
-  }, [isOpening, win.id]);
-
-  useEffect(() => {
-    if (!isDragging) currentPosRef.current = { x: win.position.x, y: win.position.y };
-    if (!isResizing) currentSizeRef.current = { width: win.size.width, height: win.size.height };
-  }, [win.position.x, win.position.y, win.size.width, win.size.height, isDragging, isResizing]);
-
-  const handleMouseDown = () => { focusHoverFile(win.id); };
-
-  const handleClose = useCallback(async () => {
-    // Get window reference and check multi-window mode
-    const currentWin = getCurrentWindow();
-    const windowLabel = currentWin.label;
-    const urlParams = new URLSearchParams(window.location.search);
-    const isHoverFromUrl = urlParams.get('hover') === 'true';
-    const isMultiWindow = windowLabel.startsWith('hover-') || isHoverFromUrl;
-
-    // Multi-window mode: close the OS window directly using destroy()
-    if (isMultiWindow) {
-      try {
-        await currentWin.destroy();
-      } catch (err) {
-        console.error('[CodeViewer] Window destroy failed:', err);
-      }
-      return;
-    }
-
-    // DOM overlay mode: use animations
-    const el = hoverEditorRef.current;
-    if (el) {
-      hoverActions.startClosing(win.id);
-      runAnimation(el, 'close', HOVER_ANIMATION.CLOSE_DURATION).then(() => {
-        hoverActions.finishClosing(win.id);
-      });
-    } else {
-      hoverActions.startClosing(win.id);
-      setTimeout(() => hoverActions.finishClosing(win.id), HOVER_ANIMATION.CLOSE_DURATION);
-    }
-  }, [win.id]);
-
-  const handleMinimize = useCallback(async () => {
-    // Get window reference and check multi-window mode
-    const currentWin = getCurrentWindow();
-    const windowLabel = currentWin.label;
-    const urlParams = new URLSearchParams(window.location.search);
-    const isHoverFromUrl = urlParams.get('hover') === 'true';
-    const isMultiWindow = windowLabel.startsWith('hover-') || isHoverFromUrl;
-
-    // Multi-window mode: minimize the OS window directly
-    if (isMultiWindow) {
-      try {
-        await currentWin.minimize();
-      } catch (err) {
-        console.error('[CodeViewer] Window minimize failed:', err);
-      }
-      return;
-    }
-
-    // DOM overlay mode: use animations
-    const el = hoverEditorRef.current;
-    if (el) {
-      hoverActions.startMinimizing(win.id);
-      runAnimation(el, 'minimize', HOVER_ANIMATION.MINIMIZE_DURATION).then(() => {
-        hoverActions.finishMinimizing(win.id);
-      });
-    } else {
-      hoverActions.startMinimizing(win.id);
-      setTimeout(() => hoverActions.finishMinimizing(win.id), HOVER_ANIMATION.MINIMIZE_DURATION);
-    }
-  }, [win.id]);
-
-  const handleDoubleClick = useCallback(() => {
-    // Multi-window mode: use Tauri's native maximize toggle
-    if (isHoverWindow()) {
-      getCurrentWindow().toggleMaximize();
-      return;
-    }
-
-    // DOM overlay mode: manual maximize/restore
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
-    const isMaximized = win.position.x === 0 && win.position.y === 0 &&
-                        win.size.width === screenWidth && win.size.height === screenHeight;
-    if (isMaximized && preMaximizeStateRef.current) {
-      updateHoverWindow(win.id, { position: preMaximizeStateRef.current.position, size: preMaximizeStateRef.current.size });
-      preMaximizeStateRef.current = null;
-    } else if (isMaximized) {
-      updateHoverWindow(win.id, { position: { x: 350, y: 120 }, size: { width: 1000, height: 800 } });
-    } else {
-      preMaximizeStateRef.current = { position: { ...win.position }, size: { ...win.size } };
-      updateHoverWindow(win.id, { position: { x: 0, y: 0 }, size: { width: screenWidth, height: screenHeight } });
-    }
-  }, [win.id, win.position, win.size, updateHoverWindow]);
-
-  const handleDragStart = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.hover-editor-close, .hover-editor-minimize')) return;
-    e.preventDefault();
-
-    // Multi-window mode: use Tauri's native window dragging
-    if (isHoverWindow()) {
-      getCurrentWindow().startDragging();
-      return;
-    }
-
-    // DOM overlay mode: track mouse positions manually
-    setIsDragging(true);
-    dragStartRef.current = { x: e.clientX, y: e.clientY, posX: win.position.x, posY: win.position.y };
-  };
-
-  const handleResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsResizing(true);
-    resizeStartRef.current = { x: e.clientX, y: e.clientY, w: win.size.width, h: win.size.height };
-  };
-
-  useEffect(() => {
-    if (!isDragging && !isResizing) return;
-
-    let rafId: number | null = null;
-    let lastMouseEvent: MouseEvent | null = null;
-
-    const processMouseMove = () => {
-      if (!lastMouseEvent || !hoverEditorRef.current) return;
-      const e = lastMouseEvent;
-
-      if (isDragging) {
-        const dx = e.clientX - dragStartRef.current.x;
-        const dy = e.clientY - dragStartRef.current.y;
-        let finalX = dragStartRef.current.posX + dx;
-        let finalY = dragStartRef.current.posY + dy;
-
-        const windowWidth = currentSizeRef.current.width;
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
-        const MIN_VISIBLE = 100;
-        finalX = Math.max(MIN_VISIBLE - windowWidth, Math.min(screenWidth - MIN_VISIBLE, finalX));
-        finalY = Math.max(0, Math.min(screenHeight - MIN_VISIBLE, finalY));
-
-        currentPosRef.current = { x: finalX, y: finalY };
-        hoverEditorRef.current.style.transform = `translate3d(${finalX}px, ${finalY}px, 0)`;
-      }
-      if (isResizing) {
-        const dx = e.clientX - resizeStartRef.current.x;
-        const dy = e.clientY - resizeStartRef.current.y;
-        const newWidth = Math.max(300, resizeStartRef.current.w + dx);
-        const newHeight = Math.max(200, resizeStartRef.current.h + dy);
-        currentSizeRef.current = { width: newWidth, height: newHeight };
-        hoverEditorRef.current.style.width = `${newWidth}px`;
-        hoverEditorRef.current.style.height = `${newHeight}px`;
-      }
-      rafId = null;
-    };
-
-    const handleMouseMove = (e: MouseEvent) => {
-      lastMouseEvent = e;
-      if (rafId === null) rafId = requestAnimationFrame(processMouseMove);
-    };
-
-    const handleMouseUp = () => {
-      if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
-      if (isDragging) {
-        const finalX = currentPosRef.current.x;
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
-        if (finalX < 5) {
-          updateHoverWindow(win.id, { position: { x: 0, y: 0 }, size: { width: screenWidth >> 1, height: screenHeight } });
-        } else if (finalX + currentSizeRef.current.width > screenWidth - 5) {
-          updateHoverWindow(win.id, { position: { x: screenWidth >> 1, y: 0 }, size: { width: screenWidth >> 1, height: screenHeight } });
-        } else {
-          updateHoverWindow(win.id, { position: currentPosRef.current });
-        }
-      }
-      if (isResizing) updateHoverWindow(win.id, { size: currentSizeRef.current });
-      setIsDragging(false);
-      setIsResizing(false);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-    };
-  }, [isDragging, isResizing, win.id, updateHoverWindow]);
 
   useEffect(() => {
     fileCommands.readTextFile(win.filePath)
@@ -283,74 +47,31 @@ const HoverCodeViewer = memo(function HoverCodeViewer({ window: win }: HoverEdit
           setHighlighted(hljs.highlightAuto(src).value);
         }
       })
-      .catch(() => setCode('\uD30C\uC77C\uC744 \uC77D\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.'));
-  }, [win.filePath]);
+      .catch(() => setCode(t('viewerCodeLoadError', language)));
+  }, [win.filePath, language]);
 
   const fileName = win.filePath.split(/[/\\]/).pop() || '';
   const displayFileName = fileName.replace(/_/g, ' ');
   const lineCount = code.split('\n').length;
 
-  // Detect multi-window mode (separate OS window vs DOM overlay)
-  const inMultiWindowMode = isHoverWindow();
-
   return (
-    <div
-      ref={hoverEditorRef}
-      className={`hover-editor${isDragging ? ' is-dragging' : ''}${isResizing ? ' is-resizing' : ''}`}
-      style={{
-        // Multi-window mode: fill the entire viewport
-        // DOM overlay mode: use fixed positioning with transform
-        ...(inMultiWindowMode ? {
-          position: 'relative' as const,
-          width: '100%',
-          height: '100%',
-          transform: 'none',
-          border: 'none',
-          borderRadius: 0,
-          boxShadow: 'none',
-        } : {
-          transform: `translate3d(${win.position.x}px, ${win.position.y}px, 0)`,
-          width: win.size.width,
-          height: win.size.height,
-          zIndex: win.zIndex,
-        }),
-      }}
-      onMouseDown={handleMouseDown}
+    <HoverWindowChrome
+      window={win}
+      title={displayFileName}
+      bodyClassName="code-viewer-body"
+      logLabel="HoverCodeViewer"
     >
-      <div className="hover-editor-header" onMouseDown={handleDragStart} onDoubleClick={handleDoubleClick}>
-        <span className="hover-editor-title">{displayFileName}</span>
-        <div className="hover-editor-header-actions">
-          <button
-            className="hover-editor-minimize"
-            onClick={handleMinimize}
-            onMouseDown={(e) => e.stopPropagation()}
-            title={t('minimize', language)}
-          >
-            <Minus size={14} />
-          </button>
-          <button
-            className="hover-editor-close"
-            onClick={handleClose}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <X size={14} />
-          </button>
+      <div className="code-viewer">
+        <div className="code-line-numbers">
+          {Array.from({ length: lineCount }, (_, i) => (
+            <span key={i}>{i + 1}</span>
+          ))}
         </div>
+        <pre className="code-content">
+          <code dangerouslySetInnerHTML={{ __html: highlighted || code }} />
+        </pre>
       </div>
-      <div className="hover-editor-body code-viewer-body">
-        <div className="code-viewer">
-          <div className="code-line-numbers">
-            {Array.from({ length: lineCount }, (_, i) => (
-              <span key={i}>{i + 1}</span>
-            ))}
-          </div>
-          <pre className="code-content">
-            <code dangerouslySetInnerHTML={{ __html: highlighted || code }} />
-          </pre>
-        </div>
-      </div>
-      {!inMultiWindowMode && <div className="hover-editor-resize" onMouseDown={handleResizeStart} />}
-    </div>
+    </HoverWindowChrome>
   );
 }, hoverWindowPropsAreEqual);
 

@@ -295,7 +295,56 @@ pub async fn create_hover_window(
     // CollapsedHoverBar can stay as an in-app secondary surface, but
     // it's no longer mandatory.
 
-    builder.build().map_err(|e| e.to_string())?;
+    let webview_window = builder.build().map_err(|e| e.to_string())?;
+
+    // HanBin 2026-05-13 round 12: WebView2's built-in PDF viewer has a ⋮
+    // overflow menu whose "Settings" item navigates the top frame to
+    // chrome://settings, black-screening the hover window. The round-11
+    // `on_navigation` guard cancels that nav, but the user is still ending
+    // up in a bad state (likely because the Chromium PDF viewer commits
+    // some part of the nav before WRY's NavigationStarting handler vetoes
+    // it). The clean fix is to remove the ⋮ menu from the toolbar entirely
+    // via ICoreWebView2Settings7::SetHiddenPdfToolbarItems — page numbers,
+    // zoom, save, print etc. all survive, only the ⋮ overflow goes away.
+    #[cfg(target_os = "windows")]
+    {
+        let label_log = label.clone();
+        let _ = webview_window.with_webview(move |wv| {
+            use webview2_com::Microsoft::Web::WebView2::Win32::{
+                ICoreWebView2Settings7, COREWEBVIEW2_PDF_TOOLBAR_ITEMS_MORE_SETTINGS,
+            };
+            use windows::core::Interface;
+
+            unsafe {
+                let controller = wv.controller();
+                let core = match controller.CoreWebView2() {
+                    Ok(c) => c,
+                    Err(e) => {
+                        log::warn!("[pdf-toolbar] CoreWebView2 unavailable for {}: {:?}", label_log, e);
+                        return;
+                    }
+                };
+                let settings = match core.Settings() {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log::warn!("[pdf-toolbar] Settings unavailable for {}: {:?}", label_log, e);
+                        return;
+                    }
+                };
+                let settings7: ICoreWebView2Settings7 = match settings.cast() {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log::warn!("[pdf-toolbar] ICoreWebView2Settings7 cast failed for {} (WebView2 runtime too old?): {:?}", label_log, e);
+                        return;
+                    }
+                };
+                match settings7.SetHiddenPdfToolbarItems(COREWEBVIEW2_PDF_TOOLBAR_ITEMS_MORE_SETTINGS) {
+                    Ok(()) => log::info!("[pdf-toolbar] hid ⋮ overflow menu for {}", label_log),
+                    Err(e) => log::warn!("[pdf-toolbar] SetHiddenPdfToolbarItems failed for {}: {:?}", label_log, e),
+                }
+            }
+        });
+    }
 
     // Sync dispatcher state: track this hover in the canonical mode.
     // The transition is a no-op if mode != MainOnly (e.g., race during

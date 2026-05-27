@@ -389,7 +389,11 @@ function FolderTree({ containers, rootContainer, onRootContainerChange, onNewSub
       <div key={node.path} className="folder-tree-item-wrapper">
         <div
           className={`folder-tree-item folder ${isContainer ? 'folder-note' : ''} ${isSelected ? 'selected' : ''}`}
-          style={{ paddingLeft: `${depth * 16 + 8}px` }}
+          // 5.0.7b (2026-05-17, HanBin) — indent is now a CSS variable, not
+          // a raw px paddingLeft. `.folder-tree-item` reads --tree-depth
+          // and resolves to `calc(var(--tree-depth) * var(--space-md) + var(--space-sm))`
+          // so spacing tokens drive tree density.
+          style={{ '--tree-depth': depth } as React.CSSProperties}
           onClick={() => handleFolderClick(node)}
           onContextMenu={(e) => handleContextMenu(e, node)}
         >
@@ -400,6 +404,9 @@ function FolderTree({ containers, rootContainer, onRootContainerChange, onNewSub
             {renderFolderIcon(node, isExpanded, hasChildFolders)}
           </span>
           <span className="folder-tree-name">{node.name}</span>
+          {isContainer && (
+            <span className="folder-note-dot" aria-label={t('folderNoteIndicator', language)} title={t('folderNoteIndicator', language)} />
+          )}
           {folderStatuses[node.path] && folderStatuses[node.path].status !== 'none' && (
             <span
               className={`folder-status-indicator status-${folderStatuses[node.path].status}`}

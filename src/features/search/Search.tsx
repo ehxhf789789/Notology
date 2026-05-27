@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, type CSSProperties } from 'react';
 import { searchCommands, utilCommands } from '../../core/services/tauriCommands';
-import { FilePlus, Filter } from 'lucide-react';
+import { FilePlus, Filter, Search as SearchIcon, X as XIcon, ArrowUpDown, WholeWord, Library } from 'lucide-react';
 
 const GraphView = lazy(() => import('../graph/GraphView'));
 import { useHoverStore, hoverActions } from '../hover-windows/stores/hoverStore';
@@ -15,19 +15,101 @@ import { useIsNasSynced, useIsBulkSyncing } from '../vault-config/stores/vaultCo
 import { selectContainer, refreshHoverWindowsForFile } from '../../core/stores/appActions';
 import { contentCacheActions } from '../content-cache/stores/contentCacheStore';
 import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
-import type { NoteFilter, NoteMetadata, SearchResult, SearchMode, AttachmentInfo } from '../../core/types';
-import { t, tf } from '../../core/utils/i18n';
+import type { NoteFilter, NoteMetadata, SearchResult, SearchMode } from '../../core/types';
+import { t, tf, type LanguageSetting } from '../../core/utils/i18n';
 import { getTemplateCustomColor as getTemplateColor } from '../content-cache/noteTypeHelpers';
+import { FilterAddButton, FilterChipList, AnchoredPopover, type FilterField } from './FilterChipBar';
 import { NOTE_TYPES } from './searchHelpers';
-import { SearchFilters } from './SearchFilters';
-import { FrontmatterResultRow, ContentResultCard, AttachmentResultRow, DetailsResultCard } from './SearchResultItem';
-import AttachmentsTab from './AttachmentsTab';
+import { FrontmatterResultRow, ContentResultCard } from './SearchResultItem';
+import AttachmentsTab, { TIER_KEYS, SYNC_KEYS, type TierKey, type SyncState } from './AttachmentsTab';
+import { useNoteIdToPath } from './useNoteIdToPath';
+import { fileLookupActions } from '../../core/stores/fileLookupStore';
 import BulkTagModal from '../modals/BulkTagModal';
-import FloatingWords from './FloatingWords';
+// FloatingWords 컴포넌트는 2026-05-22 시점에 컨텐츠 탭 빈-상태에서
+// 제거되었습니다(HanBin: 화면보호기 같이 느껴지고 효용 X). 컴포넌트
+// 파일 자체는 그래프/다른 view에서 재사용 가능성 있어 유지.
+// 5.0.7a (2026-05-17, HanBin) — design-system primitives. Search input
+// + filter toggle buttons swap to <Input> + <IconButton pressed> so the
+// toolbar rides theme tokens directly + gains aria-pressed.
+import { Input, IconButton, sortGlyph, SORT_ASC, SORT_DESC } from '../../design-system/components';
 
 // Conditional logging - only in development
 const DEV = import.meta.env.DEV;
 const log = DEV ? console.log.bind(console) : () => {};
+
+function stripTagNamespace(tag: string): string {
+  if (tag.startsWith('domain/')) return tag.substring(7);
+  if (tag.startsWith('who/')) return tag.substring(4);
+  if (tag.startsWith('org/')) return tag.substring(4);
+  if (tag.startsWith('ctx/')) return tag.substring(4);
+  return tag;
+}
+
+function formatDateRange(after: string, before: string): string {
+  if (after && before) return `${after} ~ ${before}`;
+  if (after) return `${after} ~`;
+  if (before) return `~ ${before}`;
+  return '';
+}
+
+/** Small sort dropdown used in the Contents tab. Mirrors the
+ *  FilterAddButton visual (ghost trigger + AnchoredPopover with field
+ *  list popover) so the toolbar feels coherent. */
+function ContentsSortDropdown({
+  value,
+  onChange,
+  language,
+}: {
+  value: 'relevance' | 'title' | 'path';
+  onChange: (v: 'relevance' | 'title' | 'path') => void;
+  language: LanguageSetting;
+}) {
+  const [open, setOpen] = useState(false);
+  const options: { value: 'relevance' | 'title' | 'path'; label: string }[] = [
+    { value: 'relevance', label: t('sortByRelevance', language) },
+    { value: 'title', label: t('sortByTitle', language) },
+    { value: 'path', label: t('sortByPath', language) },
+  ];
+  return (
+    <AnchoredPopover
+      open={open}
+      onOpenChange={setOpen}
+      placement="bottom-end"
+      trigger={(refProps) => (
+        <button
+          type="button"
+          className="search-filter-trigger"
+          aria-label={t('sortLabel', language)}
+          title={t('sortLabel', language)}
+          {...refProps}
+        >
+          <ArrowUpDown size={14} />
+        </button>
+      )}
+    >
+      <div className="filter-chip-popover__field-list" role="menu">
+        {options.map(o => (
+          <button
+            key={o.value}
+            type="button"
+            role="menuitem"
+            className={`filter-chip-popover__field-list-item${value === o.value ? ' is-selected' : ''}`}
+            onClick={() => { onChange(o.value); setOpen(false); }}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </AnchoredPopover>
+  );
+}
+
+function formatMultiValue(labels: string[]): string {
+  if (labels.length === 0) return '';
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return labels.join(', ');
+  return `${labels[0]}, ${labels[1]} +${labels.length - 2}`;
+}
 
 interface SearchProps {
   containerPath?: string | null;
@@ -45,6 +127,10 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   // longer renders its own footer — that broke layout parity with 노트 /
   // 본문 / 상세.
   const attachmentRefCount = useAttachmentStore((s) => s.index.byId.size);
+  // 2026-05-22 — pull the full attachment index for filter autocomplete
+  // (extension pool). Cheap reference equality — re-renders only when
+  // refs are added / removed, not on field edits.
+  const attachmentRefsById = useAttachmentStore((s) => s.index.byId);
   const noteTemplates = useTemplateStore(s => s.noteTemplates);
   const language = useSettingsStore(s => s.language);
   const isBulkSyncing = useIsBulkSyncing();
@@ -61,7 +147,10 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   const [mode, setMode] = useState<SearchMode>('frontmatter');
   const [notes, setNotes] = useState<NoteMetadata[]>([]);
   const [contentResults, setContentResults] = useState<SearchResult[]>([]);
-  const [attachmentResults, setAttachmentResults] = useState<AttachmentInfo[]>([]);
+  // attachmentResults state retired 2026-05-20 — `<AttachmentsTab>` v2
+  // reads from the AttachmentRef index (`useAttachmentStore`) directly.
+  // Legacy `searchCommands.searchAttachments` Tauri call still exists
+  // for the mobile SearchView only (separate migration track).
   const [sortBy, setSortBy] = useState('modified');
   const [sortOrder, setSortOrder] = useState('desc');
   // Tag sort: category selection for tag-based sorting
@@ -73,35 +162,93 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   const [createdBefore, setCreatedBefore] = useState('');
   const [modifiedAfter, setModifiedAfter] = useState('');
   const [modifiedBefore, setModifiedBefore] = useState('');
-  const [showDateFilters, setShowDateFilters] = useState(false);
+  // 2026-05-22 — `showDateFilters` removed. The Frontmatter chip bar
+  // shows/hides itself automatically based on whether any filter is
+  // active; the toolbar Filter button is now a popover trigger (not a
+  // panel toggle), so there's no second-click "on/off" state to track.
   // Frontmatter tab filters
   const [frontmatterTypeFilter, setFrontmatterTypeFilter] = useState('');
   const [frontmatterTagFilter, setFrontmatterTagFilter] = useState('');
   const [frontmatterMemoFilter, setFrontmatterMemoFilter] = useState<'all' | 'has' | 'none'>('all');
   const [showFolderNotes, setShowFolderNotes] = useState(true);
-  // Details tab filters
-  const [detailsTypeFilter, setDetailsTypeFilter] = useState('');
-  const [detailsTagFilter, setDetailsTagFilter] = useState('');
-  // Contents tab filters
-  const [showContentsFilters, setShowContentsFilters] = useState(false);
+  // Contents tab filters (2026-05-22 — chip filter, no static panel toggle).
   const [contentsTypeFilter, setContentsTypeFilter] = useState('');
-  // Attachments tab filters
-  const [showAttachmentsFilters, setShowAttachmentsFilters] = useState(false);
-  const [attachmentsContainerFilter, setAttachmentsContainerFilter] = useState('');
-  const [attachmentsExtensionFilter, setAttachmentsExtensionFilter] = useState('');
-  const [attachmentsShowDummyOnly, setAttachmentsShowDummyOnly] = useState(false);
-  const [attachmentsNotePathFilter, setAttachmentsNotePathFilter] = useState('');
-  const [selectedAttachments, setSelectedAttachments] = useState<Set<string>>(new Set());
+  // 2026-05-22 — body-content sort. 'relevance' uses the backend score
+  // order (default); the others are client-side reorders of the same
+  // result set, so swapping is instant + cheap.
+  const [contentsSortBy, setContentsSortBy] = useState<'relevance' | 'title' | 'path'>('relevance');
+  // 2026-05-22 — body-content power-user toggle. When on, query is sent
+  // as a quoted phrase (`"foo"`), letting Tantivy match the whole word
+  // instead of as a tokenized prefix.
+  const [contentsWholeWord, setContentsWholeWord] = useState(false);
+  // 2026-05-22 — recent contents searches (vault-scoped, ≤8 entries).
+  // Stored to localStorage so they survive reloads; reads in lazy init
+  // so component mount doesn't block on storage.
+  const recentKey = vaultPath ? `notology.recentContentsSearches.${vaultPath}` : null;
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    if (!recentKey) return [];
+    try {
+      const raw = localStorage.getItem(recentKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.slice(0, 8) : [];
+    } catch { return []; }
+  });
+  const recordRecentSearch = useCallback((q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed || !recentKey) return;
+    setRecentSearches(prev => {
+      const next = [trimmed, ...prev.filter(x => x !== trimmed)].slice(0, 8);
+      try { localStorage.setItem(recentKey, JSON.stringify(next)); } catch { /* quota */ }
+      return next;
+    });
+  }, [recentKey]);
+  const clearRecentSearches = useCallback(() => {
+    if (recentKey) {
+      try { localStorage.removeItem(recentKey); } catch { /* noop */ }
+    }
+    setRecentSearches([]);
+  }, [recentKey]);
+  // 2026-05-22 — attachment filter state lifted up from AttachmentsTab
+  // so Search.tsx can own the FilterAddButton + FilterChipList in the
+  // toolbar (unified with Frontmatter/Contents). AttachmentsTab now
+  // receives these as props and stops rendering its own static panel.
+  // `showAttachmentsFilters` is gone for the same reason — the chip
+  // bar is self-showing (only mounts when ≥1 chip is active).
+  const [attachmentExtensionFilter, setAttachmentExtensionFilter] = useState('');
+  const [attachmentNotePathFilter, setAttachmentNotePathFilter] = useState('');
+  // 2026-05-22 — tier + sync state filters lifted up (formerly the
+  // FilterBar pill row inside AttachmentsTab). Sets so user can pick
+  // any combination; absorbed into the chip filter system.
+  const [attachmentTierFilter, setAttachmentTierFilter] = useState<Set<TierKey>>(new Set());
+  const [attachmentSyncFilter, setAttachmentSyncFilter] = useState<Set<SyncState>>(new Set());
+  const toggleAttachmentTier = useCallback((k: string) => {
+    setAttachmentTierFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(k as TierKey)) next.delete(k as TierKey);
+      else next.add(k as TierKey);
+      return next;
+    });
+  }, []);
+  const toggleAttachmentSync = useCallback((k: string) => {
+    setAttachmentSyncFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(k as SyncState)) next.delete(k as SyncState);
+      else next.add(k as SyncState);
+      return next;
+    });
+  }, []);
   // Multi-select notes (Ctrl+click, Shift+click; Container single-click also uses this)
   const [selectedNotePaths, setSelectedNotePaths] = useState<Set<string>>(new Set());
   const lastSelectedNoteRef = useRef<string | null>(null);
+
+  // 2026-05-22 — selectionMode toggle removed entirely. All tabs use
+  // Excel-style row clicks (single = select, double = open, Ctrl/Shift
+  // = multi/range). No checkbox column anywhere.
   // Refs for stable callbacks (avoid dependency churn)
   const selectedNotePathsRef = useRef(selectedNotePaths);
   selectedNotePathsRef.current = selectedNotePaths;
-  const selectedAttachmentsRef = useRef(selectedAttachments);
-  selectedAttachmentsRef.current = selectedAttachments;
   const filteredNotesRef = useRef<NoteMetadata[]>([]);
-  const filteredDetailsNotesRef = useRef<NoteMetadata[]>([]);
 
   // Optimistic patch: instantly update notes[] when HoverEditor saves (bypasses Tantivy)
   useEffect(() => {
@@ -121,6 +268,21 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       }
     );
     return unsub;
+  }, []);
+
+  // 5.0.7a (2026-05-17, HanBin) — Cmd-K palette punt: when the user picks
+  // "Search '<query>' in panel", the palette dispatches this event with
+  // the query string. We pre-fill the Contents tab so they land on the
+  // body-search view already populated.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ query: string }>).detail;
+      if (!detail?.query) return;
+      setMode('contents');
+      setContentsQuery(detail.query);
+    };
+    window.addEventListener('open-search-with-query', handler);
+    return () => window.removeEventListener('open-search-with-query', handler);
   }, []);
 
   // Frontmatter mode search — refreshTrigger excluded from deps (triggered by useEffect below)
@@ -167,6 +329,10 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   const attachmentsQueryRef = useRef(attachmentsQuery);
   attachmentsQueryRef.current = attachmentsQuery;
 
+  const contentsWholeWordRef = useRef(contentsWholeWord);
+  contentsWholeWordRef.current = contentsWholeWord;
+  const recordRecentSearchRef = useRef(recordRecentSearch);
+  recordRecentSearchRef.current = recordRecentSearch;
   const searchContents = useCallback(async () => {
     const query = contentsQueryRef.current.trim();
     if (!searchReadyRef.current || searchIndexingRef.current || !query) {
@@ -175,36 +341,33 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     }
 
     try {
-      const results = await searchCommands.fullTextSearch(query, 50);
+      // Whole-word toggle: wrap the query in quotes so Tantivy treats
+      // it as a phrase query and matches the term as a whole token
+      // (e.g. "cat" won't match "catalog"). Multi-word phrases stay
+      // phrase-quoted too — Tantivy handles that natively.
+      const effectiveQuery = contentsWholeWordRef.current ? `"${query}"` : query;
+      const results = await searchCommands.fullTextSearch(effectiveQuery, 50);
       if (query === contentsQueryRef.current.trim()) {
         setContentResults(results);
       }
+      // 2026-05-23 — recent-search recording was previously done HERE on every
+      // 100 ms debounce tick, which polluted history with Korean IME
+      // intermediate states ("스", "스ㅋ", "스케", "시", "개", "게", …). Moved
+      // to a separate, slower stabilization-based effect below so we only
+      // record once the user has stopped typing (committed the query).
     } catch (err) {
       console.error('Failed to search contents:', err);
       setContentResults([]);
     }
   }, []);
 
-  const searchAttachments = useCallback(async () => {
-    if (!searchReadyRef.current || searchIndexingRef.current || !vaultPathRef.current) {
-      setAttachmentResults([]);
-      return;
-    }
+  // `searchAttachments` retired 2026-05-20 — AttachmentsTab v2 reads
+  // from the in-memory AttachmentRef index directly, so there's no
+  // need for the round-trip filesystem scan the legacy command performed.
 
-    try {
-      const results = await searchCommands.searchAttachments(
-        vaultPathRef.current,
-        attachmentsQueryRef.current.trim(),
-      );
-      setAttachmentResults(results);
-    } catch (err) {
-      console.error('Failed to search attachments:', err);
-    }
-  }, []);
-
-  // Single trigger for frontmatter/details refresh
+  // Single trigger for frontmatter-mode metadata refresh
   useEffect(() => {
-    if (mode === 'frontmatter' || mode === 'details') {
+    if (mode === 'frontmatter') {
       fetchNotes();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -219,16 +382,37 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       const timeout = setTimeout(searchContents, 100);
       return () => clearTimeout(timeout);
     }
+  // contentsWholeWord deliberately included so toggling re-runs the search.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, contentsQuery, searchReady, searchIndexing, refreshTrigger]);
+  }, [mode, contentsQuery, contentsWholeWord, searchReady, searchIndexing, refreshTrigger]);
 
+  // 2026-05-23 — record recent searches ONLY after the user has paused
+  // typing for 1.2s AND there's at least one match. This filters out Korean
+  // IME composition garbage ("스", "스ㅋ", "시", "개", …) which used to be
+  // recorded on every 100 ms search tick. Query length ≥ 2 to avoid single
+  // chars too. The contentResults ref is read at timer-fire time so a slow
+  // search returning after the timer still gets the up-to-date result count.
+  const contentResultsRef = useRef(contentResults);
+  contentResultsRef.current = contentResults;
   useEffect(() => {
-    if (mode === 'attachments') {
-      const timeout = setTimeout(searchAttachments, 10);
-      return () => clearTimeout(timeout);
-    }
+    if (mode !== 'contents') return;
+    const q = contentsQuery.trim();
+    if (q.length < 2) return;
+    const timer = setTimeout(() => {
+      if (
+        contentResultsRef.current.length > 0 &&
+        q === contentsQueryRef.current.trim()
+      ) {
+        recordRecentSearchRef.current(q);
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, attachmentsQuery, searchReady, searchIndexing, refreshTrigger]);
+  }, [mode, contentsQuery, contentsWholeWord, searchReady, searchIndexing, refreshTrigger]);
+
+  // Attachments tab now reads from the live AttachmentRef store — no
+  // per-mode fetch trigger needed. v2 component subscribes to the
+  // store and re-renders on any ref change.
 
   // Compute unique tags from all notes for dropdown
   const uniqueTags = useMemo(() => {
@@ -271,10 +455,14 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
         }
       }
 
-      // Query filter
+      // Query filter (2026-05-22) — matches title + tags only. note_type
+      // used to be in this list but it leaked English internal tokens
+      // (e.g. "SKETCH") so typing "c" surprisingly matched sketch notes
+      // because of the raw token, not the visible Korean label. Type
+      // filtering belongs in the chip filter dropdown, not the search
+      // box.
       if (q && !n.title.toLowerCase().includes(q) &&
-          !n.tags.some(t => t.toLowerCase().includes(q)) &&
-          !n.note_type.toLowerCase().includes(q)) continue;
+          !n.tags.some(t => t.toLowerCase().includes(q))) continue;
 
       // Type filter
       if (frontmatterTypeFilter && n.note_type !== frontmatterTypeFilter) continue;
@@ -327,79 +515,6 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     return result;
   }, [notes, containerPath, frontmatterQuery, mode, frontmatterTypeFilter, frontmatterTagFilter, frontmatterMemoFilter, showFolderNotes, sortBy, sortOrder, tagSortCategory]);
 
-  // Details mode filtering — single-pass loop (avoids intermediate arrays)
-  const filteredDetailsNotes = useMemo(() => {
-    const result: NoteMetadata[] = [];
-    const seen = new Set<string>();
-
-    // Pre-compute container filter values
-    let prefix: string | undefined;
-    let folderNotePath: string | undefined;
-    if (containerPath) {
-      prefix = containerPath.replace(/\\/g, '/');
-      const containerName = prefix.split('/').pop() || '';
-      folderNotePath = (prefix + '/' + containerName + '.md').toLowerCase();
-    }
-
-    // Pre-compute tag query
-    const tagQuery = detailsTagFilter.trim() ? detailsTagFilter.toLowerCase() : null;
-
-    for (const n of notes) {
-      // Container path filter
-      if (prefix) {
-        const normPath = n.path.replace(/\\/g, '/');
-        if (!normPath.startsWith(prefix + '/')) continue;
-        if (normPath.toLowerCase() === folderNotePath) continue;
-
-        const relativePath = normPath.slice(prefix.length + 1);
-        if (relativePath.includes('/')) {
-          const parts = relativePath.split('/');
-          if (parts.length !== 2) continue;
-          if (parts[1].toLowerCase() !== `${parts[0].toLowerCase()}.md`) continue;
-        }
-      }
-
-      // Type filter
-      if (detailsTypeFilter && n.note_type !== detailsTypeFilter) continue;
-
-      // Tag filter
-      if (tagQuery && !n.tags.some(t => t.toLowerCase().includes(tagQuery))) continue;
-
-      // Dedup
-      const dedupKey = n.path.replace(/\\/g, '/').toLowerCase();
-      if (seen.has(dedupKey)) continue;
-      seen.add(dedupKey);
-
-      result.push(n);
-    }
-
-    // Sort: containers first, then by tag category if tag sort is active
-    result.sort((a, b) => {
-      const aIsContainer = a.note_type === 'CONTAINER' ? 0 : 1;
-      const bIsContainer = b.note_type === 'CONTAINER' ? 0 : 1;
-      if (aIsContainer !== bIsContainer) return aIsContainer - bIsContainer;
-
-      if (sortBy === 'tags' && tagSortCategory) {
-        const prefix = tagSortCategory + '/';
-        const aTags = a.tags.filter(t => t.startsWith(prefix)).sort();
-        const bTags = b.tags.filter(t => t.startsWith(prefix)).sort();
-        const aFirst = aTags.length > 0 ? aTags[0] : null;
-        const bFirst = bTags.length > 0 ? bTags[0] : null;
-        if (!aFirst && !bFirst) return b.modified.localeCompare(a.modified);
-        if (!aFirst) return 1;
-        if (!bFirst) return -1;
-        const cmp = aFirst.localeCompare(bFirst);
-        const dir = sortOrder === 'asc' ? cmp : -cmp;
-        return dir !== 0 ? dir : b.modified.localeCompare(a.modified);
-      }
-
-      return 0;
-    });
-
-    filteredDetailsNotesRef.current = result;
-    return result;
-  }, [notes, containerPath, detailsTypeFilter, detailsTagFilter, sortBy, sortOrder, tagSortCategory]);
-
   // Content results filtering — single-pass loop
   const filteredContentResults = useMemo(() => {
     const result: SearchResult[] = [];
@@ -443,67 +558,22 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       result.push(r);
     }
 
-    return result;
-  }, [contentResults, containerPath, contentsTypeFilter]);
-
-  // Attachments filtering — single-pass loop
-  const filteredAttachments = useMemo(() => {
-    const result: AttachmentInfo[] = [];
-
-    // Pre-compute container prefix
-    const prefix = containerPath ? containerPath.replace(/\\/g, '/') : null;
-
-    // Pre-compute filter values
-    const containerQuery = attachmentsContainerFilter.trim() ? attachmentsContainerFilter.toLowerCase() : null;
-    const ext = attachmentsExtensionFilter.trim() ? attachmentsExtensionFilter.toLowerCase().replace('.', '') : null;
-    const pathQuery = attachmentsNotePathFilter.trim() ? attachmentsNotePathFilter.toLowerCase() : null;
-
-    for (const a of attachmentResults) {
-      const normPath = a.path.replace(/\\/g, '/');
-
-      // Container path filter
-      if (prefix) {
-        if (!normPath.startsWith(prefix + '/')) continue;
-
-        const relativePath = normPath.slice(prefix.length + 1);
-        const parts = relativePath.split('/');
-
-        // Direct child attachment: note.md_att/file.png (2 parts)
-        // Nested attachment: subfolder/note.md_att/file.png (3 parts, folder note only)
-        if (parts.length === 2) {
-          // OK
-        } else if (parts.length === 3) {
-          const folderName = parts[0];
-          const attFolder = parts[1];
-          if (attFolder.toLowerCase() !== `${folderName.toLowerCase()}.md_att`) continue;
-        } else {
-          continue;
-        }
-      }
-
-      // Container filter
-      if (containerQuery && !a.container.toLowerCase().includes(containerQuery)) continue;
-
-      // Extension filter
-      if (ext) {
-        const fileExt = a.file_name.split('.').pop()?.toLowerCase() || '';
-        if (fileExt !== ext) continue;
-      }
-
-      // Dummy file filter
-      if (attachmentsShowDummyOnly && a.note_relative_path !== '-') continue;
-
-      // Note path filter
-      if (pathQuery) {
-        if (!a.inferred_note_path.toLowerCase().includes(pathQuery) &&
-            !a.note_relative_path.toLowerCase().includes(pathQuery)) continue;
-      }
-
-      result.push(a);
+    // 2026-05-22 — apply user-chosen sort. 'relevance' = leave backend
+    // order (already by score). Other modes do a stable client sort so
+    // ties keep their original (relevance) order as the tiebreaker.
+    if (contentsSortBy === 'title') {
+      result.sort((a, b) => a.title.localeCompare(b.title));
+    } else if (contentsSortBy === 'path') {
+      result.sort((a, b) =>
+        a.path.replace(/\\/g, '/').localeCompare(b.path.replace(/\\/g, '/'))
+      );
     }
-
     return result;
-  }, [attachmentResults, containerPath, attachmentsContainerFilter, attachmentsExtensionFilter, attachmentsShowDummyOnly, attachmentsNotePathFilter]);
+  }, [contentResults, containerPath, contentsTypeFilter, contentsSortBy]);
+
+  // `filteredAttachments` useMemo retired 2026-05-20 along with the
+  // 4 legacy filter inputs. AttachmentsTab v2 owns its own filter state
+  // and filters the in-memory AttachmentRef list itself.
 
   // Double-click detection: track first click time, open window only on confirmed double-click
   // This prevents flash when single-clicking (window was being created then closed after 350ms)
@@ -555,186 +625,13 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     }
   }, []);
 
-  const handleAttachmentClick = useCallback((e: React.MouseEvent, att: AttachmentInfo) => {
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      e.stopPropagation();
-      setSelectedAttachments(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(att.path)) {
-          newSet.delete(att.path);
-        } else {
-          newSet.add(att.path);
-        }
-        return newSet;
-      });
-      return;
-    }
+  // Attachment click + context-menu + bulk-delete handlers retired
+  // 2026-05-20. AttachmentsTab v2 owns row click (preview-vs-open),
+  // row right-click (per-row menu via modalActions.showContextMenu),
+  // multi-select (selection-mode toggle + Shift-range), and bulk
+  // delete actions itself.
 
-    setSelectedAttachments(new Set());
-    const isPreviewable = /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(att.path);
-    if (isPreviewable) {
-      hoverActions.open(att.path);
-    } else {
-      utilCommands.openInDefaultApp(att.path);
-    }
-  }, []);
-
-  const [customContextMenu, setCustomContextMenu] = useState<{ x: number; y: number } | null>(null);
-  const customContextMenuRef = useRef<HTMLDivElement>(null);
-
-  const handleAttachmentContextMenu = useCallback((e: React.MouseEvent, att: AttachmentInfo) => {
-    e.preventDefault();
-
-    if (selectedAttachmentsRef.current.size > 0) {
-      if (!selectedAttachmentsRef.current.has(att.path)) {
-        setSelectedAttachments(prev => new Set(prev).add(att.path));
-      }
-      setCustomContextMenu({ x: e.clientX, y: e.clientY });
-      return;
-    }
-
-    modalActions.showContextMenu(att.file_name, { x: e.clientX, y: e.clientY }, att.note_path, att.path, false, false, undefined, true, true);
-  }, []);
-
-  // Close custom context menu on outside click
-  useEffect(() => {
-    if (!customContextMenu) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      // Only close if click is OUTSIDE the custom context menu
-      if (customContextMenuRef.current && !customContextMenuRef.current.contains(e.target as Node)) {
-        setCustomContextMenu(null);
-      }
-    };
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setCustomContextMenu(null);
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEsc);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEsc);
-    };
-  }, [customContextMenu]);
-
-  // Clear selection on outside click (but not when clicking on attachment rows)
   const searchTableRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (selectedAttachments.size === 0) return;
-
-    const handleOutsideClick = (e: MouseEvent) => {
-      // Don't clear if clicking on the custom context menu
-      const target = e.target as HTMLElement;
-      if (target.closest('.context-menu')) return;
-
-      // Don't clear if clicking on the attachment table rows
-      if (searchTableRef.current && searchTableRef.current.contains(target)) return;
-
-      // Don't clear if Ctrl/Meta key is held (user is multi-selecting)
-      if (e.ctrlKey || e.metaKey) return;
-
-      // Clear selection
-      setSelectedAttachments(new Set());
-    };
-
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setSelectedAttachments(new Set());
-      }
-    };
-
-    document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('keydown', handleEsc);
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('keydown', handleEsc);
-    };
-  }, [selectedAttachments.size]);
-
-  const handleBatchDeleteDummy = useCallback(() => {
-    // Exclude conflict files from batch deletion — they need manual resolution
-    const dummyFiles = filteredAttachments.filter(a => a.note_relative_path === '-' && !a.is_conflict);
-    const conflictFiles = filteredAttachments.filter(a => a.is_conflict);
-
-    if (dummyFiles.length === 0 && conflictFiles.length > 0) {
-      modalActions.showAlertModal(
-        t('conflictFilesOnly', language),
-        tf('conflictFilesMsg', language, { count: conflictFiles.length })
-      );
-      return;
-    }
-
-    if (dummyFiles.length === 0) {
-      return;
-    }
-
-    const count = dummyFiles.length;
-    const conflictNote = conflictFiles.length > 0
-      ? tf('conflictExcluded', language, { count: conflictFiles.length })
-      : '';
-
-    // Show confirmation modal - deletion happens in the callback after user confirms
-    modalActions.showConfirmDelete(`${t('dummyFile', language)}${conflictNote}`, 'file', async () => {
-      try {
-        const paths = dummyFiles.map(a => a.path);
-        const deleted = await searchCommands.deleteMultipleFiles(paths);
-
-        // Refresh file tree and search
-        await fileTreeActions.refreshFileTree();
-        refreshActions.incrementSearchRefresh();
-
-        // Refresh attachments list
-        await searchAttachments();
-
-        modalActions.showAlertModal(t('deleteComplete', language), `${tf('deletedFilesMsg', language, { count: deleted })}${conflictNote}`);
-      } catch (e) {
-        console.error('Failed to batch delete dummy files:', e);
-        modalActions.showAlertModal(t('deleteFailed', language), `${t('batchDeleteFailed', language)}\n\n${e}`);
-      }
-    }, count);
-  }, [filteredAttachments, searchAttachments]);
-
-  const handleBatchDeleteSelected = useCallback(() => {
-    if (selectedAttachments.size === 0) {
-      return;
-    }
-
-    const count = selectedAttachments.size;
-    const pathsToDelete = Array.from(selectedAttachments);
-
-    // Show confirmation modal - deletion happens in the callback after user confirms
-    modalActions.showConfirmDelete(t('selectedFiles', language), 'file', async () => {
-      try {
-        // Use new command that also removes wikilinks from owning notes
-        const [deleted, linksRemoved, modifiedNotes] = await searchCommands.deleteAttachmentsWithLinks(pathsToDelete);
-
-        // Clear selection and refresh
-        setSelectedAttachments(new Set());
-        await fileTreeActions.refreshFileTree();
-        refreshActions.incrementSearchRefresh();
-
-        // Refresh attachments list
-        await searchAttachments();
-
-        // Refresh any open hover windows that were modified
-        for (const notePath of modifiedNotes) {
-          refreshHoverWindowsForFile(notePath);
-        }
-
-        // Show result using alert modal
-        let msg = tf('filesDeletedMsg', language, { count: deleted });
-        if (linksRemoved > 0) {
-          msg += `\n${tf('wikilinksRemovedMsg', language, { count: linksRemoved })}`;
-        }
-        modalActions.showAlertModal(t('deleteComplete', language), msg);
-      } catch (e) {
-        console.error('Failed to batch delete selected files:', e);
-        modalActions.showAlertModal(t('deleteFailed', language), `${t('fileDeleteFailed', language)}\n\n${e}`);
-      }
-    }, count);
-  }, [selectedAttachments, searchAttachments]);
 
   const handleSortChange = useCallback((field: string) => {
     if (field === 'tags') {
@@ -789,15 +686,15 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   ] as const;
 
   const getSortIndicator = (field: string) => {
-    if (sortBy !== field) return '';
-    return sortOrder === 'asc' ? ' ↑' : ' ↓';
+    const g = sortGlyph(sortBy === field, sortOrder);
+    return g ? ` ${g}` : '';
   };
 
   const getTagSortLabel = () => {
     if (sortBy !== 'tags' || !tagSortCategory) return '';
     const cat = TAG_CATEGORIES.find(c => c.prefix === tagSortCategory);
     const catName = cat ? t(cat.labelKey, language) : '';
-    const arrow = sortOrder === 'asc' ? '↑' : '↓';
+    const arrow = sortOrder === 'asc' ? SORT_ASC : SORT_DESC;
     return ` · ${catName} ${arrow}`;
   };
 
@@ -828,12 +725,24 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
         return true;
       }
     }
-    // Normal click - clear multi-selection
-    if (selectedNotePathsRef.current.size > 0) {
-      setSelectedNotePaths(new Set());
-    }
+    // 2026-05-22 — Excel-style row selection. A plain click on a row
+    // makes it the single selection (replacing any prior multi-select).
+    // Double-click on the same row opens the hover window (handled by
+    // `handleNoteClick`'s 500 ms pendingNoteOpenRef detection).
+    setSelectedNotePaths(new Set([note.path]));
     lastSelectedNoteRef.current = note.path;
     return false;
+  }, []);
+
+  // 2026-05-22 — clear selection + shift-range anchor + double-click
+  // pending all at once. Bound to wrapper-background clicks so a click
+  // in the empty area below the list drops focus and starts fresh.
+  // The pending ref is reset so a subsequent click on a row doesn't
+  // accidentally complete a 500 ms double-click that bridges the gap.
+  const clearAllSelection = useCallback(() => {
+    setSelectedNotePaths(new Set());
+    lastSelectedNoteRef.current = null;
+    pendingNoteOpenRef.current = null;
   }, []);
 
   // Context menu for notes (single or multi-selected)
@@ -858,9 +767,31 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     return handleNoteMultiClick(e, note, filteredNotesRef.current);
   }, [handleNoteMultiClick]);
 
-  const handleDetailsMultiClick = useCallback((e: React.MouseEvent, note: NoteMetadata) => {
-    return handleNoteMultiClick(e, note, filteredDetailsNotesRef.current);
-  }, [handleNoteMultiClick]);
+  // 11th hotfix (2026-05-19, HanBin) — explicit checkbox toggle handler.
+  // Shift+click on a checkbox extends a range from the last-selected
+  // anchor (same as Shift+click on the row); plain click toggles a
+  // single row. Keeps the same `selectedNotePaths` state the Ctrl/Shift
+  // row-click path uses, so the two entry points stay in sync.
+  const handleCheckboxToggle = useCallback((e: React.MouseEvent, note: NoteMetadata) => {
+    if (e.shiftKey && lastSelectedNoteRef.current) {
+      const list = filteredNotesRef.current;
+      const lastIdx = list.findIndex(n => n.path === lastSelectedNoteRef.current);
+      const currIdx = list.findIndex(n => n.path === note.path);
+      if (lastIdx >= 0 && currIdx >= 0) {
+        const [start, end] = [Math.min(lastIdx, currIdx), Math.max(lastIdx, currIdx)];
+        const range = new Set(list.slice(start, end + 1).map(n => n.path));
+        setSelectedNotePaths(prev => new Set([...prev, ...range]));
+        return;
+      }
+    }
+    setSelectedNotePaths(prev => {
+      const next = new Set(prev);
+      if (next.has(note.path)) next.delete(note.path);
+      else next.add(note.path);
+      return next;
+    });
+    lastSelectedNoteRef.current = note.path;
+  }, []);
 
   // Container single-click: toggle in selectedNotePaths (same state as Ctrl+click)
   const handleContainerSelect = useCallback((path: string) => {
@@ -901,13 +832,19 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest('.context-menu') || target.closest('.note-context-menu')) return;
-      if (target.closest('.search-table') || target.closest('.search-virtual-wrapper') || target.closest('.search-details-results')) return;
+      if (target.closest('.search-table') || target.closest('.search-virtual-wrapper')) return;
       if (target.closest('.modal-overlay') || target.closest('.bulk-tag-modal')) return;
       if (e.ctrlKey || e.metaKey || e.shiftKey) return;
       setSelectedNotePaths(new Set());
     };
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !showBulkTagModal) setSelectedNotePaths(new Set());
+      if (e.key === 'Escape' && !showBulkTagModal) {
+        // 11th hotfix follow-up #2 — ESC also exits selection-mode, not
+        // just clears selection. Keeps the toggle in sync with the
+        // visual chrome (column collapses back to 6).
+        setSelectedNotePaths(new Set());
+        setSelectionMode(false);
+      }
     };
     document.addEventListener('mousedown', handleOutsideClick);
     document.addEventListener('keydown', handleEsc);
@@ -916,6 +853,13 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       document.removeEventListener('keydown', handleEsc);
     };
   }, [selectedNotePaths.size, showBulkTagModal]);
+
+  // 2026-05-22 — note `selectionMode` only governs the attachments
+  // toolbar toggle now; frontmatter notes use Excel-style row clicks
+  // and own their own selection state independently of the toggle.
+  // The previous "selectionMode off → drop selection" effect was
+  // removed because it cleared note selections when the user toggled
+  // attachments-side mode.
 
   // Bulk move selected notes
   const handleBulkMoveNotes = useCallback(() => {
@@ -949,7 +893,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   // Check if selected notes contain any CONTAINER type (containers cannot have tags)
   const nonContainerSelectedPaths = useMemo(() => {
     if (selectedNotePaths.size === 0) return [];
-    const allNotes = [...filteredNotesRef.current, ...filteredDetailsNotesRef.current];
+    const allNotes = [...filteredNotesRef.current];
     const noteMap = new Map(allNotes.map(n => [n.path, n]));
     return Array.from(selectedNotePaths).filter(path => {
       const note = noteMap.get(path);
@@ -964,10 +908,9 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     setNoteContextMenu(null);
   }, [nonContainerSelectedPaths]);
 
-  // Count conflict attachments for warning
-  const conflictCount = useMemo(() =>
-    attachmentResults.filter(a => a.is_conflict).length,
-  [attachmentResults]);
+  // conflictCount tracked by AttachmentsTab v2 internally via the
+  // 'orphan' / 'stuck' sync-state chips. Search.tsx no longer needs
+  // a top-level count.
 
   // Lightweight virtual list — no external dependency
   const ROW_HEIGHT = 32;
@@ -997,7 +940,10 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   // ── Column resize (divider-style, always fits container width) ──
   const COLUMN_STORAGE_KEY = 'search-col-ratios-v3';
   const DEFAULT_RATIOS = [2.5, 0.9, 2.5, 0.5, 1.5, 1.5];
-  const MIN_COL = [80, 50, 60, 30, 80, 80];
+  // 2026-05-22 — memo col min bumped to 60 so the sort indicator
+  // ("메모 ↓") doesn't clip on the right edge. Title/dates also got
+  // small bumps so headers breathe a bit at the narrowest layout.
+  const MIN_COL = [120, 60, 80, 60, 100, 100];
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [wrapperWidth, setWrapperWidth] = useState(0);
@@ -1040,11 +986,317 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   const ratiosRef = useRef(ratios);
   ratiosRef.current = ratios;
 
-  // Use CSS fr units — grid natively fills 100% of container (no px measurement gaps)
+  // 11th hotfix follow-up #2 (2026-05-19) — selection mode state lives
+  // at the top of the component (see comment near `selectedNotePaths`).
+  // Grid-cols simply reacts to the toggle here.
+  // 2026-05-22 — Frontmatter rows always use Excel-style click selection
+  // (single click = focus, Ctrl/Shift = multi/range, double-click = open).
+  // No checkbox column. `selectionMode` only governs the attachments tab now.
   const gridTemplateColumns = useMemo(
     () => ratios.map((r, i) => `minmax(${MIN_COL[i]}px, ${r}fr)`).join(' '),
     [ratios],
   );
+
+  // 2026-05-22 — Frontmatter filter schema for FilterAddButton +
+  // FilterChipList. Built here (not in SearchFilters) so the +Add
+  // trigger can live in the toolbar and the chip list below it,
+  // separated by the search input.
+  const frontmatterFields: FilterField[] = useMemo(() => mode !== 'frontmatter' ? [] : [
+    {
+      id: 'type',
+      label: t('noteType', language),
+      type: 'select',
+      isActive: frontmatterTypeFilter !== '',
+      // 2026-05-22 — label-based display via template name. The chip
+      // shows what the user actually sees in the row's type column
+      // (e.g. "스케치", "테스트3"), not the underlying English token.
+      displayValue:
+        noteTemplates.find(tmpl => {
+          const tok = (tmpl.frontmatter?.type ?? tmpl.prefix ?? '').toUpperCase();
+          return tok === frontmatterTypeFilter.toUpperCase();
+        })?.name ?? frontmatterTypeFilter,
+      clear: () => setFrontmatterTypeFilter(''),
+      value: frontmatterTypeFilter,
+      setValue: setFrontmatterTypeFilter,
+      // Options come from the user's templates so custom templates
+      // (e.g. "테스트3") appear with their user-set Korean names. Token
+      // (value) stays the raw type so the existing equality match in
+      // the filter loop keeps working unchanged.
+      options: [
+        { value: '', label: t('allTypes', language) },
+        ...noteTemplates.map(tmpl => ({
+          value: (tmpl.frontmatter?.type ?? tmpl.prefix ?? '').toUpperCase(),
+          label: tmpl.name,
+        })),
+      ],
+    },
+    {
+      id: 'tag',
+      label: t('tag', language),
+      type: 'select',
+      isActive: frontmatterTagFilter !== '',
+      displayValue: stripTagNamespace(frontmatterTagFilter),
+      clear: () => setFrontmatterTagFilter(''),
+      value: frontmatterTagFilter,
+      setValue: setFrontmatterTagFilter,
+      options: [
+        { value: '', label: t('allTags', language) },
+        ...uniqueTags.map(tag => ({ value: tag, label: stripTagNamespace(tag) })),
+      ],
+    },
+    {
+      id: 'memo',
+      label: t('memos', language),
+      type: 'select',
+      isActive: frontmatterMemoFilter !== 'all',
+      displayValue:
+        frontmatterMemoFilter === 'has' ? t('hasMemos', language) :
+        frontmatterMemoFilter === 'none' ? t('noMemos', language) : '',
+      clear: () => setFrontmatterMemoFilter('all'),
+      value: frontmatterMemoFilter,
+      setValue: v => setFrontmatterMemoFilter(v as 'all' | 'has' | 'none'),
+      options: [
+        { value: 'all', label: t('all', language) },
+        { value: 'has', label: t('hasMemos', language) },
+        { value: 'none', label: t('noMemos', language) },
+      ],
+    },
+    {
+      id: 'folder-notes',
+      label: t('folderNotesLabel', language),
+      type: 'select',
+      isActive: !showFolderNotes,
+      displayValue: showFolderNotes ? '' : t('hideLabel', language),
+      clear: () => setShowFolderNotes(true),
+      value: showFolderNotes ? 'show' : 'hide',
+      setValue: v => setShowFolderNotes(v === 'show'),
+      options: [
+        { value: 'show', label: t('showLabel', language) },
+        { value: 'hide', label: t('hideLabel', language) },
+      ],
+    },
+    {
+      id: 'created',
+      label: t('createdDate', language),
+      type: 'date-range',
+      isActive: !!(createdAfter || createdBefore),
+      displayValue: formatDateRange(createdAfter, createdBefore),
+      clear: () => { setCreatedAfter(''); setCreatedBefore(''); },
+      after: createdAfter,
+      before: createdBefore,
+      setAfter: setCreatedAfter,
+      setBefore: setCreatedBefore,
+    },
+    {
+      id: 'modified',
+      label: t('modifiedDate', language),
+      type: 'date-range',
+      isActive: !!(modifiedAfter || modifiedBefore),
+      displayValue: formatDateRange(modifiedAfter, modifiedBefore),
+      clear: () => { setModifiedAfter(''); setModifiedBefore(''); },
+      after: modifiedAfter,
+      before: modifiedBefore,
+      setAfter: setModifiedAfter,
+      setBefore: setModifiedBefore,
+    },
+  ], [
+    mode, language, uniqueTags, noteTemplates,
+    frontmatterTypeFilter, frontmatterTagFilter, frontmatterMemoFilter,
+    showFolderNotes,
+    createdAfter, createdBefore, modifiedAfter, modifiedBefore,
+  ]);
+
+  // 2026-05-22 — Contents tab chip schema. Only a single field (type)
+  // for now but uses the same primitive as Frontmatter so the toolbar
+  // + chip-list rendering stays identical across tabs.
+  // (`SearchFilters.tsx` was deleted in this commit — Contents used to
+  // own a static panel there but the chip pattern obsoletes it.)
+  const contentsFields: FilterField[] = useMemo(() => mode !== 'contents' ? [] : [
+    {
+      id: 'type',
+      label: t('noteType', language),
+      type: 'select',
+      isActive: contentsTypeFilter !== '',
+      displayValue:
+        noteTemplates.find(tmpl => {
+          const tok = (tmpl.frontmatter?.type ?? tmpl.prefix ?? '').toUpperCase();
+          return tok === contentsTypeFilter.toUpperCase();
+        })?.name ?? contentsTypeFilter,
+      clear: () => setContentsTypeFilter(''),
+      value: contentsTypeFilter,
+      setValue: setContentsTypeFilter,
+      options: [
+        { value: '', label: t('allTypes', language) },
+        ...noteTemplates.map(tmpl => ({
+          value: (tmpl.frontmatter?.type ?? tmpl.prefix ?? '').toUpperCase(),
+          label: tmpl.name,
+        })),
+      ],
+    },
+  ], [mode, language, noteTemplates, contentsTypeFilter]);
+
+  // 2026-05-22 — Attachments tab chip schema. Same primitive as
+  // Frontmatter/Contents. `extension` + `note path` are text fields,
+  // `orphan only` is a select with show/hide.
+  // Autocomplete pools for the attachments tab text-chip pickers.
+  // 2026-05-25 (HanBin) — same `noteIdToPath` AttachmentsTab uses, hoisted
+  // so the extension pool below can filter by container scope. Hook
+  // hits the backend once per vault open; shared with the tab so the
+  // call is dedup'd.
+  const noteIdToPath = useNoteIdToPath();
+
+  const attachmentExtensionPool = useMemo(() => {
+    if (mode !== 'attachments') return [];
+    // 2026-05-25 (HanBin) — container-scope filter, mirroring the
+    // notePathPool below. Without it, the dropdown listed every
+    // extension in the vault even when a single container was
+    // selected — so `test` container's extension picker offered
+    // `mp4`/`hwp`/`xlsx`/... that don't exist inside it, leading to
+    // empty result lists when the user picked one.
+    const cpNorm = (containerPath ?? '')
+      .toLowerCase()
+      .replace(/\\/g, '/')
+      .replace(/^\/+/, '')
+      .replace(/\/+$/, '');
+    let scopeNorm = cpNorm;
+    if (cpNorm && vaultPath) {
+      const vpNorm = vaultPath
+        .toLowerCase()
+        .replace(/\\/g, '/')
+        .replace(/^\/+/, '')
+        .replace(/\/+$/, '');
+      if (vpNorm && cpNorm === vpNorm) {
+        scopeNorm = '';
+      } else if (vpNorm && cpNorm.startsWith(vpNorm + '/')) {
+        scopeNorm = cpNorm.slice(vpNorm.length + 1);
+      }
+    }
+    const set = new Set<string>();
+    for (const ref of attachmentRefsById.values()) {
+      if (scopeNorm) {
+        let inScope = false;
+        for (const noteId of ref.linkedNotes) {
+          const idLower = noteId.toLowerCase();
+          let path = noteIdToPath.get(idLower);
+          if (!path) path = fileLookupActions.resolveNotePath(noteId) ?? undefined;
+          if (!path) continue;
+          const pLower = path.toLowerCase().replace(/\\/g, '/').replace(/^\/+/, '');
+          if (pLower === scopeNorm || pLower.startsWith(scopeNorm + '/')) {
+            inScope = true;
+            break;
+          }
+        }
+        if (!inScope) continue;
+      }
+      const m = ref.displayPath.match(/\.([A-Za-z0-9]+)$/);
+      if (m) set.add(m[1].toLowerCase());
+    }
+    return Array.from(set).sort();
+  }, [mode, attachmentRefsById, containerPath, vaultPath, noteIdToPath]);
+
+  const attachmentNotePathPool = useMemo(() => {
+    if (mode !== 'attachments') return [];
+    // Strip the vault root so suggestions read as vault-relative paths
+    // (e.g. "dd/note.md") instead of the noisy absolute filesystem path
+    // (`C:/Users/.../vault/dd/note.md`). The filter loop in
+    // AttachmentsTab already matches on substring against the full
+    // resolved path, so trimming the visible prefix doesn't affect
+    // matching — the user's typed query against the vault-relative
+    // string is still a substring of the full path.
+    const root = vaultPath ? vaultPath.replace(/\\/g, '/').replace(/\/$/, '') + '/' : '';
+    // 2026-05-24 (HanBin) — scope suggestions to the selected container.
+    // Previously the dropdown listed every note in the vault, so e.g. the
+    // `test` container's filter dropdown surfaced `dd/...` notes. Match
+    // the same prefix check the other tabs use; an empty containerPath
+    // means "no scope" (vault-wide), so all notes pass.
+    const prefix = containerPath
+      ? containerPath.replace(/\\/g, '/').replace(/\/$/, '') + '/'
+      : '';
+    return notes
+      .filter(n => {
+        if (!prefix) return true;
+        return n.path.replace(/\\/g, '/').toLowerCase().startsWith(prefix.toLowerCase());
+      })
+      .map(n => {
+        const norm = n.path.replace(/\\/g, '/');
+        return root && norm.toLowerCase().startsWith(root.toLowerCase())
+          ? norm.slice(root.length)
+          : norm;
+      })
+      .sort((a, b) => a.localeCompare(b));
+  }, [mode, notes, vaultPath, containerPath]);
+
+  const attachmentsFields: FilterField[] = useMemo(() => {
+    if (mode !== 'attachments') return [];
+
+    const tierLabel = (k: TierKey) => (t(`tier_${k}` as any, language) || k) as string;
+    const syncLabel = (k: SyncState) =>
+      k === 'synced' ? t('attachmentSynced', language)
+      : k === 'uploading' ? t('attachmentUploading', language)
+      : k === 'stuck' ? t('attachmentStuck', language)
+      : t('attachmentOrphan', language);
+    const activeTierLabels = TIER_KEYS.filter(k => attachmentTierFilter.has(k)).map(tierLabel);
+    const activeSyncLabels = SYNC_KEYS.filter(k => attachmentSyncFilter.has(k)).map(syncLabel);
+
+    return [
+      {
+        id: 'tier',
+        label: t('tierFilter', language),
+        type: 'multi-select',
+        isActive: attachmentTierFilter.size > 0,
+        displayValue: formatMultiValue(activeTierLabels),
+        clear: () => setAttachmentTierFilter(new Set()),
+        values: Array.from(attachmentTierFilter),
+        toggleValue: toggleAttachmentTier,
+        options: TIER_KEYS.map(k => ({ value: k, label: tierLabel(k) })),
+      },
+      {
+        id: 'sync',
+        label: t('syncFilter', language),
+        type: 'multi-select',
+        isActive: attachmentSyncFilter.size > 0,
+        displayValue: formatMultiValue(activeSyncLabels),
+        clear: () => setAttachmentSyncFilter(new Set()),
+        values: Array.from(attachmentSyncFilter),
+        toggleValue: toggleAttachmentSync,
+        options: SYNC_KEYS.map(k => ({ value: k, label: syncLabel(k) })),
+      },
+      {
+        id: 'extension',
+        label: t('extension', language),
+        type: 'text',
+        isActive: attachmentExtensionFilter !== '',
+        displayValue: attachmentExtensionFilter,
+        clear: () => setAttachmentExtensionFilter(''),
+        value: attachmentExtensionFilter,
+        setValue: setAttachmentExtensionFilter,
+        placeholder: t('extensionPlaceholder', language),
+        suggestions: attachmentExtensionPool,
+      },
+      {
+        id: 'note-path',
+        label: t('attachedNote', language),
+        type: 'text',
+        isActive: attachmentNotePathFilter !== '',
+        displayValue: attachmentNotePathFilter,
+        clear: () => setAttachmentNotePathFilter(''),
+        value: attachmentNotePathFilter,
+        setValue: setAttachmentNotePathFilter,
+        placeholder: t('notePathOrContainerPlaceholder', language),
+        suggestions: attachmentNotePathPool,
+      },
+      // 2026-05-22 — "고아 파일" chip retired (HanBin: 효용성 X). The
+      // sync-state multi-select already exposes 'orphan' as one of four
+      // states, so picking it there gives the exact same filter without
+      // a duplicate chip.
+    ];
+  }, [
+    mode, language,
+    attachmentExtensionFilter, attachmentNotePathFilter,
+    attachmentExtensionPool, attachmentNotePathPool,
+    attachmentTierFilter, attachmentSyncFilter,
+    toggleAttachmentTier, toggleAttachmentSync,
+  ]);
 
   const resizingRef = useRef<{
     colIdx: number; startX: number;
@@ -1115,34 +1367,80 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
           <span>{t('syncInProgressMsg', language)}</span>
         </div>
       )}
+      {/* v22.4 (HanBin 2026-05-23) — vault-wide search header (hero band).
+          Previous version was a small pill at the top-left that the user
+          flagged as too quiet ("알약안에 작성하는 디자인을 원한게 아니라").
+          This redesign uses the top space as an iOS-style section header:
+            • Left: Library glyph + large "통합 검색" title (fs-16)
+            • Below title: muted "전체 보관소 — {vaultName}" sub-label
+          The header sits above the tabs and shares the same hairline
+          accent so it reads as one continuous chrome layer. */}
+      {!containerPath && (
+        <header className="search-hero">
+          <div className="search-hero__icon" aria-hidden="true">
+            <Library size={18} strokeWidth={1.75} />
+          </div>
+          <div className="search-hero__text">
+            <h1 className="search-hero__title">{t('unifiedSearchTitle', language)}</h1>
+            <p className="search-hero__scope">
+              {t('unifiedSearchScope', language)}
+              {vaultPath && (
+                <>
+                  <span className="search-hero__sep">·</span>
+                  <span className="search-hero__vault">{vaultPath.split(/[/\\]/).filter(Boolean).pop()}</span>
+                </>
+              )}
+            </p>
+          </div>
+        </header>
+      )}
       <div className="search-tabs">
+        {/* v22 (HanBin 2026-05-23) — clicking a tab clears all per-tab
+            search queries so the user always lands on a fresh state.
+            Previously frontmatter/contents/attachments retained their
+            queries across switches, which surprised users coming back
+            to a tab thinking they'd hit a clean search field. */}
         <button
           className={`search-tab ${mode === 'frontmatter' ? 'active' : ''}`}
-          onClick={() => setMode('frontmatter')}
+          onClick={() => {
+            setMode('frontmatter');
+            setFrontmatterQuery('');
+            setContentsQuery('');
+            setAttachmentsQuery('');
+          }}
         >
           {t('notes', language)}
         </button>
         <button
           className={`search-tab ${mode === 'contents' ? 'active' : ''}`}
-          onClick={() => setMode('contents')}
+          onClick={() => {
+            setMode('contents');
+            setFrontmatterQuery('');
+            setContentsQuery('');
+            setAttachmentsQuery('');
+          }}
         >
           {t('body', language)}
         </button>
         <button
           className={`search-tab ${mode === 'attachments' ? 'active' : ''}`}
-          onClick={() => setMode('attachments')}
+          onClick={() => {
+            setMode('attachments');
+            setFrontmatterQuery('');
+            setContentsQuery('');
+            setAttachmentsQuery('');
+          }}
         >
           {t('attachments', language)}
         </button>
         <button
-          className={`search-tab ${mode === 'details' ? 'active' : ''}`}
-          onClick={() => setMode('details')}
-        >
-          {t('details', language)}
-        </button>
-        <button
           className={`search-tab ${mode === 'graph' ? 'active' : ''}`}
-          onClick={() => setMode('graph')}
+          onClick={() => {
+            setMode('graph');
+            setFrontmatterQuery('');
+            setContentsQuery('');
+            setAttachmentsQuery('');
+          }}
         >
           {t('graph', language)}
         </button>
@@ -1154,125 +1452,138 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
         )}
       </div>
       {mode !== 'graph' && <div className="search-toolbar">
-        {mode === 'details' ? (
-          <div className="search-details-filters">
-            <select
-              className="search-details-select"
-              value={detailsTypeFilter}
-              onChange={e => setDetailsTypeFilter(e.target.value)}
-            >
-              {NOTE_TYPES.map(nt => (
-                <option key={nt.value} value={nt.value}>{nt.value === '' ? t('allTypes', language) : nt.label}</option>
-              ))}
-            </select>
-            <input
-              className="search-input"
-              type="text"
-              placeholder={t('tagSearch', language)}
-              value={detailsTagFilter}
-              onChange={e => setDetailsTagFilter(e.target.value)}
+        <div className="search-bar">
+          {/* 2026-05-22 — Filter button = FilterAddButton popover trigger
+              on every tab. Same chip filter pattern across Frontmatter,
+              Contents, and Attachments. */}
+          {mode === 'frontmatter' && (
+            <FilterAddButton
+              fields={frontmatterFields}
+              language={language}
+              triggerClassName="search-filter-trigger"
+              icon={<Filter size={14} />}
+              ariaLabel={t('addFilter', language)}
             />
-          </div>
-        ) : (
-          <div className="search-bar">
-            <input
-              className="search-input"
-              type="text"
-              placeholder={
-                mode === 'frontmatter' ? t('titleTagTypeSearch', language) :
-                mode === 'contents' ? t('bodyContentSearch', language) :
-                t('attachmentSearch', language)
-              }
-              value={
-                mode === 'frontmatter' ? frontmatterQuery :
-                mode === 'contents' ? contentsQuery :
-                attachmentsQuery
-              }
-              onChange={e => {
-                const value = e.target.value;
-                if (mode === 'frontmatter') setFrontmatterQuery(value);
-                else if (mode === 'contents') setContentsQuery(value);
-                else setAttachmentsQuery(value);
-              }}
+          )}
+          {mode === 'contents' && (
+            <FilterAddButton
+              fields={contentsFields}
+              language={language}
+              triggerClassName="search-filter-trigger"
+              icon={<Filter size={14} />}
+              ariaLabel={t('addFilter', language)}
             />
-            {mode === 'frontmatter' && (
-              <button
-                className={`search-filter-btn ${showDateFilters ? 'active' : ''}`}
-                onClick={() => setShowDateFilters(!showDateFilters)}
-                title={t('dateFilter', language)}
-              >
-                <Filter size={14} />
-              </button>
-            )}
-            {mode === 'contents' && (
-              <button
-                className={`search-filter-btn ${showContentsFilters ? 'active' : ''}`}
-                onClick={() => setShowContentsFilters(!showContentsFilters)}
-                title={t('typeFilter', language)}
-              >
-                <Filter size={14} />
-              </button>
-            )}
-            {mode === 'attachments' && (
-              <button
-                className={`search-filter-btn ${showAttachmentsFilters ? 'active' : ''}`}
-                onClick={() => setShowAttachmentsFilters(!showAttachmentsFilters)}
-                title={t('filter', language)}
-              >
-                <Filter size={14} />
-              </button>
-            )}
-          </div>
-        )}
+          )}
+          {mode === 'attachments' && (
+            <FilterAddButton
+              fields={attachmentsFields}
+              language={language}
+              triggerClassName="search-filter-trigger"
+              icon={<Filter size={14} />}
+              ariaLabel={t('addFilter', language)}
+            />
+          )}
+          {(() => {
+            const activeValue =
+              mode === 'frontmatter' ? frontmatterQuery :
+              mode === 'contents' ? contentsQuery :
+              attachmentsQuery;
+            const clearActive = () => {
+              if (mode === 'frontmatter') setFrontmatterQuery('');
+              else if (mode === 'contents') setContentsQuery('');
+              else setAttachmentsQuery('');
+            };
+            return (
+              <Input
+                className="search-bar__input"
+                type="text"
+                leftIcon={<SearchIcon size={14} />}
+                rightIcon={
+                  <span className="search-bar__right-cluster">
+                    {mode === 'contents' && (
+                      <button
+                        type="button"
+                        className={`search-bar__inline-toggle${contentsWholeWord ? ' is-active' : ''}`}
+                        aria-pressed={contentsWholeWord}
+                        title={t('wholeWord', language)}
+                        aria-label={t('wholeWord', language)}
+                        onClick={() => setContentsWholeWord(v => !v)}
+                      >
+                        <WholeWord size={14} />
+                      </button>
+                    )}
+                    {activeValue && (
+                      <button
+                        type="button"
+                        className="search-bar__clear"
+                        aria-label={t('clear', language)}
+                        onClick={clearActive}
+                      >
+                        <XIcon size={12} />
+                      </button>
+                    )}
+                  </span>
+                }
+                placeholder={
+                  mode === 'frontmatter' ? t('titleTagTypeSearch', language) :
+                  mode === 'contents' ? t('bodyContentSearch', language) :
+                  t('attachmentSearch', language)
+                }
+                value={activeValue}
+                onChange={e => {
+                  const value = e.target.value;
+                  if (mode === 'frontmatter') setFrontmatterQuery(value);
+                  else if (mode === 'contents') setContentsQuery(value);
+                  else setAttachmentsQuery(value);
+                }}
+              />
+            );
+          })()}
+          {/* Contents sort dropdown — mirrors the filter trigger on the
+              opposite side (filter left, sort right). Only useful when
+              there's an actual list to reorder, so contents-only. */}
+          {mode === 'contents' && (
+            <ContentsSortDropdown
+              value={contentsSortBy}
+              onChange={setContentsSortBy}
+              language={language}
+            />
+          )}
+          {/* CheckSquare removed 2026-05-22 — all tabs now use Excel-style
+              row selection. */}
+        </div>
       </div>}
 
-      <SearchFilters
-        mode={mode}
-        frontmatterTypeFilter={frontmatterTypeFilter}
-        setFrontmatterTypeFilter={setFrontmatterTypeFilter}
-        frontmatterTagFilter={frontmatterTagFilter}
-        setFrontmatterTagFilter={setFrontmatterTagFilter}
-        frontmatterMemoFilter={frontmatterMemoFilter}
-        setFrontmatterMemoFilter={setFrontmatterMemoFilter}
-        showFolderNotes={showFolderNotes}
-        setShowFolderNotes={setShowFolderNotes}
-        showDateFilters={showDateFilters}
-        setShowDateFilters={setShowDateFilters}
-        createdAfter={createdAfter}
-        setCreatedAfter={setCreatedAfter}
-        createdBefore={createdBefore}
-        setCreatedBefore={setCreatedBefore}
-        modifiedAfter={modifiedAfter}
-        setModifiedAfter={setModifiedAfter}
-        modifiedBefore={modifiedBefore}
-        setModifiedBefore={setModifiedBefore}
-        showContentsFilters={showContentsFilters}
-        contentsTypeFilter={contentsTypeFilter}
-        setContentsTypeFilter={setContentsTypeFilter}
-        showAttachmentsFilters={showAttachmentsFilters}
-        attachmentsContainerFilter={attachmentsContainerFilter}
-        setAttachmentsContainerFilter={setAttachmentsContainerFilter}
-        attachmentsExtensionFilter={attachmentsExtensionFilter}
-        setAttachmentsExtensionFilter={setAttachmentsExtensionFilter}
-        attachmentsShowDummyOnly={attachmentsShowDummyOnly}
-        setAttachmentsShowDummyOnly={setAttachmentsShowDummyOnly}
-        attachmentsNotePathFilter={attachmentsNotePathFilter}
-        setAttachmentsNotePathFilter={setAttachmentsNotePathFilter}
-        uniqueTags={uniqueTags}
-        filteredAttachments={filteredAttachments}
-        selectedAttachments={selectedAttachments}
-        onBatchDeleteDummy={handleBatchDeleteDummy}
-        onBatchDeleteSelected={handleBatchDeleteSelected}
-        detailsTypeFilter={detailsTypeFilter}
-        setDetailsTypeFilter={setDetailsTypeFilter}
-        detailsTagFilter={detailsTagFilter}
-        setDetailsTagFilter={setDetailsTagFilter}
-        language={language}
-        fetchNotes={fetchNotes}
-      />
+      {/* Chip list — appears below toolbar when ≥1 filter is active.
+          Same primitive across all three tabs so the visual + interaction
+          stay consistent. */}
+      {mode === 'frontmatter' && (
+        <FilterChipList fields={frontmatterFields} language={language} />
+      )}
+      {mode === 'contents' && (
+        <FilterChipList fields={contentsFields} language={language} />
+      )}
+      {mode === 'attachments' && (
+        <FilterChipList fields={attachmentsFields} language={language} />
+      )}
 
       {mode === 'frontmatter' ? (
-        <div className="search-virtual-wrapper" ref={setWrapperEl} style={{ '--grid-cols': gridTemplateColumns } as CSSProperties}>
+        <div
+          className="search-virtual-wrapper"
+          ref={setWrapperEl}
+          style={{ '--grid-cols': gridTemplateColumns } as CSSProperties}
+          onClick={(e) => {
+            // Any click inside the table viewport that doesn't land on
+            // a `.search-row` drops selection + shift anchor. Catches
+            // the empty area below the last row (inside `.search-virtual-body`),
+            // gaps between rows, and the table header. Row clicks bubble
+            // here too but `closest('.search-row')` short-circuits the
+            // clear — the row's own onClick has already set selection.
+            if (!(e.target as HTMLElement).closest('.search-row')) {
+              clearAllSelection();
+            }
+          }}
+        >
           <div className="search-grid-header">
             <div className="search-th clickable" onClick={() => handleSortChange('title')}>
               {t('titleColumn', language)}{getSortIndicator('title')}
@@ -1298,7 +1609,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
                     >
                       <span className={`tag-category-dot tag-${cat.prefix}`} />
                       {t(cat.labelKey, language)}
-                      {sortBy === 'tags' && tagSortCategory === cat.prefix ? (sortOrder === 'asc' ? ' ↑' : ' ↓') : ''}
+                      {sortBy === 'tags' && tagSortCategory === cat.prefix ? ` ${sortGlyph(true, sortOrder)}` : ''}
                     </button>
                   ))}
                 </div>
@@ -1344,6 +1655,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
                     isMultiSelected={selectedNotePaths.has(note.path)}
                     onMultiClick={handleFrontmatterMultiClick}
                     tagSortCategory={tagSortCategory}
+                    selectRowLabel={t('selectRow', language)}
                   />
                 );
               }
@@ -1360,10 +1672,40 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
           {filteredContentResults.length === 0 ? (
             <div className="search-content-empty">
               {!contentsQuery.trim() ? (
-                <FloatingWords
-                  onWordClick={(word) => setContentsQuery(word)}
-                  searchReady={searchReady}
-                />
+                <div className="search-content-prompt">
+                  <div className="search-content-prompt__headline">
+                    {t('contentsSearchPromptHeadline', language)}
+                  </div>
+                  <div className="search-content-prompt__hint">
+                    {t('contentsSearchPromptHint', language)}
+                  </div>
+                  {recentSearches.length > 0 && (
+                    <div className="search-content-recent">
+                      <div className="search-content-recent__header">
+                        <span>{t('recentSearches', language)}</span>
+                        <button
+                          type="button"
+                          className="search-content-recent__clear"
+                          onClick={clearRecentSearches}
+                        >
+                          {t('clear', language)}
+                        </button>
+                      </div>
+                      <div className="search-content-recent__list">
+                        {recentSearches.map(q => (
+                          <button
+                            key={q}
+                            type="button"
+                            className="search-content-recent__item"
+                            onClick={() => setContentsQuery(q)}
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : searchIndexing ? t('indexInitializing', language) : t('noResults', language)}
             </div>
           ) : (
@@ -1375,6 +1717,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
                 getTemplateCustomColor={getTemplateCustomColor}
                 onNoteClick={handleNoteClick}
                 onNoteHover={handleNoteHover}
+                vaultPath={vaultPath}
               />
             ))
           )}
@@ -1387,33 +1730,14 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
         // through session 2; session 3 will remove them once the new flow
         // covers every action.
         <div className="search-table-wrapper" ref={searchTableRef}>
-          <AttachmentsTab containerPath={containerPath} query={attachmentsQuery} />
-        </div>
-      ) : mode === 'details' ? (
-        /* Details mode - detailed metadata view */
-        <div className="search-details-results">
-          {filteredDetailsNotes.length === 0 ? (
-            <div className="search-content-empty">
-              {searchIndexing ? t('indexInitializing', language) : t('noResults', language)}
-            </div>
-          ) : (
-            filteredDetailsNotes.map(note => (
-              <DetailsResultCard
-                key={note.path}
-                note={note}
-                getTemplateCustomColor={getTemplateCustomColor}
-                onNoteClick={handleNoteClick}
-                onNoteHover={handleNoteHover}
-                onContextMenu={handleNoteContextMenu}
-                onTagClick={setDetailsTagFilter}
-                language={language}
-                onSelect={handleContainerSelect}
-                isMultiSelected={selectedNotePaths.has(note.path)}
-                onMultiClick={handleDetailsMultiClick}
-                tagSortCategory={tagSortCategory}
-              />
-            ))
-          )}
+          <AttachmentsTab
+            containerPath={containerPath}
+            query={attachmentsQuery}
+            extensionFilter={attachmentExtensionFilter}
+            notePathFilter={attachmentNotePathFilter}
+            tierFilter={attachmentTierFilter}
+            syncFilter={attachmentSyncFilter}
+          />
         </div>
       ) : mode === 'graph' ? (
         <Suspense fallback={<div className="graph-loading">{t('graphLoadingSearch', language)}</div>}>
@@ -1427,35 +1751,9 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
             ? tf('notesCountLabel', language, { count: filteredNotes.length })
             : mode === 'contents'
               ? tf('resultsCountLabel', language, { count: filteredContentResults.length })
-              : mode === 'attachments'
-                ? tf('attachmentsCountLabel', language, { count: attachmentRefCount })
-                : tf('notesCountLabel', language, { count: filteredDetailsNotes.length })}
+              : tf('attachmentsCountLabel', language, { count: attachmentRefCount })}
         </span>
       </div>}
-
-      {/* Custom context menu for multi-select attachments */}
-      {customContextMenu && (
-        <div
-          ref={customContextMenuRef}
-          className="context-menu"
-          style={{
-            position: 'fixed',
-            left: customContextMenu.x,
-            top: customContextMenu.y,
-          }}
-        >
-          <button
-            className="context-menu-item delete"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={() => {
-              setCustomContextMenu(null);
-              handleBatchDeleteSelected();
-            }}
-          >
-            {tf('deleteSelectedAttachments', language, { count: selectedAttachments.size })}
-          </button>
-        </div>
-      )}
 
       {/* Custom context menu for multi-select notes */}
       {noteContextMenu && (

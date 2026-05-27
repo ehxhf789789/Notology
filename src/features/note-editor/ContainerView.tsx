@@ -17,8 +17,9 @@ import {
 import { useContainerConfigs } from '../vault-config/stores/vaultConfigStore';
 import { useTemplateStore } from '../templates/stores/templateStore';
 import { useNoteTypeCacheStore } from '../content-cache/stores/noteTypeCacheStore';
-import { createNote, createFolder, createNoteWithTemplate, selectContainer } from '../../core/stores/appActions';
+import { createNote, createFolder, createNoteWithTemplate, createNoteFromTemplateInteractive, selectContainer } from '../../core/stores/appActions';
 import { useDropTarget } from '../../core/hooks/useDragDrop';
+import { useSlashAttachmentListener } from '../slash-command';
 import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import { EventBus } from '../../core/infrastructure/eventBus';
 import { removeOrphanWikiLinkNodes, consumeFailedAdds } from '../sync_v2/orphanRemoval';
@@ -26,6 +27,7 @@ import { getEditorExtensions } from '../../core/editor/editorConfig';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { t } from '../../core/utils/i18n';
 import EditorToolbar from './EditorToolbar';
+import EditorBubbleMenu from './EditorBubbleMenu';
 import EditorContextMenu from './EditorContextMenu';
 import Search from '../search/Search';
 import type { FileContent, NoteFrontmatter, NoteMetadata, FileNode } from '../../core/types';
@@ -316,7 +318,7 @@ function ContainerView() {
     }
 
     if (path) {
-      const isPreviewable = /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(path);
+      const isPreviewable = /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala|csv|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(path);
       if (isPreviewable) {
         openHoverFile(path);
       } else {
@@ -372,6 +374,9 @@ function ContainerView() {
       attributes: {
         class: 'tiptap-editor container-description-editor',
         spellcheck: 'false',
+        // 2026-05-25 (HanBin) — exclude from Tab focus chain. See
+        // editorPool.ts for the same rule + rationale.
+        tabindex: '-1',
       },
     },
     onUpdate: ({ editor: ed }) => {
@@ -658,6 +663,11 @@ function ContainerView() {
     handleFileDrop
   );
 
+  // Stage 5.0.4b-2 part B (2026-05-15): wire the slash palette's "첨부파일"
+  // command — opens a file picker, inserts wikilink chip(s) at the cursor,
+  // and fires `attachment_add` in the background (same pipeline as drop).
+  useSlashAttachmentListener(editor, folderNotePath);
+
   if (!selectedContainer) return null;
 
   const containerName = selectedContainer.split(/[/\\]/).pop() || '';
@@ -680,6 +690,7 @@ function ContainerView() {
           {isDirty && <span className="container-dirty-indicator" />}
         </div>
         <EditorToolbar editor={editor} defaultCollapsed={toolbarDefaultCollapsed} />
+        <EditorBubbleMenu editor={editor} />
         <div
           ref={dropTargetRef}
           className={`container-description-body${frontmatter?.cssclasses ? ' ' + frontmatter.cssclasses.join(' ') : ''}`}
@@ -714,14 +725,19 @@ function ContainerView() {
             const storageTemplateId = getStorageTemplateId();
 
             if (storageTemplateId) {
-              // Storage container: use assigned template directly
+              // Storage container: use assigned template directly. v18 — routes
+              // through the interactive flow so wizard / title / special-modal
+              // branching matches every other entry point.
               const rootPath = getRootContainerPath(selectedContainer);
-              createNoteWithTemplate('', storageTemplateId, rootPath || selectedContainer);
+              createNoteFromTemplateInteractive(storageTemplateId, rootPath || selectedContainer);
             } else {
-              // Standard container: show template selector
+              // Standard container: show template selector, then defer to the
+              // shared interactive flow. v18 fix — previously called
+              // createNoteWithTemplate('', ...) directly, which bypassed the
+              // NoteCreationWizard for templates with user-input `{{vars}}`.
               const pos = e ? { x: e.clientX, y: e.clientY } : { x: 200, y: 200 };
-              modalActions.showTemplateSelector(pos, async (templateId: string) => {
-                await createNoteWithTemplate('', templateId, selectedContainer);
+              modalActions.showTemplateSelector(pos, (templateId: string) => {
+                createNoteFromTemplateInteractive(templateId, selectedContainer);
               });
             }
           }}

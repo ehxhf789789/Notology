@@ -488,6 +488,27 @@ impl SyncEngine {
         self.dirty_queue.count().unwrap_or(0)
     }
 
+    /// Round 2 R5 v5 (HanBin 2026-05-23) — expose the queue for the
+    /// list-pending / list-failed Tauri commands so the UI can render
+    /// "X uploads pending / Y failed" and re-hydrate spinners after a
+    /// hover-window close+reopen.
+    pub fn queue(&self) -> &crate::features::sync_v2::dirty_queue::DirtyQueue {
+        &self.dirty_queue
+    }
+
+    /// Re-enqueue a previously failed entry. Removes it from the failed
+    /// table and re-inserts into the active queue with retry_count=0.
+    pub fn retry_failed(&self, failed_id: i64) -> Result<(), String> {
+        let failed = self.dirty_queue.list_failed()?;
+        let entry = failed
+            .into_iter()
+            .find(|f| f.id == failed_id)
+            .ok_or_else(|| format!("failed entry {} not found", failed_id))?;
+        self.dirty_queue.enqueue_with_lane(entry.op.clone(), entry.lane)?;
+        self.dirty_queue.dequeue_failed(failed_id)?;
+        Ok(())
+    }
+
     /// Forward visibility signal to AdaptivePoller.
     /// Caller (commands.rs) handles the immediate-reconciliation trigger
     /// because that needs `Arc<Self>` for spawn (this method is &self).

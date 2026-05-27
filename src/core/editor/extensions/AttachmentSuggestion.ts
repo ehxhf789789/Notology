@@ -12,6 +12,11 @@ export const AttachmentSuggestionPluginKey = new PluginKey('attachmentSuggestion
 export const AttachmentSuggestion = Extension.create<AttachmentSuggestionOptions>({
   name: 'attachmentSuggestion',
 
+  // Stage 5.0.5a-γ5 v8 fix — same priority bump as WikiLinkSuggestion so
+  // Tab/keyboard shortcuts are intercepted by the // popover before the
+  // editor's list/task keymap can consume them.
+  priority: 1000,
+
   addOptions() {
     return {
       suggestion: {

@@ -1,41 +1,52 @@
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
-import type { CalloutType } from '../../core/editor/extensions/Callout';
-import { useSettingsStore } from '../../core/stores/settingsStore';
+import { useSettingsStore, type PaperStyle } from '../../core/stores/settingsStore';
 import { t } from '../../core/utils/i18n';
 import { modalActions } from '../modals/stores/modalStore';
 import TableGridSelector from './TableGridSelector';
+import { PaperPatternPopover } from './PaperPatternPopover';
 
 interface EditorToolbarProps {
   editor: Editor | null;
   defaultCollapsed?: boolean;
+  /** Round 2 R3 — paper-pattern picker. Omit on sketch notes. */
+  paperStyle?: PaperStyle;
+  onPaperStyleChange?: (next: PaperStyle) => void;
+  vaultPath?: string | null;
 }
 
-const CALLOUT_TYPES: { type: CalloutType; label: string }[] = [
-  { type: 'info', label: 'Info' },
-  { type: 'warning', label: 'Warning' },
-  { type: 'error', label: 'Error' },
-  { type: 'success', label: 'Success' },
-  { type: 'note', label: 'Note' },
-  { type: 'tip', label: 'Tip' },
-];
+/* v5.5 (2026-05-16) — HanBin: callout entry-point unification.
+   Callout picker (6 types) used to live here, but it duplicates
+   `/콜아웃-*` slash commands + right-click context-menu submenu.
+   The toolbar is the most-visible surface so its duplication caused
+   the worst IA confusion. Slash + context-menu retain callout entry. */
 
-const EditorToolbar = memo(function EditorToolbar({ editor }: EditorToolbarProps) {
+const EditorToolbar = memo(function EditorToolbar({ editor, paperStyle, onPaperStyleChange, vaultPath }: EditorToolbarProps) {
   const language = useSettingsStore(s => s.language);
   const [expanded, setExpanded] = useState(false);
-  const [showCalloutPicker, setShowCalloutPicker] = useState(false);
   const [showTableGrid, setShowTableGrid] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Click outside to close
+  // Click outside to close.
+  //
+  // 2026-05-23 (R3 paper-theme fix, HanBin) — earlier this handler collapsed
+  // the toolbar whenever the click landed outside `wrapperRef`. The paper
+  // pattern AnchoredPopover (and other DS popovers) mount via FloatingPortal
+  // at <body> root, which is outside wrapperRef → mousedown on a popover
+  // option triggered collapse → trigger unmounted before React's click
+  // handler ran → onChange never fired. Treat any element inside a
+  // `.ds-popover` (the floating-ui chrome class) as "inside" so popover
+  // interactions work.
   useEffect(() => {
     if (!expanded) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('.ds-popover')) return; // popover interaction — ignore
+      if (wrapperRef.current && !wrapperRef.current.contains(target)) {
         setExpanded(false);
-        setShowCalloutPicker(false);
         setShowTableGrid(false);
       }
     };
@@ -50,12 +61,6 @@ const EditorToolbar = memo(function EditorToolbar({ editor }: EditorToolbarProps
     };
   }, [expanded]);
 
-  const handleCallout = useCallback((type: CalloutType) => {
-    if (!editor) return;
-    editor.chain().focus().toggleCallout(type).run();
-    setShowCalloutPicker(false);
-  }, [editor]);
-
   const handleTableInsert = useCallback((rows: number, cols: number) => {
     if (!editor) return;
     editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
@@ -67,7 +72,7 @@ const EditorToolbar = memo(function EditorToolbar({ editor }: EditorToolbarProps
   return (
     <div
       ref={wrapperRef}
-      className={`editor-toolbar-wrapper ${expanded ? 'visible' : ''} ${showCalloutPicker || showTableGrid ? 'dropdown-open' : ''}`}
+      className={`editor-toolbar-wrapper ${expanded ? 'visible' : ''} ${showTableGrid ? 'dropdown-open' : ''}`}
     >
       {/* Toggle button - expand or collapse */}
       {!expanded ? (
@@ -177,12 +182,17 @@ const EditorToolbar = memo(function EditorToolbar({ editor }: EditorToolbarProps
             </button>
           </div>
 
-          {/* Text Alignment */}
+          {/* Text Alignment.
+              v22 (HanBin 2026-05-23) — keyboard shortcuts Ctrl/Cmd+Shift+L
+              / E / R wired in editorPool.ts (TextAlign extend); buttons also
+              flip to onMouseDown preventDefault + commands.* so they work
+              the same way as indent/outdent (focus preserved on click). */}
           <div className="editor-toolbar-group">
             <button
               className={`editor-toolbar-btn ${editor.isActive({ textAlign: 'left' }) ? 'active' : ''}`}
-              onClick={() => editor.chain().focus().setTextAlign('left').run()}
-              title={t('alignLeft', language)}
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => editor.commands.setTextAlign('left')}
+              title={`${t('alignLeft', language)} (Ctrl+Shift+L)`}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z"/>
@@ -190,8 +200,9 @@ const EditorToolbar = memo(function EditorToolbar({ editor }: EditorToolbarProps
             </button>
             <button
               className={`editor-toolbar-btn ${editor.isActive({ textAlign: 'center' }) ? 'active' : ''}`}
-              onClick={() => editor.chain().focus().setTextAlign('center').run()}
-              title={t('alignCenter', language)}
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => editor.commands.setTextAlign('center')}
+              title={`${t('alignCenter', language)} (Ctrl+Shift+E)`}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M7 15v2h10v-2H7zm-4 6h18v-2H3v2zm0-8h18v-2H3v2zm4-6v2h10V7H7zM3 3v2h18V3H3z"/>
@@ -199,8 +210,9 @@ const EditorToolbar = memo(function EditorToolbar({ editor }: EditorToolbarProps
             </button>
             <button
               className={`editor-toolbar-btn ${editor.isActive({ textAlign: 'right' }) ? 'active' : ''}`}
-              onClick={() => editor.chain().focus().setTextAlign('right').run()}
-              title={t('alignRight', language)}
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => editor.commands.setTextAlign('right')}
+              title={`${t('alignRight', language)} (Ctrl+Shift+R)`}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z"/>
@@ -240,21 +252,10 @@ const EditorToolbar = memo(function EditorToolbar({ editor }: EditorToolbarProps
                 <path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/>
               </svg>
             </button>
-            <button
-              className={`editor-toolbar-btn ${editor.isActive('taskList') ? 'active' : ''}`}
-              onClick={() => {
-                if (editor.isActive('codeBlock')) {
-                  modalActions.showAlertModal(t('codeBlockWarningTitle', language), t('codeBlockWarningMessage', language));
-                  return;
-                }
-                editor.chain().focus().toggleTaskList().run();
-              }}
-              title={t('checklist', language)}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM17.99 9l-1.41-1.42-6.59 6.59-2.58-2.57-1.42 1.41 4 3.99z"/>
-              </svg>
-            </button>
+            {/* Round 2 R4 (2026-05-22) — checklist/taskList button removed per
+                user request. TaskList extension itself stays loaded so existing
+                checklist content in .md files still renders, but no UI entry
+                creates new ones. */}
           </div>
 
           {/* Block elements */}
@@ -268,30 +269,6 @@ const EditorToolbar = memo(function EditorToolbar({ editor }: EditorToolbarProps
                 <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z"/>
               </svg>
             </button>
-            <div className="editor-toolbar-dropdown-wrapper">
-              <button
-                className={`editor-toolbar-btn ${editor.isActive('callout') ? 'active' : ''}`}
-                onClick={() => { setShowCalloutPicker(!showCalloutPicker); setShowTableGrid(false); }}
-                title={t('callout', language)}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                </svg>
-              </button>
-              {showCalloutPicker && (
-                <div className="editor-toolbar-dropdown">
-                  {CALLOUT_TYPES.map(ct => (
-                    <button
-                      key={ct.type}
-                      className="editor-toolbar-dropdown-item"
-                      onClick={() => handleCallout(ct.type)}
-                    >
-                      {ct.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
             <button
               className={`editor-toolbar-btn ${editor.isActive('codeBlock') ? 'active' : ''}`}
               onClick={() => editor.chain().focus().toggleCodeBlock().run()}
@@ -333,17 +310,26 @@ const EditorToolbar = memo(function EditorToolbar({ editor }: EditorToolbarProps
             </div>
           </div>
 
-          {/* Indent */}
+          {/* Indent / Outdent.
+              2026-05-23 (HanBin) v2 — earlier version called
+              editor.commands.indent() / outdent() for non-list paragraphs,
+              but those commands don't exist (IndentExtension was never
+              loaded; only ParagraphWithIndent is loaded, which only
+              registers setFirstLineIndent / setHangingIndent). The Tab key
+              path uses the latter, so we mirror the Tab key here for
+              behavioral parity. onMouseDown.preventDefault keeps the
+              editor focused so the command runs on the real selection. */}
           <div className="editor-toolbar-group">
             <button
               className="editor-toolbar-btn"
+              onMouseDown={e => e.preventDefault()}
               onClick={() => {
                 if (editor.isActive('listItem')) {
-                  editor.chain().focus().sinkListItem('listItem').run();
+                  editor.commands.sinkListItem('listItem');
                 } else if (editor.isActive('taskItem')) {
-                  editor.chain().focus().sinkListItem('taskItem').run();
+                  editor.commands.sinkListItem('taskItem');
                 } else {
-                  editor.chain().focus().indent().run();
+                  editor.commands.setFirstLineIndent();
                 }
               }}
               title={`${t('indent', language)} (Tab)`}
@@ -354,13 +340,14 @@ const EditorToolbar = memo(function EditorToolbar({ editor }: EditorToolbarProps
             </button>
             <button
               className="editor-toolbar-btn"
+              onMouseDown={e => e.preventDefault()}
               onClick={() => {
                 if (editor.isActive('listItem')) {
-                  editor.chain().focus().liftListItem('listItem').run();
+                  editor.commands.liftListItem('listItem');
                 } else if (editor.isActive('taskItem')) {
-                  editor.chain().focus().liftListItem('taskItem').run();
+                  editor.commands.liftListItem('taskItem');
                 } else {
-                  editor.chain().focus().outdent().run();
+                  editor.commands.setHangingIndent();
                 }
               }}
               title={`${t('outdent', language)} (Shift+Tab)`}
@@ -370,6 +357,18 @@ const EditorToolbar = memo(function EditorToolbar({ editor }: EditorToolbarProps
               </svg>
             </button>
           </div>
+
+          {/* Round 2 R3 — paper pattern picker on the right edge */}
+          {onPaperStyleChange && paperStyle && (
+            <div className="editor-toolbar-group editor-toolbar-group--end">
+              <PaperPatternPopover
+                value={paperStyle}
+                onChange={onPaperStyleChange}
+                language={language}
+                vaultPath={vaultPath ?? null}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

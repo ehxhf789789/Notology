@@ -34,6 +34,11 @@ function getViewerType(filePath: string): ViewerState {
   switch (ext) {
     case 'docx': return 'docx';
     case 'xlsx': return 'xlsx';
+    // HanBin 2026-05-14: CSV routes through XlsxViewer — the xlsx library's
+    // reader autodetects CSV bytes, builds a single-sheet workbook, and the
+    // grid UX (column letters, row numbers, range/cell selection, Ctrl+C
+    // copy as TSV) carries over identically.
+    case 'csv': return 'xlsx';
     case 'pptx': return 'pptx';
     case 'hwpx': return 'hwp'; // HWPX also uses Rust hwpers backend (supports both formats)
     case 'hwp': return 'hwp';
@@ -481,6 +486,8 @@ const HoverDocumentViewer = memo(function HoverDocumentViewer({ window: win }: H
             className="hover-editor-close"
             onClick={handleClose}
             onMouseDown={(e) => e.stopPropagation()}
+            title={t('close', language)}
+            aria-label={t('close', language)}
           >
             <X size={14} />
           </button>

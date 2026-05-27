@@ -7,6 +7,7 @@
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
+  background-color: var(--bg-app);
 }
 
 /* Allow text selection in inputs/textareas within the main window */

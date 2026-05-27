@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { PanelRightOpen } from 'lucide-react';
 import { AppInitializer } from '../stores/appStore';
 import { ToastContainer } from '../../features/shared/Toast';
 import { NasDeletionsBanner } from '../../features/sync_v2/components/NasDeletionsBanner';
+import VaultRepairModal from '../../features/sync_v2/components/VaultRepairModal';
+import { useVaultRepairAutoDetect } from '../../features/sync_v2/hooks/useVaultRepairAutoDetect';
+import { syncV2Commands } from '../../features/sync_v2/syncV2Commands';
+import { SyncFailureBanner } from '../../features/sync_v2/components/SyncFailureBanner';
 import { TrashPanel } from '../../features/sync_v2/components/TrashPanel';
 import {
   useVaultPath,
@@ -21,6 +25,8 @@ import {
   useSidebarCollapsed,
   SIDEBAR_ICON_WIDTH,
   uiActions,
+  useUIStore,
+  useNoteTemplates,
 } from '../stores/zustand';
 import { useSearchIndexing } from '../stores/refreshStore';
 import TitleBar from '../layout/TitleBar';
@@ -37,12 +43,12 @@ import ContextMenu from '../../features/context-menu/ContextMenu';
 import { Slot } from '../infrastructure/slotRegistry';
 const MoveNoteModal = lazy(() => import('../../features/modals/MoveNoteModal'));
 import TemplateSelector from '../../features/templates/TemplateSelector';
-const ContactInputModal = lazy(() => import('../../features/modals/ContactInputModal'));
 import TitleInputModal from '../../features/modals/TitleInputModal';
-const MeetingInputModal = lazy(() => import('../../features/modals/MeetingInputModal'));
-const PaperInputModal = lazy(() => import('../../features/modals/PaperInputModal'));
-const LiteratureInputModal = lazy(() => import('../../features/modals/LiteratureInputModal'));
-const EventInputModal = lazy(() => import('../../features/modals/EventInputModal'));
+const NoteTemplateEditorModal = lazy(() => import('../../features/templates/NoteTemplateEditorModal'));
+// v20 (2026-05-16, HanBin) — NoteCreationWizard removed; TitleInputModal now
+// renders inline variable inputs ("이 창에서 진행되어야 한다"). Import
+// dropped to avoid bundling dead code; old file stays on disk for now in
+// case any rollback is needed.
 import ConfirmDeleteModal from '../../features/modals/ConfirmDeleteModal';
 import AlertModal from '../../features/modals/AlertModal';
 const VaultLockModal = lazy(() => import('../../features/vault-config/VaultLockModal'));
@@ -51,8 +57,10 @@ import { ConnectionVaultSelector } from '../../features/connection/components/Co
 import UpdateChecker from '../../features/shared/UpdateChecker';
 import LoadingScreen from '../../features/shared/LoadingScreen';
 import { CommandPalette } from '../../features/command-palette';
+import { TemplateMigrationPromptModal } from '../../features/templates/TemplateMigrationPromptModal';
 import { useDragDropListener } from '../hooks/useDragDrop';
 import { initAttachmentStoreSubscriptions } from '../../features/sync_v2/stores/attachmentStore';
+import { initAttachmentSyncSubscriptions } from '../../features/sync_v2/stores/attachmentSyncStore';
 import { useAppKeyboardShortcuts } from '../hooks/useAppKeyboardShortcuts';
 import { t } from '../utils/i18n';
 import { initializeSnippets, loadSnippets, clearSnippets } from '../utils/snippetLoader';
@@ -70,6 +78,30 @@ function AppLayout() {
   useMigrationProgress();
   // Stage 4.6.2: same pattern for faststart bulk migration progress.
   useFaststartMigrationProgress();
+  // v20 (2026-05-16, HanBin) — listen for template-change broadcasts so the
+  // main window also stays in sync if a hover window mutates templates
+  // (rare but possible: settings opened from a hover, future features).
+  // Self-emits are filtered inside onTemplatesChanged, so the loopback is
+  // a no-op and we don't trigger our own reload.
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+    (async () => {
+      try {
+        const { onTemplatesChanged } = await import('../utils/windowSync');
+        const { loadVaultConfig, clearVaultConfigCache } = await import('../utils/vaultConfigUtils');
+        const { templateActions } = await import('../../features/templates/stores/templateStore');
+        unlisten = await onTemplatesChanged((payload) => {
+          clearVaultConfigCache();
+          loadVaultConfig(payload.vaultPath)
+            .then(cfg => templateActions.loadTemplates(payload.vaultPath, cfg))
+            .catch(err => console.warn('[App] template-reload failed:', err));
+        });
+      } catch (err) {
+        console.warn('[App] template sync subscribe failed:', err);
+      }
+    })();
+    return () => { if (unlisten) unlisten(); };
+  }, []);
 
   // ========== ZUSTAND SELECTIVE SUBSCRIPTIONS (prevents cascade re-renders) ==========
   const vaultPath = useVaultPath();
@@ -185,15 +217,54 @@ function AppLayout() {
 
   // ========== GLOBAL NOTE TYPE CACHE REFRESH (runs once globally, not per hover window) ==========
   // Triggered by searchRefreshTrigger (incremented on actual file operations)
-  // NOT by fileTree (which changes reference on every refreshFileTree call)
+  // NOT by fileTree (which changes reference on every refreshFileTree call).
+  //
+  // 11th hotfix (2026-05-18, HanBin) — also depends on `noteTemplates`. The
+  // `unmatchedTypes` Map is computed by comparing each note's frontmatter
+  // type against the CURRENT registered-template set. Without this dep,
+  // template add/edit/remove (Settings → Templates tab) didn't trigger
+  // recomputation → badge kept showing stale "N개 정리 필요" using the OLD
+  // template set as the registered list. invalidate() bypasses the 2-sec
+  // debounce so the refresh fires immediately after template state change.
+  const noteTemplates = useNoteTemplates();
   useEffect(() => {
     if (searchReady && !searchIndexing) {
+      noteTypeCacheActions.invalidate();
       noteTypeCacheActions.refreshCache();
     }
-  }, [searchRefreshTrigger, searchReady, searchIndexing]);
+  }, [searchRefreshTrigger, searchReady, searchIndexing, noteTemplates]);
+
+  // 2026-05-24 (HanBin) — vault_repair auto-detect for first-time legacy
+  // vault open. Runs 3s after vault is mounted so sync_engine bootstrap
+  // can settle. Modal appears only when the scan finds auto-fixable
+  // patterns AND this device hasn't shown the prompt for this vault yet.
+  const { report: repairReport, dismiss: dismissRepair } = useVaultRepairAutoDetect();
+
+  // 2026-05-24 (HanBin) — re-open the repair modal when the TitleBar
+  // indicator is clicked (user backgrounded the apply and wants to
+  // monitor / cancel). Uses a custom event so we don't import App into
+  // the indicator. The re-opened modal shows whatever liveProgress is
+  // current — re-using the most recent report (or a fresh re-scan when
+  // none exists).
+  const [reopenedReport, setReopenedReport] = useState<typeof repairReport>(null);
+  useEffect(() => {
+    const handler = async () => {
+      try {
+        const r = await syncV2Commands.vaultRepairScan();
+        setReopenedReport(r);
+      } catch (err) {
+        console.error('[App] re-open repair modal: scan failed', err);
+      }
+    };
+    window.addEventListener('vault-repair:open-modal', handler);
+    return () => window.removeEventListener('vault-repair:open-modal', handler);
+  }, []);
 
   const sidebarWidth = useSidebarWidth();
   const isResizing = useRef(false);
+  const sidebarWrapperRef = useRef<HTMLDivElement>(null);
+  const resizeRafRef = useRef<number | null>(null);
+  const resizePendingWidthRef = useRef<number | null>(null);
 
   useDragDropListener();
 
@@ -202,6 +273,12 @@ function AppLayout() {
   // and the Attachments tab reads from it instead of walking `_att/` folders.
   useEffect(() => {
     const unsubscribe = initAttachmentStoreSubscriptions();
+    return unsubscribe;
+  }, []);
+
+  // R5 v4 — global sync indicator. Survives hover-window close/reopen.
+  useEffect(() => {
+    const unsubscribe = initAttachmentSyncSubscriptions();
     return unsubscribe;
   }, []);
 
@@ -234,17 +311,40 @@ function AppLayout() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, []);
 
+  // Stage 5.0.3b-simplify follow-up (2026-05-15): drag-resize precision pass.
+  // The previous loop felt laggy/imprecise because (1) the CSS `transition:
+  // width 200ms` on `.sidebar-wrapper` was animating every mousemove update,
+  // so the sidebar permanently chased the cursor with a 200ms ease curve,
+  // (2) every move triggered a synchronous localStorage write, and (3) there
+  // was no rAF coalescing nor offset compensation. Fix:
+  //   • toggle a `.sidebar-wrapper--resizing` class to disable the transition
+  //     during drag (re-enabled on mouseup so collapse animation still works)
+  //   • coalesce mousemove → setSidebarWidth via requestAnimationFrame
+  //   • compute width relative to wrapper's bounding rect (offset-safe)
+  //   • skip localStorage during drag; persist once on mouseup
   const startResize = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     isResizing.current = true;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
+    sidebarWrapperRef.current?.classList.add('sidebar-wrapper--resizing');
   }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing.current) return;
-      uiActions.setSidebarWidth(e.clientX);
+      const wrapper = sidebarWrapperRef.current;
+      const left = wrapper ? wrapper.getBoundingClientRect().left : 0;
+      resizePendingWidthRef.current = e.clientX - left;
+      if (resizeRafRef.current == null) {
+        resizeRafRef.current = requestAnimationFrame(() => {
+          resizeRafRef.current = null;
+          const next = resizePendingWidthRef.current;
+          if (next != null) {
+            uiActions.setSidebarWidth(next, false);
+          }
+        });
+      }
     };
 
     const handleMouseUp = () => {
@@ -252,6 +352,20 @@ function AppLayout() {
       isResizing.current = false;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      sidebarWrapperRef.current?.classList.remove('sidebar-wrapper--resizing');
+
+      if (resizeRafRef.current != null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+      // Commit final width with localStorage persistence. If a pending rAF
+      // tick was queued, use its width; otherwise re-persist the store's
+      // current value so localStorage stays in sync with prior persist=false
+      // updates from inside the drag loop.
+      const pending = resizePendingWidthRef.current;
+      resizePendingWidthRef.current = null;
+      const finalWidth = pending != null ? pending : useUIStore.getState().sidebarWidth;
+      uiActions.setSidebarWidth(finalWidth, true);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -260,6 +374,10 @@ function AppLayout() {
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      if (resizeRafRef.current != null) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
     };
   }, []);
 
@@ -365,10 +483,20 @@ function AppLayout() {
     <div className="app-container">
       <ToastContainer />
       <TitleBar />
+      {/* R5 v5 — permanent sync failure notification (hidden when empty). */}
+      <SyncFailureBanner />
       {/* Track H bulk-delete banner. Self-hides when count is 0. */}
       <NasDeletionsBanner />
       {/* Trash panel — opens via store flag (toast button / settings / etc.). */}
       <TrashPanel />
+      {/* 2026-05-24 (HanBin) — legacy vault repair prompt (one-shot per vault per device). */}
+      {repairReport && (
+        <VaultRepairModal report={repairReport} onClose={dismissRepair} />
+      )}
+      {/* Re-opened repair modal when user clicks the TitleBar progress indicator. */}
+      {reopenedReport && !repairReport && (
+        <VaultRepairModal report={reopenedReport} onClose={() => setReopenedReport(null)} />
+      )}
       <div className="app-layout">
         {/* Left Sidebar. Stage 5.0.3b-simplify (2026-05-15): hidden-mode
             collapsed-bar removed — HanBin smoke test surfaced that two
@@ -378,6 +506,7 @@ function AppLayout() {
             (SIDEBAR_ICON_WIDTH). Width transition still animated via
             existing sidebar-wrapper animation class. */}
         <div
+          ref={sidebarWrapperRef}
           className={`sidebar-wrapper open${sidebarCollapsed ? ' sidebar-wrapper--icon-only' : ''}`}
           style={{ width: sidebarCollapsed ? SIDEBAR_ICON_WIDTH : sidebarWidth }}
         >
@@ -428,12 +557,8 @@ function AppLayout() {
       <ContextMenu />
       <Suspense fallback={null}>
         <MoveNoteModal />
-        <ContactInputModal />
-        <MeetingInputModal />
-        <PaperInputModal />
-        <LiteratureInputModal />
-        <EventInputModal />
         <VaultLockModal />
+        <NoteTemplateEditorModal />
       </Suspense>
       <TemplateSelector />
       <TitleInputModal />
@@ -444,6 +569,7 @@ function AppLayout() {
       <MigrationModal />
       <FaststartMigrationModal />
       <CommandPalette />
+      <TemplateMigrationPromptModal />
     </div>
   );
 }

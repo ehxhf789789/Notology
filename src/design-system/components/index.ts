@@ -1,11 +1,14 @@
 /**
  * Notology Design System — primitive component library.
- * Stage 5.0.2a (simple primitives) + 5.0.2b (Floating-UI dependent).
+ * Stage 5.0.2a (simple primitives) + 5.0.2b (Floating-UI dependent)
+ * + 5.0.11 utilities (HanBin 2026-05-22, iOS-style helpers).
  *
- * Importing any primitive pulls in primitives.css once via the
- * side-effect import below.
+ * Importing any primitive pulls in primitives.css + utilities.css once
+ * via the side-effect imports below. The order matters — primitives
+ * define base shapes, utilities layer iOS-style overrides on top.
  */
 import './primitives.css';
+import '../utilities.css';
 
 // Action
 export { Button } from './Button';
@@ -42,6 +45,8 @@ export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
 export { KeyboardHint } from './KeyboardHint';
 export type { KeyboardHintProps, KeyboardHintSize } from './KeyboardHint';
+export { PathDisplay } from './PathDisplay';
+export type { PathDisplayProps } from './PathDisplay';
 
 // ── 5.0.2b: Floating-UI dependent ──
 export { Tooltip } from './Tooltip';
@@ -62,3 +67,15 @@ export { Select } from './Select';
 export type { SelectProps, SelectOption, SelectSize } from './Select';
 export { Toaster, toast, useToast } from './Toast';
 export type { ToasterProps, ToastOptions, ToastVariant } from './Toast';
+
+// ── 2026-05-22: Iconographic glyph constants ──
+// Single source for sort/chevron/check/dismiss/dot glyphs.
+// Used inline next to text (column labels, menu rows, status badges).
+// Lucide React components stay the choice for interactive affordances.
+export {
+  SORT_ASC, SORT_DESC, sortGlyph,
+  CHEVRON_RIGHT, CHEVRON_LEFT, CHEVRON_DOWN,
+  CHECK, DISMISS,
+  DOT, DOT_HOLLOW, STATUS_WARN,
+  ELLIPSIS_V, ELLIPSIS_H,
+} from '../glyphs';

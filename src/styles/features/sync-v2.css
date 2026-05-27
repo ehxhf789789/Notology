@@ -98,25 +98,63 @@
 }
 
 .sync-v2-conflict-branch-count {
-  color: var(--tx-3);
-  font-size: var(--fs-12);
+  color: var(--tx-2);
+  font-size: var(--fs-11);
+  padding: 2px 8px;
+  border-radius: var(--r-pill, 999px);
+  background: color-mix(in srgb, var(--c-amber, #f59e0b) 16%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--c-amber, #f59e0b) 30%, transparent);
+  font-variant-numeric: tabular-nums;
 }
 
 .sync-v2-conflict-time {
   color: var(--tx-4);
   font-size: var(--fs-11);
+  font-variant-numeric: tabular-nums;
 }
 
-/* Branch picker modal */
+/* PART 8 (2026-05-14): the oldest-detected (top) row gets a subtle red
+   left-border so the user's eye lands there first. */
+.sync-v2-conflict-item-urgent {
+  border-left: 3px solid var(--c-red, #ef4444);
+  padding-left: calc(var(--sp-3, 12px) - 3px);
+}
+
+/* PART 8: batch smart-merge bar at the bottom of the conflict list. */
+.sync-v2-conflict-batch-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 14px;
+  border-top: 0.5px solid var(--sep-l, color-mix(in srgb, var(--text-primary) 8%, transparent));
+  background: color-mix(in srgb, var(--bg-app) 50%, transparent);
+}
+
+.sync-v2-conflict-batch-btn {
+  padding: 6px 14px;
+  font-size: var(--fs-12, 12px);
+  font-weight: 600;
+  color: white;
+  background: var(--tx-1);
+  border: none;
+  border-radius: var(--r-4, 4px);
+  cursor: pointer;
+  transition: background-color var(--dur-150, 150ms);
+}
+
+.sync-v2-conflict-batch-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tx-1) 86%, black 14%);
+}
+
+.sync-v2-conflict-batch-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Branch picker modal — chrome (bg/border/radius/shadow/flex column/
+   overflow/animation) comes from .modal-shell. */
 .sync-v2-branch-picker {
   width: 700px;
   max-height: 80vh;
-  background: var(--bg-elevated);
-  border-radius: var(--r-12);
-  box-shadow: var(--sh-lg);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 
 .sync-v2-branch-picker-header {
@@ -169,8 +207,8 @@
   background: var(--bg-hover);
 }
 .sync-v2-branch-item.selected {
-  border-color: var(--c-blue);
-  background: color-mix(in srgb, var(--c-blue) 8%, transparent);
+  border-color: var(--tx-1);
+  background: color-mix(in srgb, var(--tx-1) 8%, transparent);
 }
 
 .sync-v2-branch-device {
@@ -227,14 +265,37 @@
   padding: 12px 20px;
   border-top: 1px solid var(--sep);
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Pushes the manual-resolve button to the right of the smart-merge button. */
+.sync-v2-branch-picker-footer__spacer {
+  flex: 1;
+}
+
+/* Smart Merge button keeps its intrinsic width when the row stretches. */
+.sync-v2-branch-picker-footer .sync-v2-resolve-btn--smart {
+  flex: 0 0 auto;
+}
+
+/* Fallback/info banner shown above the footer when Smart Merge can't apply. */
+.sync-v2-branch-picker-message {
+  margin: 0 16px 8px;
+  padding: 8px 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--sep-o);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--tx-1);
+  line-height: 1.5;
 }
 
 .sync-v2-resolve-btn {
   padding: 8px 16px;
   border: none;
   border-radius: var(--r-8);
-  background: var(--c-blue);
+  background: var(--tx-1);
   color: #fff;
   font-size: var(--fs-13);
   font-weight: 500;
@@ -248,12 +309,10 @@
   cursor: not-allowed;
 }
 
-/* Resolve confirm dialog */
+/* Resolve confirm dialog — chrome (bg/border/radius/shadow/animation)
+   comes from .modal-shell. */
 .sync-v2-confirm-dialog {
   width: 380px;
-  background: var(--bg-elevated);
-  border-radius: var(--r-12);
-  box-shadow: var(--sh-lg);
   padding: 20px;
 }
 
@@ -285,7 +344,7 @@
 
 .sync-v2-cancel-btn {
   padding: 8px 16px;
-  border: 1px solid var(--sep-l);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--r-8);
   background: none;
   color: var(--tx-2);
@@ -300,7 +359,7 @@
   padding: 8px 16px;
   border: none;
   border-radius: var(--r-8);
-  background: var(--c-blue);
+  background: var(--tx-1);
   color: #fff;
   font-size: var(--fs-13);
   font-weight: 500;
@@ -323,4 +382,127 @@
 .sync-v2-report-conflict {
   color: var(--c-orange);
   font-weight: 500;
+}
+
+/* ================================================
+   TrashPanel (moved from sync.css 5.0.8c 2026-05-17)
+   ------------------------------------------------------------
+   Stage 5.0.6q originally landed these as `.trash-panel-*` in
+   sync.css. 5.0.8c moves them here so all live sync-v2 UI styles
+   sit in one file — sync.css is being trimmed down to legacy /
+   nas-browser shared chrome only.
+   Selectors and values unchanged from the original block.
+   ================================================ */
+.trash-panel-modal {
+  width: min(680px, 92vw);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.trash-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trash-panel-title__meta {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--tx-2);
+}
+
+.trash-panel-toolbar {
+  padding: 8px 14px 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trash-panel-toolbar__spacer {
+  flex: 1;
+}
+
+.trash-panel-system-toggle {
+  font-size: 11px;
+  color: var(--tx-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.trash-panel-list {
+  padding: 4px 14px 14px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 80px;
+}
+
+.trash-panel-empty {
+  padding: 30px;
+  text-align: center;
+  color: var(--tx-2);
+  font-size: 13px;
+}
+
+.trash-panel-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--sep-o, var(--sep-l));
+  border-radius: 6px;
+  transition: border-color 120ms ease;
+}
+
+.trash-panel-entry:hover {
+  border-color: var(--sep, var(--sep-l));
+}
+
+.trash-panel-entry__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.trash-panel-entry__path-row {
+  font-size: 13px;
+  color: var(--tx-1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trash-panel-entry__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trash-panel-entry__system-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--tx-2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.trash-panel-entry__meta {
+  font-size: 11px;
+  color: var(--tx-2);
+  margin-top: 2px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trash-panel-entry__meta--expiring {
+  color: var(--tx-danger);
 }

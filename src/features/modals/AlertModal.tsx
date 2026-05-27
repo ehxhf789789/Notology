@@ -31,7 +31,7 @@ function AlertModal() {
 
   return (
     <div className="modal-overlay" onClick={hideAlertModal}>
-      <div className="alert-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-shell alert-modal" onClick={(e) => e.stopPropagation()}>
         <div className="alert-modal-header">{title}</div>
         <div className="alert-modal-body">
           <p className="alert-modal-message">{message}</p>

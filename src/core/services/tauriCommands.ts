@@ -183,6 +183,13 @@ export const searchCommands = {
   clearIndex: (vaultPath: string) =>
     invoke<void>('clear_search_index', { vaultPath }),
 
+  /**
+   * @deprecated 2026-05-20 — desktop migrated to AttachmentRef store
+   * (`useAttachmentStore`). Only `src/features/mobile/views/SearchView.tsx`
+   * still calls this; the Rust command + this wrapper are scheduled for
+   * removal once mobile finishes the same migration. Don't add new
+   * call sites.
+   */
   searchAttachments: (vaultPath: string, query: string) =>
     invoke<AttachmentInfo[]>('search_attachments', { vaultPath, query }),
 

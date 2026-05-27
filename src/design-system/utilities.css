@@ -1,0 +1,274 @@
+/**
+ * Notology iOS-style utility classes (Stage 5.0.11, HanBin 2026-05-22).
+ *
+ * These classes codify the visual rules established in the search-area
+ * iOS-style pass and make them reusable across every other surface of
+ * the app (template editor, vault selector, hover window, settings,
+ * sidebar, etc.).
+ *
+ * Design principles:
+ *   1. Tier-2 tokens only — every value resolves to a semantic token
+ *      so dark/light parity comes for free.
+ *   2. Neutral active states — accent blue (`--c-blue`) is reserved
+ *      for primary actions only (`btn-primary-blue`). Hover, focus,
+ *      selection, "filter active", etc. all use neutral contrast
+ *      (`--bg-hover` + `--tx-1`).
+ *   3. Compact baseline — controls land at 26-32 px heights, not
+ *      40-60. Hairline (0.5 px) separators, not 1-2 px borders.
+ *   4. Font dynamic — every text class either inherits or uses
+ *      `var(--app-font)` so user font changes propagate live.
+ *
+ * Import order: pulled in by `primitives.css`'s @import sibling so any
+ * primitive consumer automatically gets these helpers too.
+ */
+
+/* ──────────────────────────────────────────────────────────────────
+   Surface — toolbars / chip bars / table headers all share one tone
+   so the "command area" reads as a single panel above the content.
+   ────────────────────────────────────────────────────────────────── */
+.surface-app {
+  background: var(--bg-app);
+  border-bottom: 0.5px solid var(--sep-l);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Hairline separators (iOS standard). 0.5 px renders sharp on
+   high-DPI displays and softer on standard ones — both desirable
+   compared to 1 px on Retina.
+   ────────────────────────────────────────────────────────────────── */
+.separator-hairline {
+  border-bottom: 0.5px solid var(--sep-l);
+}
+
+.separator-hairline--top {
+  border-top: 0.5px solid var(--sep-l);
+  border-bottom: 0;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Ghost icon button — transparent at rest, soft `--bg-hover` on
+   pointer. Used everywhere an action exists without competing with
+   surrounding content (toolbars, table headers, chip clears, etc.).
+   Pairs with the `iconBtn-square-*` size modifiers below.
+   ────────────────────────────────────────────────────────────────── */
+.btn-ghost-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md, 6px);
+  color: var(--tx-3);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast, 150ms) var(--ease-standard, ease),
+    color var(--motion-fast, 150ms) var(--ease-standard, ease);
+}
+.btn-ghost-icon:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+.btn-ghost-icon[aria-pressed="true"],
+.btn-ghost-icon[aria-expanded="true"],
+.btn-ghost-icon.is-active {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+/* Square footprints — pick the one that matches the surrounding
+   typography. `--sm` aligns with `--ds-field--sm` (28 px), `--md` with
+   the default Input (32 px), `--lg` for hero contexts. */
+.iconBtn-square-sm { width: 28px; height: 28px; }
+.iconBtn-square-md { width: 32px; height: 32px; }
+.iconBtn-square-lg { width: 36px; height: 36px; }
+
+/* ──────────────────────────────────────────────────────────────────
+   Pill input — the search-bar shape. Big radius, near-invisible
+   border, focus shifts background only (no blue ring). Apply on top
+   of `.ds-field.search-bar__input` or any container with a similar
+   border-collapsible chrome.
+   ────────────────────────────────────────────────────────────────── */
+.input-pill {
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border-color: transparent;
+}
+.input-pill:hover {
+  background: var(--bg-input-hover);
+  border-color: var(--sep-l);
+}
+.input-pill:focus-within {
+  border-color: transparent;
+  background: var(--bg-input);
+  box-shadow: none;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Selection visual for table rows / cards. Uses a neutral foreground
+   tint + a 2 px inset strip in `tx-1` 50 % — survives over per-type
+   `border-left` color strips and `has-custom-color !important`
+   backgrounds because *this* rule lives later in the cascade.
+   ────────────────────────────────────────────────────────────────── */
+.selection-neutral {
+  background: var(--bg-hover) !important;
+  box-shadow: inset 2px 0 0 0 color-mix(in srgb, var(--tx-1) 50%, transparent) !important;
+}
+.selection-neutral:hover {
+  background: color-mix(in srgb, var(--tx-1) 8%, var(--bg-base)) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   iOS-style column header — small, slightly tracked, muted. Pair
+   with a `.surface-app` parent so the header band reads as part of
+   the panel above content rows.
+   ────────────────────────────────────────────────────────────────── */
+.col-header-ios {
+  font-size: var(--fs-11, 11px);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--tx-3);
+  text-transform: none;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Pill-shaped chip (filter, tag, status). Compact 26 px height with
+   half-pixel border so the chip outline tracks the iOS hairline
+   language.
+   ────────────────────────────────────────────────────────────────── */
+.chip-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: 13px;
+  font-size: var(--fs-12);
+  color: var(--tx-1);
+  cursor: pointer;
+  transition: background var(--dur-150) var(--ease-standard, ease),
+              border-color var(--dur-150) var(--ease-standard, ease);
+}
+.chip-pill:hover {
+  background: var(--bg-hover);
+  border-color: var(--sep);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Resize handle — neutral tint instead of blue. Use on draggable
+   column splitters / panel dividers.
+   ────────────────────────────────────────────────────────────────── */
+.resize-handle-neutral:hover,
+.resize-handle-neutral:active {
+  background: var(--tx-3);
+  opacity: 0.4;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Active-neutral — for "this option is selected" / "this toggle is
+   on" states everywhere outside the primary-action button. Reads as
+   selection through *contrast*, not accent color.
+   ────────────────────────────────────────────────────────────────── */
+.active-neutral {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+  font-weight: 500;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Focus ring (neutral). Single source for the "this input is focused"
+   visual across the app. Use as `.focus-ring-neutral:focus` /
+   `.focus-ring-neutral:focus-within` OR set the variables directly on
+   any custom input:
+       input.my-input:focus { @apply focus-ring-neutral; }  (PostCSS)
+   ────────────────────────────────────────────────────────────────── */
+.focus-ring-neutral:focus,
+.focus-ring-neutral:focus-within {
+  outline: none;
+  border-color: var(--sep);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tx-1) 12%, transparent);
+}
+/* Inverse: kill the default browser/global focus ring entirely. Use
+   when the surrounding container provides the focus signal (e.g.
+   the search pill's bg shift carries the cue, so the inner input
+   shouldn't paint a second outline). */
+.focus-ring-none:focus,
+.focus-ring-none:focus-visible {
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Modal shell — common chrome for all custom modals (the ones not
+   using DS Dialog primitive). 2026-05-22 (HanBin): "사람 검수로
+   일관성 유지하는 건 한계가 있다". This class is the single source
+   for modal background/border/radius/shadow/entrance-animation so
+   every bespoke `.X-modal` class needs only to set width + content
+   layout, never the chrome.
+
+   Companion: the `.modal-overlay` rule in confirm-delete.css is the
+   shared backdrop. New modals should set:
+       <div className="modal-overlay">
+         <div className="modal-shell my-modal">…</div>
+       </div>
+   ────────────────────────────────────────────────────────────────── */
+.modal-shell {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elev-2);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--radius-pop, var(--r-12));
+  box-shadow: var(--shadow-modal, var(--sh-lg));
+  overflow: hidden;
+  animation: modalEnter 180ms ease-out;
+}
+@keyframes modalEnter {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal-shell { animation: none; }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Primary action button — neutral high-contrast (no accent blue).
+   2026-05-22 (rev) — HanBin policy update: "완전 무채색 적용 (저장
+   포함 전부 중립화)". `--btn-primary-bg` resolves to `--tx-1` (dark
+   in light theme, light in dark theme) and `--btn-primary-fg` is its
+   inverse, so the button reads as "the dominant text color rendered
+   as a filled rectangle" — clear hierarchy without color flag.
+   The class name is kept (`btn-primary-blue`) for grep continuity,
+   but it no longer renders blue. Treat the name as "primary button"
+   verbatim. New code should consider this the canonical primary
+   button class. Rename pass deferred to avoid churn.
+   ────────────────────────────────────────────────────────────────── */
+.btn-primary-blue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 14px;
+  background: var(--btn-primary-bg);
+  border: none;
+  border-radius: var(--r-8, 8px);
+  color: var(--btn-primary-fg);
+  font-family: inherit;
+  font-size: var(--fs-13, 13px);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--motion-fast, 150ms) var(--ease-standard, ease);
+}
+.btn-primary-blue:hover {
+  background: var(--btn-primary-bg-hover);
+}
+.btn-primary-blue:active {
+  background: var(--btn-primary-bg-active);
+}
+.btn-primary-blue:disabled {
+  background: var(--bg-hover);
+  color: var(--tx-3);
+  cursor: not-allowed;
+}

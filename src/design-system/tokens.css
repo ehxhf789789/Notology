@@ -332,6 +332,58 @@
   --z-window-menu:     10100;
   --z-top:             99999;
 
+  /* ============================================================
+     LEGACY ALIASES — Stage 5.0.4b cleanup pass (2026-05-16)
+     ------------------------------------------------------------
+     Tokens used in src/ that resolved to invalid-at-computed-value
+     because they were never defined. Adding aliases here lets the
+     CSS render correctly without touching every usage site.
+     Audit method: comm -23 (used_tokens, defined_tokens) across
+     src/styles + src/design-system + src/features.
+     ============================================================ */
+
+  /* ── typography stragglers (numeric scale gaps) ── */
+  --fs-14: 14px;  /* 61 uses — primary body text in some surfaces */
+  --fs-24: 24px;  /*  4 uses — section title */
+  --editor-line-height: var(--primitive-lh-relaxed);  /* 4 uses */
+
+  /* ── radius stragglers ── */
+  --r-2: 2px;  /* 1 use — hairline radius */
+
+  /* ── motion: bare --dur (no number) ── */
+  --dur: var(--dur-150);  /* 261 uses — default 150ms */
+
+  /* ── color stragglers ── */
+  --c-amber: var(--primitive-amber-500);  /* 16 uses */
+  --c-white: #FFFFFF;                     /*  9 uses */
+  --c-black: #000000;                     /*  4 uses */
+  --accent:  var(--c-accent);             /* 42 uses — semantic accent */
+
+  /* ── background / surface stragglers ── */
+  --bg-1:        var(--bg-elev-1);  /*  3 uses — alt name for elev-1 */
+  --bg-sunken:   var(--bg-base);    /*  1 use  — recessed surface */
+  --adm-bg:      var(--bg-elev-1);  /*  1 use  — admonition (callout) */
+  --task-bg:     var(--bg-elev-2);  /*  1 use  — task block bg */
+  --code-header-bg:      var(--bg-elev-2);  /* 2 uses — code block header strip */
+  --code-select-hover-bg: var(--bg-hover);  /* 1 use  — code select hover */
+
+  /* ── border / separator stragglers ── */
+  --border:         var(--bdr-1);  /* 9 uses — generic border */
+  --border-subtle:  var(--bdr-1);  /* 2 uses */
+  --border-primary: var(--bdr-2);  /* 1 use  */
+  --sep-m:          var(--bdr-2);  /* 1 use  — medium separator */
+
+  /* ── shadow stragglers ── */
+  --sh-color:    rgba(0, 0, 0, 0.15);  /* 2 uses — shadow color var */
+  --sh-popover:  var(--sh-lg);         /* 2 uses — popover-specific */
+
+  /* ── text-on-fill (legible text on filled accent) ── */
+  --tx-on-fill: var(--c-white);  /* 2 uses */
+  --fg-default: var(--tx-1);     /* 1 use  — alt name for tx-1 */
+
+  /* ── overlay / scrim ── */
+  --overlay-dim: rgba(0, 0, 0, 0.4);  /* 2 uses — modal scrim */
+
   /* ── note-type colors (mode-agnostic identity colors) ── */
   --t-NOTE:    var(--primitive-blue-500);
   --t-SKETCH:  #FFCC00;

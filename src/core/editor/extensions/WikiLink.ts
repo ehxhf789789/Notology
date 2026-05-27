@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey, NodeSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import { InputRule } from '@tiptap/core';
+// v5.5 (2026-05-16) — `InputRule` import removed alongside addInputRules.
 import { preloadHoverContent } from '../../../features/hover-windows/stores/hoverStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { t } from '../../utils/i18n';
@@ -11,7 +11,37 @@ import {
   startMultiAttachmentDrag,
 } from '../../../features/sync_v2/attachmentDragOut';
 import { useAttachmentStore } from '../../../features/sync_v2/stores/attachmentStore';
-import { requestBatchAttachmentDelete } from '../../../features/sync_v2/attachmentDelete';
+import { requestAttachmentDelete, requestBatchAttachmentDelete } from '../../../features/sync_v2/attachmentDelete';
+import { useFileTreeStore } from '../../stores/fileTreeStore';
+import { contentCacheActions } from '../../../features/content-cache/stores/contentCacheStore';
+
+/**
+ * HanBin 2026-05-14: count every reference to `fileName` anywhere in the
+ * doc — wikiLink atom chips + mediaEmbed atom (inline image / video /
+ * audio) nodes. Both are atoms now (since MediaEmbed.ts), so this is a
+ * straightforward two-name match.
+ *
+ * The result drives "is this the last reference in this note?" gating on
+ * the delete paths: > 1 → silent delete (the attachment is still linked
+ * via the other refs), == 1 → show the unlink confirmation modal first.
+ */
+function countAttachmentRefsInDoc(
+  doc: import('@tiptap/pm/model').Node,
+  targetFileName: string,
+): number {
+  let count = 0;
+  doc.descendants((node) => {
+    if (node.type.name === 'wikiLink' && node.attrs.fileName === targetFileName) {
+      count++;
+      return false;
+    }
+    if (node.type.name === 'mediaEmbed' && node.attrs.fileName === targetFileName) {
+      count++;
+      return false;
+    }
+  });
+  return count;
+}
 
 // ── Track B Phase B-3 PART 5: multi-chip selection + marquee ────────────────
 //
@@ -152,6 +182,11 @@ declare module '@tiptap/core' {
 // Non-greedy matching to support ] in filenames (e.g., [[디자인여백플러스] 파일.pdf]])
 // Use Unicode flag for proper handling of Korean characters
 const IMAGE_EMBED_REGEX = /!\[\[(.+?)\]\]/gu;
+
+// classifyEmbedKind / resolveEmbedAbsolutePath / toAssetUrl moved to
+// MediaEmbed.ts (2026-05-14) — only the IMAGE_EMBED_REGEX above stays here
+// for the chip-converter pre-scan that excludes `![[…]]` ranges so the
+// inner `[[…]]` doesn't get mistakenly converted to a chip.
 
 // Helper to parse wiki link content: "fileName" or "fileName|displayText"
 function parseWikiLinkContent(content: string): { fileName: string; displayText: string } {
@@ -322,26 +357,17 @@ export const WikiLink = Node.create<WikiLinkOptions>({
     };
   },
 
-  addInputRules() {
-    const isAttachmentCallback = this.options.isAttachment;
-    return [
-      new InputRule({
-        find: /\[\[(.+?)\]\]$/,
-        handler: ({ state, range, match }) => {
-          const { fileName, displayText } = parseWikiLinkContent(match[1]);
-          const { tr } = state;
-          // Check if this file is an attachment
-          const isAttachmentAttr = isAttachmentCallback ? isAttachmentCallback(fileName) : false;
-
-          tr.replaceWith(
-            range.from,
-            range.to,
-            this.type.create({ fileName, displayText: displayText !== fileName ? displayText : null, isAttachmentAttr })
-          );
-        },
-      }),
-    ];
-  },
+  // v5.5 (2026-05-16) — Stage 5.0.4b-1.5: REMOVED `addInputRules`.
+  // The `[[...]]` → chip conversion is already handled by the
+  // `wikiLinkTransform` appendTransaction plugin below (line ~500), which
+  // runs after EVERY doc change (typing, paste, markdown load). The
+  // InputRule was a duplicate that only fired during live-typing — and
+  // worse, it could fire prematurely when the user typed `]]` and intended
+  // to keep typing. The appendTransaction waits for the next dispatch
+  // boundary, so it's safer and equally responsive.
+  //
+  // MediaEmbed already removed its `![[...]]` InputRule in v4 for similar
+  // schema reasons. Both atoms now exclusively use appendTransaction.
 
   addProseMirrorPlugins() {
     const { onClickLink, onContextMenu, resolveLink, getNoteType, onEditorContextMenu, getNotePath, isAttachment: isAttachmentCallback, resolveFilePath } = this.options;
@@ -473,6 +499,30 @@ export const WikiLink = Node.create<WikiLinkOptions>({
           // Find all text nodes with [[...]] patterns (but not ![[...]] for images)
           const nodesToReplace: Array<{ from: number; to: number; fileName: string; displayText: string | null }> = [];
 
+          // HanBin 2026-05-13: pre-scan for image-embed ranges so we don't
+          // accidentally eat the inner `[[...]]` of an `![[...]]` whose
+          // *filename* starts with `[`. The single-char `(?<!!)` lookbehind
+          // in the regex below only excludes `[[` directly preceded by `!`,
+          // not by `![`. Without this guard, a filename like
+          // `[Course] week1.mp4` got converted into a chip with mangled
+          // name `[Course] week1.mp4` (no closing `]` since lazy match
+          // stopped early) and the leftover `![` + `]` stayed as text.
+          const imageEmbedRanges: Array<{ from: number; to: number }> = [];
+          doc.descendants((node, pos) => {
+            if (!node.isText || !node.text) return;
+            IMAGE_EMBED_REGEX.lastIndex = 0;
+            let m: RegExpExecArray | null;
+            while ((m = IMAGE_EMBED_REGEX.exec(node.text)) !== null) {
+              imageEmbedRanges.push({ from: pos + m.index, to: pos + m.index + m[0].length });
+            }
+          });
+          const insideImageEmbed = (from: number, to: number): boolean => {
+            for (const r of imageEmbedRanges) {
+              if (from >= r.from && to <= r.to) return true;
+            }
+            return false;
+          };
+
           doc.descendants((node, pos) => {
             if (!node.isText || !node.text) return;
 
@@ -485,6 +535,9 @@ export const WikiLink = Node.create<WikiLinkOptions>({
             while ((match = regex.exec(text)) !== null) {
               const from = pos + match.index;
               const to = from + match[0].length;
+              // Skip if this `[[...]]` lives inside an `![[...]]` embed —
+              // the outer image-embed decoration handles it.
+              if (insideImageEmbed(from, to)) continue;
               const parsed = parseWikiLinkContent(match[1]);
               nodesToReplace.push({ from, to, fileName: parsed.fileName, displayText: parsed.displayText !== parsed.fileName ? parsed.displayText : null });
             }
@@ -593,100 +646,12 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                 return false; // Don't descend into atom node
               }
 
-              if (!node.isText || !node.text) return;
-
-              const text = node.text;
-
-              // First, handle image embeds ![[...]]
-              // Reset lastIndex instead of creating new RegExp (performance)
-              IMAGE_EMBED_REGEX.lastIndex = 0;
-              let imageMatch;
-
-              while ((imageMatch = IMAGE_EMBED_REGEX.exec(text)) !== null) {
-                const start = pos + imageMatch.index;
-                const end = start + imageMatch[0].length;
-                const fileName = imageMatch[1];
-                const isImage = /\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/i.test(fileName);
-
-                // Call getNotePath() dynamically to get current note path
-                const currentNotePath = getNotePath?.() || '';
-                if (isImage && currentNotePath) {
-                  // Capture fileName for delete callback
-                  const capturedFileName = fileName;
-
-                  decorations.push(
-                    Decoration.widget(start, (view) => {
-                      const wrapper = document.createElement('div');
-                      wrapper.className = 'wiki-image-embed-wrapper';
-
-                      // Image container for positioning delete button
-                      const imageContainer = document.createElement('div');
-                      imageContainer.className = 'wiki-image-embed-container';
-
-                      const img = document.createElement('img');
-                      const noteDir = currentNotePath.replace(/[^/\\]+$/, '');
-                      const noteStem = currentNotePath.replace(/^.*[/\\]/, '').replace(/\.md$/, '');
-                      const attachmentPath = `${noteDir}${noteStem}_att/${capturedFileName}`;
-
-                      const win = window as unknown as { __TAURI__?: { core?: { convertFileSrc?: (path: string) => string } } };
-                      if (win.__TAURI__?.core?.convertFileSrc) {
-                        img.src = win.__TAURI__.core.convertFileSrc(attachmentPath);
-                      } else {
-                        img.src = `asset://localhost/${attachmentPath}`;
-                      }
-
-                      img.className = 'wiki-image-embed';
-                      img.alt = capturedFileName;
-                      img.ondblclick = () => onClickLink(capturedFileName);
-
-                      // Delete button
-                      const deleteBtn = document.createElement('button');
-                      deleteBtn.className = 'wiki-image-embed-delete';
-                      deleteBtn.innerHTML = '×';
-                      const lang = useSettingsStore.getState().language;
-                      deleteBtn.title = t('deleteImageEmbed', lang);
-                      deleteBtn.onmousedown = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-
-                        // Find the ![[filename]] pattern in the current document
-                        const { doc, tr } = view.state;
-                        const searchPattern = `![[${capturedFileName}]]`;
-                        let foundPos = -1;
-                        let foundEnd = -1;
-
-                        doc.descendants((node, nodePos) => {
-                          if (foundPos >= 0) return false;
-                          if (node.isText && node.text) {
-                            const idx = node.text.indexOf(searchPattern);
-                            if (idx >= 0) {
-                              foundPos = nodePos + idx;
-                              foundEnd = foundPos + searchPattern.length;
-                              return false;
-                            }
-                          }
-                        });
-
-                        if (foundPos >= 0) {
-                          view.dispatch(tr.delete(foundPos, foundEnd));
-                        }
-                      };
-
-                      imageContainer.appendChild(img);
-                      imageContainer.appendChild(deleteBtn);
-                      wrapper.appendChild(imageContainer);
-                      return wrapper;
-                    }, { side: -1, key: `img-embed-${capturedFileName}` })
-                  );
-                  decorations.push(
-                    Decoration.inline(start, end, {
-                      class: 'wiki-image-embed-text',
-                      style: 'display: none;',
-                    })
-                  );
-                }
-              }
-
+              // HanBin 2026-05-14: media embeds (`![[file]]`) are now atom
+              // nodes — see MediaEmbed.ts. The widget + display:none decoration
+              // that previously rendered them here has been removed because it
+              // broke cursor navigation (the caret silently traversed the
+              // hidden characters). The conversion from raw text to atom is
+              // owned by the MediaEmbed plugin's appendTransaction.
             });
 
             return DecorationSet.create(doc, decorations);
@@ -706,7 +671,16 @@ export const WikiLink = Node.create<WikiLinkOptions>({
           },
           handleDOMEvents: {
             contextmenu(view, event) {
-              const target = (event.target as HTMLElement).closest('[data-wiki-link]');
+              // Stage 5.0.4b-2d (2026-05-15) — atom nodes own their own
+              // right-click handlers (MediaEmbed plugin, MathTrigger plugin,
+              // LinkCard React onContextMenu). Without this skip, WikiLink's
+              // fallback to onEditorContextMenu intercepts those clicks
+              // first (plugin priority) and the atom menus never fire.
+              const rawTarget = event.target as HTMLElement | null;
+              if (rawTarget?.closest('.wiki-image-embed-wrapper, .math-node, .link-card')) {
+                return false;
+              }
+              const target = rawTarget?.closest('[data-wiki-link]') ?? null;
               if (target) {
                 event.preventDefault();
                 const fileName = target.getAttribute('data-wiki-link');
@@ -714,10 +688,16 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                   // Find the position of this wiki link in the document
                   const pos = view.posAtDOM(target, 0);
 
-                  // Create delete callback
+                  // Delete callback — branches on whether this chip is the
+                  // *canonical* first link (in the 첨부파일 section) or an
+                  // *additional* link (an inline reference elsewhere).
+                  //
+                  //   • additional → silent delete, no modal, no backend call
+                  //   • canonical  → modal first, only delete on confirm
+                  //                  (avoids the previous flash-then-undo UX)
                   const deleteCallback = () => {
                     const { state } = view;
-                    const { doc, tr } = state;
+                    const { doc } = state;
 
                     // Find the decoration/node at this position
                     let foundPos = -1;
@@ -754,9 +734,64 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                       }
                     });
 
-                    if (foundPos >= 0) {
-                      view.dispatch(tr.delete(foundPos, foundEnd));
+                    if (foundPos < 0) return;
+
+                    const dispatchDelete = (from: number, to: number) => {
+                      const tr = view.state.tr.delete(from, to);
+                      tr.setMeta('wikiLink/skipDeleteGuard', true);
+                      view.dispatch(tr);
+                    };
+
+                    // HanBin 2026-05-13 (revised): count ALL references to
+                    // this attachment in the doc — both chips and inline
+                    // `![[...]]` embeds. If removing this one would still
+                    // leave references in this note, the attachment is
+                    // still linked → silent delete, no modal. Only the
+                    // last-remaining reference triggers the confirmation.
+                    const totalRefs = countAttachmentRefsInDoc(doc, fileName);
+                    if (totalRefs > 1) {
+                      dispatchDelete(foundPos, foundEnd);
+                      return;
                     }
+
+                    // Branch: last reference in this note → modal first.
+                    void (async () => {
+                      const notePath = getNotePath?.() || '';
+                      const noteId = notePath
+                        .replace(/\\/g, '/')
+                        .split('/')
+                        .pop()
+                        ?.replace(/\.md$/i, '') ?? '';
+                      const ref = useAttachmentStore.getState().resolveByName(fileName, noteId);
+                      if (!ref) {
+                        // No backing ref (manual wikilink or pre-CAS) — no
+                        // confirmation is meaningful, just delete the text.
+                        dispatchDelete(foundPos, foundEnd);
+                        return;
+                      }
+
+                      const result = await requestAttachmentDelete({
+                        attachmentId: ref.attachmentId,
+                        originalName: ref.originalName,
+                        noteId,
+                      });
+                      if (!result.confirmed) return; // user cancelled — chip stays
+
+                      // Re-find the chip position (doc may have shifted while
+                      // the modal was open) and delete in a guard-skipping tx
+                      // so the deletionGuard plugin doesn't double-fire the
+                      // modal on this confirmed removal.
+                      let pos2 = -1, end2 = -1;
+                      view.state.doc.descendants((node, nodePos) => {
+                        if (pos2 >= 0) return false;
+                        if (node.type.name === 'wikiLink' && node.attrs.fileName === fileName) {
+                          pos2 = nodePos;
+                          end2 = nodePos + node.nodeSize;
+                          return false;
+                        }
+                      });
+                      if (pos2 >= 0) dispatchDelete(pos2, end2);
+                    })();
                   };
 
                   onContextMenu(fileName, { x: event.clientX, y: event.clientY }, deleteCallback);
@@ -910,12 +945,22 @@ export const WikiLink = Node.create<WikiLinkOptions>({
           if (!transactions.some((tr) => tr.docChanged)) return null;
           if (transactions.some((tr) => tr.getMeta('wikiLink/skipDeleteGuard'))) return null;
 
+          // HanBin 2026-05-13 (revised): count-based, not section-based.
+          // For every chip atom that disappeared between transactions, check
+          // whether the new doc still has ANY reference (chip or inline
+          // `![[…]]` embed) to the same attachment. If yes, the note is
+          // still linked — silent. Only when zero references remain do we
+          // raise the unlink-confirmation modal.
           const oldNames = countAttachmentAtoms(oldState.doc, isAttachmentCallback);
           const newNames = countAttachmentAtoms(newState.doc, isAttachmentCallback);
 
           const removed: string[] = [];
           for (const [name, oldCount] of oldNames) {
             const newCount = newNames.get(name) ?? 0;
+            if (newCount >= oldCount) continue;
+            // Count ALL remaining refs in newState (atoms + raw embeds).
+            const remainingRefs = countAttachmentRefsInDoc(newState.doc, name);
+            if (remainingRefs > 0) continue; // still linked via something else
             for (let i = newCount; i < oldCount; i++) removed.push(name);
           }
           if (removed.length === 0) return null;
@@ -932,13 +977,24 @@ export const WikiLink = Node.create<WikiLinkOptions>({
   },
 });
 
-/** Count attachment-flavored wikilink atoms in a doc, grouped by fileName. */
+/**
+ * Count attachment-flavored atoms in a doc, grouped by fileName. Includes
+ * both wikiLink chips and mediaEmbed inline players — both are attachment
+ * references and both should arm the deletion guard when removed.
+ */
 function countAttachmentAtoms(
   doc: import('@tiptap/pm/model').Node,
   isAttachmentCallback: WikiLinkOptions['isAttachment'],
 ): Map<string, number> {
   const map = new Map<string, number>();
   doc.descendants((node) => {
+    if (node.type.name === 'mediaEmbed') {
+      const fileName = node.attrs.fileName;
+      if (!fileName) return;
+      // mediaEmbed is always an attachment reference — no callback gate needed.
+      map.set(fileName, (map.get(fileName) ?? 0) + 1);
+      return;
+    }
     if (node.type.name !== 'wikiLink') return;
     const fileName = node.attrs.fileName;
     if (!fileName) return;
@@ -953,6 +1009,7 @@ function countAttachmentAtoms(
   });
   return map;
 }
+
 
 async function handleRemovedAttachmentWikilinks(
   removedFileNames: string[],

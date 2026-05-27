@@ -1,6 +1,7 @@
 // Branch picker: select which branch wins for a conflicted note.
 
 import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { useSyncV2Store } from '../stores/syncV2Store';
 import { syncV2Commands } from '../syncV2Commands';
 import { showToast } from '../../shared/Toast';
@@ -105,10 +106,17 @@ export function BranchPickerModal() {
 
   return (
     <div className="modal-overlay" onClick={closeBranchPicker}>
-      <div className="sync-v2-branch-picker" onClick={e => e.stopPropagation()}>
+      <div className="modal-shell sync-v2-branch-picker" onClick={e => e.stopPropagation()}>
         <div className="sync-v2-branch-picker-header">
           <h3>{ko ? '브랜치 선택' : 'Pick a Branch'} — {noteId}</h3>
-          <button className="sync-v2-close-btn" onClick={closeBranchPicker}>×</button>
+          <button
+            className="sync-v2-close-btn"
+            onClick={closeBranchPicker}
+            aria-label={ko ? '닫기' : 'Close'}
+            title={ko ? '닫기' : 'Close'}
+          >
+            <X size={16} strokeWidth={2} />
+          </button>
         </div>
 
         <div className="sync-v2-branch-picker-body">
@@ -142,29 +150,14 @@ export function BranchPickerModal() {
         </div>
 
         {smartMergeMessage && (
-          <div
-            role="status"
-            style={{
-              margin: '0 16px 8px',
-              padding: '8px 12px',
-              background: 'var(--bg-base)',
-              border: '1px solid var(--sep-o)',
-              borderRadius: 6,
-              fontSize: 12,
-              color: 'var(--tx-1)',
-              lineHeight: 1.5,
-            }}
-          >
+          <div role="status" className="sync-v2-branch-picker-message">
             {smartMergeMessage}
           </div>
         )}
 
-        <div
-          className="sync-v2-branch-picker-footer"
-          style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-        >
+        <div className="sync-v2-branch-picker-footer">
           <button
-            className="sync-v2-resolve-btn"
+            className="sync-v2-resolve-btn sync-v2-resolve-btn--smart"
             disabled={!selectedBranch || smartMergePending || smartMergeAttempted}
             onClick={handleSmartMerge}
             title={
@@ -174,13 +167,12 @@ export function BranchPickerModal() {
                   ? (ko ? '이미 시도했습니다 — 직접 선택해 주세요' : 'Already attempted — pick manually')
                   : undefined
             }
-            style={{ flex: '0 0 auto' }}
           >
             {smartMergePending
               ? (ko ? '✨ 분석 중...' : '✨ Merging...')
               : (ko ? '✨ Smart Merge 시도' : '✨ Try Smart Merge')}
           </button>
-          <div style={{ flex: 1 }} />
+          <div className="sync-v2-branch-picker-footer__spacer" />
           <button
             className="sync-v2-resolve-btn"
             disabled={!selectedBranch || smartMergePending}

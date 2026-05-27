@@ -3,11 +3,11 @@
 /* ============================================================ */
 
 .health-check-panel {
-  margin-top: var(--space-8);
+  margin-top: var(--sp-4);
   padding: 12px 16px;
   background-color: var(--bg-app);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-8);
 }
 
 .health-check-panel:not(.expanded) .health-check-content {
@@ -17,15 +17,15 @@
 .health-check-header {
   display: flex;
   align-items: center;
-  gap: var(--space-6);
+  gap: var(--sp-3);
   cursor: pointer;
   user-select: none;
 }
 
 .health-check-header h3 {
-  font-size: var(--font-lg);
+  font-size: var(--fs-13);
   font-weight: 600;
-  color: var(--c-blue);
+  color: var(--tx-1);
   margin: 0;
   flex: 1;
 }
@@ -33,13 +33,13 @@
 .health-score-badge {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-2);
 }
 
 .health-score-circle {
   width: 48px;
   height: 48px;
-  border-radius: var(--radius-full);
+  border-radius: var(--r-pill);
   border: 3px solid;
   display: flex;
   align-items: center;
@@ -47,89 +47,89 @@
 }
 
 .health-score-value {
-  font-size: var(--font-xl);
+  font-size: var(--fs-16);
   font-weight: 700;
-  color: #fff;
+  color: var(--tx-1);
 }
 
 .health-score-label {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-2);
   font-weight: 600;
 }
 
 .health-toggle {
   color: var(--tx-3);
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
 }
 
 .health-loading {
   padding: 2px 8px;
-  background-color: #3c3c3c;
-  color: #aaa;
-  border-radius: var(--radius-lg);
-  font-size: var(--font-sm);
+  background-color: var(--bg-elevated);
+  color: var(--tx-3);
+  border-radius: var(--r-12);
+  font-size: var(--fs-11);
 }
 
 .health-check-content {
-  margin-top: var(--space-8);
+  margin-top: var(--sp-4);
 }
 
 .health-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: var(--space-6);
-  margin-bottom: var(--space-8);
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
 }
 
 .health-stat-item {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-6);
-  background-color: #2d2d2d;
-  border-radius: var(--radius-sm);
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  background-color: var(--bg-elevated);
+  border-radius: var(--r-6);
   text-align: center;
 }
 
 .health-stat-label {
-  font-size: var(--font-sm);
-  color: #888;
-  text-transform: uppercase;
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  text-transform: none;
   letter-spacing: 0.5px;
 }
 
 .health-stat-value {
   font-size: 24px;
   font-weight: 700;
-  color: var(--c-blue);
+  color: var(--tx-1);
 }
 
 .health-filter {
   display: flex;
-  gap: var(--space-4);
-  margin-bottom: var(--space-8);
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
   flex-wrap: wrap;
 }
 
 .health-filter-btn {
   padding: 6px 12px;
-  background-color: #3c3c3c;
-  border: 1px solid #555;
-  border-radius: var(--radius-sm);
-  color: #ccc;
+  background-color: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-6);
+  color: var(--tx-2);
   cursor: pointer;
-  font-size: var(--font-base);
-  transition: all var(--duration-normal);
+  font-size: var(--fs-13);
+  transition: all var(--dur-200);
 }
 
 .health-filter-btn:hover {
-  background-color: #555;
+  background-color: var(--bg-hover);
 }
 
 .health-filter-btn.active {
-  background-color: var(--c-blue);
-  border-color: var(--c-blue);
+  background-color: var(--tx-1);
+  border-color: var(--tx-1);
   color: #fff;
 }
 
@@ -139,36 +139,36 @@
 }
 
 .health-filter-btn.warning.active {
-  background-color: #fbbf24;
-  border-color: #fbbf24;
-  color: #1e1e1e;
+  background-color: var(--c-orange);
+  border-color: var(--c-orange);
+  color: #fff;
 }
 
 .health-filter-btn.info.active {
-  background-color: var(--color-info);
-  border-color: var(--color-info);
+  background-color: var(--tx-1);
+  border-color: var(--tx-1);
 }
 
 .health-empty {
-  padding: var(--space-12);
+  padding: var(--sp-6);
   text-align: center;
-  color: #34d399;
-  font-size: var(--font-lg);
-  background-color: #2d2d2d;
-  border-radius: var(--radius-sm);
+  color: var(--c-green);
+  font-size: var(--fs-13);
+  background-color: var(--bg-elevated);
+  border-radius: var(--r-6);
 }
 
 .health-issues {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--sp-2);
 }
 
 .health-issue {
-  padding: var(--space-6);
-  background-color: #2d2d2d;
+  padding: var(--sp-3);
+  background-color: var(--bg-elevated);
   border-left: 3px solid;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
 }
 
 .health-issue.error {
@@ -176,59 +176,59 @@
 }
 
 .health-issue.warning {
-  border-left-color: #fbbf24;
+  border-left-color: var(--c-orange);
 }
 
 .health-issue.info {
-  border-left-color: var(--color-info);
+  border-left-color: var(--tx-1);
 }
 
 .health-issue-header {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  margin-bottom: var(--space-3);
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
 }
 
 .health-issue-icon {
-  font-size: var(--font-xl);
+  font-size: var(--fs-16);
 }
 
 .health-issue-category {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   font-weight: 600;
-  color: #aaa;
+  color: var(--tx-2);
   flex: 1;
 }
 
 .health-issue-severity {
   padding: 2px 8px;
-  background-color: #3c3c3c;
-  color: #aaa;
-  border-radius: var(--radius-lg);
-  font-size: var(--font-sm);
+  background-color: var(--bg-hover);
+  color: var(--tx-2);
+  border-radius: var(--r-12);
+  font-size: var(--fs-11);
   font-weight: 600;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .health-issue-message {
-  font-size: var(--font-md);
-  color: #ccc;
-  margin-bottom: var(--space-4);
+  font-size: var(--fs-13);
+  color: var(--tx-2);
+  margin-bottom: var(--sp-2);
   line-height: 1.5;
 }
 
 .health-issue-note-link {
   padding: 4px 10px;
-  background-color: var(--c-blue);
+  background-color: var(--tx-1);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   color: #fff;
   cursor: pointer;
-  font-size: var(--font-base);
-  transition: background-color var(--duration-normal);
+  font-size: var(--fs-13);
+  transition: background-color var(--dur-200);
 }
 
 .health-issue-note-link:hover {
-  background-color: #005a9e;
+  filter: brightness(0.9);
 }

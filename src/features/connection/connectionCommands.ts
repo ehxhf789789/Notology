@@ -72,6 +72,14 @@ export interface NasFolderEntry {
   path: string;
   isCollection: boolean;
   isVault: boolean;
+  /**
+   * Set when `isVault` is false but the folder looks like a note-bearing
+   * vault that just hasn't been migrated yet. Lets the NAS browser offer
+   * "마이그레이션해서 열기" instead of treating it as opaque.
+   *  - `"obsidian"`: `.obsidian/` present
+   *  - `"plainMd"` : ≥1 `.md` file in immediate children
+   */
+  legacyKind?: 'obsidian' | 'plainMd';
 }
 
 export interface NasFolderListing {

@@ -17,8 +17,8 @@ import { useUIStore } from '../stores/uiStore';
 import { t, tf } from '../utils/i18n';
 import { loadComments, saveComments } from '../../features/comments/comments';
 import { notifyMemoChanged } from '../utils/windowSync';
-import type { CalendarMemo, CalendarViewMode } from '../types';
-import { IconButton } from '../../design-system/components';
+import type { CalendarMemo, CalendarViewMode, CalendarLayoutMode } from '../types';
+import { IconButton, SegmentedControl, Popover } from '../../design-system/components';
 
 /* ============================================================
    Stage 5.0.3a-rework (2026-05-15)
@@ -95,6 +95,17 @@ export default RightPanel;
    Lifted from pre-5.0.3a RightPanel; 5.0.3a-rework restores it
    as the single surface.
    ============================================================ */
+/* 2026-05-26 (HanBin) — 5.0.7d-followup landing.
+   Adds Month/Day layout toggle, chip stripe on day cells, and a click-
+   to-Popover preview. Existing month grid + memo list flow is preserved
+   (HanBin sign-off "공존" — Popover와 list 둘 다 유지). Day view is a
+   24-hour timeline of the selected date driven by the new
+   `dueTime` field on CalendarMemo (Rust side maps task.dueTime). */
+
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+
+interface ChipBucket { taskCount: number; memoCount: number; total: number; }
+
 function CalendarSurface() {
   const vaultPath = useVaultPath();
   const calendarRefreshTrigger = useCalendarRefreshTrigger();
@@ -104,6 +115,8 @@ function CalendarSurface() {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
   const [memos, setMemos] = useState<CalendarMemo[]>([]);
   const [viewMode, setViewMode] = useState<CalendarViewMode>('task');
+  // 2026-05-26 (HanBin) — month grid vs single-day 24-hour timeline.
+  const [layoutMode, setLayoutMode] = useState<CalendarLayoutMode>('month');
   const [temporarilyResolved, setTemporarilyResolved] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -133,7 +146,39 @@ function CalendarSurface() {
     return g;
   }, [filteredMemos]);
 
+  // 2026-05-26 — per-date task/memo counts for chip-stripe rendering.
+  // Uses the unfiltered memo set so chips reflect totals regardless of
+  // viewMode (so the stripe doesn't disappear when toggling task/memo).
+  const chipsByDate = useMemo(() => {
+    const g = new Map<string, ChipBucket>();
+    for (const m of memos) {
+      if (m.resolved && !temporarilyResolved.has(m.id)) continue;
+      const bucket = g.get(m.date) ?? { taskCount: 0, memoCount: 0, total: 0 };
+      if (m.isTask) bucket.taskCount += 1;
+      else bucket.memoCount += 1;
+      bucket.total += 1;
+      g.set(m.date, bucket);
+    }
+    return g;
+  }, [memos, temporarilyResolved]);
+
   const selectedDateMemos = useMemo(() => memosByDate.get(selectedDate) || [], [selectedDate, memosByDate]);
+
+  /** Day-view timeline grouping: separates time-less memos from
+   *  hour-bucketed tasks. `noTime` lists items without `dueTime`;
+   *  `byHour` keys are 0..23. */
+  const timelineForSelected = useMemo(() => {
+    const items = selectedDateMemos;
+    const noTime: CalendarMemo[] = [];
+    const byHour = new Map<number, CalendarMemo[]>();
+    for (const m of items) {
+      const t = m.dueTime;
+      const hour = t && /^\d{1,2}:/.test(t) ? Math.min(23, Math.max(0, parseInt(t, 10))) : null;
+      if (hour === null) noTime.push(m);
+      else byHour.set(hour, [...(byHour.get(hour) ?? []), m]);
+    }
+    return { noTime, byHour };
+  }, [selectedDateMemos]);
 
   const todayCounts = useMemo(() => {
     const today = getTodayString();
@@ -155,12 +200,24 @@ function CalendarSurface() {
     return grid;
   }, [currentDate]);
 
-  const changeMonth = (delta: number) => {
-    setCurrentDate(prev => {
-      const d = new Date(prev);
-      d.setMonth(d.getMonth() + delta);
-      return d;
-    });
+  /** prev/next navigation — month-step in month layout, day-step in day. */
+  const changePeriod = (delta: number) => {
+    if (layoutMode === 'month') {
+      setCurrentDate(prev => {
+        const d = new Date(prev);
+        d.setMonth(d.getMonth() + delta);
+        return d;
+      });
+    } else {
+      const base = new Date(selectedDate);
+      base.setDate(base.getDate() + delta);
+      const newStr = formatDate(base);
+      setSelectedDate(newStr);
+      // Keep month header in sync when crossing month boundaries.
+      if (base.getMonth() !== currentDate.getMonth() || base.getFullYear() !== currentDate.getFullYear()) {
+        setCurrentDate(base);
+      }
+    }
   };
 
   const handleDateClick = (day: number) => {
@@ -200,55 +257,212 @@ function CalendarSurface() {
       && currentDate.getFullYear() === today.getFullYear();
   };
 
-  const getMemoCountForDate = (day: number): number => {
-    const d = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-    return memosByDate.get(formatDate(d))?.length || 0;
-  };
-
   const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+  /** Header label — month name + year in month layout, full date in day. */
+  const headerLabel = layoutMode === 'month'
+    ? `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`
+    : new Date(selectedDate).toLocaleDateString(language === 'ko' ? 'ko-KR' : 'en-US', {
+        month: 'short', day: 'numeric', weekday: 'short',
+      });
+
+  /** Per-cell Popover content: that date's memos as a compact preview.
+   *  Items share the same click/resolve UX as the main list below. */
+  const renderDayPopover = (dateStr: string) => {
+    const items = memosByDate.get(dateStr) || [];
+    if (items.length === 0) {
+      return (
+        <div className="right-panel-day-popover__empty">
+          {viewMode === 'task' ? t('calendarNoTasks', language) : t('calendarNoMemos', language)}
+        </div>
+      );
+    }
+    return (
+      <div className="right-panel-day-popover__list">
+        {items.map(memo => (
+          <div
+            key={memo.id}
+            className={`right-panel-memo-item${temporarilyResolved.has(memo.id) ? ' resolved' : ''}`}
+            onClick={() => handleMemoClick(memo)}
+          >
+            <input
+              type="checkbox"
+              checked={temporarilyResolved.has(memo.id) || memo.resolved}
+              onChange={(e) => { e.stopPropagation(); handleResolveToggle(memo); }}
+              className="right-panel-memo-checkbox"
+            />
+            <div className="right-panel-memo-content">
+              <div className="right-panel-memo-text">{memo.content}</div>
+              <div className="right-panel-memo-meta">
+                {memo.dueTime ? `${memo.dueTime} · ` : ''}{memo.noteTitle}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <>
-      <div className="right-panel-calendar">
+      {/* 2026-05-26 (HanBin) — `.is-day-layout` lets CSS flex the calendar
+          container to fill remaining height so the 24-hour timeline can
+          scroll internally instead of pushing past the panel's bottom
+          (HanBin: 일로 변환할 경우 아래가 잘림). Month layout keeps the
+          old `flex: 0 0 auto` so the memo list below has its share. */}
+      <div className={`right-panel-calendar${layoutMode === 'day' ? ' is-day-layout' : ''}`}>
         <div className="right-panel-calendar-nav">
-          <button onClick={() => changeMonth(-1)} className="right-panel-nav-btn" aria-label={t('prevMonth', language)}>
+          <button onClick={() => changePeriod(-1)} className="right-panel-nav-btn" aria-label={t('prevMonth', language)}>
             <ChevronLeft size={14} />
           </button>
-          <span className="right-panel-month">
-            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-          </span>
-          <button onClick={() => changeMonth(1)} className="right-panel-nav-btn" aria-label={t('nextMonth', language)}>
+          <span className="right-panel-month">{headerLabel}</span>
+          <button onClick={() => changePeriod(1)} className="right-panel-nav-btn" aria-label={t('nextMonth', language)}>
             <ChevronRight size={14} />
           </button>
         </div>
 
-        <div className="right-panel-calendar-grid">
-          <div className="right-panel-weekdays">
-            {dayNames.map((d, i) => <div key={i} className="right-panel-weekday">{d}</div>)}
-          </div>
-          <div className="right-panel-days">
-            {calendarGrid.map((day, idx) => {
-              if (day === null) return <div key={idx} className="right-panel-day empty" />;
-              const count = getMemoCountForDate(day);
-              const dateStr = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day));
-              const selected = dateStr === selectedDate;
-              const isTd = isToday(day);
-              return (
-                <div
-                  key={idx}
-                  className={`right-panel-day${isTd ? ' today' : ''}${selected ? ' selected' : ''}${count > 0 ? ' has-memos' : ''}`}
-                  onClick={() => handleDateClick(day)}
-                >
-                  <span className="right-panel-day-number">{day}</span>
-                  {count > 0 && <span className="right-panel-day-count">{count}</span>}
-                </div>
-              );
-            })}
-          </div>
+        <div className="right-panel-calendar-layout-toggle">
+          <SegmentedControl
+            size="sm"
+            value={layoutMode}
+            onChange={(v) => setLayoutMode(v as CalendarLayoutMode)}
+            options={[
+              { value: 'month', label: t('calendarMonthView', language) },
+              { value: 'day', label: t('calendarDayView', language) },
+            ]}
+            ariaLabel={t('calendarLayoutMode', language)}
+          />
         </div>
+
+        {layoutMode === 'month' && (
+          <div className="right-panel-calendar-grid">
+            <div className="right-panel-weekdays">
+              {dayNames.map((d, i) => <div key={i} className="right-panel-weekday">{d}</div>)}
+            </div>
+            <div className="right-panel-days">
+              {calendarGrid.map((day, idx) => {
+                if (day === null) return <div key={idx} className="right-panel-day empty" />;
+                const dateStr = formatDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day));
+                const chips = chipsByDate.get(dateStr);
+                const selected = dateStr === selectedDate;
+                const isTd = isToday(day);
+                const cellEl = (
+                  <div
+                    className={`right-panel-day${isTd ? ' today' : ''}${selected ? ' selected' : ''}${chips && chips.total > 0 ? ' has-memos' : ''}`}
+                    onClick={() => handleDateClick(day)}
+                  >
+                    <span className="right-panel-day-number">{day}</span>
+                    {chips && chips.total > 0 && (
+                      <div className="right-panel-day-chips">
+                        {Array.from({ length: Math.min(chips.taskCount, 2) }).map((_, i) => (
+                          <span key={`t${i}`} className="right-panel-day-chip is-task" />
+                        ))}
+                        {Array.from({ length: Math.min(chips.memoCount, 2) }).map((_, i) => (
+                          <span key={`m${i}`} className="right-panel-day-chip is-memo" />
+                        ))}
+                        {chips.total > 4 && (
+                          <span className="right-panel-day-chip-more">
+                            {tf('calendarMore', language, { count: chips.total - 4 })}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+                return (
+                  <Popover
+                    key={idx}
+                    placement="bottom"
+                    trigger={cellEl}
+                  >
+                    <div className="right-panel-day-popover">
+                      <div className="right-panel-day-popover__header">
+                        {new Date(dateStr).toLocaleDateString(language === 'ko' ? 'ko-KR' : 'en-US', {
+                          month: 'short', day: 'numeric', weekday: 'short',
+                        })}
+                      </div>
+                      {renderDayPopover(dateStr)}
+                    </div>
+                  </Popover>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {layoutMode === 'day' && (
+          <div className="right-panel-day-timeline">
+            {timelineForSelected.noTime.length > 0 && (
+              <div className="right-panel-day-timeline__no-time">
+                <div className="right-panel-day-timeline__label">
+                  {t('calendarNoTimeSlot', language)} ({timelineForSelected.noTime.length})
+                </div>
+                {timelineForSelected.noTime.map(memo => (
+                  <div
+                    key={memo.id}
+                    className={`right-panel-memo-item${temporarilyResolved.has(memo.id) ? ' resolved' : ''}`}
+                    onClick={() => handleMemoClick(memo)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={temporarilyResolved.has(memo.id) || memo.resolved}
+                      onChange={(e) => { e.stopPropagation(); handleResolveToggle(memo); }}
+                      className="right-panel-memo-checkbox"
+                    />
+                    <div className="right-panel-memo-content">
+                      <div className="right-panel-memo-text">{memo.content}</div>
+                      <div className="right-panel-memo-meta">{memo.noteTitle}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="right-panel-day-timeline__hours">
+              {HOURS.map(hour => {
+                const items = timelineForSelected.byHour.get(hour) ?? [];
+                return (
+                  <div key={hour} className={`right-panel-day-timeline__row${items.length === 0 ? ' is-empty' : ''}`}>
+                    <div className="right-panel-day-timeline__hour-label">
+                      {tf('calendarHour', language, { hour: String(hour).padStart(2, '0') })}
+                    </div>
+                    <div className="right-panel-day-timeline__hour-items">
+                      {items.map(memo => (
+                        <div
+                          key={memo.id}
+                          className={`right-panel-memo-item${temporarilyResolved.has(memo.id) ? ' resolved' : ''}`}
+                          onClick={() => handleMemoClick(memo)}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={temporarilyResolved.has(memo.id) || memo.resolved}
+                            onChange={(e) => { e.stopPropagation(); handleResolveToggle(memo); }}
+                            className="right-panel-memo-checkbox"
+                          />
+                          <div className="right-panel-memo-content">
+                            <div className="right-panel-memo-text">{memo.content}</div>
+                            <div className="right-panel-memo-meta">
+                              {memo.dueTime ? `${memo.dueTime} · ` : ''}{memo.noteTitle}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* 2026-05-26 (HanBin) — bottom memo list lives only in month
+          layout. In day layout the 24-hour timeline above already shows
+          the selected date's full content, so rendering the list below
+          duplicates it AND consumes vertical space that the timeline
+          needs to scroll 0-23 hours within the panel (HanBin: 일로
+          변환할 경우 아래가 잘림 fix). */}
+      {layoutMode === 'month' && (<>
       <div className="right-panel-divider" />
 
       <div className="right-panel-memos">
@@ -293,7 +507,9 @@ function CalendarSurface() {
               />
               <div className="right-panel-memo-content">
                 <div className="right-panel-memo-text">{memo.content}</div>
-                <div className="right-panel-memo-meta">{memo.noteTitle}</div>
+                <div className="right-panel-memo-meta">
+                  {memo.dueTime ? `${memo.dueTime} · ` : ''}{memo.noteTitle}
+                </div>
               </div>
             </div>
           ))}
@@ -304,6 +520,7 @@ function CalendarSurface() {
           )}
         </div>
       </div>
+      </>)}
     </>
   );
 }

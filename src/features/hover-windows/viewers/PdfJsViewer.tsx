@@ -23,6 +23,8 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { t } from '../../../core/utils/i18n';
+import { useLanguage } from '../../../core/stores/settingsStore';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize2, RotateCw } from 'lucide-react';
 
 // Wire the worker exactly once, module-load time. Subsequent component
@@ -67,6 +69,7 @@ interface Props {
 }
 
 export default function PdfJsViewer({ filePath }: Props) {
+  const language = useLanguage();
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -268,7 +271,8 @@ export default function PdfJsViewer({ filePath }: Props) {
           className="pdfjs-toolbar-btn"
           onClick={handlePrev}
           disabled={currentPage <= 1}
-          title="이전 페이지"
+          title={t('viewerPdfPrevPage', language)}
+          aria-label={t('viewerPdfPrevPage', language)}
         >
           <ChevronLeft size={14} />
         </button>
@@ -279,33 +283,35 @@ export default function PdfJsViewer({ filePath }: Props) {
           className="pdfjs-toolbar-btn"
           onClick={handleNext}
           disabled={currentPage >= totalPages}
-          title="다음 페이지"
+          title={t('viewerPdfNextPage', language)}
+          aria-label={t('viewerPdfNextPage', language)}
         >
           <ChevronRight size={14} />
         </button>
         <span className="pdfjs-toolbar-divider" />
-        <button className="pdfjs-toolbar-btn" onClick={handleZoomOut} title="축소">
+        <button className="pdfjs-toolbar-btn" onClick={handleZoomOut} title={t('viewerPdfZoomOut', language)} aria-label={t('viewerPdfZoomOut', language)}>
           <ZoomOut size={14} />
         </button>
-        <span className="pdfjs-toolbar-zoom">{fitWidth ? '맞춤' : `${Math.round(scale * 100)}%`}</span>
-        <button className="pdfjs-toolbar-btn" onClick={handleZoomIn} title="확대">
+        <span className="pdfjs-toolbar-zoom">{fitWidth ? (language === 'ko' ? '맞춤' : 'fit') : `${Math.round(scale * 100)}%`}</span>
+        <button className="pdfjs-toolbar-btn" onClick={handleZoomIn} title={t('viewerPdfZoomIn', language)} aria-label={t('viewerPdfZoomIn', language)}>
           <ZoomIn size={14} />
         </button>
         <button
           className={`pdfjs-toolbar-btn${fitWidth ? ' active' : ''}`}
           onClick={handleFitWidth}
-          title="너비 맞춤"
+          title={t('viewerPdfFitWidth', language)}
+          aria-label={t('viewerPdfFitWidth', language)}
         >
           <Maximize2 size={14} />
         </button>
         <span className="pdfjs-toolbar-divider" />
-        <button className="pdfjs-toolbar-btn" onClick={handleRotate} title="회전">
+        <button className="pdfjs-toolbar-btn" onClick={handleRotate} title={t('viewerPdfRotate', language)} aria-label={t('viewerPdfRotate', language)}>
           <RotateCw size={14} />
         </button>
       </div>
       <div className="pdfjs-pages" ref={scrollRef}>
-        {loading && <div className="pdfjs-status">PDF 로딩 중...</div>}
-        {error && <div className="pdfjs-status pdfjs-status-error">로딩 실패: {error}</div>}
+        {loading && <div className="pdfjs-status">{t('viewerPdfLoading', language)}</div>}
+        {error && <div className="pdfjs-status pdfjs-status-error">{t('viewerPdfLoadError', language)}: {error}</div>}
         {pdf && Array.from({ length: totalPages }, (_, i) => (
           <PdfPage
             // Keying on filePath only — rotation/scale/fitWidth flow in as

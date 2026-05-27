@@ -6,8 +6,8 @@
   z-index: var(--z-top);
   background: var(--bg-elevated);
   border: 0.5px solid var(--sep);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2);
+  border-radius: var(--r-6);
+  padding: var(--sp-1);
   box-shadow: var(--sh-md);
   min-width: 120px;
   max-height: min(500px, calc(100vh - 80px));
@@ -23,12 +23,12 @@
 }
 
 .window-context-menu::-webkit-scrollbar-thumb {
-  background: var(--border-color, #3c3c3c);
-  border-radius: var(--radius-sm);
+  background: var(--sep-l);
+  border-radius: var(--r-6);
 }
 
 .window-context-menu::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted, #666);
+  background: var(--tx-3);
 }
 
 .window-context-menu-item {
@@ -38,11 +38,11 @@
   background: transparent;
   border: none;
   color: var(--tx-2);
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   text-align: left;
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: background-color var(--duration-fast);
+  border-radius: var(--r-6);
+  transition: background-color var(--dur-150);
 }
 
 .window-context-menu-item:hover {
@@ -51,10 +51,10 @@
 }
 
 .window-context-menu-item-danger {
-  color: #e06c75;
+  color: var(--c-red);
 }
 
 .window-context-menu-item-danger:hover {
-  background: rgba(224, 108, 117, 0.15);
-  color: #ff7b85;
+  background: color-mix(in srgb, var(--c-red) 15%, transparent);
+  color: var(--c-red);
 }

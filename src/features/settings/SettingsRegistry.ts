@@ -1,8 +1,15 @@
 import type { ComponentType } from 'react';
+import type { LucideIcon } from 'lucide-react';
 
 export interface SettingsTabPlugin {
   id: string;
-  label: string;
+  /** Plain label OR a resolver (called each render so i18n changes reflect). */
+  label: string | (() => string);
+  /** Lucide icon component for the tab nav. Preferred over `icon` (emoji). */
+  Icon?: LucideIcon;
+  /** Legacy emoji marker. Used as a fallback when `Icon` is not supplied
+   *  (e.g. older plugins). Rendered as a subtle marker, NOT prefixed to
+   *  the label. New plugins should set `Icon` for consistency. */
   icon?: string;
   component: ComponentType;
   order?: number; // Lower = earlier. Default tabs are 0-40.

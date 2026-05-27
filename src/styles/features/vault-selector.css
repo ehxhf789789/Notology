@@ -19,11 +19,11 @@
   max-width: 90%;
   background: var(--bg-app);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-xl);
+  border-radius: var(--r-12);
   padding: 40px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-16);
+  gap: var(--sp-8);
   animation: modalEnter 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -36,13 +36,13 @@
   padding: 0;
   background: transparent;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-4);
   color: var(--tx-3);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
 }
 
 .vault-selector-close-btn:hover {
@@ -54,21 +54,21 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-3);
-  padding-bottom: var(--space-4);
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-2);
 }
 
 .vault-selector-logo {
   width: 72px;
   height: 72px;
-  margin-bottom: var(--space-2);
-  filter: drop-shadow(0 2px 8px rgba(122, 162, 247, 0.15));
+  margin-bottom: var(--sp-1);
+  filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--tx-1) 15%, transparent));
 }
 
 .vault-selector-title-row {
   display: flex;
   align-items: baseline;
-  gap: var(--space-4);
+  gap: var(--sp-2);
 }
 
 .vault-selector-title {
@@ -85,7 +85,7 @@
   color: var(--tx-3);
   background: var(--bg-elevated);
   padding: 2px 6px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-4);
   border: 0.5px solid var(--sep-l);
 }
 
@@ -98,24 +98,24 @@
 .vault-selector-body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--sp-3);
 }
 
 .vault-selector-btn {
   display: flex;
   align-items: center;
-  gap: var(--space-8);
-  padding: var(--space-10);
+  gap: var(--sp-4);
+  padding: var(--sp-5);
   background: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-6);
   cursor: pointer;
-  transition: all var(--duration-normal) ease;
+  transition: all var(--dur-200) ease;
 }
 
 .vault-selector-btn:hover {
   background: var(--bg-hover);
-  border-color: #7aa2f7;
+  border-color: var(--tx-1);
   transform: translateY(-2px);
   box-shadow: var(--sh-md);
 }
@@ -126,12 +126,12 @@
 }
 
 .vault-selector-btn-primary {
-  border-color: #7aa2f7;
+  border-color: var(--tx-1);
 }
 
 .vault-selector-btn-primary:hover {
   background: var(--bg-hover);
-  border-color: #89b4fa;
+  border-color: color-mix(in srgb, var(--tx-1) 80%, white);
 }
 
 .vault-selector-btn-secondary {
@@ -140,18 +140,18 @@
 
 .vault-selector-btn-secondary:hover {
   background: var(--bg-hover);
-  border-color: #7aa2f7;
+  border-color: var(--tx-1);
 }
 
 .vault-selector-icon {
   flex-shrink: 0;
-  color: #7aa2f7;
+  color: var(--tx-1);
 }
 
 .vault-selector-btn-text {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   text-align: left;
 }
 
@@ -170,8 +170,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-6);
-  padding-top: var(--space-4);
+  gap: var(--sp-3);
+  padding-top: var(--sp-2);
   border-top: 0.5px solid var(--sep-l);
 }
 
@@ -187,9 +187,9 @@
   color: var(--tx-3);
   background: transparent;
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-4);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
 }
 
 .vault-selector-exit-btn:hover {
@@ -198,7 +198,7 @@
 }
 
 .vault-selector-recent {
-  margin-bottom: var(--space-12);
+  margin-bottom: var(--sp-6);
 }
 
 .vault-selector-recent-title {
@@ -211,50 +211,50 @@
 .vault-selector-recent-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   max-height: 240px;
   overflow-y: auto;
-  padding-right: var(--space-4);
+  padding-right: var(--sp-2);
 }
 
 .vault-selector-recent-item-wrapper {
   display: flex;
   align-items: stretch;
-  gap: var(--space-4);
+  gap: var(--sp-2);
 }
 
 .vault-selector-recent-item {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: var(--space-6);
+  gap: var(--sp-3);
   padding: 12px 16px;
   background: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-6);
   cursor: pointer;
-  transition: all var(--duration-normal) ease;
+  transition: all var(--dur-200) ease;
   text-align: left;
 }
 
 .vault-selector-recent-item:hover {
   background: var(--bg-hover);
-  border-color: #7aa2f7;
+  border-color: var(--tx-1);
   transform: translateY(-1px);
   box-shadow: var(--sh-sm);
 }
 
 .vault-selector-recent-item.current {
-  background: #264f78;
-  border-color: var(--c-blue);
+  background: var(--bg-sel);
+  border-color: var(--tx-1);
   color: #ffffff;
   cursor: default;
   opacity: 0.9;
 }
 
 .vault-selector-recent-item.current:hover {
-  background: #264f78;
-  border-color: var(--c-blue);
+  background: var(--bg-sel);
+  border-color: var(--tx-1);
   color: #ffffff;
 }
 
@@ -266,24 +266,24 @@
 }
 
 .vault-selector-current-badge {
-  margin-left: var(--space-4);
+  margin-left: var(--sp-2);
   padding: 2px 6px;
   font-size: var(--font-sm);
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--bg-hover);
   color: #ffffff;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-4);
 }
 
 .vault-selector-delete-btn {
   flex-shrink: 0;
   width: 36px;
-  padding: var(--space-4);
+  padding: var(--sp-2);
   background: var(--bg-elevated);
   border: 0.5px solid var(--sep-l);
-  border-radius: var(--radius-md);
+  border-radius: var(--r-6);
   cursor: pointer;
-  transition: all var(--duration-fast) ease;
+  transition: all var(--dur-150) ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -291,21 +291,21 @@
 }
 
 .vault-selector-delete-btn:hover {
-  background: #3c1f1f;
-  border-color: #e06c75;
-  color: #e06c75;
+  background: color-mix(in srgb, var(--c-red) 15%, var(--bg-base));
+  border-color: var(--c-red);
+  color: var(--c-red);
 }
 
 .vault-selector-recent-icon {
   flex-shrink: 0;
-  color: #7aa2f7;
+  color: var(--tx-1);
 }
 
 .vault-selector-recent-text {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--sp-1);
   min-width: 0;
 }
 

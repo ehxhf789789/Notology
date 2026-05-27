@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { t } from '../../core/utils/i18n';
+import { STATUS_WARN, DOT } from '../../design-system/components';
 
 export type SyncStatus = 'synced' | 'editing' | 'conflict' | 'editing-elsewhere';
 
@@ -18,6 +19,10 @@ const STATUS_LABEL_KEYS: Record<SyncStatus, string> = {
 
 export const SyncStatusIndicator = memo(function SyncStatusIndicator({ status, deviceName }: SyncStatusIndicatorProps) {
   const language = useSettingsStore(s => s.language);
+
+  // Hide when synced — only show meaningful states (editing, conflict, editing-elsewhere)
+  if (status === 'synced') return null;
+
   const label = t(STATUS_LABEL_KEYS[status], language);
   const title = deviceName ? `${label} (${deviceName})` : label;
 
@@ -26,7 +31,7 @@ export const SyncStatusIndicator = memo(function SyncStatusIndicator({ status, d
       className={`sync-status-indicator sync-status-${status}`}
       title={title}
     >
-      {status === 'conflict' ? '▲' : '●'}
+      {status === 'conflict' ? STATUS_WARN : DOT}
     </span>
   );
 });

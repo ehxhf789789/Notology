@@ -1,0 +1,48 @@
+/* ============================================================
+   Editor Bubble Menu (Stage 5.0.4b-3, 2026-05-16)
+   ------------------------------------------------------------
+   Selection-driven inline-mark popover. Tokens match the
+   slash-palette / context-menu / wikilink-suggestion family
+   (`--bg-elev-2` / `--bdr-1` / `--radius-pop` / `--shadow-modal`)
+   so the editor's four popovers all read as one design family.
+   ============================================================ */
+
+.editor-bubble-menu {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: var(--space-xs);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--bdr-1);
+  border-radius: var(--radius-pop);
+  box-shadow: var(--shadow-modal);
+  /* z above editor content; below modals */
+  z-index: var(--z-popover);
+}
+
+.editor-bubble-menu__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--tx-2);
+  cursor: pointer;
+  transition: background-color var(--dur-150) ease, color var(--dur-150) ease;
+}
+
+.editor-bubble-menu__btn:hover {
+  background: var(--bg-hover);
+  color: var(--tx-1);
+}
+
+.editor-bubble-menu__btn.is-active {
+  /* Match toolbar active state: subtle accent tint + accent text, not
+     solid blue. Keeps the heading-bar blue uncontested. */
+  background: var(--bg-sel);
+  color: var(--tx-1);
+}

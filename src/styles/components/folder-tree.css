@@ -13,10 +13,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  font-size: var(--font-sm);
+  /* 5.0.7b — was raw px (8/12). */
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-11);
   color: var(--tx-3);
-  text-transform: uppercase;
+  text-transform: none;
   border-bottom: 0.5px solid var(--sep-l);
   flex-shrink: 0;
 }
@@ -24,7 +25,7 @@
 .folder-tree-header-left {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--sp-2);
 }
 
 .folder-tree-section-label {
@@ -41,9 +42,9 @@
   border: none;
   color: var(--tx-3);
   cursor: pointer;
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
-  transition: background-color var(--duration-fast), color var(--duration-fast);
+  padding: var(--sp-1);
+  border-radius: var(--r-6);
+  transition: background-color var(--dur-150), color var(--dur-150);
 }
 
 .folder-tree-expand-btn:hover,
@@ -56,22 +57,38 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 4px 0;
+  /* 5.0.7b — was 4px 0 raw px. */
+  padding: var(--sp-1) 0;
 }
 
 /* Container Tree Section */
 .container-tree-section {
   user-select: none;
-  transition: opacity var(--duration-fast) ease, transform var(--duration-fast) ease;
+  transition: opacity var(--dur-150) ease, transform var(--dur-150) ease;
 }
 
 .container-tree-section.dragging {
   opacity: 0.5;
 }
 
+/* 5.0.7b (2026-05-17, HanBin) — drag-drop reorder uses an insertion LINE
+   above the drop target, not a row-wide highlight + top border. The line
+   is a 2px accent strip flush to the top edge so the user can see exactly
+   where the dropped container will land in the order. Plan §8.2 ask. */
 .container-tree-section.drag-over {
-  background-color: rgba(100, 150, 255, 0.1);
-  border-top: 2px solid rgba(100, 150, 255, 0.5);
+  position: relative;
+}
+.container-tree-section.drag-over::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: var(--sp-2);
+  right: var(--sp-2);
+  height: 2px;
+  background: var(--tx-1);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 2;
 }
 
 /* Drag handle for container reordering */
@@ -82,11 +99,11 @@
   opacity: 0;
   color: var(--tx-3);
   cursor: grab;
-  padding: var(--space-1);
+  padding: var(--sp-1);
   margin-left: -4px;
-  margin-right: var(--space-1);
-  border-radius: var(--radius-sm);
-  transition: opacity var(--duration-fast) ease, background-color var(--duration-fast) ease;
+  margin-right: var(--sp-1);
+  border-radius: var(--r-6);
+  transition: opacity var(--dur-150) ease, background-color var(--dur-150) ease;
 }
 
 .container-tree-item:hover .container-drag-handle {
@@ -121,12 +138,13 @@ body:has(.container-tree-section.dragging) * {
 .container-tree-item {
   display: flex;
   align-items: center;
-  padding: 6px 12px;
+  /* 5.0.7b — was 6px 8px raw. */
+  padding: var(--sp-2) var(--sp-2);
   cursor: pointer;
-  font-size: var(--font-md);
+  font-size: var(--fs-13);
   color: var(--tx-2);
-  gap: var(--space-4);
-  transition: background-color var(--duration-fast), transform var(--duration-fast) ease;
+  gap: var(--sp-2);
+  transition: background-color var(--dur-150), transform var(--dur-150) ease;
   white-space: nowrap;
   overflow: hidden;
   /* Click optimization */
@@ -152,17 +170,17 @@ body:has(.container-tree-section.dragging) * {
 }
 
 .container-tree-item.focused {
-  background-color: rgba(122, 162, 247, 0.1);
-  border-left: 2px solid rgba(122, 162, 247, 0.5);
+  background-color: color-mix(in srgb, var(--tx-1) 10%, transparent);
+  border-left: 2px solid var(--tx-1);
 }
 
 .container-tree-item.root-active {
   background-color: var(--calendar-selected-bg);
-  border-left: 2px solid var(--c-blue);
+  border-left: 2px solid var(--tx-1);
 }
 
 .container-tree-item.storage {
-  color: #22d3ee;
+  color: var(--c-teal);
 }
 
 .container-tree-icon {
@@ -185,19 +203,22 @@ body:has(.container-tree-section.dragging) * {
 .folder-tree-item {
   display: flex;
   align-items: center;
-  padding: 4px 8px;
+  /* 5.0.7b — was 4px 8px raw px. paddingLeft is overridden below to honor
+     the --tree-depth JS-injected variable. */
+  padding: var(--sp-1) var(--sp-2);
+  padding-left: calc(var(--tree-depth, 0) * var(--space-md, 16px) + var(--space-sm, 8px));
   cursor: pointer;
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--tx-2);
-  gap: var(--space-3);
-  transition: background-color var(--duration-fast), transform var(--duration-fast) ease;
+  gap: var(--sp-2);
+  transition: background-color var(--dur-150), transform var(--dur-150) ease;
   white-space: nowrap;
   overflow: hidden;
   /* Click optimization */
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  border-radius: var(--radius-sm);
-  margin: 0 var(--space-2);
+  border-radius: var(--r-6);
+  margin: 0 var(--sp-1);
 }
 
 .folder-tree-item:hover {
@@ -209,25 +230,44 @@ body:has(.container-tree-section.dragging) * {
 }
 
 .folder-tree-item.folder {
-  color: #cca700;
+  color: var(--c-yellow);
 }
 
 .folder-tree-item.folder-note {
-  color: var(--c-blue);
+  color: var(--tx-1);
+}
+
+/* 5.0.7b — explicit "this folder has a folder note" status dot. The blue
+   text color alone (above) is too subtle when other status indicators
+   (in_progress / completed / on_hold icons) crowd the row. Dot is 6px,
+   subtle, sits just right of the folder name. */
+.folder-note-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tx-1);
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.folder-tree-item.selected .folder-note-dot,
+.container-tree-item.selected .folder-note-dot,
+.container-tree-item.root-active .folder-note-dot {
+  background: var(--tx-on-accent, #fff);
 }
 
 .folder-tree-item.focused {
-  background-color: rgba(122, 162, 247, 0.1);
-  border-left: 2px solid rgba(122, 162, 247, 0.5);
+  background-color: color-mix(in srgb, var(--tx-1) 10%, transparent);
+  border-left: 2px solid var(--tx-1);
 }
 
 .folder-tree-item.selected {
-  background-color: #094771;
-  color: #ffffff;
+  background-color: var(--bg-sel);
+  color: #fff;
 }
 
 .folder-tree-item.selected:hover {
-  background-color: #0a5788;
+  background-color: color-mix(in srgb, var(--tx-1) 30%, var(--bg-base));
 }
 
 .folder-tree-icon {
@@ -248,89 +288,89 @@ body:has(.container-tree-section.dragging) * {
 }
 
 .folder-tree-empty {
-  padding: var(--space-6);
-  font-size: var(--font-base);
+  padding: var(--sp-3);
+  font-size: var(--fs-13);
   color: var(--tx-3);
   text-align: center;
 }
 
 /* Folder Icons (Lucide) */
 .folder-icon {
-  color: #cca700;
+  color: var(--c-yellow);
   flex-shrink: 0;
 }
 
 .folder-icon.container {
-  color: var(--c-blue);
+  color: var(--tx-1);
 }
 
 .folder-icon.container.root {
-  color: var(--c-blue);
+  color: var(--tx-1);
 }
 
 .folder-icon.container.root.expanded {
-  color: #4da6ff;
+  color: var(--tx-1);
 }
 
 .folder-icon.container.storage {
-  color: #22d3ee;
+  color: var(--c-teal);
 }
 
 .folder-icon.container.storage.expanded {
-  color: #67e8f9;
+  color: var(--c-teal);
 }
 
 .folder-icon.expanded {
-  color: #e0a800;
+  color: var(--c-yellow);
 }
 
 /* Folders with children have brighter/distinct color */
 .folder-icon.has-children {
-  color: #f0c000;
+  color: var(--c-yellow);
 }
 
 .folder-icon.container.has-children {
-  color: #4da6ff;
+  color: var(--tx-1);
 }
 
 .folder-icon.container.storage.has-children {
-  color: #67e8f9;
+  color: var(--c-teal);
 }
 
 /* Note Count Badge */
 .folder-note-count {
   margin-left: auto;
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   color: var(--tx-3);
   background-color: var(--bg-elevated);
   padding: 1px 5px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-12);
   flex-shrink: 0;
 }
 
 .folder-tree-item.selected .folder-note-count,
 .container-tree-item.selected .folder-note-count,
 .container-tree-item.root-active .folder-note-count {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: #ccc;
+  background-color: var(--bg-hover);
+  color: var(--tx-2);
 }
 
 /* Container Type Badge */
 .container-type-badge {
-  font-size: var(--font-xs);
-  color: #8b9a6b;
-  background-color: rgba(139, 154, 107, 0.15);
+  font-size: var(--fs-10);
+  color: var(--c-green);
+  background-color: color-mix(in srgb, var(--c-green) 15%, transparent);
   padding: 1px 4px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-6);
   font-weight: 600;
   flex-shrink: 0;
 }
 
 /* Folder Status Indicator */
 .folder-status-indicator {
-  font-size: var(--font-sm);
+  font-size: var(--fs-11);
   flex-shrink: 0;
-  margin-left: var(--space-2);
+  margin-left: var(--sp-1);
   line-height: 1;
 }
 
@@ -348,8 +388,8 @@ body:has(.container-tree-section.dragging) * {
 
 /* Context Menu Status Icon */
 .context-menu-status-icon {
-  margin-right: var(--space-3);
-  font-size: var(--font-base);
+  margin-right: var(--sp-2);
+  font-size: var(--fs-13);
 }
 
 /* Divider */
@@ -360,7 +400,7 @@ body:has(.container-tree-section.dragging) * {
   flex-shrink: 0;
   position: relative;
   z-index: var(--z-raised);
-  transition: background-color var(--duration-fast) ease;
+  transition: background-color var(--dur-150) ease;
 }
 
 /* Larger click area */
@@ -376,7 +416,7 @@ body:has(.container-tree-section.dragging) * {
 
 .divider:hover,
 .divider:active {
-  background-color: var(--accent-color, var(--c-blue));
+  background-color: var(--tx-1);
 }
 
 /* Editor Area */
@@ -386,6 +426,7 @@ body:has(.container-tree-section.dragging) * {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
+  background-color: var(--bg-base);
 }
 
 .editor-empty-area {
@@ -397,6 +438,6 @@ body:has(.container-tree-section.dragging) * {
 }
 
 .editor-empty-text {
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
   color: var(--tx-3);
 }

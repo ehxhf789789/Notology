@@ -14,7 +14,7 @@
 
 .hover-window-app.closing {
   opacity: 0;
-  transition: opacity var(--duration-fast) ease-out;
+  transition: opacity var(--dur-150) ease-out;
 }
 
 .hover-window-app .hover-editor {
@@ -47,5 +47,5 @@
   justify-content: center;
   background-color: var(--bg-base);
   color: var(--tx-2);
-  font-size: var(--font-lg);
+  font-size: var(--fs-14);
 }

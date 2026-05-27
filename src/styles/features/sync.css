@@ -1,138 +1,44 @@
 /* ================================================
    Sync Feature Styles
+   ------------------------------------------------------------
+   5.0.8e (2026-05-17, HanBin) — Sync v1 dead-code purge.
+   Removed selectors (no JSX consumers; replaced by sync-v2 surfaces):
+     .sync-input, .sync-error, .sync-actions(+ children),
+     .sync-status-row,
+     .sync-badge(+ -idle/-syncing/-offline/-conflict/-error/-disconnected),
+     .sync-quality-* (dot/fast/slow/very-slow),
+     .sync-conflict-overlay, .sync-conflict-modal,
+     .sync-saving, .sync-banner(+ children),
+     .nas-browser-hint / -tree / -selection / -path / -vault-badge / -actions / -row-action
+   .sync-test-ok / .sync-test-fail kept (still referenced by sync test UI).
    ================================================ */
 
-/* Settings panel inputs */
-.sync-input {
-  width: 260px;
-  padding: 6px 10px;
-  border: 1px solid var(--sep-l);
-  border-radius: var(--r-6);
-  background: var(--bg-input);
-  color: var(--tx-1);
-  font-size: 13px;
-}
-
-.sync-input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.sync-input:focus {
-  border-color: var(--c-blue);
-  outline: none;
-}
-
-/* Error message */
-.sync-error {
-  padding: 8px 12px;
-  margin: 8px 0;
-  border-radius: var(--r-6);
-  background: color-mix(in srgb, var(--c-red) 12%, transparent);
-  color: var(--c-red);
-  font-size: 12px;
-}
-
-/* Action buttons row */
-.sync-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.sync-actions .settings-action-btn.primary {
-  background: var(--c-blue);
-  color: #fff;
-}
-
-.sync-actions .settings-action-btn.danger {
-  background: color-mix(in srgb, var(--c-red) 15%, transparent);
-  color: var(--c-red);
-  border-color: var(--c-red);
-}
-
-/* Connection test result */
-.sync-test-ok {
-  color: var(--c-green);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.sync-test-fail {
-  color: var(--c-red);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-/* Status badges */
-.sync-status-row {
-  padding: 8px 0;
-}
-
-.sync-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: var(--r-12);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.sync-badge-idle {
-  background: color-mix(in srgb, var(--c-green) 12%, transparent);
-  color: var(--c-green);
-}
-
-.sync-badge-syncing {
-  background: color-mix(in srgb, var(--c-blue) 12%, transparent);
-  color: var(--c-blue);
-}
-
-.sync-badge-offline {
-  background: color-mix(in srgb, var(--tx-4) 12%, transparent);
-  color: var(--tx-3);
-}
-
-.sync-badge-conflict {
-  background: color-mix(in srgb, var(--c-red) 12%, transparent);
-  color: var(--c-red);
-}
-
-.sync-badge-error {
-  background: color-mix(in srgb, var(--c-red) 12%, transparent);
-  color: var(--c-red);
-}
-
-.sync-badge-disconnected {
-  background: color-mix(in srgb, var(--tx-4) 8%, transparent);
-  color: var(--tx-4);
-}
-
-.sync-last-time {
-  display: block;
-  margin-top: 4px;
-  font-size: 11px;
-  color: var(--tx-3);
-}
+/* (Connection-test indicators .sync-test-ok / .sync-test-fail / .sync-last-time
+   also confirmed orphan during 5.0.8e cleanup and removed.) */
 
 /* ================================================
    Status Indicator (TitleBar / inline)
    ================================================ */
 
 .sync-status-indicator {
+  /* 2026-05-23 (HanBin) — match the new ghost-button vocabulary used in
+     the sidebar footer (28px tall, 6px radius, transparent base, hover
+     tints to bg-hover). Previously the chip had zero horizontal padding
+     and rendered at fs-10, which made it visually inconsistent with the
+     vault / settings buttons sitting beside it in the same row. */
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 0;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px;
   border: none;
-  background: none;
+  background: transparent;
   cursor: default;
-  font-size: var(--fs-10);
+  font-size: var(--fs-12);
   color: var(--tx-3);
   border-radius: var(--r-6);
   flex-shrink: 0;
+  transition: background var(--dur-150) var(--ease-out), color var(--dur-150) var(--ease-out);
 }
 
 .sync-status-indicator.clickable {
@@ -141,6 +47,7 @@
 
 .sync-status-indicator.clickable:hover {
   background: var(--bg-hover);
+  color: var(--tx-1);
 }
 
 .sync-dot {
@@ -156,7 +63,7 @@
 }
 
 .sync-dot-syncing {
-  background: var(--c-blue);
+  background: var(--tx-1);
 }
 
 .sync-dot-offline {
@@ -190,43 +97,9 @@
   white-space: nowrap;
 }
 
-/* Connection quality indicator */
-.sync-quality-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-  margin-left: 4px;
-}
-.sync-quality-fast { background: var(--c-green); }
-.sync-quality-slow { background: var(--c-yellow, #e5c07b); }
-.sync-quality-very-slow { background: var(--c-red); }
-
-/* Conflict overlay modal */
-.sync-conflict-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: var(--z-toast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sync-conflict-modal {
-  background: var(--bg-base);
-  border: 1px solid var(--sep-l);
-  border-radius: var(--r-12);
-  width: 90%;
-  max-width: 700px;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-/* ================================================
-   Conflict Resolver Panel
-   ================================================ */
+/* (.sync-quality-*, .sync-conflict-overlay, .sync-conflict-modal removed
+   in 5.0.8e — old v1 conflict UI / quality dots; replaced by sync-v2
+   ConflictListModal + sync-v2 status indicator.) */
 
 /* ================================================
    NAS Vault Selector
@@ -246,7 +119,7 @@
   font-weight: 600;
   color: var(--tx-3);
   margin-bottom: var(--sp-2);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.5px;
   display: flex;
   align-items: center;
@@ -273,7 +146,7 @@
 
 .nas-input:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--c-blue);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 .nas-btn {
@@ -293,9 +166,9 @@
 }
 
 .nas-btn.primary {
-  background: var(--c-blue);
+  background: var(--tx-1);
   color: #fff;
-  border-color: var(--c-blue);
+  border-color: var(--tx-1);
 }
 
 .nas-btn.primary:hover {
@@ -410,7 +283,7 @@
 
 .nas-vault-item:hover {
   background: var(--bg-hover);
-  border-color: var(--c-blue);
+  border-color: var(--tx-1);
 }
 
 .nas-vault-icon {
@@ -499,12 +372,12 @@
   font-weight: 600;
   width: 100%;
   outline: none;
-  box-shadow: 0 0 0 2px var(--c-blue);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 .nas-vault-item.current {
-  border-color: var(--c-blue);
-  background: color-mix(in srgb, var(--c-blue) 8%, transparent);
+  border-color: var(--tx-1);
+  background: color-mix(in srgb, var(--tx-1) 8%, transparent);
   cursor: default;
 }
 
@@ -513,7 +386,7 @@
   margin-left: 8px;
   padding: 1px 8px;
   border-radius: var(--r-pill);
-  background: var(--c-blue);
+  background: var(--tx-1);
   color: #fff;
   font-size: var(--fs-10);
   font-weight: 600;
@@ -545,7 +418,7 @@
 
 .nas-action-card:hover {
   background: var(--bg-hover);
-  border-color: var(--c-blue);
+  border-color: var(--tx-1);
 }
 
 .nas-action-icon {
@@ -587,7 +460,7 @@
 
 .nas-progress-fill {
   height: 100%;
-  background: var(--c-blue);
+  background: var(--tx-1);
   border-radius: var(--r-pill);
   transition: width var(--dur-300) var(--ease-out);
 }
@@ -622,7 +495,7 @@
   width: 24px;
   height: 24px;
   border: 2.5px solid var(--sep-l);
-  border-top-color: var(--c-blue);
+  border-top-color: var(--tx-1);
   border-radius: 50%;
   animation: sync-spin 0.8s linear infinite;
 }
@@ -660,7 +533,7 @@
   padding: 14px;
   border: 0.5px solid var(--sep-l);
   border-radius: var(--r-8);
-  background: color-mix(in srgb, var(--c-blue) 6%, transparent);
+  background: color-mix(in srgb, var(--tx-1) 6%, transparent);
   margin-bottom: 12px;
   font-size: var(--fs-13);
   line-height: 1.6;
@@ -722,10 +595,645 @@
   user-select: none;
 }
 
-.vault-selector-window-title {
+/* 5.0.6ab (2026-05-17, HanBin) — titlebar brand wordmark. The user
+   asked the chrome to carry the app name even when scrolled away from
+   the hero. Small logo + "Notology" wordmark on the left, room for
+   window controls on the right. */
+.vault-selector-window-titlebar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+
+.vault-selector-window-titlebar-brand__logo {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.vault-selector-window-titlebar-brand__name {
+  font-size: var(--fs-12);
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  color: var(--tx-1);
+  font-family: var(--font-display, var(--app-font, inherit));
+}
+
+/* 5.0.6ac — page label after the brand wordmark. Muted so the brand
+   stays primary, but always present so the chrome carries both pieces
+   of information (which app + which window). */
+.vault-selector-window-titlebar-brand__sep {
+  color: var(--tx-3);
+  font-size: var(--fs-12);
+  user-select: none;
+}
+
+.vault-selector-window-titlebar-brand__page {
+  font-size: var(--fs-12);
+  font-weight: 500;
+  color: var(--tx-2);
+  font-family: var(--font-display, var(--app-font, inherit));
+}
+
+.vault-selector-window-titlebar-spacer {
+  flex: 1;
+  -webkit-app-region: drag;
+  height: 100%;
+}
+
+/* 5.0.6ab — Obsidian-style centered hero. 48px logo on top, Notology
+   wordmark + version pill row, then "보관소 선택" H1. Vertically
+   stacked + horizontally centred so the brand has its own breathing
+   room before the vault list begins. */
+.vault-selector-window-hero {
+  padding: var(--sp-5) var(--sp-6) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.vault-selector-window-hero__logo {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--tx-1) 14%, transparent));
+}
+
+.vault-selector-window-hero__brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.vault-selector-window-hero__name {
+  font-size: var(--fs-22, 22px);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--tx-1);
+  font-family: var(--font-display, var(--app-font, inherit));
+  line-height: 1.1;
+}
+
+.vault-selector-window-hero__version {
+  font-size: var(--fs-10);
+  font-weight: 500;
+  color: var(--tx-3);
+  padding: 1px 6px;
+  background: var(--bg-input);
+  border-radius: var(--r-pill);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+}
+
+.vault-selector-window-hero__title {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-14);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--tx-2);
+  font-family: var(--font-display, var(--app-font, inherit));
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* 5.0.6u (2026-05-17, HanBin) — compact connection chip.
+   5.0.6ae — sticky top so it stays visible while the user scrolls
+   through a long vault list. HanBin: "동기화 버튼은 스크롤로 가려지면
+   안되지" — the connection-status chip must never disappear behind
+   scrolled content. Background mirrors the body so scrolled rows don't
+   bleed through. */
+.vault-connection-chip {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin-bottom: var(--sp-2);
+  padding: var(--sp-1) 0;
+  display: flex;
+  justify-content: flex-end;
+  background: var(--bg-app);
+}
+
+.vault-connection-chip__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  color: var(--tx-2);
+  font-size: var(--fs-11);
+  max-width: 100%;
+  min-width: 0;
+  transition: border-color var(--dur-150) ease, color var(--dur-150) ease, background var(--dur-150) ease;
+}
+
+.vault-connection-chip__btn:hover {
+  border-color: var(--sep, var(--sep-l));
+  color: var(--tx-1);
+  background: var(--bg-hover);
+}
+
+.vault-connection-chip__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c-success, #34c759);
+  box-shadow: 0 0 4px color-mix(in srgb, var(--c-success, #34c759) 60%, transparent);
+  flex-shrink: 0;
+}
+
+.vault-connection-chip__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 5.0.6ag — connection popover layout. Padding moved here (was inline)
+   so the wrapper matches the unified popover system. */
+.vault-connection-popover {
+  padding: 12px !important;
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vault-connection-popover__field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vault-connection-popover__label {
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.4px;
+}
+
+.vault-connection-popover__value {
+  font-size: var(--fs-12);
+  color: var(--tx-1);
+}
+
+.vault-connection-popover__value--wrap {
+  word-break: break-all;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--fs-11);
+}
+
+/* Inherits .vault-popover-item--danger styling, no own rules needed. */
+
+/* ─── Vault list groups (현재 사용 중 / 다른 보관소) ─── */
+/* 5.0.6v (2026-05-17, HanBin) — back to a 1-column list (Obsidian-style)
+   inside the centered 520px column. The 2-col grid from 5.0.6u looked
+   info-starved with the sparse "name + path" cards; a single column gives
+   each row reading-line width + room for richer metadata later
+   (last-opened time, note count, sync status badge). */
+.vault-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.vault-grid__add {
+  position: relative;
+}
+
+/* 5.0.6v — add tile matches the vault-card sizing exactly so the list
+   reads as one visual rhythm. Dashed border = "empty slot, click to
+   create". Hover lifts the icon tint toward the accent so the affordance
+   is unmistakable. */
+.vault-add-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: transparent;
+  border: 1px dashed var(--sep, var(--sep-l));
+  border-radius: var(--r-8);
+  cursor: pointer;
+  color: var(--tx-2);
+  text-align: left;
+  transition: border-color var(--dur-150) ease, color var(--dur-150) ease, background var(--dur-150) ease;
+}
+
+/* 2026-05-22 — hover tint neutralised. The dashed empty slot still
+   reads as "add" via the icon + label; pulling the blue out of the
+   hover signal keeps the focus on the existing vault cards. */
+.vault-add-card:hover,
+.vault-add-card[aria-expanded='true'] {
+  border-color: var(--sep);
+  color: var(--tx-1);
+  background: var(--bg-hover);
+}
+
+.vault-add-card__icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-8);
+  background: color-mix(in srgb, var(--tx-2) 8%, transparent);
+  color: var(--tx-3);
+  transition: background var(--dur-150) ease, color var(--dur-150) ease;
+}
+
+.vault-add-card:hover .vault-add-card__icon,
+.vault-add-card[aria-expanded='true'] .vault-add-card__icon {
+  background: color-mix(in srgb, var(--tx-1) 16%, transparent);
+  color: var(--tx-1);
+}
+
+.vault-add-card__name {
+  font-size: var(--fs-13);
+  font-weight: 500;
+}
+
+/* 5.0.6ag (2026-05-17, HanBin) — unified popover system. Row ⋯ menu,
+   "+ 보관소 추가" menu, and connection-chip popover all share the same
+   item styling so the vault selector reads as one coherent surface.
+   HanBin: "보관소 ... 창 디자인 및 보관소 선택창 내 전체 UX가 일관성
+   부족."
+
+   5.0.6m-2 (2026-05-17, HanBin) — shell + positioning + animation moved
+   here too. Previously lived as inline `popoverPanelStyle` + a runtime
+   <style> injection for the keyframe; now the panel is a single CSS
+   class with three positional modifiers so the JSX is declarative. */
+/* 5.0.6m-2 — CreateVaultDialog body layout (was inline in TSX). */
+.vault-create-dialog {
+  width: min(480px, 90vw);
+}
+
+.vault-create-dialog__body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vault-create-dialog__field-label {
+  margin-bottom: 6px;
+}
+
+.vault-create-dialog__location-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.vault-create-dialog__name-input {
+  width: 100%;
+}
+
+.vault-create-dialog__footer-spacer {
+  flex: 1;
+}
+
+/* Orphan-cleanup banner — passive recommendation strip above the vault
+   grid. Replaces the equivalent inline-style block in
+   ConnectionVaultSelector.tsx (5.0.6m-2, HanBin). */
+.vault-orphan-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin: 0 0 10px;
+  background: var(--bg-base);
+  border: 1px solid var(--sep-o);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--tx-1);
+}
+
+.vault-orphan-banner__icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.vault-orphan-banner__text {
+  flex: 1;
+}
+
+.vault-orphan-banner__dismiss {
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--tx-2);
+  display: flex;
+  align-items: center;
+}
+
+.vault-orphan-banner__dismiss:hover {
+  color: var(--tx-1);
+}
+
+.vault-popover-panel {
+  position: absolute;
+  background: var(--bg-elevated);
+  border: 1px solid var(--sep-o);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  animation: vault-popover-in 120ms ease-out;
+}
+
+@keyframes vault-popover-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Connection chip popover — drops down under the chip, right-aligned. */
+.vault-popover-panel--connection {
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  min-width: 260px;
+}
+
+/* Row "⋯" menu — drops UP above the trigger so a bottom-of-window row
+   doesn't clip its menu against the window edge. Right-aligned. */
+.vault-popover-panel--row-more {
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 6px;
+  min-width: 170px;
+}
+
+/* "+ 보관소 추가" menu — drops UP, stretches to the trigger card's width
+   so the two options align with the dashed add tile underneath. */
+.vault-popover-panel--add {
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 6px;
+}
+
+.vault-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vault-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-6);
+  cursor: pointer;
+  color: var(--tx-1);
+  font-size: var(--fs-12);
+  font-weight: 500;
+  text-align: left;
+  width: 100%;
+  transition: background var(--dur-150) ease, color var(--dur-150) ease;
+  font-family: inherit;
+}
+
+.vault-popover-item:hover {
+  background: var(--bg-hover);
+}
+
+.vault-popover-item svg {
+  flex-shrink: 0;
+  color: var(--tx-2);
+  transition: color var(--dur-150) ease;
+}
+
+.vault-popover-item:hover svg {
+  color: var(--tx-1);
+}
+
+.vault-popover-item--danger {
+  color: var(--tx-danger);
+}
+
+.vault-popover-item--danger svg {
+  color: var(--tx-danger);
+}
+
+.vault-popover-item--danger:hover {
+  background: color-mix(in srgb, var(--c-danger) 10%, transparent);
+}
+
+.vault-popover-item--danger:hover svg {
+  color: var(--tx-danger);
+}
+
+/* Legacy aliases kept short while existing JSX migrates over. */
+.vault-add-popover {
+  display: flex !important;
+  flex-direction: column;
+  gap: 2px;
+}
+.vault-add-popover__item { /* same as .vault-popover-item — see above */ }
+
+/* ─── Vault card (compact grid cell) ─── */
+.vault-card {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-8);
+  transition: border-color var(--dur-150) ease, box-shadow var(--dur-150) ease, background var(--dur-150) ease;
+  /* 5.0.6ad (2026-05-17, HanBin) — was `overflow: hidden` for clean
+     corner clipping. That also clipped the ⋯ row-menu popover (absolute-
+     positioned inside the card) so the menu was invisible even though
+     state was set. HanBin: "... 기능 동작안하고 있다니까?" Switch to
+     `visible` and accept the negligible corner-rounding cost — the
+     popover trumps. */
+  overflow: visible;
+}
+
+.vault-card:hover {
+  border-color: var(--sep, var(--sep-l));
+  background: var(--bg-hover);
+}
+
+.vault-card--current {
+  border-color: color-mix(in srgb, var(--tx-1) 55%, var(--sep-l));
+  background: color-mix(in srgb, var(--tx-1) 6%, var(--bg-elevated));
+}
+
+.vault-card--current:hover {
+  background: color-mix(in srgb, var(--tx-1) 10%, var(--bg-elevated));
+}
+
+/* The clickable area = icon + name/path. .vault-card__actions sits
+   outside so the more-btn doesn't trigger card selection. */
+.vault-card__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--tx-1);
+  text-align: left;
+}
+
+/* 5.0.6w (2026-05-17, HanBin) — vault avatar replaces the
+   one-icon-fits-all Package cube. Non-current vaults get an initial
+   letter on a hash-derived hue, so the user can tell vaults apart at a
+   glance without reading every path. Current vault keeps the Package
+   icon on the accent fill (it's already distinguished by border + badge,
+   no extra color noise needed). 36px square stays consistent with the
+   add-card's icon. */
+.vault-card__avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-8);
+  font-size: var(--fs-14);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: color-mix(in srgb, var(--tx-2) 10%, transparent);
+  color: var(--tx-2);
+  transition: transform var(--dur-150) ease;
+}
+
+.vault-card:hover .vault-card__avatar {
+  transform: scale(1.03);
+}
+
+.vault-card--current .vault-card__avatar,
+.vault-card--current:hover .vault-card__avatar {
+  background: color-mix(in srgb, var(--tx-1) 18%, transparent);
+  color: var(--tx-1);
+}
+
+/* In dark mode the hash-derived 92%-lightness HSL backgrounds get washed
+   out. Tone the avatar darker via mix-blend so each vault color stays
+   visible on dark surfaces too. */
+[data-theme='dark'] .vault-card__avatar:not(.vault-card--current .vault-card__avatar) {
+  filter: brightness(0.85) saturate(1.1);
+}
+
+.vault-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vault-card__name {
   font-size: var(--fs-13);
   font-weight: 600;
   color: var(--tx-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.1px;
+}
+
+/* 5.0.6w — meta row carries path + last-opened time inline. dot-
+   separator pattern matches the rest of the chrome (connection chip,
+   sync popover). */
+.vault-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-11);
+  color: var(--tx-3);
+  min-width: 0;
+}
+
+.vault-card__path {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.vault-card__meta-sep {
+  flex-shrink: 0;
+}
+
+.vault-card__last-opened {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Explicit "현재 사용 중" badge replaces the small dot. The badge tells
+   the user EXACTLY what the state means without having to know what a
+   dot signifies. Compact pill so it doesn't fight the avatar for weight. */
+.vault-card__current-badge {
+  flex-shrink: 0;
+  font-size: var(--fs-10);
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  background: var(--tx-1);
+  color: #fff;
+  white-space: nowrap;
+}
+
+.vault-card__actions {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding-right: 8px;
+}
+
+/* 5.0.6ac (2026-05-17, HanBin) — ⋯ menu is now always visible (muted at
+   rest, full color on hover). The previous opacity-0-until-hover was
+   undiscoverable per HanBin: "... 기능 구현할 것" — users couldn't tell
+   the menu existed without touching the row. */
+.vault-card__more-btn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-6);
+  color: var(--tx-3);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity var(--dur-150) ease, background var(--dur-150) ease, color var(--dur-150) ease;
+}
+
+.vault-card:hover .vault-card__more-btn {
+  opacity: 1;
+}
+
+.vault-card__more-btn:hover {
+  background: var(--bg-base);
+  color: var(--tx-1);
+  opacity: 1;
+}
+
+.vault-card__more-btn:disabled {
+  opacity: 0;
+  cursor: default;
 }
 
 .vault-selector-window-close {
@@ -752,7 +1260,21 @@
 .vault-selector-window-body {
   flex: 1;
   overflow-y: auto;
-  padding: var(--sp-5) var(--sp-8);
+  /* 5.0.6aa — hero now owns the top spacing; body can start tight. */
+  padding: 0 var(--sp-6) var(--sp-5);
+}
+
+/* 5.0.6v (2026-05-17, HanBin) — content container. The window can be
+   resized very wide; without a max-width the vault rows stretch to
+   absurd widths and the connection chip floats far from the content.
+   Centered ~520px column keeps reading line natural like Obsidian's
+   vault picker — vault names + paths are scannable at a glance instead
+   of getting lost in negative space. The container itself flows
+   top-aligned so a small list doesn't visually drift to the centre. */
+.vault-selector-window-body > * {
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .vault-selector-window-logo {
@@ -793,165 +1315,21 @@
 }
 
 /* ================================================
-   NAS Folder Browser
+   Legacy NAS Folder Browser (mini-tree variant)
+   ------------------------------------------------------------
+   5.0.8e (2026-05-17, HanBin) — entire legacy block removed.
+   Replaced by the modal-based NasFolderBrowser whose CSS lives
+   later in this file (`.nas-browser-overlay`, `.nas-browser-modal`,
+   `.nas-browser-breadcrumbs`, `.nas-browser-row-*`, etc., starting
+   at the "NAS browser modal" comment).
+   Removed selectors: .nas-browser (outer), .nas-browser-header (+ h4),
+   .nas-browser-loading, .nas-browser-error, .nas-folder-item (+ states),
+   .nas-folder-toggle, .nas-folder-icon, .nas-folder-name,
+   .nas-vault-indicator, .nas-spinner,
+   the OLD .nas-browser-footer (kept the modal one below),
+   .nas-browser-selection, .nas-browser-path, .nas-browser-vault-badge,
+   .nas-browser-actions, .sync-saving.
    ================================================ */
-
-.nas-browser {
-  margin-top: 16px;
-  border: 1px solid var(--sep-l);
-  border-radius: var(--r-8);
-  overflow: hidden;
-}
-
-.nas-browser-header {
-  padding: 12px 16px;
-  background: var(--bg-hover);
-  border-bottom: 1px solid var(--sep-l);
-}
-
-.nas-browser-header h4 {
-  margin: 0 0 4px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--tx-1);
-}
-
-.nas-browser-hint {
-  font-size: 11px;
-  color: var(--tx-3);
-}
-
-.nas-browser-tree {
-  max-height: 320px;
-  overflow-y: auto;
-  padding: 4px 0;
-}
-
-.nas-browser-loading,
-.nas-browser-error {
-  padding: 24px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--tx-3);
-}
-
-.nas-browser-error {
-  color: var(--c-red);
-}
-
-.nas-folder-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--tx-2);
-  border-radius: 0;
-  transition: background 0.1s;
-}
-
-.nas-folder-item:hover {
-  background: var(--bg-hover);
-}
-
-.nas-folder-item.selected {
-  background: color-mix(in srgb, var(--c-blue) 15%, transparent);
-  color: var(--c-blue);
-}
-
-.nas-folder-item.is-vault {
-  font-weight: 500;
-}
-
-.nas-folder-toggle {
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: none;
-  color: var(--tx-3);
-  cursor: pointer;
-  font-size: 8px;
-  flex-shrink: 0;
-  padding: 0;
-}
-
-.nas-folder-icon {
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.nas-folder-name {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.nas-vault-indicator {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: var(--r-8);
-  background: color-mix(in srgb, var(--c-green) 15%, transparent);
-  color: var(--c-green);
-  flex-shrink: 0;
-}
-
-.nas-spinner {
-  animation: sync-spin 1s linear infinite;
-  display: inline-block;
-  font-size: 11px;
-}
-
-.nas-browser-footer {
-  padding: 12px 16px;
-  border-top: 1px solid var(--sep-l);
-  background: var(--bg-elevated);
-}
-
-.nas-browser-selection {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.nas-browser-path {
-  font-size: 12px;
-  color: var(--tx-2);
-  font-family: monospace;
-  background: var(--bg-sunken);
-  padding: 3px 8px;
-  border-radius: var(--r-4);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nas-browser-vault-badge {
-  font-size: 10px;
-  padding: 2px 8px;
-  border-radius: var(--r-8);
-  background: color-mix(in srgb, var(--c-green) 15%, transparent);
-  color: var(--c-green);
-  white-space: nowrap;
-}
-
-.nas-browser-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.sync-saving {
-  padding: 8px 0;
-  font-size: 12px;
-  color: var(--tx-3);
-}
 
 /* ================================================
    Conflict Resolver Panel
@@ -996,7 +1374,7 @@
 
 .conflict-file-btn {
   padding: 4px 10px;
-  border: 1px solid var(--sep-l);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--r-4);
   background: none;
   color: var(--tx-2);
@@ -1005,9 +1383,9 @@
 }
 
 .conflict-file-btn.active {
-  background: var(--c-blue);
+  background: var(--tx-1);
   color: #fff;
-  border-color: var(--c-blue);
+  border-color: var(--tx-1);
 }
 
 .conflict-diff {
@@ -1018,7 +1396,7 @@
 }
 
 .conflict-side {
-  border: 1px solid var(--sep-l);
+  border: 0.5px solid var(--sep-l);
   border-radius: var(--r-8);
   overflow: hidden;
 }
@@ -1091,8 +1469,8 @@
 
 .nas-vault-toolbar-btn:hover {
   background: var(--bg-hover);
-  color: var(--c-blue);
-  border-color: var(--c-blue);
+  color: var(--tx-1);
+  border-color: var(--tx-1);
 }
 
 .nas-vault-list-section {
@@ -1140,7 +1518,7 @@
 
 .nas-action-card-icon {
   flex-shrink: 0;
-  color: var(--c-blue);
+  color: var(--tx-1);
 }
 
 .nas-action-card-text {
@@ -1161,59 +1539,9 @@
 }
 
 /* ================================================
-   Sync Conflict/Error Banner (editor-banner slot)
+   Sync Conflict/Error Banner (5.0.8e — full block removed; no JSX consumer.
+   `.bulk-sync-banner` in Search.tsx is a separate selector.)
    ================================================ */
-
-.sync-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.sync-banner-conflict {
-  background: color-mix(in srgb, var(--c-orange) 12%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--c-orange) 25%, transparent);
-  color: var(--c-orange);
-}
-
-.sync-banner-error {
-  background: color-mix(in srgb, var(--c-red) 10%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--c-red) 20%, transparent);
-  color: var(--c-red);
-}
-
-.sync-banner-icon {
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.sync-banner-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sync-banner-action {
-  flex-shrink: 0;
-  padding: 2px 10px;
-  border-radius: var(--r-4);
-  border: 1px solid currentColor;
-  background: transparent;
-  color: inherit;
-  font-size: 11px;
-  cursor: pointer;
-  opacity: 0.9;
-}
-
-.sync-banner-action:hover {
-  opacity: 1;
-  background: var(--bg-hover);
-}
 
 /* ================================================
    Sync Error Popup (from SyncStatusIndicator)
@@ -1228,7 +1556,7 @@
   padding: 10px 12px;
   border-radius: var(--r-8);
   background: var(--bg-elevated);
-  border: 1px solid var(--sep-l);
+  border: 0.5px solid var(--sep-l);
   box-shadow: var(--sh-popover);
   z-index: 100;
 }
@@ -1245,7 +1573,7 @@
   padding: 4px 14px;
   border-radius: var(--r-4);
   border: none;
-  background: var(--c-blue);
+  background: var(--tx-1);
   color: #fff;
   font-size: 11px;
   cursor: pointer;
@@ -1265,12 +1593,279 @@
   max-height: 420px;
   border-radius: var(--r-10);
   background: var(--bg-elevated);
-  border: 1px solid var(--sep-l);
+  border: 0.5px solid var(--sep-l);
   box-shadow: var(--sh-popover);
   z-index: var(--z-top);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+/* 5.0.6l (2026-05-17, HanBin) — sync activity panel internals. Replaces
+   inline styles previously scattered throughout SyncV2StatusIndicator.tsx.
+   Layout is a 3-block stack: status (dot+label+timestamp+metadata)
+   → manual sync action → footer (pause+trash). All colors via Tier-2
+   tokens for dark/light parity. */
+.sync-activity-panel__status {
+  padding: 12px 14px 10px;
+}
+
+.sync-activity-panel__status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sync-activity-panel__label {
+  font-size: 13px;
+  color: var(--tx-1);
+  font-weight: 500;
+  flex: 1;
+}
+
+/* 5.0.6m (2026-05-17, HanBin) — Synced steady-state primary text. Replaces
+   the redundant "동기화됨" label with the actually informative fact
+   ("마지막 동기화 5분 전"). `--muted` variant for the rare no-history case. */
+.sync-activity-panel__primary-info {
+  font-size: 13px;
+  color: var(--tx-1);
+  font-weight: 400;
+  flex: 1;
+  font-variant-numeric: tabular-nums;
+}
+.sync-activity-panel__primary-info strong {
+  font-weight: 600;
+}
+.sync-activity-panel__primary-info--muted {
+  color: var(--tx-2);
+}
+
+.sync-activity-panel__when {
+  font-size: 11px;
+  color: var(--tx-2);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.sync-activity-panel__meta {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--tx-2);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sync-activity-panel__meta--danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tx-danger);
+}
+
+.sync-activity-panel__error {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: var(--bg-hover);
+  border: 1px solid var(--tx-danger);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--tx-danger);
+  line-height: 1.4;
+}
+
+.sync-activity-panel__hint {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: var(--bg-hover);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--tx-2);
+  line-height: 1.4;
+}
+
+.sync-activity-panel__actions {
+  padding: 0 14px 12px;
+}
+
+.sync-activity-panel__footer-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--sep-o, var(--sep-l));
+  background: var(--bg-hover);
+}
+
+.sync-activity-panel__footer-btn {
+  padding: 8px 6px;
+  font-size: 11px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--tx-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: background 120ms;
+}
+
+.sync-activity-panel__footer-btn + .sync-activity-panel__footer-btn {
+  border-left: 1px solid var(--sep-o, var(--sep-l));
+}
+
+.sync-activity-panel__footer-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--tx-1);
+}
+
+/* 5.0.6o (2026-05-17, HanBin) — sync log section.
+   HanBin: "동기화 로그를 보여주지도 않는데 왜 이런 디자인인데?"
+   Sits between the status block and the manual-sync action so the user's
+   eye lands on actual activity, not on the redundant "synced" label. */
+.sync-activity-panel__log {
+  border-top: 1px solid var(--sep-l);
+  padding: 8px 14px 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.sync-activity-panel__log-header {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.5px;
+  color: var(--tx-3);
+  margin-bottom: 6px;
+}
+
+.sync-activity-panel__log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sync-activity-panel__log-item {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.sync-activity-panel__log-when {
+  flex-shrink: 0;
+  width: 56px;
+  color: var(--tx-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.sync-activity-panel__log-body {
+  flex: 1;
+  min-width: 0;
+  color: var(--tx-1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sync-activity-panel__log-dir {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-activity-panel__log-dir--danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tx-danger);
+}
+
+/* 5.0.6o — meta-only label variant for the sidebar footer button when
+   we're in the Synced steady state. Smaller + muted so it reads as
+   informational metadata, not a status word. */
+.sync-status-label--meta {
+  font-size: 11px;
+  color: var(--tx-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 5.0.8c (2026-05-17, HanBin) — `.trash-panel-*` rules moved to
+   sync-v2.css so all live sync-v2 UI styling lives in one file. The
+   selectors are identical; only the host file changed. */
+
+/* 5.0.6r (2026-05-17, HanBin) — NasDeletionsBanner. Inline-styled
+   container/buttons replaced with theme tokens + design-system Button. */
+.nas-del-banner {
+  margin: 10px 14px;
+  padding: 12px 14px;
+  background: var(--bg-base);
+  border: 1px solid var(--sep-o, var(--sep-l));
+  border-left: 3px solid var(--tx-danger);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--tx-1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nas-del-banner__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nas-del-banner__icon {
+  flex-shrink: 0;
+  color: var(--tx-danger);
+}
+
+.nas-del-banner__msg {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.nas-del-banner__toggle {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  font-size: 11px;
+  background: transparent;
+  border: 1px solid var(--sep-o, var(--sep-l));
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--tx-2);
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.nas-del-banner__toggle:hover {
+  color: var(--tx-1);
+  border-color: var(--sep, var(--sep-l));
+}
+
+.nas-del-banner__list {
+  margin: 0;
+  padding: 6px 0 6px 18px;
+  max-height: 160px;
+  overflow-y: auto;
+  font-size: 12px;
+  color: var(--tx-2);
+  line-height: 1.6;
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+
+.nas-del-banner__list li {
+  word-break: break-all;
+}
+
+.nas-del-banner__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .sync-panel-header {
@@ -1290,7 +1885,7 @@
   padding: 3px 10px;
   border-radius: var(--r-4);
   border: none;
-  background: var(--c-blue);
+  background: var(--tx-1);
   color: #fff;
   font-size: 10px;
   cursor: pointer;
@@ -1315,7 +1910,7 @@
 }
 
 .sync-guard.ok .sync-guard-icon { color: var(--c-green); }
-.sync-guard.active .sync-guard-icon { color: var(--c-blue); }
+.sync-guard.active .sync-guard-icon { color: var(--tx-1); }
 .sync-guard.warn .sync-guard-icon { color: var(--c-orange); }
 
 .sync-panel-error {
@@ -1351,7 +1946,7 @@
   margin: 6px 12px;
   padding: 8px 10px;
   background: var(--bg-input);
-  border: 1px solid var(--sep-l);
+  border: 0.5px solid var(--sep-l);
   border-radius: 6px;
   color: var(--tx-1);
   font-size: 12px;
@@ -1383,7 +1978,7 @@
   font-size: 10px;
   font-weight: 600;
   color: var(--tx-3);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.5px;
 }
 
@@ -1423,7 +2018,7 @@
   font-weight: 700;
 }
 
-.sync-activity-upload .sync-activity-icon { color: var(--c-blue); }
+.sync-activity-upload .sync-activity-icon { color: var(--tx-1); }
 .sync-activity-download .sync-activity-icon { color: var(--c-green); }
 .sync-activity-delete .sync-activity-icon { color: var(--c-gray); }
 .sync-activity-conflict .sync-activity-icon { color: var(--c-orange); }
@@ -1478,7 +2073,7 @@
 }
 .nas-browser-modal {
   background: var(--bg-base);
-  border: 1px solid var(--sep-l);
+  border: 0.5px solid var(--sep-l);
   border-radius: 12px;
   width: min(640px, 90vw);
   max-height: 85vh;
@@ -1539,7 +2134,7 @@
 .nas-browser-crumb-btn {
   background: none;
   border: none;
-  color: var(--c-blue);
+  color: var(--tx-1);
   font-size: 12px;
   cursor: pointer;
   padding: 2px 6px;
@@ -1611,7 +2206,7 @@
   color: var(--tx-2);
 }
 .nas-browser-row.is-vault .nas-browser-row-icon {
-  color: var(--c-blue);
+  color: var(--tx-1);
 }
 .nas-browser-row-name {
   flex: 1;
@@ -1621,30 +2216,29 @@
 }
 .nas-browser-row-tag {
   font-size: 10px;
-  color: var(--c-blue);
+  color: var(--tx-1);
   background: var(--bg-sel);
   padding: 2px 6px;
   border-radius: 4px;
   margin-left: 4px;
 }
-.nas-browser-row-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  background: var(--c-blue);
-  color: #fff;
-  border: none;
-  border-radius: 5px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  flex-shrink: 0;
-  font-family: inherit;
+/* 2026-05-24 — legacy (Obsidian / plain-md) row gets a subtle dashed
+   border to distinguish "needs migration" from a real Notology vault.
+   Tag uses warning hue to signal the action required, not failure. */
+.nas-browser-row.is-legacy {
+  background: transparent;
+  outline: 0.5px dashed color-mix(in srgb, var(--tx-3) 50%, transparent);
+  outline-offset: -1px;
 }
-.nas-browser-row-action:hover {
-  filter: brightness(1.1);
+.nas-browser-row.is-legacy .nas-browser-row-icon {
+  color: var(--c-orange, var(--tx-2));
 }
+.nas-browser-row-tag.is-legacy {
+  background: color-mix(in srgb, var(--c-orange, #ff9500) 18%, transparent);
+  color: var(--c-orange, var(--tx-1));
+}
+/* (.nas-browser-row-action removed in 5.0.8e — the inline "Open vault"
+   button migrated to design-system <Button> primitive in 5.0.6k-2.) */
 .nas-browser-footer {
   display: flex;
   align-items: center;
@@ -1659,13 +2253,12 @@
   color: var(--tx-3);
   flex-shrink: 0;
 }
-.nas-browser-footer .nas-input {
+.nas-browser-footer .nas-input,
+.nas-browser-footer .nas-browser-footer-input {
   flex: 1;
 }
-.nas-browser-footer .nas-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.nas-browser-footer .nas-btn,
+.nas-browser-footer .ds-btn {
   flex-shrink: 0;
 }
 .nas-browser-pick-path {

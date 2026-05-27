@@ -6,10 +6,10 @@
   bottom: 20px;
   right: 20px;
   z-index: var(--z-titlebar);
-  background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
-  border: 1px solid rgba(96, 165, 250, 0.4);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  background: var(--bg-elevated);
+  border: 0.5px solid var(--sep-l);
+  border-radius: var(--r-12);
+  box-shadow: var(--sh-lg);
   min-width: 320px;
   max-width: 400px;
   animation: slideInUp 0.3s ease-out;
@@ -29,8 +29,8 @@
 .update-checker-content {
   display: flex;
   align-items: flex-start;
-  gap: var(--space-6);
-  padding: var(--space-8);
+  gap: var(--sp-3);
+  padding: var(--sp-4);
 }
 
 .update-checker-icon {
@@ -40,9 +40,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(96, 165, 250, 0.2);
-  border-radius: var(--radius-lg);
-  color: var(--color-info);
+  background: var(--bg-sel);
+  border-radius: var(--r-12);
+  color: var(--tx-1);
 }
 
 .update-checker-info {
@@ -51,32 +51,32 @@
 }
 
 .update-checker-title {
-  font-size: var(--font-lg);
+  font-size: var(--fs-13);
   font-weight: 600;
-  color: #ffffff;
-  margin-bottom: var(--space-2);
+  color: var(--tx-1);
+  margin-bottom: var(--sp-1);
 }
 
 .update-checker-body {
-  font-size: var(--font-base);
-  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--fs-13);
+  color: var(--tx-2);
   line-height: 1.4;
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--sp-2);
 }
 
 .update-checker-error {
-  font-size: var(--font-base);
+  font-size: var(--fs-13);
   color: var(--c-red);
-  margin-top: var(--space-2);
+  margin-top: var(--sp-1);
 }
 
 .update-checker-progress {
   position: relative;
   height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  border-radius: var(--r-6);
   overflow: hidden;
-  margin-top: var(--space-4);
+  margin-top: var(--sp-2);
 }
 
 .update-checker-progress-bar {
@@ -84,61 +84,61 @@
   left: 0;
   top: 0;
   height: 100%;
-  background: linear-gradient(90deg, var(--color-info), #3b82f6);
-  border-radius: var(--radius-sm);
-  transition: width var(--duration-slow) ease;
+  background: var(--tx-1);
+  border-radius: var(--r-6);
+  transition: width 0.3s ease;
 }
 
 .update-checker-progress-text {
   position: absolute;
   right: 0;
   top: -18px;
-  font-size: var(--font-sm);
-  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--fs-11);
+  color: var(--tx-3);
 }
 
 .update-checker-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--sp-2);
   flex-shrink: 0;
 }
 
 .update-checker-btn {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--sp-2);
   padding: 8px 14px;
   border: none;
-  border-radius: var(--radius-md);
-  font-size: var(--font-md);
+  border-radius: var(--r-8);
+  font-size: var(--fs-13);
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--duration-normal);
+  transition: all var(--dur-200);
 }
 
 .update-checker-btn-primary {
-  background: #3b82f6;
-  color: #ffffff;
+  background: var(--tx-1);
+  color: #fff;
 }
 
 .update-checker-btn-primary:hover {
-  background: #2563eb;
+  filter: brightness(0.9);
 }
 
 .update-checker-btn-dismiss {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.7);
-  padding: var(--space-4);
+  background: var(--bg-hover);
+  color: var(--tx-2);
+  padding: var(--sp-2);
 }
 
 .update-checker-btn-dismiss:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
+  background: var(--bg-pressed);
+  color: var(--tx-1);
 }
 
 .update-checker-installing {
-  font-size: var(--font-md);
-  color: var(--color-info);
+  font-size: var(--fs-13);
+  color: var(--tx-1);
   font-weight: 500;
 }

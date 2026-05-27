@@ -113,15 +113,14 @@ export function buildSlashCommands(language: LanguageSetting): SlashCommandItem[
     },
 
     /* ── Code / math ── */
-    {
-      id: 'inlineCode',
-      label: t('slashInlineCode', language),
-      icon: 'Code',
-      keywords: 'inline code 인라인 코드',
-      shortcut: ['Ctrl', 'E'],
-      run: (editor, range) =>
-        editor.chain().focus().deleteRange(range).toggleCode().run(),
-    },
+    // v5.2 (2026-05-15) — `/인라인 코드` REMOVED per HanBin: markdown
+    // backtick convention (`` `text` ``) is already wired via StarterKit's
+    // Code mark InputRule, and Ctrl+E toggles inline code on selected text.
+    // A slash command duplicates these established affordances without
+    // adding new value, AND the exit-from-mark UX was inherently awkward
+    // (storedMarks have no visible affordance, and explicit exit keys
+    // conflicted with normal typing). Users now type `` `code` `` directly
+    // or select text + Ctrl+E.
     {
       id: 'codeBlock',
       label: t('slashCodeBlock', language),
@@ -150,6 +149,66 @@ export function buildSlashCommands(language: LanguageSetting): SlashCommandItem[
         editor.chain().focus().deleteRange(range).run();
         insertMathNode(editor, 'mathBlock');
       },
+    },
+
+    /* ── Callout (Stage 5.0.4b-5: 2026-05-15) — flat list per HanBin Q12 ── */
+    {
+      id: 'calloutInfo',
+      label: t('slashCalloutInfo', language),
+      icon: 'Info',
+      keywords: 'callout info 정보 콜아웃',
+      run: (editor, range) =>
+        editor.chain().focus().deleteRange(range).setCallout('info').run(),
+    },
+    {
+      id: 'calloutWarning',
+      label: t('slashCalloutWarning', language),
+      icon: 'AlertTriangle',
+      keywords: 'callout warning 경고 콜아웃 주의',
+      run: (editor, range) =>
+        editor.chain().focus().deleteRange(range).setCallout('warning').run(),
+    },
+    {
+      id: 'calloutError',
+      label: t('slashCalloutError', language),
+      icon: 'AlertOctagon',
+      keywords: 'callout error 오류 콜아웃',
+      run: (editor, range) =>
+        editor.chain().focus().deleteRange(range).setCallout('error').run(),
+    },
+    {
+      id: 'calloutSuccess',
+      label: t('slashCalloutSuccess', language),
+      icon: 'CheckCircle',
+      keywords: 'callout success 성공 콜아웃 체크',
+      run: (editor, range) =>
+        editor.chain().focus().deleteRange(range).setCallout('success').run(),
+    },
+    {
+      id: 'calloutNote',
+      label: t('slashCalloutNote', language),
+      icon: 'StickyNote',
+      keywords: 'callout note 참고 콜아웃 메모',
+      run: (editor, range) =>
+        editor.chain().focus().deleteRange(range).setCallout('note').run(),
+    },
+    {
+      id: 'calloutTip',
+      label: t('slashCalloutTip', language),
+      icon: 'Lightbulb',
+      keywords: 'callout tip 팁 콜아웃',
+      run: (editor, range) =>
+        editor.chain().focus().deleteRange(range).setCallout('tip').run(),
+    },
+
+    /* ── Table (Stage 5.0.4b-5) — default 3x2, expand via TipTap table commands ── */
+    {
+      id: 'table',
+      label: t('slashTable', language),
+      icon: 'Table',
+      keywords: 'table 표 테이블',
+      run: (editor, range) =>
+        editor.chain().focus().deleteRange(range).insertTable({ rows: 2, cols: 3, withHeaderRow: true }).run(),
     },
   ];
 }

@@ -8,6 +8,13 @@ import { DEFAULT_GRAPH_SETTINGS } from '../types';
 export type ThemeSetting = 'dark' | 'light' | 'system';
 export type FontSetting = 'default' | 'nanum' | 'noto' | 'malgun' | 'custom';
 export type LanguageSetting = 'ko' | 'en';
+/**
+ * Round 2 R3 — note paper pattern. Applied to the editor body via the
+ * `data-paper` attribute on `.tiptap-editor`. Sketch (canvas) notes
+ * ignore this entirely.
+ * v11 (2026-05-23) — dot/grid removed; only plain and ruled remain.
+ */
+export type PaperStyle = 'plain' | 'ruled';
 
 export interface CustomFont {
   name: string;
@@ -32,6 +39,12 @@ interface SettingsState {
   graphSettings: GraphSettings;
   fontSize: number;
   lineHeight: string;
+  /**
+   * Round 2 R3 (HanBin 2026-05-22). Global default paper pattern for note
+   * bodies. A note's frontmatter `paper:` overrides this per-note. Sketch
+   * (canvas) notes ignore both — the canvas has its own visual model.
+   */
+  paperStyle: PaperStyle;
   spellCheck: boolean;
   accentColor: number;
   /**
@@ -56,6 +69,7 @@ interface SettingsState {
   setGraphSettings: (settings: Partial<GraphSettings>, vaultPath: string | null) => void;
   setFontSize: (size: number, vaultPath: string | null) => void;
   setLineHeight: (lh: string, vaultPath: string | null) => void;
+  setPaperStyle: (style: PaperStyle, vaultPath: string | null) => void;
   setSpellCheck: (enabled: boolean, vaultPath: string | null) => void;
   setAccentColor: (index: number, vaultPath: string | null) => void;
   setConfirmAttachmentDelete: (enabled: boolean, vaultPath: string | null) => void;
@@ -93,6 +107,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   graphSettings: { ...DEFAULT_GRAPH_SETTINGS },
   fontSize: 15,
   lineHeight: '1.6',
+  paperStyle: 'plain',
   spellCheck: false,
   accentColor: 4,
   confirmAttachmentDelete: true,
@@ -235,6 +250,12 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     getVaultStore(vaultPath).then(store => store.set('line_height', lh));
   },
 
+  setPaperStyle: (style, vaultPath) => {
+    set({ paperStyle: style });
+    if (!vaultPath) return;
+    getVaultStore(vaultPath).then(store => store.set('paper_style', style));
+  },
+
   setSpellCheck: (enabled, vaultPath) => {
     set({ spellCheck: enabled });
     document.querySelectorAll<HTMLElement>('[contenteditable]').forEach(el => {
@@ -352,6 +373,10 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       updates.lineHeight = savedLineHeight;
       document.documentElement.style.setProperty('--editor-line-height', savedLineHeight);
     }
+    const savedPaperStyle = await vaultStore.get<PaperStyle>('paper_style');
+    if (savedPaperStyle && (savedPaperStyle === 'plain' || savedPaperStyle === 'ruled')) {
+      updates.paperStyle = savedPaperStyle;
+    }
     if (savedSpellCheck !== null && savedSpellCheck !== undefined) {
       updates.spellCheck = savedSpellCheck;
     }
@@ -405,6 +430,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       graphSettings: { ...DEFAULT_GRAPH_SETTINGS },
       fontSize: 15,
       lineHeight: '1.6',
+      paperStyle: 'plain',
       spellCheck: false,
       accentColor: 4,
       confirmAttachmentDelete: true,

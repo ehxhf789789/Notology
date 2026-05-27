@@ -1,4 +1,5 @@
-import { Editor } from '@tiptap/core';
+import { Editor, getHTMLFromFragment } from '@tiptap/core';
+import { Fragment } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import HeadingWithAlign from './extensions/HeadingWithAlign';
@@ -38,6 +39,7 @@ import markdownLang from 'highlight.js/lib/languages/markdown';
 // Underline is included in StarterKit, no need to import separately
 import ItalicCJK from './extensions/ItalicCJK';
 import WikiLink from './extensions/WikiLink';
+import MediaEmbed from './extensions/MediaEmbed';
 import Callout from './extensions/Callout';
 import ParagraphWithIndent from './extensions/ParagraphWithIndent';
 import CommentMarks from './extensions/CommentMarks';
@@ -209,6 +211,17 @@ class EditorPool {
         heading: false,  // 커스텀 Heading 사용
         horizontalRule: false,  // 커스텀 HorizontalRuleNoGap 사용
         codeBlock: false,  // 커스텀 CodeBlockWithHighlight 사용
+        // v20.7 (2026-05-16, HanBin) — undo history retained for hover
+        // window lifetime across ALL notes, not just sketch. HanBin:
+        // "되돌리기 기억 캐시가 너무 짧음. hover 창이 열려있는 기준으로는
+        // 되돌리기 기록이 모두 남아야 함... 모든 노트에 해당하는 기능."
+        // Default depth (100) capped long sessions; 100k is effectively
+        // unbounded for realistic editing while staying within
+        // ProseMirror's finite-int ring-buffer assumption.
+        history: {
+          depth: 100_000,
+          newGroupDelay: 500,
+        },
       }),
       CodeBlockWithHighlight.configure({ lowlight }),
       HorizontalRuleNoGap,
@@ -237,8 +250,6 @@ class EditorPool {
                 });
 
                 if (hasCellColor) {
-                  const { getHTMLFromFragment } = require('@tiptap/core');
-                  const { Fragment } = require('@tiptap/pm/model');
                   const html = getHTMLFromFragment(Fragment.from(node), node.type.schema);
                   state.write(html);
                   state.closeBlock(node);
@@ -273,8 +284,21 @@ class EditorPool {
       TableRow,
       TableCellWithColor,
       TableHeaderWithColor,
+      // v22 (HanBin 2026-05-23) — toolbar align buttons get keyboard
+      // shortcuts: Ctrl/Cmd+Shift+L / E / R for left / center / right.
+      // Chose Shift-combos over the plain Ctrl+L/E/R Word convention because
+      // Tauri's WebView still intercepts Ctrl+R as reload in some contexts;
+      // Shift-combos are unambiguous editor-only.
       TextAlign.configure({
         types: ['heading', 'paragraph'],
+      }).extend({
+        addKeyboardShortcuts() {
+          return {
+            'Mod-Shift-l': () => this.editor.commands.setTextAlign('left'),
+            'Mod-Shift-e': () => this.editor.commands.setTextAlign('center'),
+            'Mod-Shift-r': () => this.editor.commands.setTextAlign('right'),
+          };
+        },
       }),
       // Underline is included in StarterKit
       Callout,
@@ -289,6 +313,10 @@ class EditorPool {
         onEditorContextMenu: (pos: { x: number; y: number }) => callbacks.onEditorContextMenu(pos),
         getNotePath: () => callbacks.notePath,
         resolveFilePath: (name: string) => callbacks.resolveFilePath(name),
+      }),
+      MediaEmbed.configure({
+        getNotePath: () => callbacks.notePath,
+        onClickLink: (name: string) => callbacks.onClickLink(name),
       }),
       CommentMarks.configure({
         onCommentClick: (id: string) => callbacks.onCommentClick(id),
@@ -324,6 +352,12 @@ class EditorPool {
         attributes: {
           class: 'tiptap-editor hover-tiptap-editor',
           spellcheck: 'false',
+          // 2026-05-25 (HanBin) — pull the editor out of the Tab focus
+          // chain so the user can keyboard-traverse the surrounding UI
+          // without falling into the editor (where Tab is bound to
+          // paragraph indent, see Indent.ts). Click / Esc-Tab-Tab still
+          // reach the editor when they want to.
+          tabindex: '-1',
         },
       },
     });
@@ -379,8 +413,31 @@ class EditorPool {
     const pooledEditor = this.pool.find(p => p.editor === editor);
     if (pooledEditor) {
       pooledEditor.inUse = false;
-      // Clear content for reuse
-      editor.commands.clearContent();
+      // Clear content for reuse.
+      //
+      // 11th hotfix (2026-05-19, HanBin) — bypass the wikilink deletion
+      // guard. Pool release IS NOT a user-initiated delete; it's lifecycle
+      // cleanup (hover close, PDF export tear-down, etc.). Without the
+      // meta flag, `clearContent()` produces a transaction where every
+      // attachment chip "disappears", which `wikiLinkDeletionGuard`
+      // (extensions/WikiLink.ts) interprets as a 22-chip bulk delete and
+      // fires `requestBatchAttachmentDelete` → modal pops up unexpectedly.
+      // The reproduction that surfaced this was: PDF export → editor
+      // setContent loads body with N attachments → release on cleanup →
+      // `confirmDelete` modal lands on screen. Setting the skip meta on
+      // the clear transaction makes the guard correctly ignore lifecycle
+      // teardown.
+      if (!editor.isDestroyed && editor.state.doc.content.size > 0) {
+        try {
+          const tr = editor.state.tr;
+          tr.delete(0, editor.state.doc.content.size);
+          tr.setMeta('wikiLink/skipDeleteGuard', true);
+          editor.view.dispatch(tr);
+        } catch (err) {
+          log('[EditorPool] release clear-content failed (fallback):', err);
+          try { editor.commands.clearContent(); } catch {}
+        }
+      }
       // Reset callbacks to default
       Object.assign(pooledEditor.callbacks, createDefaultCallbacks());
       log(`[EditorPool] Editor released (${this.pool.filter(p => p.inUse).length}/${this.pool.length} in use)`);

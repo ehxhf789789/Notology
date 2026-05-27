@@ -23,6 +23,14 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useFileTreeStore } from '../stores/fileTreeStore';
 import { useDragDropListener } from '../hooks/useDragDrop';
 import { initAttachmentStoreSubscriptions } from '../../features/sync_v2/stores/attachmentStore';
+import { initAttachmentSyncSubscriptions } from '../../features/sync_v2/stores/attachmentSyncStore';
+import { SyncFailureBanner } from '../../features/sync_v2/components/SyncFailureBanner';
+// v18 fix (2026-05-16, HanBin) — hover windows are a separate React entrypoint
+// with their own Zustand stores. Custom templates must be loaded explicitly,
+// otherwise the [[ picker and HoverEditor only see the 3 built-in defaults.
+import { templateActions } from '../../features/templates/stores/templateStore';
+import { loadVaultConfig, clearVaultConfigCache } from '../utils/vaultConfigUtils';
+import { onTemplatesChanged } from '../utils/windowSync';
 import type { HoverWindow } from '../types';
 import type { ThemeSetting } from '../stores/settingsStore';
 import '../../styles/index.css';
@@ -38,7 +46,7 @@ function getFileType(path: string): HoverWindow['type'] {
   if (/^https?:\/\//i.test(path)) return 'web';
   if (/\.pdf$/i.test(path)) return 'pdf';
   if (/\.(png|jpg|jpeg|gif|webp|svg|bmp|ico)$/i.test(path)) return 'image';
-  if (/\.(doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(path)) return 'document';
+  if (/\.(csv|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(path)) return 'document';
   if (/\.(json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|zsh|sql|lua|r|swift|kt|scala|zig|vue|svelte|astro|ini|conf|cfg|env|gitignore|dockerfile|makefile)$/i.test(path)) return 'code';
   return 'editor';
 }
@@ -79,6 +87,16 @@ function HoverWindowApp() {
   // as unresolved (gray) because the store stays empty.
   useEffect(() => {
     const unsubscribe = initAttachmentStoreSubscriptions();
+    return unsubscribe;
+  }, []);
+
+  // R5 v4 (HanBin 2026-05-23) — global attachment-sync indicator store.
+  // The store + sync-v2:report listener live at the app level so the spinner
+  // state survives hover-window unmount/remount. Backend sync queue was
+  // always background-persistent (SQLite WAL); this just makes the UI
+  // indicator match that lifetime instead of being tied to one window.
+  useEffect(() => {
+    const unsubscribe = initAttachmentSyncSubscriptions();
     return unsubscribe;
   }, []);
 
@@ -129,6 +147,34 @@ function HoverWindowApp() {
             settingsActions.loadSettings(decodedVault).catch(err => {
               console.warn('[HoverWindowApp] Failed to load settings:', err);
             });
+
+            // v18 (2026-05-16, HanBin) — load custom templates so the [[
+            // picker, HoverEditor color theming, and template lookups all
+            // see the same vault data as the main window. Without this the
+            // hover window's templateStore stays at DEFAULT_NOTE_TEMPLATES
+            // forever and custom templates silently disappear from the UI.
+            loadVaultConfig(decodedVault)
+              .then(cfg => templateActions.loadTemplates(decodedVault, cfg))
+              .catch(err => console.warn('[HoverWindowApp] Failed to load templates:', err));
+
+            // v20 — listen for cross-window template-change broadcasts so
+            // this hover window's templateStore stays in sync when the
+            // main window (or another hover window) creates / edits /
+            // deletes a template. Without this, a hover window opened
+            // BEFORE the change keeps showing the old template set.
+            const unlistenPromise = onTemplatesChanged((payload) => {
+              if (payload.vaultPath !== decodedVault) return;
+              clearVaultConfigCache();
+              loadVaultConfig(decodedVault)
+                .then(cfg => templateActions.loadTemplates(decodedVault, cfg))
+                .catch(err => console.warn('[HoverWindowApp] template-reload failed:', err));
+            });
+            // Stash the unlisten so window close can clean up (the window
+            // itself is destroyed shortly after, so leaks are bounded).
+            unlistenPromise.then(fn => {
+              (window as unknown as { __notologyTemplatesUnlisten?: () => void })
+                .__notologyTemplatesUnlisten = fn;
+            }).catch(() => {});
 
             // Load file tree (this will also trigger file lookup index rebuild)
             useFileTreeStore.getState().refreshFileTree().then(() => {
@@ -308,6 +354,8 @@ function HoverWindowApp() {
       <RenameDialog />
       <ConfirmDeleteModal />
       <AlertModal />
+      {/* R5 v5 — permanent sync failure notification (hidden when empty). */}
+      <SyncFailureBanner />
     </div>
   );
 }

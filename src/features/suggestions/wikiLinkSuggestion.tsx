@@ -9,7 +9,7 @@ import type { EditorState } from '@tiptap/pm/state';
 
 type TippyInstance = ReturnType<typeof tippy>;
 
-function searchNotes(fileTree: FileNode[], query: string): Array<{ fileName: string; path: string }> {
+export function searchNotes(fileTree: FileNode[], query: string): Array<{ fileName: string; path: string }> {
   const results: Array<{ fileName: string; path: string }> = [];
   const lowerQuery = query.toLowerCase();
 
@@ -99,6 +99,7 @@ export function createWikiLinkSuggestion(getFileTree: () => FileNode[]) {
     render: () => {
       let component: ReactRenderer<WikiLinkSuggestionListRef> | undefined;
       let popup: TippyInstance | undefined;
+      let closeOnEvent: (() => void) | undefined;
 
       return {
         onStart: (props: any) => {
@@ -120,7 +121,30 @@ export function createWikiLinkSuggestion(getFileTree: () => FileNode[]) {
             trigger: 'manual',
             placement: 'bottom-start',
             maxWidth: '400px',
+            // v5.4 (2026-05-15) — Same fix as slash palette: the CSS
+            // override at `.tippy-box[data-theme~='wiki-link-suggestion']`
+            // existed but this tippy invocation never set the theme, so
+            // the dark default `.tippy-box` background was rendering
+            // behind our `.wiki-link-suggestion-list`. Setting theme
+            // here activates the transparent override.
+            theme: 'wiki-link-suggestion',
           });
+
+          // v5.3 + v5.4 — auto-close on dragstart AND scroll. HanBin:
+          // popovers shouldn't linger over drag preview, and stale anchor
+          // after scroll leaves the popover at the wrong location.
+          // v5.5.1 (2026-05-16, HanBin): popover 내부 스크롤은 무시.
+          // 노트 리스트가 max-height 안에서 스크롤될 때 닫히면 안 됨.
+          closeOnEvent = (e?: Event) => {
+            if (e?.type === 'scroll') {
+              const popperEl = popup?.[0]?.popper;
+              const target = e.target as Node | null;
+              if (popperEl && target && popperEl.contains(target)) return;
+            }
+            popup?.[0]?.hide();
+          };
+          document.addEventListener('dragstart', closeOnEvent, { capture: true });
+          window.addEventListener('scroll', closeOnEvent, { capture: true });
         },
 
         onUpdate(props: any) {
@@ -141,10 +165,37 @@ export function createWikiLinkSuggestion(getFileTree: () => FileNode[]) {
             return true;
           }
 
+          // Stage 5.0.5a-γ5 v7 fix (2026-05-16, HanBin) — defensively
+          // intercept Tab AT THE WRAPPER LEVEL.
+          //
+          // HanBin: "[[ 입력 후 tab 을 누르면 텍스트 들여쓰기가 동작함".
+          // Root cause: TipTap's list/task-item keymap had Tab bindings
+          // that fired before / instead of the suggestion's handleKeyDown
+          // when the cursor sat inside a list. The previous fix only
+          // intercepted Tab inside the React component, which is too
+          // deep — by then TipTap's keymap had already consumed the key.
+          //
+          // Fix: preventDefault + stopPropagation here, delegate to the
+          // component for the mode-toggle action, ALWAYS return true so
+          // ProseMirror's keymap never sees Tab when the popover is open.
+          if (props.event.key === 'Tab') {
+            props.event.preventDefault();
+            props.event.stopPropagation();
+            // Let the React component handle the mode switch (list ↔ picker).
+            // Even if it returns false, we still consume the key.
+            component?.ref?.onKeyDown(props);
+            return true;
+          }
+
           return component?.ref?.onKeyDown(props) || false;
         },
 
         onExit() {
+          if (closeOnEvent) {
+            document.removeEventListener('dragstart', closeOnEvent, { capture: true });
+            window.removeEventListener('scroll', closeOnEvent, { capture: true });
+            closeOnEvent = undefined;
+          }
           popup?.[0]?.destroy();
           component?.destroy();
         },

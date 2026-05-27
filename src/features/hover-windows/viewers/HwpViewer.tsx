@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { FileWarning, ExternalLink } from 'lucide-react';
 import { previewCommands, utilCommands } from '../../../core/services/tauriCommands';
+import { t, tf } from '../../../core/utils/i18n';
+import { useLanguage } from '../../../core/stores/settingsStore';
 
 interface HwpViewerProps {
   filePath: string;
@@ -8,6 +10,7 @@ interface HwpViewerProps {
 }
 
 export function HwpViewer({ filePath, onRustFailed }: HwpViewerProps) {
+  const language = useLanguage();
   const [svgContent, setSvgContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,26 +64,28 @@ export function HwpViewer({ filePath, onRustFailed }: HwpViewerProps) {
 
   if (loading) {
     const isHwpx = filePath.toLowerCase().endsWith('.hwpx');
+    const fileType = isHwpx ? 'HWPX' : 'HWP';
     return (
       <div className="office-viewer-container hwp-viewer">
-        <div className="hwp-loading">{isHwpx ? 'HWPX' : 'HWP'} 렌더링 중...</div>
+        <div className="hwp-loading">{tf('viewerHwpRendering', language, { type: fileType })}</div>
       </div>
     );
   }
 
   if (error) {
     const isHwpx = filePath.toLowerCase().endsWith('.hwpx');
+    const fileType = isHwpx ? 'HWPX' : 'HWP';
     return (
       <div className="office-viewer-container hwp-viewer">
         <div className="hwp-error-container">
           <FileWarning size={48} className="hwp-error-icon" />
-          <p className="hwp-error-title">{isHwpx ? 'HWPX' : 'HWP'} 내장 렌더링 실패</p>
+          <p className="hwp-error-title">{tf('viewerHwpRenderFail', language, { type: fileType })}</p>
           <p className="hwp-error-detail">
-            이 {isHwpx ? 'HWPX' : 'HWP'} 파일은 내장 렌더러가 지원하지 않는 형식입니다.
+            {tf('viewerHwpRenderFailDesc', language, { type: fileType })}
           </p>
           <button className="hwp-open-external-btn" onClick={handleOpenExternal}>
             <ExternalLink size={16} />
-            한컴오피스로 열기
+            {t('viewerHwpOpenExternal', language)}
           </button>
         </div>
       </div>
@@ -92,10 +97,10 @@ export function HwpViewer({ filePath, onRustFailed }: HwpViewerProps) {
       <div className="office-viewer-container hwp-viewer">
         <div className="hwp-error-container">
           <FileWarning size={48} className="hwp-error-icon" />
-          <p className="hwp-error-title">문서 내용 없음</p>
+          <p className="hwp-error-title">{t('viewerHwpEmpty', language)}</p>
           <button className="hwp-open-external-btn" onClick={handleOpenExternal}>
             <ExternalLink size={16} />
-            한컴오피스로 열기
+            {t('viewerHwpOpenExternal', language)}
           </button>
         </div>
       </div>

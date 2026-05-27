@@ -3,6 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import logoWhite from '../../assets/logo-white.png';
 import logoBlack from '../../assets/logo-black.png';
 import { useSettingsStore } from '../stores/settingsStore';
+import { VaultRepairTitleBarIndicator } from '../../features/sync_v2/components/VaultRepairTitleBarIndicator';
 
 const appWindow = getCurrentWindow();
 
@@ -111,6 +112,10 @@ function TitleBar() {
         <img src={logo} alt="" className="titlebar-icon" />
         <span className="titlebar-title">Notology</span>
       </div>
+      {/* 2026-05-24 (HanBin) — vault_repair progress indicator. Hidden
+          when no repair is running. Clicking it re-opens the modal so the
+          user can monitor / cancel a backgrounded operation. */}
+      <VaultRepairTitleBarIndicator />
       <div className="titlebar-controls">
         <button
           className="titlebar-btn"

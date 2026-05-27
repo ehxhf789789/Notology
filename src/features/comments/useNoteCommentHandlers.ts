@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import type { Editor } from '@tiptap/core';
 import { fileCommands } from '../../core/services/tauriCommands';
 import { refreshActions } from '../../core/stores/refreshStore';
-import type { NoteFrontmatter, NoteComment, CanvasData, CanvasSelection } from '../../core/types';
+import type { NoteFrontmatter, NoteComment, SketchData, SketchSelection } from '../../core/types';
 import type { FacetedTags } from '../../core/types/frontmatter';
 import { getCurrentTimestamp } from '../../core/utils/frontmatter';
 import { getFlatTags } from '../../core/utils/frontmatterUtils';

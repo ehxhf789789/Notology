@@ -7,52 +7,149 @@
   height: 100%;
   outline: none;
   color: var(--tx-1);
-  font-size: var(--fs-15);
-  line-height: 1.7;
+  /* Round 2 R3 v12 (HanBin 2026-05-23) — Oxford notebook breathing room.
+     Line-height bumped 1.7 → 1.8 so each text row has more half-leading
+     above and below the em-box, leaving comfortable space between
+     character ink and the ruled line below it. */
+  font-size: var(--editor-font-size, 14px);
+  line-height: var(--editor-line-height, 1.8);
   max-width: 800px;
   margin: 0 auto;
   width: 100%;
+  font-family: var(--app-font);
+  word-break: keep-all;        /* keep Korean words intact at wrap points */
+  overflow-wrap: anywhere;     /* but allow long English/URL wraps */
+  /* `--paper-row` is the single source of truth for the editor's vertical
+     rhythm. Every block element (p / h1 / h2 / h3 / li / blockquote …)
+     snaps its line-height + vertical margins to integer multiples of this. */
+  --paper-row: calc(var(--editor-font-size, 14px) * var(--editor-line-height, 1.8));
 }
 
+/* Round 2 R3 v4 (HanBin 2026-05-23) — heading line-heights and margins
+   snap to integer multiples of `--paper-row`. H1 takes 2 rows (large
+   font fits comfortably), H2 / H3 / P take 1 row each. Top margins are
+   1 row except where a previous block already pushes content down to
+   the next row line.
+   Why em font-sizes instead of px — keeps the heading/body ratio fixed
+   even when the user enlarges/shrinks the body font in settings, so
+   `--paper-row` × heading-line-height stays an integer multiple. */
+/* Round 2 R3 v8 — every block element is EXACTLY 1 row tall with ZERO
+   vertical margin so paragraphs + headings stack continuously and every
+   row has a paper-pattern line behind it. Visual hierarchy is carried
+   by weight/color/border, not by vertical whitespace.
+   Removed the h2 border-bottom (was a separator under headings) because
+   the paper line already does that job, and the two together looked
+   like double-lines. H1's left border-strip is kept (identity stripe). */
+/* 2026-05-24 (HanBin) — small bottom breathing room under headings.
+   The v8 paper-row rhythm enforced `margin: 0` on every block so every
+   text row landed on a ruled grid line. In practice the heading-to-body
+   gap felt cramped (heading sat directly on top of the next paragraph
+   with no visual separation). We add a *small* margin-bottom — fractions
+   of one paper row — so the rhythm only drifts by less than half a row,
+   but the eye gets a clear visual break between the heading and what
+   follows. Top margin stays 0 so the heading still aligns with the
+   block above it. */
 .tiptap-editor h1 {
-  font-size: var(--fs-28);
+  font-size: 1.43em;                       /* ≈20 px @ 14 px body */
   font-weight: 700;
-  margin: 18px 0 10px;
-  padding-left: var(--sp-4);
-  border-left: 4px solid var(--c-blue);
+  letter-spacing: -0.01em;
+  line-height: var(--paper-row);
+  margin: 0 0 0.4em;                       /* ≈6 px breathing room */
+  padding-left: 0.86em;                    /* ≈12 px @ 14 px body */
+  border-left: 3px solid var(--tx-1);
   color: var(--tx-1);
 }
 
 .tiptap-editor h2 {
-  font-size: var(--fs-22);
+  font-size: 1.21em;                       /* ≈17 px @ 14 px body */
   font-weight: 600;
-  margin: 16px 0 8px;
-  padding-left: var(--sp-3);
-  border-left: 3px solid var(--c-teal);
+  line-height: var(--paper-row);
+  margin: 0 0 0.35em;                      /* ≈5 px */
   color: var(--tx-1);
 }
 
 .tiptap-editor h3 {
-  font-size: var(--fs-17);
+  font-size: 1.07em;                       /* ≈15 px @ 14 px body */
   font-weight: 600;
-  margin: 14px 0 7px;
-  padding-left: var(--sp-3);
-  border-left: 2px solid var(--c-indigo);
-  color: var(--tx-1);
+  line-height: var(--paper-row);
+  margin: 0 0 0.3em;                       /* ≈4 px */
+  color: var(--tx-2);
 }
 
+/* H4–H6 are rarer but get a matching small margin so they don't crowd
+   either; bottom only, top stays 0 to preserve block-stacking. */
+.tiptap-editor h4,
+.tiptap-editor h5,
+.tiptap-editor h6 {
+  margin: 0 0 0.25em;
+}
+
+.tiptap-editor h3:first-child { margin-top: 0; }
+
 .tiptap-editor p {
-  margin: 0 0 8px;
+  /* Round 2 R3 v8 (2026-05-23) — zero margin so every text row sits on a
+     ruled line with NO empty rows between paragraphs. v5–v7 had a 1-row
+     margin-bottom which left blank, line-less rows between paragraphs and
+     looked uneven ("줄간격이 개판"). For real ruled-paper rhythm, every
+     row needs a line. Paragraph separation is now carried by indent or
+     blank Enter, not by CSS margin. */
+  margin: 0;
+  line-height: var(--paper-row);
 }
 
 .tiptap-editor ul,
 .tiptap-editor ol {
   padding-left: var(--sp-6);
-  margin: 8px 0;
+  /* Round 2 R3 v4 — vertical rhythm = row-multiples. Lists treated as
+     stacked paragraphs so each line lands on the ruled grid. */
+  margin: 0;
+  line-height: var(--paper-row);
 }
 
 .tiptap-editor li {
-  margin: 4px 0;
+  margin: 0;
+  /* 2026-05-24 (HanBin) — tiny vertical padding so list items holding
+     wiki-link chips don't crowd vertically. Body text rows still land on
+     `--paper-row` rhythm because the padding stays well inside one row. */
+  padding: 2px 0;
+  line-height: var(--paper-row);
+}
+
+/* ================================================================
+   Round 2 R3 v11 (2026-05-23) — Paper-theme: BODY paragraphs only.
+   `data-paper` is stamped on .tiptap-editor by HoverEditor.tsx.
+   ----------------------------------------------------------------
+   Scope per user request:
+     • Ruled: lines ONLY on top-level body paragraphs (p direct
+       children of the editor). Headers, blockquotes, lists (ul/ol/
+       li), code blocks, embeds — all stay plain. Selecting top-level
+       p only via `> p` excludes paragraphs nested inside li,
+       blockquote, table cells, etc.
+     • Dot / Grid options removed (only plain + ruled remain).
+   ================================================================ */
+.tiptap-editor[data-paper="plain"] > p {
+  background-image: none;
+}
+
+/* Ruled — Oxford-notebook line under each body paragraph row.
+   v12 (HanBin 2026-05-23) tuned for "강한 노트 느낌":
+     • Thickness 2 px → 1 px — Oxford-thin elegance.
+     • Opacity 28% → 18% — softer pencil-tone rather than printed bar.
+     • Position `calc(50% + 0.5em + 3px)` — 3 px gap between em-box bottom
+       and line so characters don't touch the line ("따닥따닥" 방지).
+       The 3 px gap sits inside the bottom half-leading area (1.8 line-
+       height gives ~5.6 px of half-leading for 14 px body), so the line
+       stays inside the row and the rhythm is preserved. */
+.tiptap-editor[data-paper="ruled"] > p {
+  background-image: linear-gradient(
+    to bottom,
+    transparent calc(50% + 0.5em + 3px),
+    color-mix(in srgb, var(--tx-1) 18%, transparent) calc(50% + 0.5em + 3px),
+    color-mix(in srgb, var(--tx-1) 18%, transparent) calc(50% + 0.5em + 4px),
+    transparent calc(50% + 0.5em + 4px)
+  );
+  background-size: 100% var(--paper-row);
+  background-repeat: repeat;
 }
 
 /* Text formatting */
@@ -77,33 +174,43 @@
 }
 
 .tiptap-editor code {
-  background-color: var(--bg-hover);
-  padding: 2px 6px;
-  border-radius: var(--r-6);
+  background-color: var(--bg-app);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);  /* was hardcoded 4px */
   font-family: var(--font-mono);
-  font-size: var(--fs-13);
+  font-size: 0.88em;
+  color: var(--tx-1);
 }
 
 .tiptap-editor pre {
-  background-color: var(--bg-elevated);
-  padding: var(--sp-4);
-  border-radius: var(--r-8);
-  margin: 12px 0;
+  background-color: var(--bg-app);
+  padding: 16px 20px;
+  border-radius: var(--radius-xl);
+  /* Round 2 R3 v9 — margin removed so the row grid stays intact across
+     code blocks. Visual separation comes from the bg-app tinted fill. */
+  margin: 0;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tiptap-editor pre code {
   background: none;
   padding: 0;
-  font-size: var(--fs-13);
+  font-size: 14px;
   line-height: 1.5;
 }
 
+/* v5.5 (2026-05-16) — blockquote color separated from heading hierarchy.
+   Previously used --c-blue which competed with h1's blue accent bar.
+   Now uses --bdr-2 (neutral medium border) so the heading h1/h2/h3
+   blue/purple/green hierarchy reads cleanly without blockquote noise. */
 .tiptap-editor blockquote {
-  border-left: 3px solid var(--c-blue);
-  padding-left: var(--sp-4);
-  margin: 12px 0;
+  border-left: 3px solid var(--bdr-2);
+  padding-left: 20px;
+  margin: 20px 0;
   color: var(--tx-2);
+  font-style: normal;
+  background: none;
 }
 
 /* hr styles moved to Code Block section for better organization */
@@ -141,7 +248,7 @@
 }
 
 .frontmatter-key {
-  color: var(--c-blue);
+  color: var(--tx-1);
   flex-shrink: 0;
 }
 
@@ -150,70 +257,85 @@
   word-break: break-all;
 }
 
-/* Wiki Links */
+/* Round 2 R2 (2026-05-22) — Post-it card chip. Replaces the
+   color-tinted pill (purple/green) with a neutral elev-1 chip + 0.5px
+   sep-l hairline + soft 6% drop shadow ("paper sticking on paper" feel).
+   Category color (note vs attachment vs unresolved) is carried by a 2px
+   inset-shadow stripe along the left edge instead of dominating the
+   entire background. Uses inset box-shadow (not ::before) because the
+   attachment-category file already binds ::before to the type icon. */
+/* 2026-05-24 (HanBin) — chip design v4, "borderless soft pill".
+   v3 kept a 0.5px hairline border which still drew a visible rectangle
+   around every chip; in attachment lists this stacked into a "grid of
+   boxes" feel. v4 drops the border entirely and relies on a single
+   layer — a theme-aware tx-1 tint — for the chip surface. The leading
+   icon (already category-colored via baked SVG stroke) is the only
+   chromatic signal.
+
+   Typography:
+   - Filenames mix Korean + Latin + digits + dot extensions, so we lean
+     on the app font (var(--app-font) cascaded via .tiptap-editor) and
+     enable kerning + contextual alternates for clean glyph pairing.
+   - letter-spacing stays at 0: Korean hangul spacing breaks down with
+     tracking, and the chip's tight whitespace makes any tracking feel
+     loose on Latin too. Default tracking is the most readable. */
 .wiki-link-inline {
-  color: var(--c-purple);
-  cursor: pointer;
-  text-decoration: none;
-  font-weight: 500;
-  padding: 2px 6px;
-  border-radius: var(--r-6);
-  background-color: color-mix(in srgb, var(--c-purple) 10%, transparent);
-  border: 0.5px solid color-mix(in srgb, var(--c-purple) 25%, transparent);
-  transition: all var(--dur-150) var(--ease-out);
+  --wiki-chip-accent: color-mix(in srgb, var(--c-purple) 60%, var(--tx-3));
   display: inline-flex;
   align-items: center;
-  gap: var(--sp-1);
-  vertical-align: baseline;
-  user-select: all;
-  font-size: 0;
-}
-
-/* Wiki link atom nodes (rendered directly without brackets) */
-.wiki-link-inline.wiki-link-node {
-  font-size: var(--fs-15);
-}
-
-/* Hide ::after for atom nodes since content is rendered directly */
-.wiki-link-inline.wiki-link-node::after {
-  content: none;
-}
-
-/* Show only the filename via ::after pseudo-element (for decoration-based links) */
-.wiki-link-inline::after {
-  content: attr(data-wiki-link);
-  font-size: var(--fs-15);
+  gap: 6px;
+  padding: 2px 10px;
+  background: color-mix(in srgb, var(--tx-1) 6%, transparent) !important;
+  color: var(--tx-1) !important;
+  border: none !important;                          /* v4: dropped */
+  border-radius: 6px;
+  box-shadow: none;
+  font-size: 13px;
   font-weight: 500;
+  font-family: var(--app-font), system-ui, sans-serif;
+  font-feature-settings: "kern", "liga", "calt";
+  letter-spacing: 0;
+  line-height: 1.45;                                /* slight breathing room */
+  vertical-align: baseline;
+  cursor: pointer;
+  text-decoration: none;
+  user-select: all;
+  white-space: nowrap;
+  -webkit-font-smoothing: antialiased;
+  transition: background var(--dur-150) var(--ease-out);
 }
 
 .wiki-link-inline:hover {
-  background-color: color-mix(in srgb, var(--c-purple) 20%, transparent);
-  border-color: color-mix(in srgb, var(--c-purple) 40%, transparent);
-  color: var(--c-purple);
-  box-shadow: var(--sh-sm);
+  background: color-mix(in srgb, var(--tx-1) 11%, transparent) !important;
 }
 
 .wiki-link-inline.unresolved {
-  color: var(--tx-3);
-  text-decoration: underline;
-  text-decoration-style: dashed;
-  text-decoration-color: var(--sep);
-  opacity: 0.8;
+  --wiki-chip-accent: var(--tx-3);
+  background: transparent !important;
+  color: var(--tx-3) !important;
+  /* Subtle dashed underline as the "broken link" cue — replaces the
+     dashed border the v3 version used, which we can't keep now that the
+     chip is borderless. */
+  text-decoration: underline dashed color-mix(in srgb, var(--tx-3) 70%, transparent);
+  text-underline-offset: 3px;
 }
 
 .wiki-link-inline.unresolved:hover {
-  background-color: color-mix(in srgb, var(--c-gray) 10%, transparent);
-  color: var(--tx-2);
+  background: color-mix(in srgb, var(--tx-1) 5%, transparent) !important;
+  color: var(--tx-2) !important;
 }
 
+/* Attachment-typed chips: stripe color = category (set in editor-attachments.css
+   via `--wiki-chip-accent` override). The .attachment selector here is just a
+   safe default if no att-* category class is also set. */
 .wiki-link-inline.attachment {
-  color: var(--c-green);
-  background-color: color-mix(in srgb, var(--c-green) 8%, transparent);
-  border-color: color-mix(in srgb, var(--c-green) 25%, transparent);
-}
-
-.wiki-link-inline.attachment::after {
-  font-family: 'Courier New', monospace;
+  --wiki-chip-accent: var(--c-green);
+  /* 2026-05-24 (HanBin) — REMOVED legacy `font-family: 'Courier New',
+     monospace`. The filename was rendering in Courier which (a) breaks
+     the v4 clean-pill look, (b) has different baseline metrics than
+     Pretendard/Noto causing the icon-vs-text vertical mis-alignment the
+     user reported, and (c) reads poorly for Korean filenames. Filename
+     legibility actually improves when it shares the body font. */
 }
 
 .wiki-link-inline.attachment::before {
@@ -221,12 +343,18 @@
   display: inline-block;
   width: 14px;
   height: 14px;
-  margin-right: var(--sp-1);
-  margin-left: 0;
-  vertical-align: middle;
+  /* gap is provided by the flex container; ::before doesn't need its own. */
+  margin: 0;
+  /* `vertical-align: middle` here fights with flex `align-items: center`
+     on certain font metrics (Pretendard's caps height + the icon's
+     14×14 box give a 1–2px baseline offset). Reset to baseline and let
+     the flex parent center it. */
+  vertical-align: baseline;
+  flex-shrink: 0;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2300d4aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'%3E%3C/path%3E%3C/svg%3E");
   background-size: contain;
   background-repeat: no-repeat;
+  background-position: center;
 }
 
 .wiki-link-inline.attachment:hover {
@@ -244,7 +372,7 @@
    This class is added by MathCursorPlugin when they fall within a range selection.
    Uses system highlight color for consistency with native text selection. */
 .atom-in-selection {
-  outline: 2px solid var(--c-blue);
+  outline: 2px solid var(--tx-1);
   outline-offset: 0px;
   border-radius: var(--r-4);
 }
@@ -263,11 +391,11 @@
 /* ── Inline math ── */
 .math-inline-node {
   display: inline-block;
-  vertical-align: middle;
-  padding: 2px 6px;
+  vertical-align: baseline;
+  padding: 1px 4px;
   border-radius: var(--r-4);
-  border: 1px solid color-mix(in srgb, var(--c-indigo) 25%, transparent);
-  background: color-mix(in srgb, var(--c-indigo) 8%, transparent);
+  border: 1px solid transparent;
+  background: transparent;
   transition: all var(--dur-150) var(--ease-out);
   position: relative;
   /* Prevent text-indent (e.g. hanging indent) from shifting the math node */
@@ -275,13 +403,20 @@
 }
 
 .math-inline-node:hover {
-  background: color-mix(in srgb, var(--c-indigo) 14%, transparent);
-  border-color: color-mix(in srgb, var(--c-indigo) 40%, transparent);
+  background: color-mix(in srgb, var(--c-indigo) 8%, transparent);
+  border-color: color-mix(in srgb, var(--c-indigo) 25%, transparent);
 }
 
+/* 5.0.4b-2d v6 (2026-05-17, HanBin) — atom selection unified to a
+   box-shadow ring matching MediaEmbed/LinkCard. Math previously used
+   border-color + background-tint; ring is visually consistent across
+   all 4 atom types now (math/wikilink/embed/linkcard). Background
+   tint kept because it adds an additional layer of legibility for
+   inline math glyphs (smaller surface than the other 3 atom types). */
 .math-inline-node.ProseMirror-selectednode {
-  border-color: var(--c-blue);
-  background: color-mix(in srgb, var(--c-blue) 12%, transparent);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--tx-1) 12%, transparent);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 .math-inline-node.math-editing {
@@ -289,34 +424,36 @@
   background: transparent;
 }
 
-/* ── Block math — card layout ── */
+/* ── Block math — clean, minimal layout ── */
 .math-block-node {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: var(--sp-4);
-  margin: var(--sp-2) 0;
+  margin: 24px 0;
   border-radius: var(--r-6);
-  border: 1px solid color-mix(in srgb, var(--c-indigo) 18%, transparent);
-  background: color-mix(in srgb, var(--c-indigo) 4%, transparent);
+  border: 1px solid transparent;
+  background: transparent;
   transition: all var(--dur-150) var(--ease-out);
   overflow: visible;
+  font-size: 1.1em;
 }
 
 .math-block-node:hover {
-  background: color-mix(in srgb, var(--c-indigo) 8%, transparent);
-  border-color: color-mix(in srgb, var(--c-indigo) 30%, transparent);
+  background: color-mix(in srgb, var(--c-indigo) 6%, transparent);
+  border-color: color-mix(in srgb, var(--c-indigo) 15%, transparent);
 }
 
 .math-block-node.ProseMirror-selectednode {
-  border-color: var(--c-blue);
-  background: color-mix(in srgb, var(--c-blue) 8%, transparent);
+  border-color: transparent;
+  background: color-mix(in srgb, var(--tx-1) 8%, transparent);
+  box-shadow: 0 0 0 2px var(--tx-1);
 }
 
 .math-block-node.math-editing {
-  border-color: var(--c-blue);
-  background: color-mix(in srgb, var(--c-blue) 4%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-blue) 12%, transparent);
+  border-color: var(--tx-1);
+  background: color-mix(in srgb, var(--tx-1) 4%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tx-1) 12%, transparent);
 }
 
 /* KaTeX rendered output — inline-block so its full height is included
@@ -364,7 +501,7 @@
   align-items: center;
   gap: 2px;
   background: var(--bg-base);
-  border: 1px solid var(--c-blue);
+  border: 1px solid var(--tx-1);
   border-radius: var(--r-4);
   padding: 2px 4px;
 }
@@ -382,7 +519,7 @@
   font-family: var(--font-mono);
   font-size: var(--fs-13);
   font-weight: 700;
-  color: var(--c-blue);
+  color: var(--tx-1);
   user-select: none;
   flex-shrink: 0;
   line-height: 1;
@@ -411,8 +548,8 @@
 }
 
 .math-edit-container-block .math-edit-input:focus {
-  border-color: var(--c-blue);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-blue) 15%, transparent);
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tx-1) 15%, transparent);
 }
 
 /* Block textarea */
@@ -424,8 +561,8 @@
 }
 
 .math-edit-input:focus {
-  border-color: var(--c-blue);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-blue) 15%, transparent);
+  border-color: var(--tx-1);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tx-1) 15%, transparent);
 }
 
 /* Block math live preview */
@@ -472,10 +609,10 @@
 .math-error-fix-btn {
   font-size: var(--fs-10);
   padding: 1px 8px;
-  border: 1px solid var(--c-blue);
+  border: 1px solid var(--tx-1);
   border-radius: var(--r-4);
-  background: color-mix(in srgb, var(--c-blue) 10%, transparent);
-  color: var(--c-blue);
+  background: color-mix(in srgb, var(--tx-1) 10%, transparent);
+  color: var(--tx-1);
   cursor: pointer;
   font-weight: 500;
   transition: all var(--dur-100);
@@ -483,7 +620,7 @@
 }
 
 .math-error-fix-btn:hover {
-  background: var(--c-blue);
+  background: var(--tx-1);
   color: #fff;
 }
 
@@ -491,20 +628,23 @@
   align-items: center;
 }
 
-/* ── Light Mode Contrast Overrides ── */
+/* ── Light Mode Contrast Overrides ──
+   v12 (HanBin 2026-05-23) — neutralised. The old #0055CC / #6B21A8 / #047857
+   strips assumed a 3-tier coloured hierarchy (blue h1 / purple h2 / green h3)
+   that no longer exists. v8 dropped the H2/H3 left borders entirely and uses
+   `--tx-1` for the H1 strip, which already inverts correctly between dark
+   and light themes via the design-token chain. Forcing blue here re-introduced
+   accent colour against the user's "no blue except primary action" rule. */
 html[data-theme="light"] .tiptap-editor h1 {
-  color: #111827;
-  border-left-color: #0055CC;
+  color: var(--tx-1);
 }
 
 html[data-theme="light"] .tiptap-editor h2 {
-  color: #1f2937;
-  border-left-color: #0891b2;
+  color: var(--tx-1);
 }
 
 html[data-theme="light"] .tiptap-editor h3 {
-  color: #1f2937;
-  border-left-color: #4338ca;
+  color: var(--tx-2);
 }
 
 html[data-theme="light"] .tiptap-editor strong,
@@ -513,7 +653,7 @@ html[data-theme="light"] .tiptap-editor b {
 }
 
 html[data-theme="light"] .tiptap-editor blockquote {
-  background: color-mix(in srgb, var(--c-blue) 4%, transparent);
+  background: color-mix(in srgb, var(--tx-1) 4%, transparent);
 }
 
 /* Math colors auto-adapt via color-mix + var(--c-indigo/--c-blue) tokens.
@@ -528,7 +668,7 @@ html[data-theme="light"] .math-edit-input {
 /* ── Math Autocomplete Popup ── */
 .math-autocomplete-popup {
   position: fixed;
-  z-index: 9999;
+  z-index: var(--z-toast);
   max-height: 280px;
   max-width: 420px;
   overflow-y: auto;
@@ -547,7 +687,7 @@ html[data-theme="light"] .math-edit-input {
   font-size: var(--fs-10);
   font-weight: 600;
   color: var(--tx-3);
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.5px;
   border-top: 1px solid var(--sep-l);
   margin-top: 2px;
@@ -573,7 +713,7 @@ html[data-theme="light"] .math-edit-input {
 }
 
 .math-autocomplete-item.selected {
-  background: var(--c-blue);
+  background: var(--tx-1);
   color: #fff;
 }
 
@@ -592,7 +732,7 @@ html[data-theme="light"] .math-edit-input {
 .math-autocomplete-cmd {
   font-family: var(--font-mono);
   font-size: var(--fs-12);
-  color: var(--c-blue);
+  color: var(--tx-1);
   min-width: 90px;
   flex-shrink: 0;
   font-weight: 500;
@@ -624,7 +764,7 @@ html[data-theme="light"] .math-autocomplete-popup {
 }
 
 html[data-theme="light"] .math-autocomplete-item.selected {
-  background: var(--c-blue);
+  background: var(--tx-1);
 }
 
 /* (math-delimiter styles merged above with math-edit-label) */
@@ -639,6 +779,6 @@ html[data-theme="light"] .math-autocomplete-item.selected {
 }
 
 .math-gap-cursor:hover {
-  background: var(--c-blue);
+  background: var(--tx-1);
   width: 2px;
 }

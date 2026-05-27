@@ -1,13 +1,21 @@
+#[cfg(desktop)]
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
+#[cfg(desktop)]
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+#[cfg(desktop)]
 use std::sync::mpsc;
+#[cfg(desktop)]
 use std::sync::Arc;
+#[cfg(desktop)]
 use std::thread;
+#[cfg(desktop)]
 use std::time::{Duration, Instant};
+#[cfg(desktop)]
 use tauri::Emitter;
 
+#[cfg(desktop)]
 use super::SearchIndex;
 
 /// Payload emitted when files are changed (by Synology sync or external edits)
@@ -38,10 +46,12 @@ pub struct BulkSyncStatePayload {
     pub file_count: usize,
 }
 
+#[cfg(desktop)]
 pub struct VaultWatcher {
     _watcher: RecommendedWatcher,
 }
 
+#[cfg(desktop)]
 impl VaultWatcher {
     /// Start watching a vault directory for file changes
     /// and update the search index accordingly.
@@ -282,6 +292,7 @@ impl VaultWatcher {
     }
 }
 
+#[cfg(desktop)]
 fn should_process_path(path: &Path, vault_path: &Path) -> bool {
     let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
