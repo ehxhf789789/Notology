@@ -1,6 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertFileSrc } from '../../web/core';
 import { utilCommands, noteCommands } from '../../core/services/tauriCommands';
 import { hoverActions } from '../hover-windows/stores/hoverStore';
 import { fileLookupActions } from '../../core/stores/fileLookupStore';
@@ -18,10 +18,6 @@ import { useSlashAttachmentListener } from '../slash-command/useSlashAttachmentL
 import { GripVertical, Loader2 } from 'lucide-react';
 import katex from 'katex';
 import type { SketchData, SketchSelection } from '../../core/types';
-import {
-  useAttachmentSyncStore,
-  attachmentSyncActions,
-} from '../sync_v2/stores/attachmentSyncStore';
 
 /** Process TipTap HTML to render math nodes with KaTeX for display mode */
 function renderMathInHtml(html: string): string {
@@ -227,7 +223,6 @@ function SketchEditor({ data, onChange, readOnly = false, notePath, onSelectionC
     fromNodeId: string;
   }) => {
     try {
-      const { syncV2Commands } = await import('../sync_v2/syncV2Commands');
       const localPath = await syncV2Commands.attachmentLocalPath(attachment.attachmentId);
       if (!localPath) {
         console.warn('[SketchEditor] attachmentLocalPath returned empty for', attachment);
@@ -1598,7 +1593,7 @@ function SketchEditor({ data, onChange, readOnly = false, notePath, onSelectionC
                 closeSketchContextMenu();
                 if (!notePath) return;
                 try {
-                  const { open } = await import('@tauri-apps/plugin-dialog');
+                  const { open } = await import('../../web/dialog');
                   const selected = await open({ multiple: true });
                   if (!selected) return;
                   const files = Array.isArray(selected) ? selected : [selected];

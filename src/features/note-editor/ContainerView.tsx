@@ -1,3 +1,5 @@
+import { useAttachmentStore } from '../attachments/stores/attachmentStore';
+import { removeOrphanWikiLinkNodes, consumeFailedAdds } from '../attachments/orphanRemoval';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { fileCommands, searchCommands, utilCommands } from '../../core/services/tauriCommands';
@@ -20,9 +22,7 @@ import { useNoteTypeCacheStore } from '../content-cache/stores/noteTypeCacheStor
 import { createNote, createFolder, createNoteWithTemplate, createNoteFromTemplateInteractive, selectContainer } from '../../core/stores/appActions';
 import { useDropTarget } from '../../core/hooks/useDragDrop';
 import { useSlashAttachmentListener } from '../slash-command';
-import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import { EventBus } from '../../core/infrastructure/eventBus';
-import { removeOrphanWikiLinkNodes, consumeFailedAdds } from '../sync_v2/orphanRemoval';
 import { getEditorExtensions } from '../../core/editor/editorConfig';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { t } from '../../core/utils/i18n';

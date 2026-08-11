@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Editor } from '@tiptap/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow } from '../../../web/window';
 import { fileCommands, searchCommands, memoCommands } from '../../../core/services/tauriCommands';
-import { isHoverWindow } from '../../../core/utils/multiWindow';
+
 import { hoverActions, HOVER_ANIMATION } from '../stores/hoverStore';
 import { refreshActions } from '../../../core/stores/refreshStore';
 import type { NoteFrontmatter, SketchData, HoverWindow } from '../../../core/types';

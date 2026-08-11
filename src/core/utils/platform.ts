@@ -25,7 +25,7 @@ let nativePlatform: 'ios' | 'android' | 'desktop' | null = null;
 export async function initPlatform(): Promise<'ios' | 'android' | 'desktop'> {
   if (nativePlatform) return nativePlatform;
   try {
-    const { platform } = await import('@tauri-apps/plugin-os');
+    const { platform } = await import('../../web/os');
     const p = platform();
     if (p === 'ios') nativePlatform = 'ios';
     else if (p === 'android') nativePlatform = 'android';

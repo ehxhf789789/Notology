@@ -1,3 +1,4 @@
+import { syncV2Commands, type VaultRepairReport } from '../attachments/attachmentCommands';
 import { useState, useEffect, useMemo, useCallback, useSyncExternalStore } from 'react';
 import { SettingsRegistry } from './SettingsRegistry';
 import { Toggle, Button } from '../../design-system/components';
@@ -686,7 +687,6 @@ function Settings({ onClose }: SettingsProps) {
                     safe (backup-and-verify), and HanBin's Q4 decision was to
                     make the manual trigger live here so users can re-run on
                     demand even after the first-open auto-prompt was dismissed. */}
-                <VaultRepairSection language={language} />
 
                 {/* Phase 1 B3 (2026-05-24) — full vault snapshot manager.
                     Foundational safety net for legacy vault migration. */}
@@ -809,75 +809,6 @@ function Settings({ onClose }: SettingsProps) {
 
 export default Settings;
 
-// ─── VaultRepairSection (HanBin 2026-05-24) ──────────────────────────
-// Standalone subcomponent so the Settings parent stays focused on its
-// own state. Lives in the Dev Mode tab; orchestrates scan → modal flow.
-import VaultRepairModal from '../sync_v2/components/VaultRepairModal';
-import { VaultSnapshotManager } from '../sync_v2/components/VaultSnapshotManager';
-import { syncV2Commands, type VaultRepairReport } from '../sync_v2/syncV2Commands';
-
-function VaultRepairSection({ language }: { language: LanguageSetting }) {
-  const ko = language === 'ko';
-  const [scanning, setScanning] = useState(false);
-  const [report, setReport] = useState<VaultRepairReport | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const onScan = async () => {
-    setScanning(true);
-    setError(null);
-    try {
-      const r = await syncV2Commands.vaultRepairScan();
-      setReport(r);
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  return (
-    <>
-      <section className="settings-section">
-        <h3 className="settings-section-title">
-          <Wrench size={14} strokeWidth={2} aria-hidden="true" />
-          <span>{ko ? '보관소 정합성 검사 · 복구' : 'Vault repair'}</span>
-        </h3>
-        <SettingsRow
-          label={ko ? '수동 검사 실행' : 'Run manual scan'}
-          description={
-            ko
-              ? '레거시 _att/ 폴더, sketch 외부 경로, 깨진 wikilink, 다중 공유 ref, 고아 blob 등 7개 패턴을 검사하고 자동 복구합니다. 안전: 모든 변경 전 .legacy/repair_<시간>/ 폴더에 백업합니다.'
-              : 'Scans for 7 patterns (legacy _att/ folders, sketch external paths, broken wikilinks, multi-shared refs, orphan blobs, etc.) and auto-repairs. Safety: all changes are backed up under .legacy/repair_<ts>/ first.'
-          }
-        >
-          <Button onClick={onScan} disabled={scanning} variant="secondary" size="sm">
-            {scanning ? (ko ? '검사 중...' : 'Scanning...') : (ko ? '검사 실행' : 'Run scan')}
-          </Button>
-        </SettingsRow>
-        {error && (
-          <div style={{
-            padding: '8px 12px',
-            background: 'color-mix(in srgb, var(--c-red, #ef4444) 12%, transparent)',
-            color: 'var(--tx-2)',
-            fontSize: 'var(--fs-12)',
-            borderRadius: 6,
-          }}>{error}</div>
-        )}
-        {report && !report.repairRecommended && !scanning && (
-          <div style={{
-            padding: '8px 12px',
-            background: 'var(--bg-elevated)',
-            color: 'var(--tx-2)',
-            fontSize: 'var(--fs-12)',
-            borderRadius: 6,
-          }}>
-            {ko ? '✅ 보관소 상태 정상 — 자동 복구할 항목이 없습니다.' : '✅ Vault is consistent — nothing to repair.'}
-          </div>
-        )}
-      </section>
-      {report && report.repairRecommended && (
-        <VaultRepairModal report={report} onClose={() => setReport(null)} />
-      )}
-    </>
-  );
-}
+// 🔴 VaultRepairSection을 걷어냈다. WebDAV 동기화가 깨졌을 때 보관함을
+//    고치던 화면인데, web notology는 동기화를 하지 않는다 — 서버가 NAS를
+//    직접 들고 있어 어긋날 두 벌이 없다.

@@ -1,5 +1,5 @@
 import { fileCommands } from '../../core/services/tauriCommands';
-import { join } from '@tauri-apps/api/path';
+import { join } from '../../web/path';
 import type { Frontmatter, NoteType } from '../../core/types/frontmatter';
 import { generateNoteId, createDefaultFrontmatter } from '../../core/utils/frontmatterUtils';
 import type { LanguageSetting } from '../../core/utils/i18n';

@@ -3,7 +3,7 @@
  * Uses the existing BottomSheet component with form fields.
  */
 import { useState, useCallback, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../../web/core';
 import { BottomSheet } from '../BottomSheet';
 export interface ScheduleEvent {
   id: string;

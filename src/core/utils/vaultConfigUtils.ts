@@ -1,6 +1,6 @@
 import { fileCommands } from '../services/tauriCommands';
-import { join } from '@tauri-apps/api/path';
-import { load, type Store } from '@tauri-apps/plugin-store';
+import { join } from '../../web/path';
+import { load, type Store } from '../../web/store';
 import yaml from 'js-yaml';
 import type { ContainerConfig, FolderStatusConfig, FolderNoteTemplate, NoteTemplate } from '../types';
 import type { ShortcutBinding } from './shortcuts';

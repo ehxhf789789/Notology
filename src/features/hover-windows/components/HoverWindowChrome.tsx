@@ -25,7 +25,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow } from '../../../web/window';
 import { Minus, X } from 'lucide-react';
 import {
   useHoverStore,
@@ -36,7 +36,7 @@ import {
 } from '../stores/hoverStore';
 import { useLanguage } from '../../../core/stores/zustand';
 import { t } from '../../../core/utils/i18n';
-import { isHoverWindow } from '../../../core/utils/multiWindow';
+
 import {
   runAnimation,
   HOVER_WINDOW_OPEN_DURATION,

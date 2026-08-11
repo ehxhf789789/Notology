@@ -1,6 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
-import { relaunch } from '@tauri-apps/plugin-process';
-
+import { invoke } from '../../web/core';
 interface GpuConfig {
   disableGpuCompositing?: boolean;
   measured?: boolean;

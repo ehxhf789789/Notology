@@ -1,3 +1,5 @@
+
+import { useAttachmentStore } from '../attachments/stores/attachmentStore';
 import { ReactRenderer } from '@tiptap/react';
 import tippy from 'tippy.js';
 import { AttachmentSuggestionPluginKey } from '../../core/editor/extensions/AttachmentSuggestion';
@@ -5,7 +7,6 @@ import AttachmentSuggestionList from './AttachmentSuggestionList';
 import type { AttachmentSuggestionListRef } from './AttachmentSuggestionList';
 import type { Editor, Range } from '@tiptap/core';
 import type { EditorState } from '@tiptap/pm/state';
-import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import { contentCacheActions } from '../content-cache/stores/contentCacheStore';
 
 type TippyInstance = ReturnType<typeof tippy>;

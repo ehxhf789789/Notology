@@ -1,4 +1,4 @@
-import { load, type Store } from '@tauri-apps/plugin-store';
+import { load, type Store } from '../../web/store';
 
 // Global store for app-wide settings (vault_path, recent_vaults, dev_mode)
 let globalStoreInstance: Store | null = null;

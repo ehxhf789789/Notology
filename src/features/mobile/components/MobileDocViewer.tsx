@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { Loader2, ExternalLink, AlertCircle } from 'lucide-react';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertFileSrc } from '../../../web/core';
 import { previewCommands, utilCommands } from '../../../core/services/tauriCommands';
 
 const DocxViewer = lazy(() => import('../../hover-windows/viewers/docx/DocxViewer').then(m => ({ default: m.DocxViewer })));

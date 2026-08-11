@@ -14,18 +14,22 @@
  * Drag-out from rows lands in session 2.5 (next commit).
  */
 
+
+
+
+
+import { useAttachmentStore } from '../attachments/stores/attachmentStore';
+import { syncV2Commands, type AttachmentRefDto } from '../attachments/attachmentCommands';
+import { requestAttachmentDelete } from '../attachments/attachmentDelete';
+import { startAttachmentDrag, startMultiAttachmentDrag } from '../attachments/attachmentDragOut';
 import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
-import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import { useVaultPath } from '../../core/stores/fileTreeStore';
 import { fileLookupActions } from '../../core/stores/fileLookupStore';
 import { hoverActions } from '../hover-windows/stores/hoverStore';
 import { useSettingsStore } from '../../core/stores/settingsStore';
-import { syncV2Commands, type AttachmentRefDto } from '../sync_v2/syncV2Commands';
 import { modalActions } from '../modals/stores/modalStore';
 import { utilCommands } from '../../core/services/tauriCommands';
 import { getAttachmentCategory } from '../suggestions/attachmentCategory';
-import { requestAttachmentDelete } from '../sync_v2/attachmentDelete';
-import { startAttachmentDrag, startMultiAttachmentDrag } from '../sync_v2/attachmentDragOut';
 import { t } from '../../core/utils/i18n';
 import { sortGlyph } from '../../design-system/components';
 import { useNoteIdToPath } from './useNoteIdToPath';

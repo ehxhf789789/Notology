@@ -1,18 +1,18 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow } from '../../../web/window';
 import { Minus, X, ExternalLink, RefreshCw, FileWarning } from 'lucide-react';
 import { utilCommands, previewCommands } from '../../../core/services/tauriCommands';
 import { useHoverStore, hoverActions, useIsClosing, useIsMinimizing, HOVER_ANIMATION } from '../stores/hoverStore';
 import { useLanguage } from '../../../core/stores/zustand';
 import { t } from '../../../core/utils/i18n';
-import { isHoverWindow } from '../../../core/utils/multiWindow';
+
 import { runAnimation, HOVER_WINDOW_OPEN_DURATION, hoverWindowPropsAreEqual, type HoverEditorWindowProps } from '../hoverAnimationUtils';
 import { DocxViewer } from './docx';
 import { XlsxViewer } from './XlsxViewer';
 import { PptxViewer } from './pptx';
 import { HwpxViewer } from './hwpx';
 import { HwpViewer } from './HwpViewer';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertFileSrc } from '../../../web/core';
 
 const DEV = import.meta.env.DEV;
 const log = DEV ? console.log.bind(console) : () => {};

@@ -1,5 +1,5 @@
 import { fileCommands } from '../services/tauriCommands';
-import { join } from '@tauri-apps/api/path';
+import { join } from '../../web/path';
 
 // Default animation snippet that will be created if none exists
 const DEFAULT_ANIMATIONS_CSS = `/* Notology Animation Snippets

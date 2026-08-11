@@ -4,7 +4,7 @@
  * dot grid background (light mode), improved popup.
  */
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../../web/core';
 import { useFileTreeStore } from '../../../core/stores/fileTreeStore';
 import { colors as tokenColors } from '../../../styles/tokens/colors';
 import { resolveMobileGraphPalette } from './graphColors';

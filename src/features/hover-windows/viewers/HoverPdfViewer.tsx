@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { convertFileSrc } from '../../../web/core';
 import { ExternalLink } from 'lucide-react';
 import { utilCommands } from '../../../core/services/tauriCommands';
 import { useLanguage } from '../../../core/stores/zustand';

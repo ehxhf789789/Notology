@@ -3,16 +3,17 @@
  * These are standalone functions that coordinate multiple Zustand stores.
  * They replace the action methods that were previously in AppProvider Context.
  */
-import { open } from '@tauri-apps/plugin-dialog';
-import { join } from '@tauri-apps/api/path';
+import { hoverActions, useHoverStore } from '../../features/hover-windows/stores/hoverStore';
+import { open } from '../../web/dialog';
+import { join } from '../../web/path';
 import { fileCommands, noteCommands, searchCommands, vaultCommands, utilCommands, libraryCommands } from '../services/tauriCommands';
 import { EventBus } from '../infrastructure/eventBus';
 
 // Guard: prevent concurrent openVault calls (e.g., rapid clicks, HMR re-mount)
 let openVaultInProgress = false;
 import { fileTreeActions, useFileTreeStore } from './fileTreeStore';
-import { hoverActions, useHoverStore } from '../../features/hover-windows/stores/hoverStore';
-import { closeHoverWindow } from '../utils/multiWindow';
+
+
 import { refreshActions, useRefreshStore } from './refreshStore';
 import { modalActions } from '../../features/modals/stores/modalStore';
 import { settingsActions, useSettingsStore } from './settingsStore';
@@ -75,7 +76,7 @@ async function initSearchIndex(vaultPath: string): Promise<void> {
 
   // Last resort: event listener (Rust setup() auto-init may still be running)
   console.log('[initSearchIndex] Falling back to event listener...');
-  const { listen } = await import('@tauri-apps/api/event');
+  const { listen } = await import('../../web/event');
 
   return new Promise<void>((resolve, reject) => {
     let done = false;
@@ -184,7 +185,7 @@ async function openVaultInner(newVaultPath?: string) {
     // migration), so the editor remains usable while the modal is up.
     libraryCommands.checkMigrationNeeded(selected).then(async (report) => {
       if (report.needs_migration && report.total_notes > 0) {
-        const { migrationActions, wasMigrationDeclined } = await import('../../features/migration/stores/migrationStore');
+
         if (!wasMigrationDeclined(selected)) {
           console.log(`[openVault] Migration needed: ${report.total_notes} notes — prompting user`);
           migrationActions.prompt(selected, report);
@@ -206,24 +207,8 @@ async function openVaultInner(newVaultPath?: string) {
     // ref/blob layout; Stage 4.6 re-muxes existing video blobs to faststart).
     // Both modals can theoretically queue if both apply, but in practice
     // Stage-4 migrated vaults already have refs that 4.6 then probes.
-    void (async () => {
-      try {
-        const { faststartMigrationCommands } = await import('../services/tauriCommands');
-        const report = await faststartMigrationCommands.check(selected);
-        if (report.candidates > 0) {
-          const { faststartMigrationActions, wasFaststartMigrationDeclined } =
-            await import('../../features/faststart-migration/stores/faststartMigrationStore');
-          if (!wasFaststartMigrationDeclined(selected)) {
-            console.log(`[openVault] Faststart migration: ${report.candidates}/${report.total_videos} videos need conversion — prompting user`);
-            faststartMigrationActions.prompt(selected, report);
-          } else {
-            console.log('[openVault] Faststart migration previously declined for this vault — skipping prompt');
-          }
-        }
-      } catch (e) {
-        console.warn('[openVault] Faststart migration check failed (non-fatal):', e);
-      }
-    })();
+    // 🔴 보관함 이관 검사를 걷어냈다. 데스크톱이 옛 보관함 구조를 새 구조로
+    //    올리던 절차인데, web notology의 보관함은 서버가 처음부터 새 구조로 든다.
 
     // Search index initializes in background — does not block app usage
     initSearchIndex(selected).then(() => {
@@ -777,7 +762,7 @@ export async function initializeApp() {
         // trigger App.tsx listener to call openVault() again, causing duplicate
         // sync monitors). See SYNC_DIAGNOSTIC_REPORT.md Finding 5.
         try {
-          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          const { getCurrentWindow } = await import('../../web/window');
           const mainWin = getCurrentWindow();
           await mainWin.show();
           await mainWin.setFocus();
@@ -795,7 +780,7 @@ export async function initializeApp() {
   // No saved vault — show main window with inline vault selector
   console.log('[initializeApp] No vault to auto-reopen, showing inline vault selector');
   try {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    const { getCurrentWindow } = await import('../../web/window');
     const mainWin = getCurrentWindow();
     await mainWin.show();
     await mainWin.setFocus();

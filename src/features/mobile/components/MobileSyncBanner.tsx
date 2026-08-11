@@ -16,8 +16,8 @@
  * Heavy popover + activity log live in the desktop indicator; mobile
  * stays single-line + single-action.
  */
-import { useSyncV2Store } from '../../sync_v2/stores/syncV2Store';
-import { useSyncV2Events } from '../../sync_v2/hooks/useSyncV2Events';
+
+
 import { useLanguage } from '../../../core/stores/settingsStore';
 import { AlertTriangle, CloudOff, RefreshCw, Pause } from 'lucide-react';
 

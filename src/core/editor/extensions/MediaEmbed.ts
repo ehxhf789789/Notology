@@ -1,10 +1,12 @@
+
+
+import { useAttachmentStore } from '../../../features/attachments/stores/attachmentStore';
+import { requestAttachmentDelete } from '../../../features/attachments/attachmentDelete';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import { GapCursor } from '@tiptap/pm/gapcursor';
 import { useFileTreeStore } from '../../stores/fileTreeStore';
-import { useAttachmentStore } from '../../../features/sync_v2/stores/attachmentStore';
 import { contentCacheActions } from '../../../features/content-cache/stores/contentCacheStore';
-import { requestAttachmentDelete } from '../../../features/sync_v2/attachmentDelete';
 import { modalActions } from '../../../features/modals/stores/modalStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { t } from '../../utils/i18n';

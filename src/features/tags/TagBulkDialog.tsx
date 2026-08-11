@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { listen, type UnlistenFn } from '../../web/event';
 import { searchCommands } from '../../core/services/tauriCommands';
 import { deleteTagFromOntology, renameTagInOntology } from './tagOntologyUtils';
 import { refreshActions } from '../../core/stores/refreshStore';

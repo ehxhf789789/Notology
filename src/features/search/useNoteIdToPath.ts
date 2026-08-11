@@ -1,3 +1,6 @@
+import { syncV2Commands } from '../attachments/attachmentCommands';
+import { useEffect, useState } from 'react';
+import { useVaultPath } from '../../core/stores/fileTreeStore';
 /**
  * useNoteIdToPath — shared hook hydrating the
  * `note_id_lowercase → vault_relative_path` map from the backend.
@@ -12,9 +15,6 @@
  * Map is rebuilt on every vault change. Note IDs effectively never
  * change after creation, so re-fetch on byId mutations is unnecessary.
  */
-import { useEffect, useState } from 'react';
-import { useVaultPath } from '../../core/stores/fileTreeStore';
-import { syncV2Commands } from '../sync_v2/syncV2Commands';
 
 export function useNoteIdToPath(): Map<string, string> {
   const vaultPath = useVaultPath();

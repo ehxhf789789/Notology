@@ -4,7 +4,7 @@
  * Mobile: Invokes Tauri share commands → OS native share sheet.
  * Desktop: Falls back to clipboard copy + toast notification.
  */
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../web/core';
 import { isNativeMobile } from '../../core/utils/platform';
 
 export interface ShareOptions {

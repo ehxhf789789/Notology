@@ -593,7 +593,7 @@ export const preloadHoverContent = (path: string) => {
 };
 
 // Import multi-window utility for separate window mode
-import { openHoverWindow } from '../../../core/utils/multiWindow';
+
 import { useFileTreeStore } from '../../../core/stores/fileTreeStore';
 import { useContentCacheStore } from '../../content-cache/stores/contentCacheStore';
 

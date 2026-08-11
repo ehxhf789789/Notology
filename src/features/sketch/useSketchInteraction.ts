@@ -1,9 +1,9 @@
+import { syncV2Commands } from '../attachments/attachmentCommands';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useDropTarget } from '../../core/hooks/useDragDrop';
 import { generateId, findTextNodeAtPosition } from '../sketch/sketchHelpers';
 import { applyFileDrop } from '../sketch/sketchFileDrop';
 import { isRecentDragOutDrop } from '../sketch/sketchFileDragOut';
-import { syncV2Commands } from '../sync_v2/syncV2Commands';
 import type { SketchData, SketchNode, SketchEdge } from '../../core/types';
 
 // Shape anchor point calculation (sketch-absolute coordinates)

@@ -13,10 +13,11 @@
  *
  * Complex cross-store actions are in appActions.ts
  */
-import { useEffect, type ReactNode } from 'react';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { vaultCommands } from '../services/tauriCommands';
 import { hoverActions } from '../../features/hover-windows/stores/hoverStore';
+import { useEffect, type ReactNode } from 'react';
+import { listen, type UnlistenFn } from '../../web/event';
+import { vaultCommands } from '../services/tauriCommands';
+
 import { useFileTreeStore, fileTreeActions } from './fileTreeStore';
 import { useRefreshStore, refreshActions } from './refreshStore';
 import { modalActions } from '../../features/modals/stores/modalStore';

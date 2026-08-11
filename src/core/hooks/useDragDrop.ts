@@ -1,10 +1,12 @@
+import { syncV2Commands } from '../../features/attachments/attachmentCommands';
+import { useAttachmentStore } from '../../features/attachments/stores/attachmentStore';
+import { addPersistentFailedAdd } from '../../features/attachments/orphanRemoval';
 import { useEffect, useRef, useCallback } from 'react';
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { getCurrentWebviewWindow } from '../../web/webview';
 import { noteCommands } from '../services/tauriCommands';
-import { syncV2Commands } from '../../features/sync_v2/syncV2Commands';
-import { useAttachmentStore } from '../../features/sync_v2/stores/attachmentStore';
 import { EventBus } from '../infrastructure/eventBus';
-import { addPersistentFailedAdd } from '../../features/sync_v2/orphanRemoval';
+
+
 
 interface DropTarget {
   id: string;

@@ -2,8 +2,8 @@
  * Window Synchronization - Real-time state sharing between windows
  * Uses Tauri's event system for IPC between main and hover windows
  */
-import { emit, listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { emit, listen, type UnlistenFn } from '../../web/event';
+import { getCurrentWindow } from '../../web/window';
 
 // Event types for window communication
 export const WINDOW_EVENTS = {

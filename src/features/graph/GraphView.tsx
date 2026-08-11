@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import ForceGraph from 'force-graph';
-import { listen } from '@tauri-apps/api/event';
+import { listen } from '../../web/event';
 import { searchCommands, utilCommands } from '../../core/services/tauriCommands';
 import { hoverActions } from '../hover-windows/stores/hoverStore';
 

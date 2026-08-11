@@ -1,13 +1,9 @@
+import { TrashPanel } from '../../features/attachments/components/TrashPanel';
 import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { PanelRightOpen } from 'lucide-react';
 import { AppInitializer } from '../stores/appStore';
 import { ToastContainer } from '../../features/shared/Toast';
-import { NasDeletionsBanner } from '../../features/sync_v2/components/NasDeletionsBanner';
-import VaultRepairModal from '../../features/sync_v2/components/VaultRepairModal';
-import { useVaultRepairAutoDetect } from '../../features/sync_v2/hooks/useVaultRepairAutoDetect';
-import { syncV2Commands } from '../../features/sync_v2/syncV2Commands';
-import { SyncFailureBanner } from '../../features/sync_v2/components/SyncFailureBanner';
-import { TrashPanel } from '../../features/sync_v2/components/TrashPanel';
+import { syncV2Commands } from '../../features/attachments/attachmentCommands';
 import {
   useVaultPath,
   useSelectedContainer,
@@ -29,15 +25,10 @@ import {
   useNoteTemplates,
 } from '../stores/zustand';
 import { useSearchIndexing } from '../stores/refreshStore';
-import TitleBar from '../layout/TitleBar';
 import Sidebar from '../layout/Sidebar';
 import ContainerView from '../../features/note-editor/ContainerView';
 import Search from '../../features/search/Search';
 import HoverEditorLayer from '../../features/hover-windows/HoverEditorLayer';
-import MigrationModal from '../../features/migration/components/MigrationModal';
-import { useMigrationProgress } from '../../features/migration/hooks/useMigrationProgress';
-import FaststartMigrationModal from '../../features/faststart-migration/components/FaststartMigrationModal';
-import { useFaststartMigrationProgress } from '../../features/faststart-migration/hooks/useFaststartMigrationProgress';
 import RightPanel from '../layout/RightPanel';
 import ContextMenu from '../../features/context-menu/ContextMenu';
 import { Slot } from '../infrastructure/slotRegistry';
@@ -53,21 +44,17 @@ import ConfirmDeleteModal from '../../features/modals/ConfirmDeleteModal';
 import AlertModal from '../../features/modals/AlertModal';
 const VaultLockModal = lazy(() => import('../../features/vault-config/VaultLockModal'));
 import RenameDialog from '../../features/modals/RenameDialog';
-import { ConnectionVaultSelector } from '../../features/connection/components/ConnectionVaultSelector';
-import UpdateChecker from '../../features/shared/UpdateChecker';
 import LoadingScreen from '../../features/shared/LoadingScreen';
 import { CommandPalette } from '../../features/command-palette';
 import { TemplateMigrationPromptModal } from '../../features/templates/TemplateMigrationPromptModal';
 import { useDragDropListener } from '../hooks/useDragDrop';
-import { initAttachmentStoreSubscriptions } from '../../features/sync_v2/stores/attachmentStore';
-import { initAttachmentSyncSubscriptions } from '../../features/sync_v2/stores/attachmentSyncStore';
+import { initAttachmentStoreSubscriptions } from '../../features/attachments/stores/attachmentStore';
 import { useAppKeyboardShortcuts } from '../hooks/useAppKeyboardShortcuts';
 import { t } from '../utils/i18n';
 import { initializeSnippets, loadSnippets, clearSnippets } from '../utils/snippetLoader';
 import { detectGpuPerformance } from '../utils/gpuDetect';
-import { closeAllHoverWindows } from '../utils/multiWindow';
 import { flushAllEditorSaves } from '../editor/editorSaveRegistry';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow } from '../../web/window';
 import '../../styles/index.css';
 
 const HOVER_PANEL_WIDTH = 280;
@@ -75,9 +62,7 @@ const HOVER_PANEL_WIDTH = 280;
 function AppLayout() {
   // Subscribe to `migration:progress` Tauri events → migrationStore.
   // Single mount-point in the app shell, runs for the entire app lifetime.
-  useMigrationProgress();
   // Stage 4.6.2: same pattern for faststart bulk migration progress.
-  useFaststartMigrationProgress();
   // v20 (2026-05-16, HanBin) — listen for template-change broadcasts so the
   // main window also stays in sync if a hover window mutates templates
   // (rare but possible: settings opened from a hover, future features).
@@ -130,7 +115,6 @@ function AppLayout() {
     let cancelled = false;
     (async () => {
       try {
-        const { dispatchWindowEvent } = await import('../../features/window-lifecycle/windowLifecycle');
         if (cancelled) return;
         await dispatchWindowEvent({ type: 'switch_vault_requested' });
       } catch (e) {
@@ -148,12 +132,12 @@ function AppLayout() {
   // flush mechanism the existing onCloseRequested handler uses.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
-    import('@tauri-apps/api/event').then(({ listen }) => {
+    import('../../web/event').then(({ listen }) => {
       listen('flush-saves', async () => {
         try {
           flushAllEditorSaves();
           // Also signal hover windows (they have their own editor pools).
-          const { emit } = await import('@tauri-apps/api/event');
+          const { emit } = await import('../../web/event');
           await emit('hover:flush-saves');
         } catch (e) {
           console.warn('[App] flush-saves handler failed:', e);
@@ -178,12 +162,11 @@ function AppLayout() {
       } catch {}
       // Signal hover windows to flush saves before closing them
       try {
-        const { emit } = await import('@tauri-apps/api/event');
+        const { emit } = await import('../../web/event');
         await emit('hover:flush-saves');
         // Brief wait for hover windows to process the flush
         await new Promise(r => setTimeout(r, 50));
       } catch {}
-      await closeAllHoverWindows();
     });
 
     // Page refresh/navigation handler: flush all pending saves AND
@@ -194,18 +177,16 @@ function AppLayout() {
     //   1. emit `main:reloading` — each hover listens (HoverWindowApp)
     //      and self-closes. Robust against openWindows cache going
     //      stale.
-    //   2. fire-and-forget closeAllHoverWindows — closes via the
     //      frontend cache. Tauri queues the close IPCs immediately;
     //      they reach the runtime before the page actually unloads.
     const handleBeforeUnload = () => {
       flushAllEditorSaves();
       void (async () => {
         try {
-          const { emit } = await import('@tauri-apps/api/event');
+          const { emit } = await import('../../web/event');
           await emit('main:reloading', null);
         } catch {}
       })();
-      void closeAllHoverWindows();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
@@ -238,7 +219,8 @@ function AppLayout() {
   // vault open. Runs 3s after vault is mounted so sync_engine bootstrap
   // can settle. Modal appears only when the scan finds auto-fixable
   // patterns AND this device hasn't shown the prompt for this vault yet.
-  const { report: repairReport, dismiss: dismissRepair } = useVaultRepairAutoDetect();
+  // 🔴 보관함 복구 자동감지를 걷어냈다 — 서버가 NAS를 직접 들어 어긋날 두 벌이 없다
+  const repairReport = null; const dismissRepair = () => {};
 
   // 2026-05-24 (HanBin) — re-open the repair modal when the TitleBar
   // indicator is clicked (user backgrounded the apply and wants to
@@ -251,7 +233,6 @@ function AppLayout() {
     const handler = async () => {
       try {
         const r = await syncV2Commands.vaultRepairScan();
-        setReopenedReport(r);
       } catch (err) {
         console.error('[App] re-open repair modal: scan failed', err);
       }
@@ -278,8 +259,7 @@ function AppLayout() {
 
   // R5 v4 — global sync indicator. Survives hover-window close/reopen.
   useEffect(() => {
-    const unsubscribe = initAttachmentSyncSubscriptions();
-    return unsubscribe;
+    return () => {};   // 🔴 동기화 구독을 걷어낸 자리
   }, []);
 
   // Black-screen guard (HanBin 2026-05-13): the WebView2-embedded PDF
@@ -412,7 +392,7 @@ function AppLayout() {
   // Listen for vault selection from the VaultSelector window
   useEffect(() => {
     let unlisten: (() => void) | undefined;
-    import('@tauri-apps/api/event').then(({ listen }) => {
+    import('../../web/event').then(({ listen }) => {
       listen<{ localPath: string; vaultName: string }>('vault-selected', (e) => {
         import('../stores/appActions').then(m => m.openVault(e.payload.localPath));
       }).then(fn => { unlisten = fn; });
@@ -439,7 +419,7 @@ function AppLayout() {
           }}
         >
           <button
-            onClick={() => import('@tauri-apps/api/window').then(m => m.getCurrentWindow().close())}
+            onClick={() => import('../../web/window').then(m => m.getCurrentWindow().close())}
             style={{
               // @ts-ignore
               WebkitAppRegion: 'no-drag',
@@ -462,12 +442,6 @@ function AppLayout() {
           </button>
         </div>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ConnectionVaultSelector onVaultSelected={(localPath, vaultName) => {
-            import('../stores/appActions').then(m => m.openVault(localPath));
-            import('@tauri-apps/api/event').then(({ emit }) => {
-              emit('vault-selected', { localPath, vaultName });
-            });
-          }} />
         </div>
       </div>
     );
@@ -482,11 +456,8 @@ function AppLayout() {
   return (
     <div className="app-container">
       <ToastContainer />
-      <TitleBar />
       {/* R5 v5 — permanent sync failure notification (hidden when empty). */}
-      <SyncFailureBanner />
       {/* Track H bulk-delete banner. Self-hides when count is 0. */}
-      <NasDeletionsBanner />
       {/* Trash panel — opens via store flag (toast button / settings / etc.). */}
       <TrashPanel />
       {/* 2026-05-24 (HanBin) — legacy vault repair prompt (one-shot per vault per device). */}
@@ -565,9 +536,6 @@ function AppLayout() {
       <ConfirmDeleteModal />
       <AlertModal />
       <RenameDialog />
-      <UpdateChecker />
-      <MigrationModal />
-      <FaststartMigrationModal />
       <CommandPalette />
       <TemplateMigrationPromptModal />
     </div>

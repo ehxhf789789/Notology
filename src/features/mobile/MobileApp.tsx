@@ -104,7 +104,7 @@ export default function MobileApp() {
     let lastBackPress = 0;
     let unlisten: (() => void) | null = null;
 
-    import('@tauri-apps/api/event').then(({ listen }) => {
+    import('../../web/event').then(({ listen }) => {
       listen('tauri://back-button', () => {
         console.log('[back] routeStack:', routeStack.length, 'tabHistory:', tabHistory.length);
         if (routeStack.length > 0) {

@@ -1,5 +1,5 @@
+import { getCurrentWindow } from '../../web/window'
 import { createRoot } from 'react-dom/client'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import '../../styles/tokens.css'
 import '../../index.css'
 import 'tippy.js/dist/tippy.css'
@@ -31,110 +31,39 @@ import '../editor/editorPool'
 import { initPlatform, shouldUseMobileApp, isNativeMobile } from '../utils/platform'
 import { injectThemeCSS } from '../../styles/theme'
 import App from './App.tsx'
-import HoverWindowApp from './HoverWindowApp.tsx'
 import { flushAllEditorSaves } from '../editor/editorSaveRegistry'
 
 // Detect if we're in a hover window based on URL parameter or window label
+/**
+ * 🔴 web notology의 부팅 — 창 종류 분기가 없다
+ *
+ * 데스크톱 notology는 창 세 종류를 나눠 띄웠다: 본창 · 보관함 선택창 ·
+ * 떠 있는 노트창(hover). URL 파라미터와 창 라벨로 어느 창인지 가려 각각
+ * 다른 앱을 렌더했다.
+ *
+ * **브라우저에는 창이 하나뿐이다.** 그리고 보관함은 서버가 든다 —
+ * 고를 것도, 고르는 창도 없다. 그래서 분기가 통째로 사라졌다.
+ *
+ * (떠 있는 노트창은 남았다. 그건 OS 창이 아니라 **페이지 안 패널**이라
+ *  브라우저에서 그대로 된다 — `features/hover-windows`)
+ */
 async function initializeApp() {
   const urlParams = new URLSearchParams(window.location.search);
-  const isHoverFromUrl = urlParams.get('hover') === 'true';
-  const windowLabel = getCurrentWindow().label;
-  const isHoverFromLabel = windowLabel.startsWith('hover-');
-  const isHoverWindow = isHoverFromUrl || isHoverFromLabel;
 
-  // Hover windows: save & close on HMR updates and page refreshes
-  // This prevents content loss when the app hot-reloads during development
-  if (isHoverWindow) {
-    // Vite HMR: save content and close hover window before module update
-    if (import.meta.hot) {
-      import.meta.hot.on('vite:beforeUpdate', () => {
-        flushAllEditorSaves();
-        getCurrentWindow().close();
-      });
-    }
-    // Full page refresh: flush saves before unload
-    window.addEventListener('beforeunload', () => {
-      flushAllEditorSaves();
-    });
-    // Listen for flush request from main window (before it closes all hovers)
-    import('@tauri-apps/api/event').then(({ listen }) => {
-      listen('hover:flush-saves', () => {
-        flushAllEditorSaves();
-      });
-    }).catch(() => {});
-  }
-
-  // Main window & vault selector: save all hover windows and close them on HMR
-  // This prevents content loss when the vault selector or main app hot-reloads.
-  // After HMR, initializeApp() will auto-reopen the last vault seamlessly.
-  if (!isHoverWindow) {
-    if (import.meta.hot) {
-      import.meta.hot.on('vite:beforeUpdate', async () => {
-        flushAllEditorSaves();
-        const { closeAllHoverWindows } = await import('../utils/multiWindow');
-        await closeAllHoverWindows();
-      });
-    }
-    window.addEventListener('beforeunload', () => {
-      flushAllEditorSaves();
-    });
-  }
-
-  // Detect native platform (iOS/Android/desktop) before rendering
   await initPlatform();
-
-  // Inject design token CSS variables
   injectThemeCSS();
 
-  const isVaultSelector = urlParams.get('vault-selector') === 'true'
-    || windowLabel === 'vault-selector';
+  // 보관함을 연다. 어느 것을 열지는 서버가 안다.
+  const { initializeApp: initApp } = await import('../stores/appActions');
+  await initApp();
 
   const root = createRoot(document.getElementById('root')!);
-
-  // Render appropriate app based on window type
-  if (isVaultSelector) {
-    // Vault selector: separate window with NAS connection + vault selection
-    const { VaultSelectorWindow } = await import('../../features/connection/components/VaultSelectorWindow');
-    root.render(<VaultSelectorWindow />);
-  } else if (isHoverWindow) {
-    // Auto-restored hover windows from previous session have no path param — close them
-    if (!urlParams.get('path')) {
-      console.warn('[main] Closing stale hover window (no path):', windowLabel);
-      getCurrentWindow().destroy().catch(() => getCurrentWindow().close().catch(() => {}));
-      return;
-    }
-    root.render(<HoverWindowApp />);
-  } else if (
-    shouldUseMobileApp() ||
-    // DEV ONLY: ?mobile=true forces mobile UI on desktop for testing
-    (import.meta.env.DEV && urlParams.get('mobile') === 'true')
-  ) {
-    // Mobile/tablet: render calendar-centric mobile app
-    // If vault path passed via URL param (from desktop test window), auto-open it
-    const vaultParam = urlParams.get('vault');
-    if (vaultParam) {
-      const decodedVault = decodeURIComponent(vaultParam);
-      const { openVault } = await import('../stores/appActions');
-      const { settingsActions } = await import('../stores/settingsStore');
-      await settingsActions.loadGlobalSettings();
-      await openVault(decodedVault);
-    } else {
-      // Try auto-open last vault from global store
-      const { initializeApp: initApp } = await import('../stores/appActions');
-      await initApp();
-    }
-
+  if (shouldUseMobileApp()
+      || (import.meta.env.DEV && urlParams.get('mobile') === 'true')) {
     const MobileApp = (await import('../../features/mobile/MobileApp')).default;
     const { AppInitializer } = await import('../stores/appStore');
-    await import('../../features/sync_v2/index');
-    await import('../../features/connection/index');
     root.render(<AppInitializer><MobileApp /></AppInitializer>);
   } else {
-    // Desktop: full sidebar + editor + panels
-    // sync_v2: register SyncV2StatusIndicator + conflict modals into sidebar-footer-status slot.
-    // Side-effect import triggers SlotRegistry.register() at module load.
-    await import('../../features/sync_v2/index');
-    await import('../../features/connection/index');
     root.render(<App />);
   }
 }

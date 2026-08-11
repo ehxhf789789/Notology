@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../../web/core';
 import type {
   FileNode, FileContent, SearchResult, NoteMetadata, NoteFilter, AttachmentInfo,
   CalendarMemo, LockAcquireResult, NasPlatformInfo, GraphData,

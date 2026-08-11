@@ -1,6 +1,7 @@
-import { create } from 'zustand';
-import { emit } from '@tauri-apps/api/event';
 import { hoverActions } from '../../features/hover-windows/stores/hoverStore';
+import { create } from 'zustand';
+import { emit } from '../../web/event';
+
 import { getVaultStore, getGlobalStore } from './persistenceUtils';
 import type { GraphSettings } from '../types';
 import { DEFAULT_GRAPH_SETTINGS } from '../types';

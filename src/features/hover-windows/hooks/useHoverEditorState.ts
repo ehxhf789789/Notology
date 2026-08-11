@@ -1,3 +1,4 @@
+import { useAttachmentStore } from '../../attachments/stores/attachmentStore';
 import { useRef, useCallback, useMemo } from 'react';
 import { useFileTreeStore, useVaultPath, fileTreeActions } from '../../../core/stores/fileTreeStore';
 import { useHoverStore, hoverActions } from '../stores/hoverStore';
@@ -8,7 +9,6 @@ import { modalActions } from '../../modals/stores/modalStore';
 import { noteTypeCacheActions } from '../../content-cache/stores/noteTypeCacheStore';
 import { useSearchRefreshTrigger } from '../../../core/stores/refreshStore';
 import { fileLookupActions } from '../../../core/stores/fileLookupStore';
-import { useAttachmentStore } from '../../sync_v2/stores/attachmentStore';
 import { createNote, createNoteWithTemplate, createFolder, deleteNote, deleteFolder } from '../../../core/stores/appActions';
 import { utilCommands } from '../../../core/services/tauriCommands';
 // Conditional logging - only in development

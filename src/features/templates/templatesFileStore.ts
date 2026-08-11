@@ -16,7 +16,7 @@
  *   in vault-config.yaml, each entry is written out as a file and the
  *   array is cleared from vault-config. Idempotent — re-runs safely.
  */
-import { join } from '@tauri-apps/api/path';
+import { join } from '../../web/path';
 import yaml from 'js-yaml';
 import { fileCommands } from '../../core/services/tauriCommands';
 import type { NoteTemplate } from '../../core/types';

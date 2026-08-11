@@ -1,8 +1,8 @@
+
+import { useAttachmentStore } from '../attachments/stores/attachmentStore';
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, type CSSProperties } from 'react';
 import { searchCommands, utilCommands } from '../../core/services/tauriCommands';
 import { FilePlus, Filter, Search as SearchIcon, X as XIcon, ArrowUpDown, WholeWord, Library } from 'lucide-react';
-
-const GraphView = lazy(() => import('../graph/GraphView'));
 import { useHoverStore, hoverActions } from '../hover-windows/stores/hoverStore';
 import { useVaultPath } from '../../core/stores/fileTreeStore';
 import { fileTreeActions } from '../../core/stores/fileTreeStore';
@@ -14,7 +14,6 @@ import { useTemplateStore } from '../templates/stores/templateStore';
 import { useIsNasSynced, useIsBulkSyncing } from '../vault-config/stores/vaultConfigStore';
 import { selectContainer, refreshHoverWindowsForFile } from '../../core/stores/appActions';
 import { contentCacheActions } from '../content-cache/stores/contentCacheStore';
-import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import type { NoteFilter, NoteMetadata, SearchResult, SearchMode } from '../../core/types';
 import { t, tf, type LanguageSetting } from '../../core/utils/i18n';
 import { getTemplateCustomColor as getTemplateColor } from '../content-cache/noteTypeHelpers';

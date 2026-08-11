@@ -181,7 +181,7 @@ export function useAppKeyboardShortcuts() {
       ) {
         e.preventDefault();
         const device = e.key.toUpperCase() === 'T' ? 'tablet' : 'phone';
-        import('@tauri-apps/api/core').then(({ invoke }) => {
+        import('../../web/core').then(({ invoke }) => {
           invoke('open_mobile_test_window', {
             vaultPath: vaultPath || null,
             device,

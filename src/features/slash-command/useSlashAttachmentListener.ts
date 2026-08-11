@@ -23,14 +23,17 @@
  *        markPending → attachmentAdd / importAttachment fallback →
  *        store refresh → unmarkPending → 8 s no-ref sanity check.
  */
+
+
+
+import { syncV2Commands } from '../attachments/attachmentCommands';
+import { useAttachmentStore } from '../attachments/stores/attachmentStore';
+import { addPersistentFailedAdd } from '../attachments/orphanRemoval';
 import { useEffect } from 'react';
 import type { Editor } from '@tiptap/core';
-import { open as openDialog } from '@tauri-apps/plugin-dialog';
-import { syncV2Commands } from '../sync_v2/syncV2Commands';
+import { open as openDialog } from '../../web/dialog';
 import { noteCommands } from '../../core/services/tauriCommands';
-import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import { EventBus } from '../../core/infrastructure/eventBus';
-import { addPersistentFailedAdd } from '../sync_v2/orphanRemoval';
 import { classifyMediaKind } from '../../core/editor/extensions/MediaEmbed';
 
 /**

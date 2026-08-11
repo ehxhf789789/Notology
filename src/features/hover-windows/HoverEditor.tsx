@@ -1,10 +1,11 @@
+import { useAttachmentStore } from '../attachments/stores/attachmentStore';
+import { removeOrphanWikiLinkNodes, consumeFailedAdds } from '../attachments/orphanRemoval';
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { EditorContent } from '@tiptap/react';
 import type { Editor } from '@tiptap/core';
 import { fileCommands, searchCommands, memoCommands } from '../../core/services/tauriCommands';
 import { editorPool } from '../../core/editor/editorPool';
-import { isHoverWindow } from '../../core/utils/multiWindow';
-import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
+
 import { Tags, MessageSquare, Minus, X, ListTree } from 'lucide-react';
 import { SyncStatusIndicator, type SyncStatus } from '../shared/SyncStatusIndicator';
 import { useIsClosing, useIsMinimizing } from './stores/hoverStore';
@@ -29,7 +30,6 @@ import { preprocessWikiLinks } from '../../core/utils/wikiLinkPreprocess';
 import { useDropTarget } from '../../core/hooks/useDragDrop';
 import { useSlashAttachmentListener } from '../slash-command';
 import { EventBus } from '../../core/infrastructure/eventBus';
-import { removeOrphanWikiLinkNodes, consumeFailedAdds } from '../sync_v2/orphanRemoval';
 import { contentCacheActions } from '../content-cache/stores/contentCacheStore';
 import { getTemplateCustomColor } from '../content-cache/noteTypeHelpers';
 import { useFileLookupStore } from '../../core/stores/fileLookupStore';

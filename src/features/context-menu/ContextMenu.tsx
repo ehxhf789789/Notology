@@ -1,3 +1,5 @@
+import { useAttachmentStore } from '../attachments/stores/attachmentStore';
+import { syncV2Commands } from '../attachments/attachmentCommands';
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { utilCommands, searchCommands, fileCommands, frontmatterCommands } from '../../core/services/tauriCommands';
 import { RefreshCw, Check, Pause, Circle } from 'lucide-react';
@@ -18,8 +20,6 @@ import { FOLDER_STATUS_INFO } from '../../core/types';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { t } from '../../core/utils/i18n';
 import { useModalClose } from '../../core/hooks/useModalListeners';
-import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
-import { syncV2Commands } from '../sync_v2/syncV2Commands';
 
 // Render folder status icon using Lucide
 function renderStatusIcon(status: FolderStatus) {

@@ -1,6 +1,6 @@
 import { fileCommands, searchCommands } from '../../core/services/tauriCommands';
-import { join } from '@tauri-apps/api/path';
-import { load, type Store } from '@tauri-apps/plugin-store';
+import { join } from '../../web/path';
+import { load, type Store } from '../../web/store';
 import yaml from 'js-yaml';
 import type { TagOntology, TagDefinition, TagNode, FacetNamespace, TagStyle } from '../../core/types/tagOntology';
 import type { FacetedTagSettings } from '../../core/types';

@@ -12,16 +12,16 @@
  * See `docs/architecture/PDF_EXPORT_ENHANCEMENT_PLAN.md` §H for the
  * design + trade-offs.
  */
+
+import { useAttachmentStore } from '../attachments/stores/attachmentStore';
 import { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EditorContent } from '@tiptap/react';
 import type { Editor } from '@tiptap/core';
-
 import { fileCommands } from '../../core/services/tauriCommands';
 import { editorPool } from '../../core/editor/editorPool';
 import { fileLookupActions } from '../../core/stores/fileLookupStore';
 import { noteTypeCacheActions } from '../content-cache/stores/noteTypeCacheStore';
-import { useAttachmentStore } from '../sync_v2/stores/attachmentStore';
 import { useFileTreeStore } from '../../core/stores/fileTreeStore';
 import { parseFrontmatter } from '../../core/utils/frontmatter';
 

@@ -1,17 +1,15 @@
+
+
+
+import { useAttachmentStore } from '../../../features/attachments/stores/attachmentStore';
+import { requestAttachmentDelete, requestBatchAttachmentDelete } from '../../../features/attachments/attachmentDelete';
 import { Node, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey, NodeSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-// v5.5 (2026-05-16) — `InputRule` import removed alongside addInputRules.
 import { preloadHoverContent } from '../../../features/hover-windows/stores/hoverStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { t } from '../../utils/i18n';
 import { getAttachmentCategory } from '../../../features/suggestions/attachmentCategory';
-import {
-  startAttachmentDrag,
-  startMultiAttachmentDrag,
-} from '../../../features/sync_v2/attachmentDragOut';
-import { useAttachmentStore } from '../../../features/sync_v2/stores/attachmentStore';
-import { requestAttachmentDelete, requestBatchAttachmentDelete } from '../../../features/sync_v2/attachmentDelete';
 import { useFileTreeStore } from '../../stores/fileTreeStore';
 import { contentCacheActions } from '../../../features/content-cache/stores/contentCacheStore';
 

@@ -1,142 +1,73 @@
-/**
- * v20 (2026-05-16, HanBin) — sketch node file drag-OUT.
+/** 파일 꺼내기 — 웹 방식으로 다시 만든다
  *
- * Sketch nodes of type 'file' point to absolute paths inside the vault's
- * `_att/` folder (set by `applyFileDrop` at import time). This helper lets
- * the user drag those files OUT to the OS / external apps (File Explorer,
- * KakaoTalk, Outlook, web upload forms, etc.) via the native OS drag-and-
- * drop API.
+ * 데스크톱 notology는 `tauri-plugin-drag`로 **OS 네이티브 드래그**를 걸었다.
+ * 경로만 주면 플러그인이 알아서 드래그를 시작했다.
  *
- * Implementation mirrors the wikilink chip drag-out path
- * (`attachmentDragOut.ts`): instead of HTML5 `setData('text/uri-list')`
- * (which silently fails on WebView2 + Windows for many targets), we use
- * `@crabnebula/tauri-plugin-drag` → IDataObject (Windows) / NSPasteboard
- * (macOS) / GTK target_list (Linux). Wraps the call so SketchEditor stays
- * import-light.
+ * 🔴 **브라우저는 드래그를 명령으로 시작할 수 없다.** `dragstart` 이벤트
+ *    안에서만 무엇을 넘길지 정할 수 있다. 그래서 두 갈래로 나뉜다:
+ *
+ *      attachDragOut(e, …)   dragstart 안에서 — 진짜 드래그 (Chrome·Edge)
+ *      startSketchFileDrag() 이벤트가 없는 자리에서 — 내려받기로 대신한다
+ *
+ * `DownloadURL`은 놓는 순간 브라우저가 임시 파일을 만들어 OS에 넘긴다.
+ * 바탕화면·카카오톡·메일 첨부 다 받는다. **Firefox·Safari는 지원하지 않아**
+ * 그쪽은 WebDAV 마운트로 메운다 (전체계획서 4-G).
  */
-import { startDrag } from '@crabnebula/tauri-plugin-drag';
-import { invoke } from '@tauri-apps/api/core';
 
-// 1×1 transparent PNG. The plugin requires a valid PNG data URI for the
-// drag cursor preview; empty / missing fails serde deserialisation
-// silently. OS adds its own filename + icon overlay during drag.
-const TRANSPARENT_PNG =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+/** Windows WebDAV 상한이자 브라우저 임시 파일이 감당하기 어려운 크기 (4-G) */
+const BIG = 4 * 1024 * 1024 * 1024;
 
-// R5 v3 (HanBin 2026-05-23) — module-level tracker for the most recently
-// started OS-level drag. When a sketch node is dragged OUT, we record the
-// file path + timestamp here. The native-drop handler in useSketchInteraction
-// can consult this to recognise "same file just got dropped back into the
-// canvas it came from" — the OS path representation often differs from the
-// in-canvas node `file` field (different separators, canonical form, etc.),
-// so this is a more reliable match than path equality.
-let lastDragOutFile: string | null = null;
-let lastDragOutBasename: string | null = null;
-let lastDragOutAt = 0;
-
-export function recordDragOut(filePath: string) {
-  lastDragOutFile = filePath;
-  lastDragOutBasename = filePath.split(/[/\\]/).pop() || null;
-  lastDragOutAt = Date.now();
+function fileUrl(vpath: string): string {
+  return new URL('/api/file?path=' + encodeURIComponent(vpath), location.origin).toString();
 }
 
-/**
- * Returns true if `dropped` matches the file that was most recently dragged
- * OUT (within the last 3 seconds), by full path OR by basename. Consumes
- * the tracker on a match so a later legitimate drop of the same name still
- * works.
- */
+/** `dragstart` 안에서 부른다. 진짜 드래그로 나간다. */
+export function attachDragOut(e: DragEvent | React.DragEvent, vpath: string,
+                              filename?: string, mime = 'application/octet-stream',
+                              size = 0): void {
+  const dt = (e as DragEvent).dataTransfer;
+  if (!dt) return;
+  const name = filename || vpath.split(/[/\\]/).pop() || 'file';
+  const url = fileUrl(vpath);
+  if (size > BIG) {
+    // 🔴 큰 것은 파일이 아니라 링크로 보낸다. 임시 파일로 4GB를 만들 수 없다.
+    dt.setData('text/uri-list', url);
+    dt.setData('text/plain', url);
+    return;
+  }
+  dt.setData('DownloadURL', `${mime}:${name}:${url}`);
+  dt.setData('text/uri-list', url);
+  dt.effectAllowed = 'copy';
+  recordDragOut(name);
+}
+
+/** 드래그 이벤트가 없는 자리(메뉴·버튼)에서 부른다. 내려받기로 대신한다. */
+export async function startSketchFileDrag(vpath: string): Promise<boolean> {
+  const name = vpath.split(/[/\\]/).pop() || 'file';
+  const a = document.createElement('a');
+  a.href = fileUrl(vpath);
+  a.download = name;
+  a.click();
+  recordDragOut(name);
+  return true;
+}
+
+// ── 되돌아온 드롭 걸러내기 ──────────────────────────────────
+// 밖으로 끌어낸 파일을 실수로 다시 캔버스에 놓으면 **같은 파일이 두 번 들어간다.**
+// 3초 안에 같은 이름이 돌아오면 무시한다.
+let lastOut: string | null = null;
+let lastOutAt = 0;
+
+export function recordDragOut(filePath: string): void {
+  lastOut = filePath.split(/[/\\]/).pop() || filePath;
+  lastOutAt = Date.now();
+}
+
 export function isRecentDragOutDrop(dropped: string): boolean {
-  if (!lastDragOutFile) return false;
-  if (Date.now() - lastDragOutAt > 3000) {
-    lastDragOutFile = null;
-    lastDragOutBasename = null;
-    return false;
-  }
-  const droppedBasename = dropped.split(/[/\\]/).pop() || '';
-  const match = dropped === lastDragOutFile || droppedBasename === lastDragOutBasename;
-  if (match) {
-    lastDragOutFile = null;
-    lastDragOutBasename = null;
-  }
+  if (!lastOut) return false;
+  if (Date.now() - lastOutAt > 3000) { lastOut = null; return false; }
+  const base = dropped.split(/[/\\]/).pop() || '';
+  const match = base === lastOut;
+  if (match) lastOut = null;
   return match;
-}
-
-/**
- * Begin a native OS file drag for a single sketch file node.
- * Caller should `event.preventDefault()` first so the browser's default
- * text-drag doesn't run alongside.
- * Returns true if the drag was successfully initiated, false on error.
- *
- * v22 (HanBin 2026-05-23) — accepts node.file paths in any form (absolute,
- * vault-relative, attachment basename). Tries the path as-is first; if it
- * doesn't look like an absolute file path, attempts to resolve via the
- * sync_v2 attachment store. Then verifies the file exists on disk before
- * handing it to the OS (Tauri's startDrag silently swallows missing-file
- * errors on some platforms, producing the symptom "non-md attachments
- * silently don't drag out").
- */
-export async function startSketchFileDrag(filePath: string): Promise<boolean> {
-  if (!filePath) {
-    console.warn('[sketchFileDragOut] empty filePath');
-    return false;
-  }
-
-  // Resolve to an absolute filesystem path. Order:
-  //   1. If it already looks absolute and the file exists → use directly.
-  //   2. Else, try the attachment store: maybe filePath is the basename of
-  //      a v2 attachment, or a stale legacy path whose real location is
-  //      `.attachments/<name>`.
-  //   3. Else, give up — log + return false.
-  let resolved = filePath;
-  let exists = false;
-  try {
-    exists = await invoke<boolean>('plugin:fs|exists', { path: filePath });
-  } catch {
-    // fs plugin call form changed; fall through to v2 store lookup.
-  }
-
-  if (!exists) {
-    try {
-      const basename = filePath.split(/[/\\]/).pop() || '';
-      const { syncV2Commands } = await import('../sync_v2/syncV2Commands');
-      const refs = await syncV2Commands.attachmentListAll();
-      const match = refs.find(r =>
-        r.originalName === basename ||
-        r.displayPath.endsWith(basename) ||
-        r.displayPath.endsWith('/' + basename) ||
-        r.displayPath.endsWith('\\' + basename)
-      );
-      if (match) {
-        const localPath = await syncV2Commands.attachmentLocalPath(match.attachmentId);
-        if (localPath) {
-          resolved = localPath;
-          exists = true;
-          console.log('[sketchFileDragOut] resolved via attachment store:', filePath, '→', resolved);
-        }
-      }
-    } catch (err) {
-      console.warn('[sketchFileDragOut] attachment store lookup failed:', err);
-    }
-  }
-
-  if (!exists) {
-    // Last-ditch: hand the OS the original path anyway; some OS file
-    // systems are case-insensitive and our exists() check might have
-    // false-negatived. startDrag itself will silently fail if truly bad,
-    // and we surface that to console.
-    console.warn('[sketchFileDragOut] file existence check failed; attempting drag anyway:', resolved);
-  }
-
-  recordDragOut(resolved);
-  try {
-    await startDrag({
-      item: [resolved],
-      icon: TRANSPARENT_PNG,
-    });
-    return true;
-  } catch (err) {
-    console.error('[sketchFileDragOut] startDrag failed:', err, 'path:', resolved);
-    return false;
-  }
 }
