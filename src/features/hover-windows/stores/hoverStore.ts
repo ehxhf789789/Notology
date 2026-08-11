@@ -641,21 +641,27 @@ export const hoverActions = {
                 // we re-read it from cache; for 'opened-as-is' we keep
                 // the original type.
                 const freshType = useContentCacheStore.getState().getFrontmatter(path)?.type as string | undefined;
-                openHoverWindow(path, vaultPath || undefined, freshType ?? type ?? undefined);
+                useHoverStore.getState().openHoverFile(path);
               },
             });
           } else {
-            openHoverWindow(path, vaultPath || undefined, type);
+            useHoverStore.getState().openHoverFile(path);
           }
         } catch (e) {
           console.warn('[hoverActions.open] migration check failed:', e);
-          openHoverWindow(path, vaultPath || undefined, type);
+          useHoverStore.getState().openHoverFile(path);
         }
       })();
       return null;
     }
 
-    return openHoverWindow(path, vaultPath || undefined, type);
+    // 🔴 **페이지 안 패널로 연다** (2026-08-11 웹 전환).
+    //    데스크톱은 `openHoverWindow`로 OS 창을 새로 띄웠다. 브라우저에는
+    //    그 개념이 없고, 있을 필요도 없다 — `hoverFiles`에 넣으면
+    //    `HoverEditorLayer`가 같은 페이지에 떠 있는 패널로 그린다.
+    //    **이 한 줄이 없어서 노트를 눌러도 아무 일이 없었다.**
+    useHoverStore.getState().openHoverFile(path);
+    return path;
   },
   // Open as DOM overlay (legacy single-window mode)
   openOverlay: (path: string) => useHoverStore.getState().openHoverFile(path),

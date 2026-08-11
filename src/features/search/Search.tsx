@@ -444,8 +444,20 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
         if (!normPath.startsWith(prefix + '/')) continue;
         if (normPath.toLowerCase() === folderNotePath) continue;
 
+        // 🔴 **하위 폴더의 노트도 보여준다** (2026-08-11 web notology).
+        //    데스크톱 notology는 컨테이너를 평면으로 봤다 — 직계 자식만 목록에
+        //    올리고 하위 폴더는 별도 컨테이너로 다뤘다.
+        //
+        //    그런데 이 보관함은 **3단**이다: `클래스/인스턴스/노트.md`
+        //      01_Tasks/정보통신 과제/MTG-251208-….md
+        //    직계만 세면 `01_Tasks`의 목록이 **0개**가 되는데,
+        //    사이드바 배지는 재귀로 세어 **62**를 보여준다.
+        //    **수와 목록이 어긋나는 것이 사용자가 본 고장이다.**
+        //
+        //    배지가 재귀이므로 목록도 재귀여야 한다. 하위 폴더는 사이드바에서
+        //    따로 들어갈 수도 있고, 여기서 한눈에 볼 수도 있다.
         const relativePath = normPath.slice(prefix.length + 1);
-        if (relativePath.includes('/')) {
+        if (false) {
           // Nested items: only show folder notes (CONTAINER type with matching pattern)
           if (n.note_type !== 'CONTAINER') continue;
           const parts = relativePath.split('/');
@@ -587,11 +599,17 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       return;
     }
 
+    // 🔴 **한 번 클릭으로 연다** (2026-08-11 web notology).
+    //    데스크톱은 더블클릭이 규칙이었다 — 파일 탐색기와 같은 관례다.
+    //    **웹에서는 한 번이 규칙이다.** 링크를 두 번 누르는 화면은 없다.
+    //    사용자가 "노트를 눌러도 열리지 않는다"고 한 것이 이것이었다.
+    //
+    //    (미리 읽어두는 최적화는 남긴다 — 두 번째 클릭을 기다리던 자리가
+    //     이제 곧바로 여는 자리가 됐을 뿐이다)
     const pending = pendingNoteOpenRef.current;
     const now = Date.now();
 
-    // Second click on same note within 500ms → confirmed double-click, open window
-    if (pending && pending.path === path && (now - pending.time) < 500) {
+    if (true) {
       pendingNoteOpenRef.current = null;
 
       // Check for existing window first

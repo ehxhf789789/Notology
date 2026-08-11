@@ -18,6 +18,8 @@
  * and animations via Web Animations API.
  */
 
+
+import { isHoverWindow } from '../../../web/hoverContext';
 import {
   useEffect,
   useRef,

@@ -8,8 +8,9 @@
  */
 import { listen, type UnlistenFn } from './event';
 
+export interface DragDropPayload { type: 'over' | 'drop' | 'leave'; paths?: string[]; files?: File[] }
+
 class WebWindow {
-  onDragDropEvent!: (h: (e: { payload: DragDropPayload }) => void) => Promise<UnlistenFn>;
   label = 'main';
   async show() {} async hide() {} async setFocus() {}
   async minimize() {} async maximize() {} async unmaximize() {}
@@ -27,6 +28,30 @@ class WebWindow {
   async onCloseRequested(_h: unknown): Promise<UnlistenFn> { return () => {}; }
   async listen(name: string, h: never) { return listen(name, h); }
   async onFocusChanged(_h: unknown): Promise<UnlistenFn> { return () => {}; }
+
+  /** 브라우저 드래그·드롭 — Tauri의 `onDragDropEvent` 자리
+   *
+   * 데스크톱은 OS가 파일 드롭을 알려줬다. 브라우저는 DOM 이벤트로 온다.
+   * 🔴 **경로가 아니라 `File` 객체가 온다** — 브라우저는 파일이 어디 있는지
+   *    모르고 알 필요도 없다. 서버로 올리는 것이 유일한 길이다 (N8).
+   */
+  async onDragDropEvent(handler: (e: { payload: DragDropPayload }) => void): Promise<UnlistenFn> {
+    const over = (ev: DragEvent) => { ev.preventDefault(); handler({ payload: { type: 'over' } }); };
+    const drop = (ev: DragEvent) => {
+      ev.preventDefault();
+      const files = Array.from(ev.dataTransfer?.files ?? []);
+      handler({ payload: { type: 'drop', files, paths: files.map((f) => f.name) } });
+    };
+    const leave = () => handler({ payload: { type: 'leave' } });
+    window.addEventListener('dragover', over);
+    window.addEventListener('drop', drop);
+    window.addEventListener('dragleave', leave);
+    return () => {
+      window.removeEventListener('dragover', over);
+      window.removeEventListener('drop', drop);
+      window.removeEventListener('dragleave', leave);
+    };
+  }
   async scaleFactor() { return window.devicePixelRatio; }
   async innerSize() { return { width: innerWidth, height: innerHeight }; }
 }
@@ -38,31 +63,3 @@ export const getCurrent = getCurrentWindow;
 export class Window extends WebWindow {}
 export const availableMonitors = async () => [];
 export const currentMonitor = async () => null;
-
-/** 브라우저 드래그·드롭 — Tauri의 `onDragDropEvent` 자리
- *
- * 데스크톱은 OS가 파일 드롭을 알려줬다. 브라우저는 DOM 이벤트로 온다.
- * **경로가 아니라 `File` 객체가 온다** — 브라우저는 파일이 어디 있는지 모르고,
- * 알 필요도 없다. 서버로 올리는 것이 유일한 길이다 (전체계획서 N8).
- */
-export interface DragDropPayload { type: 'over' | 'drop' | 'leave'; paths?: string[]; files?: File[] }
-
-WebWindow.prototype.onDragDropEvent = async function (
-  handler: (e: { payload: DragDropPayload }) => void,
-): Promise<UnlistenFn> {
-  const over = (ev: DragEvent) => { ev.preventDefault(); handler({ payload: { type: 'over' } }); };
-  const drop = (ev: DragEvent) => {
-    ev.preventDefault();
-    const files = Array.from(ev.dataTransfer?.files ?? []);
-    handler({ payload: { type: 'drop', files, paths: files.map((f) => f.name) } });
-  };
-  const leave = () => handler({ payload: { type: 'leave' } });
-  window.addEventListener('dragover', over);
-  window.addEventListener('drop', drop);
-  window.addEventListener('dragleave', leave);
-  return () => {
-    window.removeEventListener('dragover', over);
-    window.removeEventListener('drop', drop);
-    window.removeEventListener('dragleave', leave);
-  };
-};

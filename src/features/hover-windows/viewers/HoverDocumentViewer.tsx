@@ -1,3 +1,5 @@
+
+import { isHoverWindow } from '../../../web/hoverContext';
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { getCurrentWindow } from '../../../web/window';
 import { Minus, X, ExternalLink, RefreshCw, FileWarning } from 'lucide-react';

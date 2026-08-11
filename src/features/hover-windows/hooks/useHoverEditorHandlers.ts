@@ -1,3 +1,5 @@
+
+import { isHoverWindow } from '../../../web/hoverContext';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Editor } from '@tiptap/core';
 import { getCurrentWindow } from '../../../web/window';

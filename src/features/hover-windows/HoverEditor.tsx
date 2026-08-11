@@ -1,3 +1,5 @@
+
+import { isHoverWindow } from '../../web/hoverContext';
 import { useAttachmentStore } from '../attachments/stores/attachmentStore';
 import { removeOrphanWikiLinkNodes, consumeFailedAdds } from '../attachments/orphanRemoval';
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, memo } from 'react';
