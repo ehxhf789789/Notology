@@ -22,9 +22,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Send, Search, CalendarDays, Loader2, ArrowDown, Mic } from 'lucide-react';
+import { Send, Search, Loader2, ArrowDown, Mic } from 'lucide-react';
 import { useDobbinStore, dobbinActions } from './dobbinStore';
-import { PenguinFace } from './PenguinFace';
+import { useDobbinView, rightActions } from '../../core/stores/rightTabStore';
 import { clientTools, runTool, isRecording, recordingSeconds } from './clientTools';
 import './surface.css';
 
@@ -48,12 +48,17 @@ function timeLabel(iso: string) {
 
 export function DobbinSurface() {
   const { busy, messages } = useDobbinStore();
+  // 🔴 달력·검색은 **공용 머리글**이 켠다 (RightPanel). 여기서 또 그리면
+  //    접기 단추와 겹쳐 디자인이 깨진다 — 사용자가 지적한 그 자리다.
+  const view = useDobbinView();
+  const showCal = view === 'cal';
+  const showSearch = view === 'search';
   const [draft, setDraft] = useState('');
   const [hist, setHist] = useState<Msg[]>([]);
   const [days, setDays] = useState<{ date: string; n: number }[]>([]);
-  const [showCal, setShowCal] = useState(false);
+
   const [q, setQ] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
+
   const [hits, setHits] = useState<Msg[] | null>(null);
   const [month, setMonth] = useState(() => new Date());
   const [recTick, setRecTick] = useState(0);
@@ -129,7 +134,7 @@ export function DobbinSurface() {
 
   /** 🔴 그 날의 첫 마디로 건너뛴다 — 달력을 누르는 뜻이 그것이다. */
   const jump = useCallback((key: string) => {
-    setShowCal(false); setHits(null); setAtEnd(false);
+    rightActions.view('none'); setHits(null); setAtEnd(false);
     requestAnimationFrame(() => {
       const el = bodyRef.current?.querySelector(`[data-day="${key}"]`);
       el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -153,18 +158,6 @@ export function DobbinSurface() {
 
   return (
     <div className="dsurf">
-      <header className="dsurf__head">
-        <PenguinFace mood={busy ? 'thinking' : 'idle'} size={22} />
-        <span className="dsurf__name">dobbin</span>
-        <button className={`dsurf__icon${showCal ? ' on' : ''}`}
-                title="날짜로 찾기" onClick={() => { setShowCal(v => !v); setShowSearch(false); }}>
-          <CalendarDays size={15} />
-        </button>
-        <button className={`dsurf__icon${showSearch ? ' on' : ''}`}
-                title="대화 검색" onClick={() => { setShowSearch(v => !v); setShowCal(false); }}>
-          <Search size={15} />
-        </button>
-      </header>
 
       {/* 🔴 대화가 있는 날만 켠다 — 빈 날을 누르게 하면 안 된다 */}
       {showCal && (

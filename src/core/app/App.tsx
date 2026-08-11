@@ -3,6 +3,7 @@ import { DobbinPanel, useDobbinShortcut } from '../../features/dobbin/DobbinPane
 import { Ingest } from '../../features/ingest/Ingest';
 import { CalendarDays, UploadCloud } from 'lucide-react';
 import { PenguinFace } from '../../features/dobbin/PenguinFace';
+import { RecordBar } from '../../features/dobbin/RecordBar';
 import { rightActions, useRightTab } from '../stores/rightTabStore';
 import { useDobbinStore } from '../../features/dobbin/dobbinStore';
 
@@ -507,6 +508,10 @@ function AppLayout() {
       {/* Track H bulk-delete banner. Self-hides when count is 0. */}
       {/* Trash panel — opens via store flag (toast button / settings / etc.). */}
       <TrashPanel />
+      {/* 🔴 녹음 중일 때만 뜨는 표시줄 — 화면 위 가운데 (사용자 지시,
+          2026-08-12). 부르는 것은 말로 하되 **돌고 있는 것은 손으로**
+          다룬다 — 회의 중에 "그만"이라고 말하면 그 말이 녹음에 들어간다. */}
+      <RecordBar />
       <DobbinPanel />
       {/* 자료 투입 — 창 아무 데나 놓으면 받는다 (CLAUDE.md 1-2 ①) */}
       <Ingest />

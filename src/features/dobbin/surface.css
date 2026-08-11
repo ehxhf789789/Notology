@@ -1,20 +1,8 @@
 /* dobbin 대화 — 오른쪽 탭 안에서 (DobbinSurface.tsx) */
 .dsurf { display: flex; flex-direction: column; height: 100%; font-size: 12.5px; }
-.dsurf__head {
-  display: flex; align-items: center; gap: 8px; padding: 9px 11px;
-  border-bottom: 1px solid var(--border-color, #2b2f36);
-}
-.dsurf__name { flex: 1; font-weight: 600; }
-.dsurf__icon {
-  width: 28px; height: 28px; display: flex; align-items: center;
-  justify-content: center; border-radius: 7px; cursor: pointer;
-  background: transparent; border: 1px solid transparent;
-  color: var(--text-muted, #8a8f99);
-}
-.dsurf__icon:hover { color: var(--text-primary, #e6e8ec);
-                     border-color: var(--border-color, #2b2f36); }
-.dsurf__icon.on { color: var(--accent, #4a7dbd);
-                  border-color: color-mix(in srgb, var(--accent,#4a7dbd) 45%, transparent); }
+
+
+
 
 /* 달력 — 대화가 있는 날만 켜진다 */
 .dsurf__cal { padding: 8px 10px; border-bottom: 1px solid var(--border-color, #2b2f36); }

@@ -34,12 +34,52 @@ export function clientTools(): string[] {
   return out;
 }
 
-type Live = { rec: MediaRecorder; chunks: Blob[]; folder: string; started: number };
+type Live = {
+  rec: MediaRecorder; chunks: Blob[]; folder: string;
+  started: number; paused: number; pausedAt: number | null;
+  say: (t: string) => void; onState?: () => void; discard?: boolean;
+};
 let live: Live | null = null;
 
 export function isRecording() { return live !== null; }
+export function isPaused() { return live?.pausedAt != null; }
+export function recordFolder() { return live?.folder || ''; }
+
+/** 🔴 일시정지한 시간은 빼고 센다 — 실제로 녹음된 길이를 말해야 한다. */
 export function recordingSeconds() {
-  return live ? Math.floor((Date.now() - live.started) / 1000) : 0;
+  if (!live) return 0;
+  const paused = live.paused + (live.pausedAt ? Date.now() - live.pausedAt : 0);
+  return Math.max(0, Math.floor((Date.now() - live.started - paused) / 1000));
+}
+
+export function pauseRecord() {
+  if (!live || live.pausedAt != null) return;
+  try { live.rec.pause(); } catch { /* 지원 안 하면 그대로 둔다 */ }
+  live.pausedAt = Date.now();
+  live.onState?.();
+}
+
+export function resumeRecord() {
+  if (!live || live.pausedAt == null) return;
+  live.paused += Date.now() - live.pausedAt;
+  live.pausedAt = null;
+  try { live.rec.resume(); } catch { /* 무시 */ }
+  live.onState?.();
+}
+
+export function stopRecord() {
+  if (!live) return;
+  if (live.pausedAt != null) resumeRecord();      // 멈춘 채로는 못 끝낸다
+  live.rec.stop();
+}
+
+/** 🔴 버린다. **되돌릴 수 없으므로** 화면이 한 번 더 묻고 부른다. */
+export function discardRecord() {
+  if (!live) return;
+  live.discard = true;
+  const say = live.say;
+  live.rec.stop();
+  say('녹음을 버렸습니다. 저장하지 않았습니다.');
 }
 
 /** 녹음을 서버로 보내고 회의록까지 맡긴다. */
@@ -77,7 +117,9 @@ export async function runTool(
       rec.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         const folder = live?.folder || '';
+        const dropped = live?.discard === true;
         live = null; onState?.();
+        if (dropped) return;                     // 버리기로 했으면 올리지 않는다
         say('받아쓰는 중입니다… (길이에 따라 몇 분 걸립니다)');
         try {
           const j = await upload(new Blob(chunks, { type: 'audio/webm' }), folder, '.webm');
@@ -90,7 +132,8 @@ export async function runTool(
         }
       };
       rec.start(1000);
-      live = { rec, chunks, folder: args.folder || '', started: Date.now() };
+      live = { rec, chunks, folder: args.folder || '', started: Date.now(),
+               paused: 0, pausedAt: null, say, onState };
       onState?.();
     } catch {
       // 🔴 권한이 거부되면 **그렇다고 말한다.** 조용히 실패하지 않는다.
@@ -102,7 +145,7 @@ export async function runTool(
 
   if (action.tool === 'stop_record') {
     if (!live) { say('지금 돌고 있는 녹음이 없습니다.'); return; }
-    live.rec.stop();
+    stopRecord();
     return;
   }
 

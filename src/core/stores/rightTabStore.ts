@@ -15,8 +15,13 @@ import { uiActions, useUIStore } from './uiStore';
 
 export type RightTab = 'calendar' | 'dobbin' | 'intake';
 
-interface S { tab: RightTab }
-export const useRightTabStore = create<S>()(() => ({ tab: 'calendar' }));
+/** dobbin 탭 안에서 무엇을 펼쳐 놓았나. 🔴 **머리글은 하나뿐이다** —
+ *  패널 공용 머리(접기 단추)와 dobbin 자기 머리가 겹쳐 디자인이 깨졌다
+ *  (사용자 지적, 2026-08-12). 달력·검색은 **공용 머리 위에** 얹는다. */
+export type DobbinView = 'none' | 'cal' | 'search';
+
+interface S { tab: RightTab; view: DobbinView }
+export const useRightTabStore = create<S>()(() => ({ tab: 'calendar', view: 'none' }));
 
 export const rightActions = {
   pick: (tab: RightTab) => {
@@ -27,5 +32,9 @@ export const rightActions = {
     if (!open) uiActions.setShowHoverPanel(true);
   },
   get: () => useRightTabStore.getState().tab,
+  /** 같은 것을 다시 누르면 접힌다 */
+  view: (v: DobbinView) =>
+    useRightTabStore.setState((s) => ({ view: s.view === v ? 'none' : v })),
 };
 export const useRightTab = () => useRightTabStore((s) => s.tab);
+export const useDobbinView = () => useRightTabStore((s) => s.view);
