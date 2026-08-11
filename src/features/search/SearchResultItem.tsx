@@ -87,7 +87,13 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
   const stripped = fileName.replace(/^[A-Z]{2,8}-\d{6}-/, '');
   const displayName = (note.title || stripped || fileName).replace(/_/g, ' ');
   const customColor = getTemplateCustomColor(note.note_type);
-  const isContainer = note.note_type?.toUpperCase() === 'CONTAINER';
+  // 🔴 **폴더노트도 폴더다** (사용자 정정, 2026-08-11: *"컨테이너 내
+  //    폴더노트는 해당 폴더로 이동할 수 있도록 구현되어야지"*).
+  //    `CONTAINER` 만 폴더로 치고 있어서 `국방부 과제.md` 를 눌러도
+  //    **그냥 노트가 열렸다** — 폴더노트는 폴더 자체가 노트인 것이므로
+  //    (3-4-1) 누르면 그 폴더로 들어가는 게 맞다.
+  const ntUpper = note.note_type?.toUpperCase();
+  const isContainer = ntUpper === 'CONTAINER' || ntUpper === 'FOLDER';
   const isSelected = selectedPath === note.path;
   // 5.0.5a-migration A — flag rows whose frontmatter type doesn't match
   // any current template. The row picks up `.search-row--unmatched`
