@@ -325,25 +325,17 @@ function Settings({ onClose }: SettingsProps) {
                     knob. Stepped select (250/500/1000/2000/4000) matches
                     the actual useful range — sub-second loses NAS write
                     coalescing, multi-second feels laggy. */}
-                <section className="settings-section">
-                  <h3 className="settings-section-title">
-                    <Save size={14} strokeWidth={2} aria-hidden="true" />
-                    <span>{t('autoSaveLabel', language)}</span>
-                  </h3>
-                  <SettingsRow label={t('autoSaveLabel', language)} description={t('autoSaveDesc', language)}>
-                    <select
-                      className="settings-select"
-                      value={String(autoSaveDelay)}
-                      onChange={e => setAutoSaveDelay(parseInt(e.target.value, 10), vaultPath)}
-                    >
-                      <option value="250">250 ms</option>
-                      <option value="500">500 ms</option>
-                      <option value="1000">1000 ms</option>
-                      <option value="2000">2000 ms</option>
-                      <option value="4000">4000 ms</option>
-                    </select>
-                  </SettingsRow>
-                </section>
+                {/* 🔴 **자동저장 지연 설정을 없앴다** (사용자 지적, 2026-08-12:
+                    *"자동저장 지연 설정도 로컬 플랫폼의 잔재가 아닌가?"*).
+
+                    맞다. 그리고 그보다 나쁘다 — **아무 일도 하지 않고
+                    있었다.** `autoSaveDelay` 는 저장되고 불러와지는데
+                    **읽는 편집기가 하나도 없다** (실측: `useAutoSaveDelay`
+                    를 쓰는 곳 0곳). 있는 척하는 손잡이는 없느니만 못하다.
+
+                    되살릴 이유도 없다. 기기가 여럿인 지금(2-14-15) 저장
+                    간격을 짧게 잡으면 **충돌만 늘어난다.** 저장 시점은
+                    사람이 조절할 것이 아니라 서버가 지킬 것이다. */}
               </div>
             )}
 

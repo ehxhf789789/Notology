@@ -287,3 +287,12 @@
 .tpl-readonly__name { flex: 1; color: var(--tx-2); }
 .tpl-readonly__pattern { font-size: 11px; color: var(--tx-3);
                          font-family: ui-monospace, Menlo, monospace; }
+
+/* 재생 못 하는 매체 — 죽은 재생기 대신 받기 (MediaEmbed.ts) */
+.wiki-media-fallback {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px; border-radius: 8px; font-size: 12.5px;
+  background: rgba(255,255,255,.04);
+  border: 1px dashed var(--bdr-2, #2b2f36);
+}
+.wiki-media-fallback a { color: var(--accent, #4a7dbd); text-decoration: underline; }

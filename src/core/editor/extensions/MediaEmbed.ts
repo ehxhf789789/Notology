@@ -64,6 +64,19 @@ function resolveAbsolutePath(fileName: string, notePath: string): string | null 
   }
   if (notePath) {
     const noteDir = notePath.replace(/[^/\\]+$/, '').replace(/\\/g, '/');
+    // 🔴 **동영상은 `documents` 표에 없다** (사용자 신고 2회, 2026-08-12:
+    //    *"노트에서 동영상이 재생 안 됨"*).
+    //
+    //    3-11이 음성·영상 37개(36.9GB)를 **분류 대상에서 뺐다** — 그래서
+    //    첨부 색인(`attachment_list`)에도 없고 `resolveByName` 이 언제나
+    //    null 이다. 그러면 아래 `_att/` 로 떨어지는데 그건 **데스크톱 시절의
+    //    폴더**라 웹에는 존재하지 않는다. 서버는 멀쩡히 줄 수 있는데
+    //    (실측: 206 · video/mp4 · 4.2GB) **화면이 없는 주소를 물어보고 있었다.**
+    //
+    //    보관소의 첨부는 예외 없이 `{노트폴더}/attachments/` 다 (3-11).
+    //    분류되지 않았어도 **파일은 거기 있다** — 그 자리를 먼저 본다.
+    const inAttachments = `${noteDir}attachments/${fileName}`;
+    if (/^(vault|library|inbox):/.test(notePath)) return inAttachments;
     const noteStem = notePath.replace(/^.*[/\\]/, '').replace(/\.md$/, '');
     return `${noteDir}${noteStem}_att/${fileName}`;
   }
@@ -369,6 +382,19 @@ export const MediaEmbed = Node.create<MediaEmbedOptions>({
         const mime = inferMediaMime(fileName);
         if (mime) source.type = mime;
         video.appendChild(source);
+        // 🔴 **못 그리면 받을 길을 남긴다** (1-2 ②의 "꺼내기").
+        //    코덱이 없거나(브라우저마다 다르다) 파일이 깨졌으면 죽은
+        //    재생기만 남는다 — 그 자리에 받기 단추를 놓는다.
+        video.addEventListener('error', () => {
+          const box = document.createElement('span');
+          box.className = 'wiki-media-fallback';
+          const a = document.createElement('a');
+          a.href = src + (src.includes('?') ? '&' : '?') + 'download=1';
+          a.textContent = `${fileName} — 이 브라우저가 재생하지 못합니다. 받기`;
+          a.setAttribute('download', fileName);
+          box.appendChild(a);
+          video.replaceWith(box);
+        });
         media = video;
       } else {
         const audio = document.createElement('audio');
