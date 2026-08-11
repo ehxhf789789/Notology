@@ -22,8 +22,34 @@ export function onLive(h: Handler): () => void {
   return () => handlers.delete(h);
 }
 
+/** 🔴 **새 번들이 올라오면 스스로 새로고침한다.**
+ *
+ * 서버 코드를 고쳐도 열려 있는 창은 옛 자바스크립트를 계속 돌린다.
+ * 그러면 "자동 리프레시가 안 된다"가 된다 — 실제로 그랬다.
+ * 30초마다 빌드 도장을 견주고, 달라졌으면 한 번 다시 읽는다.
+ *
+ * ⚠️ 편집 중에는 새로고침하지 않는다. 쓰던 글을 날리는 것이 낡은 화면보다 나쁘다.
+ */
+function watchBuild(): void {
+  let mine: number | null = null;
+  const check = async () => {
+    try {
+      const r = await fetch('/api/build', { method: 'POST' });
+      const { build } = await r.json();
+      if (mine === null) { mine = build; return; }
+      if (build && build !== mine) {
+        const editing = document.querySelector('.cm-editor.cm-focused, textarea:focus');
+        if (!editing) location.reload();
+      }
+    } catch { /* 서버가 잠깐 없을 수 있다 */ }
+  };
+  check();
+  setInterval(check, 30000);
+}
+
 export function startLive(): void {
   if (source) return;
+  watchBuild();
   const open = () => {
     source = new EventSource('/api/events');
     source.onopen = () => { retry = 1000; };

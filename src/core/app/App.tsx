@@ -1,6 +1,8 @@
 import { startLive, onLive } from '../../web/liveSync';
 import { DobbinPanel, useDobbinShortcut } from '../../features/dobbin/DobbinPanel';
 import { Ingest } from '../../features/ingest/Ingest';
+import { contentCacheActions } from '../../features/content-cache/stores/contentCacheStore';
+import { fileTreeActions } from '../stores/fileTreeStore';
 import { TrashPanel } from '../../features/attachments/components/TrashPanel';
 import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { PanelRightOpen } from 'lucide-react';
@@ -547,8 +549,19 @@ function App() {
   useEffect(() => {
     startLive();
     return onLive((ev) => {
-      if (ev.kind === 'file-changed' || ev.kind === 'vault-changed') {
+      // 🔴 **한 곳만 새로고침해서는 화면이 안 따라온다** (사용자 실측:
+      //    *"여전히 과거 상태로 유지되고 있고 내가 수동으로 리프레시를 해야
+      //    한다"*). `incrementSearchRefresh` 는 ContainerView 하나만 듣는다 —
+      //    파일 트리·캐시·캘린더는 그대로였다. **바뀌면 다 흔든다.**
+      if (ev.kind === 'file-changed' || ev.kind === 'vault-changed'
+          || ev.kind === 'memos-changed' || ev.kind === 'inbox-changed') {
         refreshActions.incrementSearchRefresh();
+        refreshActions.incrementCalendarRefresh?.();
+        refreshActions.incrementOntologyRefresh?.();
+        // 캐시를 비운다 — 안 비우면 새로 읽어도 옛 내용을 준다
+        contentCacheActions.invalidateAll();
+        // 파일 트리는 스스로 다시 읽어야 폴더 개수가 맞는다
+        fileTreeActions.refreshFileTree();
       }
     });
   }, []);   // Ctrl+K — 어디서든 dobbin을 부른다
