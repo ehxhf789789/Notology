@@ -22,10 +22,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Send, Search, CalendarDays, X, Loader2 } from 'lucide-react';
+import { Send, Search, CalendarDays, Loader2, ArrowDown, Mic } from 'lucide-react';
 import { useDobbinStore, dobbinActions } from './dobbinStore';
 import { PenguinFace } from './PenguinFace';
-import { RecordButton } from './RecordButton';
+import { clientTools, runTool, isRecording, recordingSeconds } from './clientTools';
 import './surface.css';
 
 type Msg = { role: string; content: string; at: string;
@@ -56,6 +56,8 @@ export function DobbinSurface() {
   const [showSearch, setShowSearch] = useState(false);
   const [hits, setHits] = useState<Msg[] | null>(null);
   const [month, setMonth] = useState(() => new Date());
+  const [recTick, setRecTick] = useState(0);
+  const [atEnd, setAtEnd] = useState(true);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -69,7 +71,18 @@ export function DobbinSurface() {
       .then(r => r.json()).then(j => setDays(j?.days ?? [])).catch(() => {});
   }, []);
 
-  useEffect(() => { endRef.current?.scrollIntoView(); }, [hist.length, messages.length]);
+  // 🔴 **보고 있는 자리를 뺏지 않는다.** 옛 대화를 읽는 중에 새 말이
+  //    오면 아래로 끌어내리는 것은 방해다. 맨 아래에 있을 때만 따라간다.
+  useEffect(() => {
+    if (atEnd) endRef.current?.scrollIntoView();
+  }, [hist.length, messages.length, atEnd]);
+
+  // 녹음 중에는 1초마다 시간을 새로 그린다
+  useEffect(() => {
+    if (!isRecording()) return;
+    const t = setInterval(() => setRecTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [recTick]);
 
   const send = useCallback(async (text: string) => {
     const t = text.trim();
@@ -81,7 +94,11 @@ export function DobbinSurface() {
       const turns = [...useDobbinStore.getState().messages]
         .map(m => ({ role: m.role, content: m.content }));
       const r = await fetch('/v1/chat/completions', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json',
+                   // 🔴 **내가 할 수 있는 일을 알린다** (MCP 꼴, clientTools.ts).
+                   //    이게 없으면 dobbin은 못 하는 것을 하겠다고 말하게 된다.
+                   'X-Client-Tools': clientTools().join(',') },
         body: JSON.stringify({ messages: turns }) });
       const j = await r.json();
       const msg = j?.choices?.[0]?.message;
@@ -89,6 +106,12 @@ export function DobbinSurface() {
         content: msg?.content ?? '(답이 비었습니다)',
         // 🔴 되물으면 누를 것을 함께 받는다 (서버 choices.py)
         choices: msg?.dobbin_choices ?? undefined });
+      // 🔴 **시킨 도구를 실행한다.** 말로 시킨 일이 말로 끝나면 안 된다.
+      if (msg?.dobbin_action) {
+        runTool(msg.dobbin_action,
+                (line) => dobbinActions.push({ role: 'assistant', content: line }),
+                () => setRecTick((n) => n + 1));
+      }
     } catch {
       dobbinActions.push({ role: 'assistant', content: '서버에 닿지 못했습니다.' });
     }
@@ -106,7 +129,7 @@ export function DobbinSurface() {
 
   /** 🔴 그 날의 첫 마디로 건너뛴다 — 달력을 누르는 뜻이 그것이다. */
   const jump = useCallback((key: string) => {
-    setShowCal(false); setHits(null);
+    setShowCal(false); setHits(null); setAtEnd(false);
     requestAnimationFrame(() => {
       const el = bodyRef.current?.querySelector(`[data-day="${key}"]`);
       el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -184,7 +207,11 @@ export function DobbinSurface() {
         </div>
       )}
 
-      <div className="dsurf__body" ref={bodyRef}>
+      <div className="dsurf__body" ref={bodyRef}
+           onScroll={(e) => {
+             const el = e.currentTarget;
+             setAtEnd(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
+           }}>
         {shown.length === 0 && (
           <div className="dsurf__empty">무엇이든 물어보십시오.</div>
         )}
@@ -220,13 +247,29 @@ export function DobbinSurface() {
         <div ref={endRef} />
       </div>
 
-      {/* 🔴 심부름 ④ — 녹음에서 회의록까지 이 자리에서 끝난다 */}
-      <RecordButton folder={null}
-                    onDone={(j) => dobbinActions.push({ role: 'assistant',
-                      content: j?.note
-                        ? `회의록을 만들었습니다 — ${String(j.note)}`
-                        : (j?.text ? `받아썼습니다 (${j.lines}줄). 어느 과제 회의였습니까?`
-                                   : `받아쓰지 못했습니다: ${j?.why ?? j?.error ?? '알 수 없음'}`) })} />
+      {/* 🔴 **녹음 중일 때만 보인다.** 평소에는 자리를 차지하지 않는다 —
+          녹음은 말로 시키는 일이지 늘 눌러야 하는 단추가 아니다. */}
+      {isRecording() && (
+        <div className="dsurf__rec">
+          <Mic size={13} />
+          <span>녹음 중 {String(Math.floor(recordingSeconds() / 60)).padStart(2, '0')}
+            :{String(recordingSeconds() % 60).padStart(2, '0')}</span>
+          <button onClick={() => runTool({ tool: 'stop_record' },
+                    (line) => dobbinActions.push({ role: 'assistant', content: line }),
+                    () => setRecTick((n) => n + 1))}>그만</button>
+        </div>
+      )}
+
+
+      {/* 🔴 **맨 아래로** (사용자 요청, 2026-08-12): 달력으로 옛 날짜에
+          갔다가 되돌아올 길이 없으면 스크롤을 끝까지 끌어야 한다. */}
+      {!atEnd && (
+        <button className="dsurf__jump" title="가장 최근 대화로"
+                onClick={() => { setHits(null); setAtEnd(true);
+                                 endRef.current?.scrollIntoView({ behavior: 'smooth' }); }}>
+          <ArrowDown size={14} /> 최근 대화로
+        </button>
+      )}
 
       <div className="dsurf__input">
         <textarea ref={inputRef} rows={2} value={draft} placeholder="dobbin에게 묻기…  (Enter 전송)"

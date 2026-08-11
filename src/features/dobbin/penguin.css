@@ -71,8 +71,16 @@
    단추를 덮어 눌리지 않았다 (실측). 서류철 탭은 서류 **옆**에 붙어 있지
    서류 위에 있지 않다 — 레이아웃의 한 칸으로 세운다. */
 .right-tabs {
-  flex: none; align-self: flex-start; z-index: 5;
+  flex: none; align-self: stretch; z-index: 5;
   display: flex; flex-direction: column; gap: 4px; padding: 8px 0 0;
+  /* 🔴 **탭 뒤가 검게 보이던 것** (사용자 지적, 2026-08-12). 배경을 안 주면
+     그 칸만 앱 바닥이 그대로 드러나 **검은 띠**가 된다 — 탭은 편집 영역의
+     가장자리에 붙은 것처럼 보여야지 따로 뜬 검은 칸이면 안 된다. */
+  /* 🔴 테두리는 두지 않는다 (사용자 지시, 2026-08-12: *"탭 외에 배경에
+     테두리를 없앨 수 있나. 그냥 탭만 있었으면 좋겠고, 배경색은 유지"*).
+     선을 그으면 **없는 칸이 하나 더 있는 것처럼** 보인다 — 탭만 떠 있어야
+     서류철에서 종이가 삐져나온 모양이 된다. */
+  background-color: var(--bg-base);
 }
 .right-tab {
   position: relative; width: 34px; height: 34px;
@@ -84,10 +92,12 @@
   transition: color .16s ease, background-color .16s ease, transform .16s ease;
 }
 .right-tab:hover { color: var(--text-primary, #e6e8ec); transform: translateX(-2px); }
+/* 뽑혀 나온 탭은 패널과 이어져 보인다 — 서류철에서 한 장을 꺼낸 모양 */
 .right-tab.active {
   color: var(--accent, #4a7dbd);
-  background: var(--bg-primary, #16181c);
+  background: var(--bg-secondary, #1d2026);
   border-color: color-mix(in srgb, var(--accent, #4a7dbd) 50%, transparent);
+  margin-right: -1px;                  /* 패널과 맞닿게 */
 }
 /* 🔴 물을 것이 있으면 말풍선이 뜬다 (1-2-1) */
 .right-tab__ask {

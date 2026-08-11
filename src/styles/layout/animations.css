@@ -100,8 +100,14 @@
   /* Width is set inline */
 }
 
+/* 🔴 **닫히면 자리를 아예 비운다** (사용자 지적, 2026-08-12:
+   *"`hover-panel-wrapper closed` 공간은 제거해야 할 것 같고"*).
+   예전엔 여기 접힘 막대(44px)가 있었지만 그 역할은 오른쪽 세로 탭이
+   가져갔다. 빈 44px 이 남아 **검은 띠**로 보였다 — 아무것도 없는 칸이
+   자리를 차지하면 그건 여백이 아니라 결함이다. */
 .hover-panel-wrapper.closed {
-  width: 44px !important; /* Collapsed bar width */
+  width: 0 !important;
+  border: none;
 }
 
 /* Closing state - animating to collapsed */
