@@ -8,7 +8,7 @@ import {
   formatDate,
   noteTypeToFullName,
   noteTypeToCssClass,
-  getTagCategoryClass,
+  getTagCategoryClass, tagLabel, tagStyle,
   inferNoteType,
 } from './searchHelpers';
 import { getAttachmentCategory } from '../suggestions/attachmentCategory';
@@ -189,17 +189,17 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
         {note.tags.length > 0 ? (
           note.tags.map(tag => {
             const categoryClass = getTagCategoryClass(tag);
-            let tagName = tag;
-            if (tag.startsWith('domain/')) tagName = tag.substring(7);
-            else if (tag.startsWith('who/')) tagName = tag.substring(4);
-            else if (tag.startsWith('org/')) tagName = tag.substring(4);
-            else if (tag.startsWith('ctx/')) tagName = tag.substring(4);
+            // 🔴 축을 하나씩 적어 떼던 것을 일반화했다. 4개만 적혀 있어서
+            //    `key/Smart_Construction` 은 축까지 그대로 나왔다.
+            const tagName = tagLabel(tag);
             // Dim tags not in the active sort category
             const isDimmed = tagSortCategory ? !tag.startsWith(tagSortCategory + '/') : false;
             return (
               <span
                 key={tag}
                 className={`search-tag${categoryClass ? ' ' + categoryClass : ''}${isDimmed ? ' tag-dimmed' : ''}`}
+                style={tagStyle(tag)}
+                title={tag}
               >
                 {tagName}
               </span>

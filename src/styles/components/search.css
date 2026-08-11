@@ -1217,6 +1217,21 @@ input.search-row-checkbox:indeterminate {
   color: var(--c-tag-ctx);
   border: 1px solid color-mix(in srgb, var(--c-tag-ctx) 30%, transparent);
 }
+.search-tag.tag-key {
+  background-color: color-mix(in srgb, var(--c-tag-key) 15%, transparent);
+  color: var(--c-tag-key);
+  border: 1px solid color-mix(in srgb, var(--c-tag-key) 30%, transparent);
+}
+.search-tag.tag-proj {
+  background-color: color-mix(in srgb, var(--c-tag-proj) 15%, transparent);
+  color: var(--c-tag-proj);
+  border: 1px solid color-mix(in srgb, var(--c-tag-proj) 30%, transparent);
+}
+.search-tag.tag-acad {
+  background-color: color-mix(in srgb, var(--c-tag-acad) 15%, transparent);
+  color: var(--c-tag-acad);
+  border: 1px solid color-mix(in srgb, var(--c-tag-acad) 30%, transparent);
+}
 
 .search-tag.tag-dimmed {
   opacity: 0.3;

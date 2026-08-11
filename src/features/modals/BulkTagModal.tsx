@@ -64,7 +64,7 @@ function BulkTagModal({ paths, language, onClose, onComplete }: BulkTagModalProp
   const addTag = useCallback((namespace: FacetNamespace, tagName: string) => {
     // Clean namespace prefix
     let clean = tagName.trim();
-    const namespaces = ['domain', 'who', 'org', 'ctx'];
+    const namespaces = ['domain', 'who', 'org', 'ctx', 'key', 'proj', 'acad'];
     for (const ns of namespaces) {
       while (clean.startsWith(`${ns}/`)) {
         clean = clean.slice(ns.length + 1);

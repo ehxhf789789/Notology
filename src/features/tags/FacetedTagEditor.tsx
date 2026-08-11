@@ -70,7 +70,7 @@ function FacetedTagEditor({ tags, onChange, vaultPath }: FacetedTagEditorProps) 
   // Strip namespace prefix from tag name
   const stripNamespacePrefix = (tagName: string): string => {
     let clean = tagName;
-    const namespaces = ['domain', 'who', 'org', 'ctx'];
+    const namespaces = ['domain', 'who', 'org', 'ctx', 'key', 'proj', 'acad'];
     for (const ns of namespaces) {
       while (clean.startsWith(`${ns}/`)) {
         clean = clean.slice(ns.length + 1);
@@ -92,7 +92,7 @@ function FacetedTagEditor({ tags, onChange, vaultPath }: FacetedTagEditorProps) 
   const addTag = async (namespace: FacetNamespace, tagId: string) => {
     // Strip namespace prefix if present (e.g., "domain/특허출원" -> "특허출원")
     let cleanTagId = tagId;
-    const namespaces = ['domain', 'who', 'org', 'ctx'];
+    const namespaces = ['domain', 'who', 'org', 'ctx', 'key', 'proj', 'acad'];
     for (const ns of namespaces) {
       while (cleanTagId.startsWith(`${ns}/`)) {
         cleanTagId = cleanTagId.slice(ns.length + 1);

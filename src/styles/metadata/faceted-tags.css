@@ -153,6 +153,21 @@
   color: var(--c-green);
   border: 1px solid color-mix(in srgb, var(--c-green) 30%, transparent);
 }
+.tag-chip.tag-key {
+  background-color: color-mix(in srgb, var(--c-green) 15%, transparent);
+  color: var(--c-green);
+  border: 1px solid color-mix(in srgb, var(--c-green) 30%, transparent);
+}
+.tag-chip.tag-proj {
+  background-color: color-mix(in srgb, var(--c-green) 15%, transparent);
+  color: var(--c-green);
+  border: 1px solid color-mix(in srgb, var(--c-green) 30%, transparent);
+}
+.tag-chip.tag-acad {
+  background-color: color-mix(in srgb, var(--c-green) 15%, transparent);
+  color: var(--c-green);
+  border: 1px solid color-mix(in srgb, var(--c-green) 30%, transparent);
+}
 
 .tag-chip.tag-domain:hover { background-color: color-mix(in srgb, var(--c-purple) 28%, transparent); }
 .tag-chip.tag-who:hover    { background-color: color-mix(in srgb, var(--c-teal) 28%, transparent); }

@@ -26,7 +26,7 @@ export interface TagNode {
   parent?: string;
 }
 
-export type FacetNamespace = 'domain' | 'who' | 'org' | 'ctx';
+export type FacetNamespace = 'domain' | 'who' | 'org' | 'ctx' | 'key' | 'proj' | 'acad';
 
 export type FacetIconName = 'BookOpen' | 'Users' | 'Building2' | 'Activity';
 

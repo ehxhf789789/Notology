@@ -483,10 +483,25 @@ export interface TagConfig {
   borderColor?: string;
 }
 
-export type FacetNamespace = 'domain' | 'who' | 'org' | 'ctx';
+/**
+ * 🔴 보관소가 실제로 쓰는 **6축** (CLAUDE.md 3-3). 앱은 4개만 알았다.
+ *
+ * 그래서 `key/Statistical_Analysis` · `acad/컨퍼런스` · `proj/자문회의` 가
+ * **색을 못 받고 회색으로 남았다** — 사용자가 "태그도 색이 없는 부분이
+ * 있고 자동 관리가 안 되고 있는데?" 라고 한 그 상태다.
+ *
+ *   org  256건  key 183  who 172  ctx 138  proj 86  acad 40   ← 3-3 실측
+ *
+ * `domain`은 보관소에 없지만 앱 곳곳이 참조하므로 남겨 둔다.
+ */
+export type FacetNamespace =
+  | 'domain' | 'who' | 'org' | 'ctx' | 'key' | 'proj' | 'acad';
 
 export interface FacetedTagSettings {
   domain: Record<string, TagConfig>;
+  key: Record<string, TagConfig>;
+  proj: Record<string, TagConfig>;
+  acad: Record<string, TagConfig>;
   who: Record<string, TagConfig>;
   org: Record<string, TagConfig>;
   ctx: Record<string, TagConfig>;
@@ -497,6 +512,9 @@ export const DEFAULT_FACETED_TAG_SETTINGS: FacetedTagSettings = {
   who: {},
   org: {},
   ctx: {},
+  key: {},
+  proj: {},
+  acad: {},
 };
 
 export interface FacetInfo {

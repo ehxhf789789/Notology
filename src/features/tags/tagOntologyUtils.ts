@@ -209,7 +209,7 @@ export async function syncTagsFromIndex(vaultPath: string, ontology: TagOntology
       // needed: deserialize_tags now folds any legacy source/method/status
       // entries into ctx on read, so the only namespaces reaching this
       // function are the 4 we actually keep.
-      if (!['domain', 'who', 'org', 'ctx'].includes(namespace)) continue;
+      if (!['domain', 'who', 'org', 'ctx', 'key', 'proj', 'acad'].includes(namespace)) continue;
 
       // Add to ontology definitions
       ontology.definitions[tagId] = {
@@ -256,7 +256,7 @@ export async function migrateTagSettingsToOntology(
     }
 
     let migratedCount = 0;
-    const namespaces: FacetNamespace[] = ['domain', 'who', 'org', 'ctx'];
+    const namespaces: FacetNamespace[] = ['domain', 'who', 'org', 'ctx', 'key', 'proj', 'acad'];
 
     for (const namespace of namespaces) {
       const namespaceSettings = tagSettings[namespace];
@@ -327,7 +327,7 @@ export async function migrateTagSettingsToOntology(
 export function getTagStyle(ontology: TagOntology, namespace: FacetNamespace, tagName: string): TagStyle | null {
   // Strip namespace prefix if present
   let cleanTagName = tagName;
-  const namespaces = ['domain', 'who', 'org', 'ctx'];
+  const namespaces = ['domain', 'who', 'org', 'ctx', 'key', 'proj', 'acad'];
   for (const ns of namespaces) {
     while (cleanTagName.startsWith(`${ns}/`)) {
       cleanTagName = cleanTagName.slice(ns.length + 1);
@@ -430,7 +430,7 @@ export async function updateTagStyle(
 ): Promise<void> {
   // Strip namespace prefix if present
   let cleanTagName = tagName;
-  const namespaces = ['domain', 'who', 'org', 'ctx'];
+  const namespaces = ['domain', 'who', 'org', 'ctx', 'key', 'proj', 'acad'];
   for (const ns of namespaces) {
     while (cleanTagName.startsWith(`${ns}/`)) {
       cleanTagName = cleanTagName.slice(ns.length + 1);
@@ -479,7 +479,7 @@ export async function removeTagStyle(
 ): Promise<void> {
   // Strip namespace prefix if present
   let cleanTagName = tagName;
-  const namespaces = ['domain', 'who', 'org', 'ctx'];
+  const namespaces = ['domain', 'who', 'org', 'ctx', 'key', 'proj', 'acad'];
   for (const ns of namespaces) {
     while (cleanTagName.startsWith(`${ns}/`)) {
       cleanTagName = cleanTagName.slice(ns.length + 1);
@@ -708,7 +708,7 @@ export function removeFromRecentTags(tagId: string, namespace?: FacetNamespace) 
  * Returns the number of orphan entries removed.
  */
 export function cleanupOrphanRecentTags(ontology: TagOntology): number {
-  const namespaces: FacetNamespace[] = ['domain', 'who', 'org', 'ctx'];
+  const namespaces: FacetNamespace[] = ['domain', 'who', 'org', 'ctx', 'key', 'proj', 'acad'];
   let removed = 0;
 
   for (const ns of namespaces) {
@@ -758,7 +758,7 @@ export function cleanupOrphanRecentTags(ontology: TagOntology): number {
  * Clear all recent tags from localStorage
  */
 export function clearAllRecentTags(): void {
-  const namespaces = ['domain', 'who', 'org', 'ctx'];
+  const namespaces = ['domain', 'who', 'org', 'ctx', 'key', 'proj', 'acad'];
   for (const ns of namespaces) {
     localStorage.removeItem(`recent-tags-${ns}`);
   }
@@ -925,7 +925,7 @@ export async function addNewTag(
 
     // Strip any namespace prefix from label (e.g., "domain/태그" -> "태그")
     let cleanLabel = label;
-    const namespaces = ['domain', 'who', 'org', 'ctx'];
+    const namespaces = ['domain', 'who', 'org', 'ctx', 'key', 'proj', 'acad'];
     for (const ns of namespaces) {
       while (cleanLabel.startsWith(`${ns}/`)) {
         cleanLabel = cleanLabel.slice(ns.length + 1);

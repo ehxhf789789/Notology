@@ -134,6 +134,12 @@ html[data-theme="dark"]     { color-scheme: dark; }
   --c-tag-who:    #0891b2;
   --c-tag-org:    #ea580c;
   --c-tag-ctx:    #059669;
+  /* 🔴 보관소가 쓰는 6축 (CLAUDE.md 3-3). 4개만 있어서 key·proj·acad 태그가
+     색을 못 받고 회색으로 남았다 — 실측 380종 중 137종이 그 셋이다.
+     같은 축이 같은 색이어야 화면에서 같은 종류로 읽힌다. */
+  --c-tag-key:    #64748b;   /* 주제어 — 검색용, 눈에 덜 띄게 */
+  --c-tag-proj:   #9333ea;   /* 활동 */
+  --c-tag-acad:   #db2777;   /* 학술 */
 
   /* Memo stripe colors (Tier-3 — calendar memo chips, indexed 1..7).
      5.0.10a (2026-05-17, HanBin) — promoted from CalendarHomeView's
@@ -325,6 +331,12 @@ html[data-theme="light"] {
   --c-tag-who:    #0891b2;
   --c-tag-org:    #ea580c;
   --c-tag-ctx:    #059669;
+  /* 🔴 보관소가 쓰는 6축 (CLAUDE.md 3-3). 4개만 있어서 key·proj·acad 태그가
+     색을 못 받고 회색으로 남았다 — 실측 380종 중 137종이 그 셋이다.
+     같은 축이 같은 색이어야 화면에서 같은 종류로 읽힌다. */
+  --c-tag-key:    #64748b;   /* 주제어 — 검색용, 눈에 덜 띄게 */
+  --c-tag-proj:   #9333ea;   /* 활동 */
+  --c-tag-acad:   #db2777;   /* 학술 */
 
   /* legacy theme v1 */
   --bg-primary:   #ffffff;
