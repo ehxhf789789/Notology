@@ -1,6 +1,11 @@
 import { startLive, onLive } from '../../web/liveSync';
 import { DobbinPanel, useDobbinShortcut } from '../../features/dobbin/DobbinPanel';
 import { Ingest } from '../../features/ingest/Ingest';
+import { CalendarDays, UploadCloud } from 'lucide-react';
+import { PenguinFace } from '../../features/dobbin/PenguinFace';
+import { rightActions, useRightTab } from '../stores/rightTabStore';
+import { useDobbinStore } from '../../features/dobbin/dobbinStore';
+
 import { contentCacheActions } from '../../features/content-cache/stores/contentCacheStore';
 import { fileTreeActions } from '../stores/fileTreeStore';
 import { TrashPanel } from '../../features/attachments/components/TrashPanel';
@@ -103,6 +108,20 @@ function AppLayout() {
   // UI state (individual Zustand subscriptions - only re-renders when specific value changes)
   const showSearch = useShowSearch();
   const showHoverPanel = useShowHoverPanel();
+  const rightTab = useRightTab();
+  const dobbinBusy = useDobbinStore((s) => s.busy);
+  // 🔴 물을 것이 몇 건인가 — 탭에 말풍선으로 뜬다 (1-2-1)
+  const [intakeQuestions, setIntakeQuestions] = useState(0);
+  useEffect(() => {
+    const ask = () => fetch('/api/intake', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'status' }) })
+      .then(r => r.json()).then(j => setIntakeQuestions(j?.questions ?? 0))
+      .catch(() => {});
+    ask();
+    const t = setInterval(ask, 20000);
+    return () => clearInterval(t);
+  }, []);
   const sidebarCollapsed = useSidebarCollapsed();
   const hoverPanelAnimState = useHoverPanelAnimState();
 
@@ -497,6 +516,41 @@ function AppLayout() {
             </div>
           )}
         </div>
+        {/* 오른쪽 탭 — 어느 것이 앞에 나와 있나 */}
+          {/* 🔴 **탭을 세로로 세운다** (사용자 요청, 2026-08-11:
+              *"dobbin AI의 버튼을 우측 슬라이드를 여는 버튼 아래에 배치…
+              서류의 탭처럼, 달력 슬라이드를 누르면 해당 슬라이드가 밀려서
+              열리고, dobbin AI 버튼을 누르면 달력 슬라이드는 들어가고 AI
+              슬라이드 탭이 밀려나오는 애니메이션"*).
+
+              **서류철의 탭과 같다** — 하나를 뽑으면 앞엣것이 들어간다.
+              세 탭이 같은 자리를 나눠 쓰므로 화면이 좁아지지 않는다. */}
+          <div className="right-tabs">
+            <button
+              className={`right-tab${showHoverPanel && rightTab === 'calendar' ? ' active' : ''}`}
+              onClick={() => { rightActions.pick('calendar'); }}
+              title="달력 · 할 일">
+              <CalendarDays size={17} />
+            </button>
+            <button
+              className={`right-tab${showHoverPanel && rightTab === 'dobbin' ? ' active' : ''}`}
+              onClick={() => { rightActions.pick('dobbin'); }}
+              title="dobbin — 이 서재의 사서">
+              <PenguinFace mood={dobbinBusy ? 'thinking' : 'idle'} size={19} />
+            </button>
+            <button
+              className={`right-tab${showHoverPanel && rightTab === 'intake' ? ' active' : ''}`}
+              onClick={() => { rightActions.pick('intake'); }}
+              title="자료 넣기 · 검수">
+              <UploadCloud size={17} />
+              {/* 🔴 말풍선 — 물을 것이 있으면 여기 뜬다 (1-2-1) */}
+              {intakeQuestions > 0 && (
+                <span className="right-tab__ask" aria-label={`${intakeQuestions}건 여쭐 것`}>
+                  {intakeQuestions}
+                </span>
+              )}
+            </button>
+          </div>
         {/* Right Panel with slide animation. Stage 5.0.3a-rework
             (2026-05-15) restored the collapsed-bar with toggle button
             — see report 5_0_3_a_rework.md §4. Width adjusts between
@@ -511,18 +565,8 @@ function AppLayout() {
         >
           {showHoverPanel || hoverPanelAnimState === 'closing' ? (
             <RightPanel width={HOVER_PANEL_WIDTH} />
-          ) : (
-            <div className="hover-panel-collapsed-bar">
-              <button
-                className="hover-panel-collapsed-toggle"
-                onClick={() => uiActions.setShowHoverPanel(true)}
-                title={t('rightPanelToggle', language)}
-                aria-label={t('rightPanelToggle', language)}
-              >
-                <PanelRightOpen size={18} />
-              </button>
-            </div>
-          )}
+          ) : null}
+
         </div>
       </div>
       <HoverEditorLayer />

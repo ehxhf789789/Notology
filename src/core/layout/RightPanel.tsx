@@ -14,6 +14,9 @@ import { hoverActions } from '../../features/hover-windows/stores/hoverStore';
 import { useCalendarRefreshTrigger } from '../stores/refreshStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useUIStore } from '../stores/uiStore';
+import { useRightTab } from '../stores/rightTabStore';
+import { IntakePanel } from '../../features/dobbin/IntakePanel';
+import { DobbinSurface } from '../../features/dobbin/DobbinSurface';
 import { t, tf } from '../utils/i18n';
 import { loadComments, saveComments } from '../../features/comments/comments';
 import { notifyMemoChanged } from '../utils/windowSync';
@@ -55,24 +58,38 @@ const getTodayString = (): string => formatDate(new Date());
 const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
   const language = useSettingsStore(s => s.language);
   const setShowHoverPanel = useUIStore(s => s.setShowHoverPanel);
+  const tab = useRightTab();
 
   return (
     <div className="right-panel" style={{ width }}>
       <header className="right-panel-header">
         <div className="right-panel-header-left">
-          <div className="right-panel-today-icon">
-            <CalendarDays size={14} />
-            <span className="right-panel-today-day">{new Date().getDate()}</span>
-          </div>
-          <div className="right-panel-today-info">
-            <span className="right-panel-today-label">{t('today', language)}</span>
-            <span className="right-panel-today-date">
-              {new Date().toLocaleDateString(language === 'ko' ? 'ko-KR' : 'en-US', {
-                month: 'short',
-                weekday: 'short',
-              })}
-            </span>
-          </div>
+          {tab === 'calendar' ? (
+            <>
+              <div className="right-panel-today-icon">
+                <CalendarDays size={14} />
+                <span className="right-panel-today-day">{new Date().getDate()}</span>
+              </div>
+              <div className="right-panel-today-info">
+                <span className="right-panel-today-label">{t('today', language)}</span>
+                <span className="right-panel-today-date">
+                  {new Date().toLocaleDateString(language === 'ko' ? 'ko-KR' : 'en-US', {
+                    month: 'short',
+                    weekday: 'short',
+                  })}
+                </span>
+              </div>
+            </>
+          ) : (
+            <div className="right-panel-today-info">
+              <span className="right-panel-today-label">
+                {tab === 'dobbin' ? 'dobbin' : '자료 넣기'}
+              </span>
+              <span className="right-panel-today-date">
+                {tab === 'dobbin' ? '사서에게 묻기' : '읽고 정리합니다'}
+              </span>
+            </div>
+          )}
         </div>
         <IconButton
           icon={<PanelRightClose size={18} />}
@@ -83,7 +100,10 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
         />
       </header>
 
-      <CalendarSurface />
+      {/* 🔴 탭이 정한 것만 보여준다 — 서류철처럼 하나만 앞에 온다 */}
+      {tab === 'calendar' && <CalendarSurface />}
+      {tab === 'dobbin' && <DobbinSurface />}
+      {tab === 'intake' && <IntakePanel />}
     </div>
   );
 });

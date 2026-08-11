@@ -40,34 +40,12 @@ import './presence.css';
 
 export type Mood = 'idle' | 'reading' | 'thinking' | 'found' | 'alert';
 
-/** 사서 얼굴 — **책 너머로 보는 눈.**
- *
- * 🔴 처음엔 책 안에 눈을 넣었더니 30px에서 **파란 사각형에 점 두 개**로
- *    읽혔다 (실측 확대). 작은 크기에서는 윤곽 하나만 살아남는다.
- *    눈을 책 위로 올리니 곧바로 "책 너머로 보는 사람"이 됐다 —
- *    사서가 실제로 하는 자세이기도 하다.
- */
-function Face({ mood }: { mood: Mood }) {
-  return (
-    <svg className={`dob-face dob-face--${mood}`} viewBox="0 0 40 40"
-         width="32" height="32" aria-hidden="true">
-      {/* 생각할 때만 뜨는 점 셋 */}
-      <g className="dob-dots">
-        <circle cx="13" cy="5" r="1.7" /><circle cx="20" cy="3.4" r="1.7" />
-        <circle cx="27" cy="5" r="1.7" />
-      </g>
-      {/* 눈 — 책 위로 보인다. 이게 있어야 도구가 아니라 상대가 된다 */}
-      <circle className="dob-eye dob-eye--l" cx="14.5" cy="17" r="2.7" />
-      <circle className="dob-eye dob-eye--r" cx="25.5" cy="17" r="2.7" />
-      {/* 펼친 책 — 양면이 가운데서 만난다. 읽을 때 오른쪽 면이 넘어간다 */}
-      <path className="dob-page dob-page--l"
-            d="M20 24 L5.5 27 L5.5 34 L20 32 Z" />
-      <path className="dob-page dob-page--r"
-            d="M20 24 L34.5 27 L34.5 34 L20 32 Z" />
-      <line className="dob-spine" x1="20" y1="24" x2="20" y2="32" />
-    </svg>
-  );
-}
+// 🔴 얼굴을 **펭귄**으로 바꿨다 (사용자, 2026-08-11). 상태가 곧 움직임이라는
+//    규율은 그대로다 (2-14-2-2) — 장식용 움직임은 없다.
+import { PenguinFace } from './PenguinFace';
+import './penguin.css';
+
+const Face = PenguinFace;
 
 export function DobbinPresence() {
   const busy = useDobbinStore((s) => s.busy);

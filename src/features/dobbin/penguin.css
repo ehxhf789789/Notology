@@ -1,0 +1,103 @@
+/* dobbin 펭귄 — 상태가 곧 움직임이다 (PenguinFace.tsx, 2-14-2-2) */
+
+.peng { flex: none; overflow: visible; }
+.peng-body  { fill: var(--accent, #4a7dbd); }
+.peng-belly { fill: #f3f5f8; }
+.peng-eye   { fill: #ffffff; stroke: #2b2f36; stroke-width: .6; }
+.peng-pupil { fill: #1b1e24; }
+.peng-beak  { fill: #f2a33c; }
+.peng-wing  { fill: var(--accent, #4a7dbd); transform-origin: center; }
+.peng-dots circle { fill: var(--accent, #4a7dbd); opacity: 0; }
+.peng-head  { transform-origin: 20px 24px; }
+
+/* idle — 느린 숨. 4초라 눈에 걸리지 않는다 */
+.peng--idle .peng-head { animation: peng-breathe 4s ease-in-out infinite; }
+@keyframes peng-breathe {
+  0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); }
+}
+/* 깜빡임 — 불규칙해야 살아 있다 */
+.peng-eye, .peng-pupil { transform-origin: center; }
+.peng--idle .peng-pupil { animation: peng-blink 5.7s infinite; }
+@keyframes peng-blink {
+  0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.08); }
+}
+
+/* reading — 고개를 좌우로. 읽는 눈짓이다 */
+.peng--reading .peng-head { animation: peng-look 2.4s ease-in-out infinite; }
+@keyframes peng-look {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-7deg); } 75% { transform: rotate(7deg); }
+}
+
+/* thinking — 점 셋 + 고개 갸웃 */
+.peng--thinking .peng-dots circle { animation: peng-dot 1.25s infinite; }
+.peng--thinking .peng-dots circle:nth-child(2) { animation-delay: .18s; }
+.peng--thinking .peng-dots circle:nth-child(3) { animation-delay: .36s; }
+.peng--thinking .peng-head { transform: rotate(-6deg); }
+@keyframes peng-dot {
+  0%, 70%, 100% { opacity: 0; transform: translateY(1px); }
+  30% { opacity: 1; transform: translateY(-1.5px); }
+}
+
+/* found — 한 번 폴짝. 지느러미가 든다 */
+.peng--found .peng-head { animation: peng-hop .6s cubic-bezier(.34,1.56,.64,1); }
+.peng--found .peng-wing--l { animation: peng-flap-l .6s ease-out; }
+.peng--found .peng-wing--r { animation: peng-flap-r .6s ease-out; }
+@keyframes peng-hop {
+  0% { transform: translateY(0); } 45% { transform: translateY(-3.5px) scale(1.06); }
+  100% { transform: translateY(0); }
+}
+@keyframes peng-flap-l {
+  0%,100% { transform: rotate(0); } 50% { transform: rotate(-32deg); }
+}
+@keyframes peng-flap-r {
+  0%,100% { transform: rotate(0); } 50% { transform: rotate(32deg); }
+}
+
+/* alert — 지난 기한. 색이 바뀌므로 움직임은 약하게 */
+.peng--alert .peng-body, .peng--alert .peng-wing { fill: #e0796f; }
+.peng--alert .peng-head { animation: peng-pulse 1.8s ease-in-out infinite; }
+@keyframes peng-pulse {
+  0%,100% { transform: scale(1); } 50% { transform: scale(1.08); }
+}
+
+/* 🔴 움직임을 줄여달라는 설정을 존중한다 */
+@media (prefers-reduced-motion: reduce) {
+  .peng, .peng * { animation: none !important; }
+}
+
+/* ── 오른쪽 세로 탭 — 서류철처럼 하나만 앞에 온다 ───────────── */
+/* 🔴 **패널 위에 얹지 않는다.** absolute 로 띄웠더니 패널 머리의 달력·검색
+   단추를 덮어 눌리지 않았다 (실측). 서류철 탭은 서류 **옆**에 붙어 있지
+   서류 위에 있지 않다 — 레이아웃의 한 칸으로 세운다. */
+.right-tabs {
+  flex: none; align-self: flex-start; z-index: 5;
+  display: flex; flex-direction: column; gap: 4px; padding: 8px 0 0;
+}
+.right-tab {
+  position: relative; width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px 0 0 8px; cursor: pointer;
+  color: var(--text-muted, #8a8f99);
+  background: var(--bg-secondary, #1d2026);
+  border: 1px solid var(--border-color, #2b2f36); border-right: none;
+  transition: color .16s ease, background-color .16s ease, transform .16s ease;
+}
+.right-tab:hover { color: var(--text-primary, #e6e8ec); transform: translateX(-2px); }
+.right-tab.active {
+  color: var(--accent, #4a7dbd);
+  background: var(--bg-primary, #16181c);
+  border-color: color-mix(in srgb, var(--accent, #4a7dbd) 50%, transparent);
+}
+/* 🔴 물을 것이 있으면 말풍선이 뜬다 (1-2-1) */
+.right-tab__ask {
+  position: absolute; top: -3px; left: -6px;
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; color: #fff; background: #e0796f;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 35%);
+  animation: tab-ask 2.4s ease-in-out infinite;
+}
+@keyframes tab-ask {
+  0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); }
+}

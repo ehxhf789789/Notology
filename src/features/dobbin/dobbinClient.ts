@@ -7,10 +7,20 @@
  *    검색·분류·좌표는 전부 서버가 안다 (CLAUDE.md 2-4: LLM은 경로를 만들지 않는다).
  */
 
+export interface DobbinChoice {
+  /** 화면에 보이는 말 */
+  label: string;
+  /** 누르면 대신 보내는 말. 빈 문자열이면 "직접 입력" — 입력칸으로 돌려보낸다 */
+  send: string;
+}
+
 export interface DobbinMessage {
   role: 'user' | 'assistant';
   content: string;
   at: number;
+  /** 🔴 dobbin이 되물을 때 함께 오는 선택지 (서버 `choices.py`).
+   *  **사람은 확인만 한다** — 과제 이름을 다시 타이핑하게 두지 않는다 (2-14-3). */
+  choices?: DobbinChoice[];
 }
 
 /** 답변에 섞인 좌표 — `T01-정보통신-2512-0007` 꼴. 클릭해서 갈 수 있게 뽑는다. */
