@@ -19,6 +19,7 @@ import { t, tf, type LanguageSetting } from '../../core/utils/i18n';
 import { getTemplateCustomColor as getTemplateColor } from '../content-cache/noteTypeHelpers';
 import { FilterAddButton, FilterChipList, AnchoredPopover, type FilterField } from './FilterChipBar';
 import { NOTE_TYPES } from './searchHelpers';
+import { observe } from '../dobbin/observe';
 import { FrontmatterResultRow, ContentResultCard } from './SearchResultItem';
 import AttachmentsTab, { TIER_KEYS, SYNC_KEYS, type TierKey, type SyncState } from './AttachmentsTab';
 import { useNoteIdToPath } from './useNoteIdToPath';
@@ -352,6 +353,9 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       // (e.g. "cat" won't match "catalog"). Multi-word phrases stay
       // phrase-quoted too — Tantivy handles that natively.
       const effectiveQuery = contentsWholeWordRef.current ? `"${query}"` : query;
+      // 🔴 **어떻게 찾는가**가 그 사람의 스타일이다. 질의만 보낸다 — 본문은
+      //    이미 서버에 있고, 로그가 자료의 사본이 되면 그 자체가 관리 대상이 된다.
+      observe('search', effectiveQuery);
       const results = await searchCommands.fullTextSearch(effectiveQuery, 50);
       if (query === contentsQueryRef.current.trim()) {
         setContentResults(results);

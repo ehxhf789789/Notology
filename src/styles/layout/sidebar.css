@@ -325,30 +325,65 @@
   letter-spacing: 0.8px;
 }
 
+/* 🔴 액션 버튼을 다시 만졌다 (사용자: "버튼 디자인도 너무 투박하다").
+ *
+ * 무엇이 투박했나 — **셋 다 똑같이 생겼다.** 새 폴더·검색·자료 넣기가
+ * 같은 무게로 나란히 있으면 눈이 어디로 갈지 정하지 못한다. 도서관 안내판이
+ * 모든 글자를 같은 크기로 쓰지 않는 것과 같다.
+ *
+ * 고친 것 셋:
+ *   ① **자주 쓰는 것을 크게.** 검색이 가장 크고 테두리를 갖는다
+ *   ② **경계를 준다.** 투명 사각형은 눌리는 것으로 안 보인다
+ *   ③ **눌리는 느낌.** hover 에 색만 바꾸지 않고 1px 떠오른다
+ */
 .sidebar-actions {
   display: flex;
-  gap: 2px;
+  gap: 4px;
+  align-items: center;
 }
 
 .sidebar-action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
+  width: 27px;
+  height: 27px;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--tx-2);
   cursor: pointer;
-  border-radius: var(--r-6);
+  border-radius: 7px;
   font-size: var(--fs-14);
   padding: 0;
-  transition: all var(--dur-150) var(--ease-out);
+  transition: background-color var(--dur-150) var(--ease-out),
+              color var(--dur-150) var(--ease-out),
+              border-color var(--dur-150) var(--ease-out),
+              transform 90ms var(--ease-out);
 }
 
 .sidebar-action-btn:hover:not(:disabled) {
   background-color: var(--bg-hover);
+  border-color: var(--bd-1, rgb(255 255 255 / 9%));
   color: var(--tx-1);
+  transform: translateY(-1px);           /* 눌리는 물건으로 보이게 */
+}
+.sidebar-action-btn:active:not(:disabled) { transform: translateY(0); }
+
+/* ① 검색이 가장 자주 쓰인다 — 무게를 준다 */
+.sidebar-actions .sidebar-action-btn:nth-child(2) {
+  width: 30px; height: 27px;
+  border-color: var(--bd-1, rgb(255 255 255 / 10%));
+  background: var(--bg-2, rgb(255 255 255 / 3%));
+}
+.sidebar-actions .sidebar-action-btn:nth-child(2):hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent, #4a7dbd) 50%, transparent);
+  color: var(--accent, #4a7dbd);
+}
+/* ③ 자료 넣기 — 던지는 곳이라 강조색을 살짝 준다 */
+.sidebar-actions .sidebar-action-btn:nth-child(3):hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent, #4a7dbd) 45%, transparent);
+  color: var(--accent, #4a7dbd);
+  background: color-mix(in srgb, var(--accent, #4a7dbd) 12%, transparent);
 }
 
 .sidebar-action-btn:disabled {

@@ -12,6 +12,8 @@ import {
   inferNoteType,
 } from './searchHelpers';
 import { getAttachmentCategory } from '../suggestions/attachmentCategory';
+// 🔴 무엇을 보는지가 그 사람을 말한다 (CLAUDE.md 2-14-2)
+import { observe } from '../dobbin/observe';
 import { useRegisteredTypes, isUnmatchedNoteType, findTemplateByType } from '../templates/templateRegistryUtils';
 import { useTemplateStore } from '../templates/stores/templateStore';
 // 5.0.7a (2026-05-17, HanBin) — initially tried wrapping ContentResultCard
@@ -116,6 +118,8 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
   };
 
   const handleClick = (e: React.MouseEvent) => {
+
+    observe('open_note', note.path, { type: note.note_type });
     if (onMultiClick && onMultiClick(e, note)) return;
     // Selection-mode: plain click on a row becomes a selection toggle so
     // the user can build the set without holding modifier keys.

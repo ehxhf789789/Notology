@@ -1,0 +1,149 @@
+/* dobbin이 거기 있다 — 상태가 곧 애니메이션이다 (DobbinPresence.tsx)
+ *
+ * 🔴 움직임은 전부 뜻이 있다. 장식용 움직임을 넣지 않는다 —
+ *    두 번째 볼 때부터 거슬리고, 그러면 사람이 화면을 안 본다.
+ */
+
+.dob-presence {
+  position: relative;
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 9px 11px; cursor: pointer;
+  font-size: 13px; font-weight: 500; letter-spacing: -0.01em;
+  color: var(--text-secondary, #9aa0ab);
+  background: linear-gradient(180deg,
+              color-mix(in srgb, var(--accent, #4a7dbd) 9%, transparent),
+              color-mix(in srgb, var(--accent, #4a7dbd) 4%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent, #4a7dbd) 26%, transparent);
+  border-radius: 10px;
+  transition: border-color .18s ease, color .18s ease, transform .12s ease,
+              box-shadow .18s ease;
+}
+.dob-presence:hover {
+  color: var(--text-primary, #e6e8ec);
+  border-color: color-mix(in srgb, var(--accent, #4a7dbd) 55%, transparent);
+  box-shadow: 0 2px 14px color-mix(in srgb, var(--accent, #4a7dbd) 16%, transparent);
+}
+.dob-presence:active { transform: translateY(1px); }
+.dob-presence.is-open {
+  color: var(--text-primary, #e6e8ec);
+  border-color: var(--accent, #4a7dbd);
+}
+.dob-presence__name { flex: 1; text-align: left; }
+
+/* ── 얼굴 ───────────────────────────────────────────────── */
+.dob-face { flex: none; overflow: visible; }
+.dob-page  { fill: color-mix(in srgb, var(--accent, #4a7dbd) 34%, transparent);
+             stroke: var(--accent, #4a7dbd); stroke-width: 1.7;
+             stroke-linejoin: round; }
+.dob-page--r { transform-origin: 20px 27px; }
+.dob-spine { stroke: var(--accent, #4a7dbd); stroke-width: 1.7;
+             stroke-linecap: round; }
+.dob-eye   { fill: var(--text-primary, #e6e8ec); transform-origin: center; }
+.dob-dots circle { fill: var(--accent, #4a7dbd); opacity: 0; }
+
+/* idle — 느린 숨. 4초에 한 번이라 눈에 걸리지 않는다 */
+.dob-face--idle { animation: dob-breathe 4s ease-in-out infinite; }
+@keyframes dob-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.045); }
+}
+/* 눈 깜빡임 — 불규칙해야 살아 있게 보인다. 두 눈 주기를 다르게 준다 */
+.dob-eye--l { animation: dob-blink 5.3s infinite; }
+.dob-eye--r { animation: dob-blink 5.3s infinite .04s; }
+@keyframes dob-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95%           { transform: scaleY(.1); }
+}
+
+/* reading — 책장이 넘어간다 */
+.dob-face--reading .dob-page--r { animation: dob-turn 1.5s ease-in-out infinite; }
+@keyframes dob-turn {
+  0%, 100% { transform: scaleX(1); opacity: 1; }
+  50%      { transform: scaleX(.12); opacity: .6; }
+}
+
+/* thinking — 점 셋이 차례로. 기다리는 시간이 보인다 */
+.dob-face--thinking .dob-dots circle { animation: dob-dot 1.25s infinite; }
+.dob-face--thinking .dob-dots circle:nth-child(2) { animation-delay: .18s; }
+.dob-face--thinking .dob-dots circle:nth-child(3) { animation-delay: .36s; }
+.dob-face--thinking .dob-page--r { animation: dob-turn 1.5s ease-in-out infinite; }
+@keyframes dob-dot {
+  0%, 70%, 100% { opacity: 0; transform: translateY(1px); }
+  30%           { opacity: 1; transform: translateY(-1.5px); }
+}
+
+/* found — 한 번만 튄다. 반복하지 않는다 */
+.dob-face--found { animation: dob-pop .55s cubic-bezier(.34,1.56,.64,1); }
+@keyframes dob-pop {
+  0% { transform: scale(1); } 45% { transform: scale(1.22) translateY(-2px); }
+  100% { transform: scale(1); }
+}
+
+/* alert — 지난 기한. 색이 바뀌므로 애니메이션은 약하게 */
+.dob-presence--alert {
+  border-color: color-mix(in srgb, #e0796f 55%, transparent);
+  background: linear-gradient(180deg,
+              color-mix(in srgb, #e0796f 12%, transparent),
+              color-mix(in srgb, #e0796f 5%, transparent));
+}
+.dob-presence--alert .dob-page,
+.dob-presence--alert .dob-spine { stroke: #e0796f; }
+.dob-presence--alert .dob-page  { fill: color-mix(in srgb, #e0796f 26%, transparent); }
+.dob-presence--alert .dob-dots circle { fill: #e0796f; }
+.dob-face--alert { animation: dob-pulse 1.8s ease-in-out infinite; }
+@keyframes dob-pulse {
+  0%, 100% { transform: scale(1); }  50% { transform: scale(1.09); }
+}
+
+/* ── 말풍선 — 먼저 말을 걸고 스스로 사라진다 ─────────────── */
+.dob-bubble {
+  position: absolute; left: 8px; right: 8px; bottom: calc(100% + 9px);
+  padding: 9px 12px; border-radius: 10px; z-index: 40;
+  font-size: 12.5px; font-weight: 400; line-height: 1.5; text-align: left;
+  color: var(--text-primary, #e6e8ec);
+  background: var(--bg-tertiary, #24262d);
+  border: 1px solid color-mix(in srgb, var(--accent, #4a7dbd) 38%, transparent);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 34%);
+  animation: dob-say .42s cubic-bezier(.34,1.4,.64,1);
+}
+/* 꼬리 — 말풍선이 dobbin에게서 나온 것으로 보이게 */
+.dob-bubble::after {
+  content: ''; position: absolute; left: 20px; top: 100%;
+  border: 6px solid transparent;
+  border-top-color: var(--bg-tertiary, #24262d);
+}
+.dob-bubble.is-leaving { animation: dob-hush .9s ease-in forwards; }
+@keyframes dob-say {
+  from { opacity: 0; transform: translateY(7px) scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes dob-hush {
+  to { opacity: 0; transform: translateY(-5px) scale(.985); }
+}
+
+/* 🔴 움직임을 줄여달라는 설정을 존중한다. 어지럼증을 겪는 사람이 있다 */
+@media (prefers-reduced-motion: reduce) {
+  .dob-face, .dob-face *, .dob-bubble { animation: none !important; }
+}
+
+/* 사서와 투입구를 한 줄에 — 자료를 건네는 곳이 사서 옆이다 */
+.sidebar-dobbin { display: flex; align-items: stretch; gap: 6px; }
+.sidebar-dobbin .dob-presence { flex: 1; }
+
+.sidebar-ingest-btn {
+  flex: none; width: 40px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border-radius: 10px;
+  color: var(--text-secondary, #9aa0ab);
+  background: var(--bg-tertiary, #24262d);
+  border: 1px solid var(--border-color, #2c2f37);
+  transition: color .18s ease, border-color .18s ease, background-color .18s ease,
+              transform 90ms ease;
+}
+.sidebar-ingest-btn:hover {
+  color: var(--accent, #4a7dbd);
+  border-color: color-mix(in srgb, var(--accent, #4a7dbd) 52%, transparent);
+  background: color-mix(in srgb, var(--accent, #4a7dbd) 12%, transparent);
+  transform: translateY(-1px);
+}
+.sidebar-ingest-btn:active { transform: translateY(0); }
