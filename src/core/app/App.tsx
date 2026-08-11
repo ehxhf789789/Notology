@@ -1,3 +1,4 @@
+import { startLive, onLive } from '../../web/liveSync';
 import { DobbinPanel, useDobbinShortcut } from '../../features/dobbin/DobbinPanel';
 import { TrashPanel } from '../../features/attachments/components/TrashPanel';
 import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
@@ -538,7 +539,16 @@ function AppLayout() {
 }
 
 function App() {
-  useDobbinShortcut();   // Ctrl+K — 어디서든 dobbin을 부른다
+  useDobbinShortcut();
+  // 🔴 변화가 오면 화면을 따라가게 한다 — 이전 화면을 보며 편집하면 덮어쓴다
+  useEffect(() => {
+    startLive();
+    return onLive((ev) => {
+      if (ev.kind === 'file-changed' || ev.kind === 'vault-changed') {
+        refreshActions.incrementSearchRefresh();
+      }
+    });
+  }, []);   // Ctrl+K — 어디서든 dobbin을 부른다
   return (
     <AppInitializer>
       <AppLayout />

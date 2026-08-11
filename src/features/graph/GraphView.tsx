@@ -801,7 +801,22 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
         const currentZoom = graph.zoom();
         // Logarithmic step — each tick multiplies/divides by a factor close
         // to 1, so zooming feels like a smooth ramp rather than discrete jumps.
-        const factor = Math.exp(-e.deltaY * 0.0015);
+        //
+        // 🔴 **계수 하나로는 안 된다** (사용자 지적, 2026-08-11:
+        //    "노트북 터치패드 감도가 낮은지, 확대가 아주 조금씩 되어서
+        //     확대가 거의 안 되는 상황").
+        //
+        //    마우스 휠은 한 칸에 deltaY가 100 안팎으로 온다 → 0.0015면 ~16%.
+        //    터치패드는 손가락을 조금 움직이면 **1~5**로 온다 → 0.0015면 0.7%.
+        //    같은 계수를 쓰면 터치패드에서는 아무 일도 안 일어난다.
+        //
+        //    `deltaMode`로 가른다: 픽셀 단위(0)이고 값이 작으면 터치패드다.
+        //    터치패드는 **연속으로 여러 번** 오므로 한 번의 폭을 키워도
+        //    거칠어지지 않는다.
+        const raw = Math.abs(e.deltaY);
+        const trackpad = e.deltaMode === 0 && raw < 50;
+        const k = trackpad ? 0.010 : 0.0015;
+        const factor = Math.exp(-e.deltaY * k);
         const nextZoom = Math.max(0.1, Math.min(20, currentZoom * factor));
         graph.zoom(nextZoom, 100);  // 100ms transition for smoothness
       };

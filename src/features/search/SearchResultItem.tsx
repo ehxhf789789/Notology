@@ -76,8 +76,14 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
   selectRowLabel,
 }: FrontmatterResultRowProps) {
   const noteType = noteTypeToCssClass(note.note_type);
-  const fileName = note.path.split(/[/\\]/).pop()?.replace(/\.md$/, '') || note.title;
-  const displayName = fileName.replace(/_/g, ' ');
+  // 🔴 **제목 열에는 제목만** (사용자 지적, 2026-08-11).
+  //    파일명에서 뽑으면 `NOTE-260106-CDE학회 컨퍼런스 논문 작성` 처럼
+  //    TYPE과 날짜 코드가 같이 보인다. 그건 **파일명이지 제목이 아니다.**
+  //    3-1의 명명 규칙 `{TYPE}-{YYMMDD}-{제목}` 에서 제목은 마지막 조각이다.
+  //    타입과 날짜는 이미 옆 열에 있다 — 같은 것을 두 번 보여줄 이유가 없다.
+  const fileName = note.path.split(/[/\\]/).pop()?.replace(/\.md$/, '') || '';
+  const stripped = fileName.replace(/^[A-Z]{2,8}-\d{6}-/, '');
+  const displayName = (note.title || stripped || fileName).replace(/_/g, ' ');
   const customColor = getTemplateCustomColor(note.note_type);
   const isContainer = note.note_type?.toUpperCase() === 'CONTAINER';
   const isSelected = selectedPath === note.path;
