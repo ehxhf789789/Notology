@@ -459,25 +459,27 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
         if (!normPath.startsWith(prefix + '/')) continue;
         if (normPath.toLowerCase() === folderNotePath) continue;
 
-        // 🔴 **하위 폴더의 노트도 보여준다** (2026-08-11 web notology).
-        //    데스크톱 notology는 컨테이너를 평면으로 봤다 — 직계 자식만 목록에
-        //    올리고 하위 폴더는 별도 컨테이너로 다뤘다.
+        // 🔴 **직계만 보여준다** (사용자 지적, 2026-08-11: *"국방부 과제
+        //    노트가 왜 프로젝트 컨테이너 안에 폴더와 같은 위계에 있는 거지?"*).
         //
-        //    그런데 이 보관함은 **3단**이다: `클래스/인스턴스/노트.md`
-        //      01_Tasks/정보통신 과제/MTG-251208-….md
-        //    직계만 세면 `01_Tasks`의 목록이 **0개**가 되는데,
-        //    사이드바 배지는 재귀로 세어 **62**를 보여준다.
-        //    **수와 목록이 어긋나는 것이 사용자가 본 고장이다.**
+        //    한때 재귀로 다 끌어올렸다. 이유는 **배지 숫자와 목록이 어긋나서**
+        //    였다 — 배지는 재귀로 세는데 목록은 직계만 보이니 62개라 해놓고
+        //    0개를 보여줬다. 그때는 그게 맞는 처방으로 보였다.
         //
-        //    배지가 재귀이므로 목록도 재귀여야 한다. 하위 폴더는 사이드바에서
-        //    따로 들어갈 수도 있고, 여기서 한눈에 볼 수도 있다.
+        //    **틀렸다.** 어긋난 것은 목록이 아니라 배지였고, 재귀 목록은
+        //    위계를 화면에서 지워 버린다 — 하위 과제의 노트가 상위 클래스에서
+        //    폴더들과 나란히 섞인다. 1-3의 *"탐색기로 찾을 수 있어야 한다"* 가
+        //    무너진다. 폴더가 폴더인 이유는 **그 안에 든 것을 감추기 때문**이다.
+        //
+        //    서버가 이미 직계만 준다(`query_notes` 의 folder 필터). 여기서는
+        //    한 겹 더 확인만 한다 — 하위 폴더의 **폴더노트**는 문이므로 남긴다.
         const relativePath = normPath.slice(prefix.length + 1);
-        if (false) {
-          // Nested items: only show folder notes (CONTAINER type with matching pattern)
-          if (n.note_type !== 'CONTAINER') continue;
+        const depth = relativePath.split('/').length;
+        if (depth > 1) {
           const parts = relativePath.split('/');
-          if (parts.length !== 2) continue;
-          if (parts[1].toLowerCase() !== `${parts[0].toLowerCase()}.md`) continue;
+          const isDoor = n.note_type === 'FOLDER' && parts.length === 2
+            && parts[1].toLowerCase() === `${parts[0].toLowerCase()}.md`;
+          if (!isDoor) continue;
         }
       }
 
@@ -606,10 +608,17 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   const pendingNoteOpenRef = useRef<{ path: string; time: number } | null>(null);
 
   const handleNoteClick = useCallback((path: string, noteType?: string) => {
-    if (noteType?.toUpperCase() === 'CONTAINER') {
-      const parts = path.split(/[/\\]/);
-      parts.pop();
-      const folderPath = parts.join('\\');
+    // 🔴 **폴더노트도 폴더다** — 누르면 그 폴더로 들어간다 (3-4-1).
+    //    두 가지가 틀려 있었다:
+    //      ① `CONTAINER` 만 보고 `FOLDER` 를 안 봤다
+    //      ② 경로를 **역슬래시**로 이었다 — 윈도 시절의 흔적이다.
+    //         이 서버의 보관함 경로는 `vault:01_Tasks/국방부 과제` 이므로
+    //         역슬래시로 이으면 어떤 폴더와도 안 맞는다. 그래서 눌러도
+    //         제자리였다 (실측: 더블클릭해도 01_Tasks 그대로).
+    const nt = noteType?.toUpperCase();
+    if (nt === 'CONTAINER' || nt === 'FOLDER') {
+      const norm = path.replace(/\\/g, '/');
+      const folderPath = norm.slice(0, norm.lastIndexOf('/'));
       selectContainer(folderPath);
       return;
     }

@@ -341,8 +341,16 @@ export const frontmatterCommands = {
 // ============================================================================
 
 export const utilCommands = {
-  openInDefaultApp: (path: string) =>
-    invoke<void>('open_in_default_app', { path }),
+  // 🔴 웹에는 "기본 앱으로 열기"가 없다 — 받아서 여는 것이 그 자리다.
+  //    이 줄이 남아 있어서 HWP·zip 같은 것은 눌러도 아무 일도 안 났다.
+  openInDefaultApp: async (path: string) => {
+    // 🔴 웹에는 "기본 앱으로 열기"가 없다 — **받아서 여는 것이 그 자리다.**
+    //    이 줄이 데스크톱 명령을 그대로 부르고 있어서 HWP·zip 같은
+    //    뷰어 미지원 형식은 눌러도 **아무 일도 안 났다** (사용자 신고).
+    const { isWeb, openFile } = await import('../../web/files');
+    if (isWeb()) { openFile(path); return; }
+    return invoke<void>('open_in_default_app', { path });
+  },
 
   revealInExplorer: (path: string) =>
     invoke<void>('reveal_in_explorer', { path }),

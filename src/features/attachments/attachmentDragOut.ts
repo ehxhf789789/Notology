@@ -18,6 +18,7 @@
  */
 
 import { startSketchFileDrag } from '../sketch/sketchFileDragOut';
+import { fileUrl, downloadUrl, isWeb } from '../../web/files';
 import { useAttachmentStore } from './stores/attachmentStore';
 import { syncV2Commands, type AttachmentRefDto } from './attachmentCommands';
 
@@ -34,11 +35,26 @@ import { syncV2Commands, type AttachmentRefDto } from './attachmentCommands';
 export async function startAttachmentDrag(
   fileName: string,
   noteId?: string,
+  ev?: DragEvent,
 ): Promise<boolean> {
   const ref = useAttachmentStore.getState().resolveByName(fileName, noteId);
   if (!ref) {
     console.warn('[attachmentDragOut] unresolved name, no drag:', fileName);
     return false;
+  }
+  // 🔴 **웹에는 네이티브 드래그가 없다.** Tauri 플러그인은 데스크톱 것이고
+  //    브라우저에서는 아무 일도 안 난다 — 사용자가 *"드래그로 다른 곳에
+  //    전달할 수 없다"* 고 한 것이 이것이다.
+  //    크롬·엣지는 `DownloadURL` 을 쓰면 **바탕화면·탐색기·카카오톡에
+  //    진짜 파일로 떨어진다.** 형식은 `mime:파일명:URL` 이다.
+  if (isWeb() && ev?.dataTransfer) {
+    const name = ref.filename ?? fileName;
+    const url = new URL(downloadUrl(ref.local_path ?? ''), location.origin).href;
+    ev.dataTransfer.setData('DownloadURL', `application/octet-stream:${name}:${url}`);
+    ev.dataTransfer.setData('text/uri-list', url);
+    ev.dataTransfer.setData('text/plain', name);
+    ev.dataTransfer.effectAllowed = 'copy';
+    return true;
   }
   return startDragForRefs([ref]);
 }

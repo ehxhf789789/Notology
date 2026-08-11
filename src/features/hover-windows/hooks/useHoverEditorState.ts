@@ -137,11 +137,21 @@ export function useFileResolution(
     // hardlink to the CAS blob, so any viewer that does `convertFileSrc`
     // gets the same bytes the user expects.
     const attRef = useAttachmentStore.getState().resolveByName(fileName);
+    // 🔴 **서버가 주는 `local_path` 가 곧 완전한 경로다** (`library:01_Tasks/…`).
+    //    예전엔 `vaultPath + displayPath` 로 이어 붙였는데,
+    //      ① `displayPath` 는 이 DTO 에 없다 (undefined)
+    //      ② `vaultPath` 가 없으면 **통째로 건너뛰어** null 을 돌려줬다
+    //    그래서 첨부 링크를 눌러도 **아무 일도 안 났다** — 창도 안 뜨고
+    //    요청도 안 나갔다 (실측). 사용자가 본 *"렌더링이 연결되지 않음"* 이다.
+    if (attRef?.local_path) {
+      return attRef.local_path;
+    }
     if (attRef) {
       const vaultPath = useFileTreeStore.getState().vaultPath;
-      if (vaultPath) {
+      const disp = (attRef as { displayPath?: string }).displayPath;
+      if (vaultPath && disp) {
         const sep = vaultPath.includes('\\') ? '\\' : '/';
-        return vaultPath + sep + attRef.displayPath.replace(/\//g, sep);
+        return vaultPath + sep + disp.replace(/\//g, sep);
       }
     }
 
