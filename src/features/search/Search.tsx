@@ -32,6 +32,13 @@ import BulkTagModal from '../modals/BulkTagModal';
 // toolbar rides theme tokens directly + gains aria-pressed.
 import { Input, IconButton, sortGlyph, SORT_ASC, SORT_DESC } from '../../design-system/components';
 
+// 🔴 `GraphView` 선언이 없어 그래프 탭이 검은 화면이었다 (2026-08-11).
+//    본가(데스크톱)에도 없다 — `<GraphView>`를 쓰면서 `lazy` 임포트 줄이
+//    어느 시점에 사라진 채였다. 웹에서 처음 드러났을 뿐이다.
+//    `lazy`로 받는다: 그래프는 202KB짜리라 탭을 눌러야 받는 게 맞다.
+const GraphView = lazy(() => import('../graph/GraphView'));
+
+
 // Conditional logging - only in development
 const DEV = import.meta.env.DEV;
 const log = DEV ? console.log.bind(console) : () => {};

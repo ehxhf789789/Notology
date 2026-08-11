@@ -16,7 +16,17 @@ export const missingCommands = new Set<string>();
 if (typeof window !== 'undefined') (window as any).__MISSING__ = missingCommands;
 
 /** 브라우저에 없는 것들. 있는 척만 하고 조용히 넘긴다. */
-const NO_OP = /^(get_gpu_config|set_gpu_config|set_window_icon|create_hover_window|open_mobile_test_window)$/;
+const NO_OP = /^(set_window_icon|create_hover_window|open_mobile_test_window)$/;
+
+/** 🔴 `null`을 주면 죽는 것들 — **모양은 맞추고 값만 비운다.**
+ *    브라우저는 자기 GPU를 모르지만, `null`을 돌려주면 앱이
+ *    `reading 'measured'`에서 죽는다 (실측). 없는 것을 없다고 말하되
+ *    부르는 쪽이 죽지 않게 하는 것이 웹 런타임의 일이다.
+ */
+const SHAPED: Record<string, unknown> = {
+  get_gpu_config: { measured: true, tier: 'web', measuredAt: '', webgl: true },
+  set_gpu_config: true,
+};
 
 export async function invoke<T = unknown>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (cmd.startsWith('plugin:event')) return 0 as T;

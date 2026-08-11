@@ -44,6 +44,8 @@ export const attachmentCommands = {
 /** 옛 이름으로 부르던 곳을 위해 남긴다 (호출부 20여 곳) */
 export const syncV2Commands = {
   attachmentListAll: attachmentCommands.listAll,
+  /** 노트 id → 보관함 경로. 첨부 탭과 그래프가 노트를 짚는 데 쓴다. */
+  noteIdIndex: () => invoke<Record<string, string>>('note_id_index'),
   attachmentLocalPath: attachmentCommands.localPath,
   attachmentUnlinkOrDelete: attachmentCommands.unlinkOrDelete,
 };
