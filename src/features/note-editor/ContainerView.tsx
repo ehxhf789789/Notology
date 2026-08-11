@@ -335,8 +335,18 @@ function ContainerView() {
       return null;
     };
 
-    // First, check if the file is an attachment (exists in current note's _att folder)
-    path = findInAttFolder(fileTree);
+    // 🔴 **첨부는 첨부 목록에서 찾는다** (사용자 신고, 2026-08-11:
+    //    *"첨부파일 링크를 클릭해도 렌더링이 여전히 연결되지 않음"*).
+    //    파일 트리만 뒤지고 있었는데 `attachments` 를 탐색기에서 감췄으니
+    //    거기 없다 — **트리에 없는 것은 트리로 못 찾는다.**
+    //    dobbin의 첨부 목록(`attachment_list_all`)이 1,008건을 다 알고
+    //    있으므로 거기서 이름으로 집는다.
+    const ref = useAttachmentStore.getState().resolveByName(fileName);
+    if (ref?.local_path) {
+      path = ref.local_path;
+    }
+    // 그다음에 트리를 본다 (노트끼리의 위키링크)
+    if (!path) path = findInAttFolder(fileTree);
 
     // If not found in _att folder, search globally (for notes)
     if (!path) {

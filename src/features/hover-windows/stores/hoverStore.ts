@@ -26,6 +26,24 @@ function logBottleneck(tag: string, id: string, message: string, startTime?: num
 
 let nextHoverZ = 1001;
 
+/** 🔴 **맨 앞으로 올린다 — 세어 둔 값이 아니라 실제 최댓값 위로.**
+ *
+ * 사용자 신고 (2026-08-11): *"폴더창을 열고 폴더 내 문서를 여는데,
+ * 맨 앞으로 열리지 않고 폴더 뒷 창으로 뜨는 오류가 있다."*
+ *
+ * `nextHoverZ` 는 모듈 변수라 **열려 있는 창들의 실제 z와 어긋날 수 있다.**
+ * 창을 복원했거나, 어딘가에서 z를 직접 올렸거나, 모듈이 다시 평가되면
+ * 카운터만 뒤로 밀린다. 그러면 새 창이 이미 있는 창보다 **낮은 z**를 받고
+ * 뒤로 열린다 — 방금 연 것이 안 보이는 것은 안 열린 것과 같다.
+ *
+ * 세어 둔 값을 믿지 말고 **그때그때 실제로 가장 높은 것 위로** 올린다.
+ */
+function raiseZ(windows: { zIndex: number; cached?: boolean }[]): number {
+  const live = windows.filter((w) => !w.cached).map((w) => w.zIndex);
+  nextHoverZ = Math.max(nextHoverZ, ...(live.length ? live : [1001])) + 1;
+  return nextHoverZ;
+}
+
 // Cache configuration
 const CACHE_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes - cached windows older than this are destroyed
 const CACHE_MAX_COUNT = 10; // Maximum number of cached windows to keep
@@ -135,7 +153,7 @@ export const useHoverStore = create<HoverState>()(
         // If already open (not cached), bring to front
         const existing = state.hoverFiles.find(h => h.filePath === path && !h.cached);
         if (existing) {
-          nextHoverZ++;
+          raiseZ(state.hoverFiles);
           // Re-detect type to handle upgrades (e.g., previously 'editor' now 'document')
           const correctType = detectFileType(path);
           log(`[HoverStore] Reusing existing window (type: ${existing.type}→${correctType}): ${(performance.now() - openStart).toFixed(1)}ms`);
@@ -166,7 +184,7 @@ export const useHoverStore = create<HoverState>()(
         // Check for cached window with same file path - INSTANT RESTORE
         const cached = state.hoverFiles.find(h => h.filePath === path && h.cached);
         if (cached) {
-          nextHoverZ++;
+          raiseZ(state.hoverFiles);
           // Re-detect type in case code was updated (e.g., new document extensions added)
           const correctType = detectFileType(path);
           log(`[HoverStore] CACHE HIT! Restoring from cache (type: ${cached.type}→${correctType}): ${(performance.now() - openStart).toFixed(1)}ms`);
@@ -183,7 +201,7 @@ export const useHoverStore = create<HoverState>()(
         log(`[HoverStore] CACHE MISS - creating new window: ${(performance.now() - openStart).toFixed(1)}ms`);
 
         // Offset from the most recently focused visible window (cascade diagonally)
-        nextHoverZ++;
+        raiseZ(state.hoverFiles);
         const visibleWindows = state.hoverFiles.filter(h => !h.cached && !h.minimized);
         let baseX = 350;
         let baseY = 120;
@@ -271,7 +289,7 @@ export const useHoverStore = create<HoverState>()(
       }
 
       const focusStart = performance.now();
-      nextHoverZ++;
+      raiseZ(get().hoverFiles);
       set((state) => ({
         hoverFiles: state.hoverFiles.map(h =>
           h.id === id ? { ...h, zIndex: nextHoverZ } : h
@@ -294,7 +312,7 @@ export const useHoverStore = create<HoverState>()(
     // Restore from minimized
     restoreHoverFile: (id: string) => {
       const restoreStart = performance.now();
-      nextHoverZ++;
+      raiseZ(get().hoverFiles);
       set((state) => ({
         hoverFiles: state.hoverFiles.map(h =>
           h.id === id ? { ...h, minimized: false, zIndex: nextHoverZ } : h

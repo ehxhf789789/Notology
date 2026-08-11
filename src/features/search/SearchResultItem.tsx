@@ -120,7 +120,10 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
     // fire `onNoteClick` and open the note before the user finishes
     // building their selection.
     if (selectionActive) return;
-    onNoteClick(note.path, note.note_type);
+    // 🔴 **누르는 순간 열지 않는다** (사용자 요청, 2026-08-11:
+    //    *"한번 클릭으로 창이 열리지 않고 두번클릭으로 열리도록"*).
+    //    `mousedown` 에서 열면 클릭보다도 빠르다 — 목록을 훑기만 해도
+    //    창이 쌓인다. 여는 것은 더블클릭 하나로 모은다.
   };
 
   const handleClick = (e: React.MouseEvent) => {
@@ -136,11 +139,13 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
     if (isContainer && onSelect) {
       onSelect(note.path);
     }
+    // 🔴 **한 번 클릭으로는 열지 않는다** (사용자 요청, 2026-08-11).
+    //    목록을 훑다가 스치기만 해도 창이 뜨면 창이 쌓인다. 첨부 탭을
+    //    같은 규칙으로 고친 것과 짝이 맞는다 — 고르는 것과 여는 것은 다르다.
   };
 
-  // Container: double-click navigates into the folder
+  // 더블클릭으로 연다. 폴더면 그 폴더로 들어가고, 노트면 창이 뜬다.
   const handleDoubleClick = (e: React.MouseEvent) => {
-    if (!isContainer) return;
     e.preventDefault();
     onNoteClick(note.path, note.note_type);
   };
