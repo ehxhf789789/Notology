@@ -230,7 +230,11 @@ export function DobbinSurface() {
               {/* 🔴 **지난 선택지는 살려 두지 않는다.** 이미 답한 물음의 단추가
                   남아 있으면 눌러도 흐름이 어긋난다 — 마지막 답에만 붙인다. */}
               {!mine && m.refs?.length ? <RefChips refs={m.refs} /> : null}
-              {!mine && m.choices?.length && i === shown.length - 1 && !busy && (
+              {/* 🔴 **`&&` 사슬에 숫자를 넣지 않는다** (사용자 지적: *"답변에
+                  항상 붙는 0은 뭐냐"*). `m.choices` 가 빈 배열이면 `.length`
+                  가 `0` 이고, JSX 는 `false` 와 달리 **`0` 을 글자로 그린다.**
+                  그래서 모든 답 끝에 0이 하나씩 붙었다. */}
+              {!mine && !!m.choices?.length && i === shown.length - 1 && !busy && (
                 <div className="dsurf__picks">
                   {m.choices.map((c) => (
                     <button key={c.label} className="dsurf__pick"
