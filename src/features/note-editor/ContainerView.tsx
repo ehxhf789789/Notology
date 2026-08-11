@@ -55,6 +55,32 @@ function findNodeByPath(nodes: FileNode[], targetPath: string): FileNode | undef
   return undefined;
 }
 
+
+/** 폴더노트에서 Base 표 정의를 걷어낸다.
+ *
+ * 사용자 지적 (2026-08-11):
+ *   *"폴더 노트의 내용이 코드도 포함하고 길다. 폴더 노트는 보여줄 수 있는
+ *     내용이 길지 않으며 이것은 의도된 설계다. 폴더 노트의 내용은 간략히."*
+ *
+ * ```base 블록은 Obsidian Bases 플러그인의 **표 정의**다. 그쪽에서는 표로
+ * 그려지지만 web notology에는 그 플러그인이 없어 **YAML 원문이 그대로**
+ * 30줄씩 뿌려진다.
+ *
+ * 🔴 **그리고 그 표가 하려던 일을 아래 노트 목록이 이미 한다.**
+ *    제목·타입·태그·생성일·수정일을 정렬해 보여주는 것 — 같은 것이다.
+ *    정의를 보여주는 건 없느니만 못하다.
+ *
+ * 폴더노트는 **안내판이지 문서가 아니다** (CLAUDE.md 3-4-1).
+ * 설명 한 줄이 보이고 나머지 자리는 목록에 내준다.
+ */
+function stripBaseBlocks(body: string | null | undefined): string {
+  if (!body) return '';
+  return body
+    .replace(/^```(?:base|dataview|dataviewjs)\b[\s\S]*?^```\s*$/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function ContainerView() {
   // ========== ZUSTAND SELECTIVE SUBSCRIPTIONS (prevents cascade re-renders) ==========
   const selectedContainer = useSelectedContainer();
@@ -455,10 +481,11 @@ function ContainerView() {
       .then(content => {
         const fm = content.frontmatter ? parseFrontmatter(content.frontmatter) : null;
         setFrontmatter(fm);
-        setBody(content.body);
+        const shown = stripBaseBlocks(content.body);
+        setBody(shown);
         setIsDirty(false);
         if (editor) {
-          editor.commands.setContent(preprocessWikiLinks(content.body || ''));
+          editor.commands.setContent(preprocessWikiLinks(shown || ''));
         }
         setTimeout(() => { isLoadingRef.current = false; }, 50);
       })

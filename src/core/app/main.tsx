@@ -66,6 +66,15 @@ async function initializeApp() {
   } else {
     root.render(<App />);
   }
+
+  // 🔴 첫 화면을 걷는다. **그린 다음에** 걷어야 한 프레임도 안 빈다 —
+  //    바로 지우면 React가 그리기 전이라 검은 화면이 그대로 보인다.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const boot = document.getElementById('boot');
+    if (!boot) return;
+    boot.classList.add('gone');
+    setTimeout(() => boot.remove(), 320);
+  }));
 }
 
 initializeApp();

@@ -29,8 +29,43 @@
         color: inherit;
       }
     </style>
+      <!-- 🔴 첫 화면 — 자바스크립트가 오기 전에 이미 떠 있어야 한다
+         (사용자 지적, 2026-08-11): "접속 시에 약간의 검정 화면으로 버퍼링
+         이후 화면이 뜨는데, 로딩 애니메이션 등으로 자연스럽게 연결되도록"
+
+         번들이 2MB다. 받아서 실행할 때까지 몇 백 밀리초가 빈다. 그 사이를
+         **아무것도 없는 검은 화면**으로 두면 고장처럼 보인다.
+         이 조각은 HTML에 박혀 있으므로 **첫 바이트와 함께 뜬다.** -->
+    <style>
+      #boot {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center; gap: 18px;
+        background: #17181c; color: #6f7480;
+        font: 13px/1.6 -apple-system, 'Noto Sans KR', sans-serif;
+        transition: opacity .28s ease;
+      }
+      #boot.gone { opacity: 0; pointer-events: none; }
+      #boot .mark {
+        width: 34px; height: 34px; border-radius: 9px;
+        border: 2px solid #2c2f37; border-top-color: #4a7dbd;
+        animation: boot-spin .82s linear infinite;
+      }
+      #boot .name { font-size: 15px; font-weight: 600; color: #d6d8de;
+                    letter-spacing: .02em; }
+      #boot .sub { font-size: 12px; }
+      @keyframes boot-spin { to { transform: rotate(360deg) } }
+      @media (prefers-reduced-motion: reduce) {
+        #boot .mark { animation: none; border-top-color: #4a7dbd }
+      }
+    </style>
   </head>
   <body>
+        <div id="boot">
+      <div class="mark"></div>
+      <div class="name">notology</div>
+      <div class="sub">서가를 여는 중…</div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/core/app/main.tsx"></script>
   </body>
