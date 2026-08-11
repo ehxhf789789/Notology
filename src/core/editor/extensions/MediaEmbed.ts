@@ -1,5 +1,6 @@
 
 
+import { convertFileSrc } from '../../../web/core';
 import { useAttachmentStore } from '../../../features/attachments/stores/attachmentStore';
 import { requestAttachmentDelete } from '../../../features/attachments/attachmentDelete';
 import { Node, mergeAttributes } from '@tiptap/core';
@@ -51,8 +52,15 @@ function resolveAbsolutePath(fileName: string, notePath: string): string | null 
     ? (fm as Record<string, unknown>).id as string
     : undefined;
   const ref = useAttachmentStore.getState().resolveByName(fileName, noteId);
+  if (ref?.local_path) {
+    // 🔴 서버가 주는 `local_path` 는 이미 **완전한 보관함 경로**다
+    //    (`library:01_Tasks/…`). 앞에 vaultPath 를 또 붙이면
+    //    `vault:/library:…` 가 되어 404 가 난다 (실측).
+    //    데스크톱은 상대경로를 받았지만 웹은 루트가 둘이라 다르다.
+    return ref.local_path;
+  }
   if (ref && vaultPath) {
-    return `${vaultPath.replace(/\\/g, '/')}/${ref.displayPath.replace(/\\/g, '/')}`;
+    return `${vaultPath.replace(/\\/g, '/')}/${String((ref as { displayPath?: string }).displayPath ?? '').replace(/\\/g, '/')}`;
   }
   if (notePath) {
     const noteDir = notePath.replace(/[^/\\]+$/, '').replace(/\\/g, '/');
@@ -67,7 +75,10 @@ function toAssetUrl(absolutePath: string): string {
   if (win.__TAURI__?.core?.convertFileSrc) {
     return win.__TAURI__.core.convertFileSrc(absolutePath);
   }
-  return `asset://localhost/${absolutePath}`;
+  // 🔴 **브라우저는 `asset://` 을 모른다** — `ERR_UNKNOWN_URL_SCHEME` 이 나고
+  //    이미지·PDF 미리보기가 통째로 안 뜬다 (실측). 데스크톱 시절의 흔적이다.
+  //    웹에서는 dobbin이 파일을 서빙한다 (`/api/file`, guard 를 통과한다).
+  return convertFileSrc(absolutePath);
 }
 
 /**

@@ -112,7 +112,9 @@ function computeSyncState(ref: AttachmentRefDto): SyncState {
   return 'uploading';
 }
 
-function formatSize(bytes: number): string {
+function formatSize(bytes: number | undefined | null): string {
+  // 🔴 값이 없으면 NaN GB 가 찍힌다 — 화면 가득 NaN 이 뜨는 것을 봤다.
+  if (bytes == null || !Number.isFinite(bytes)) return '—';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -415,9 +417,13 @@ export default function AttachmentsTab({
       lastSelectedRef.current = id;
       return;
     }
-    // Plain click — single select, no open. Double-click handler opens.
-    setSelectedIds(new Set([id]));
+    // 🔴 **그냥 누르면 고르지 않는다** (사용자 요청, 2026-08-11:
+    //    *"일반 한번 클릭으로 선택된 첨부, 일괄삭제 트리거가 되지 않도록"*).
+    //    첫 클릭이 곧 선택이면 스치기만 해도 **일괄 삭제 버튼이 켜진다** —
+    //    지우는 일이 실수로 시작되면 안 된다. 고르는 것은 Ctrl(⌘)이나
+    //    Shift 로만 한다. 그냥 클릭은 자리만 옮기고, 여는 것은 더블클릭이다.
     lastSelectedRef.current = id;
+    if (selectedIds.size > 0) setSelectedIds(new Set());   // 누르면 선택 해제
   }, [rows, selectedIds]);
 
   const handleRowDoubleClick = useCallback((row: AttachmentRow) => {

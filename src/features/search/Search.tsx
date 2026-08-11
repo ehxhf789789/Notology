@@ -270,7 +270,11 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
             updated[idx] = patch.meta;
             return updated;
           }
-          return prev;
+          // 🔴 **새로 생긴 노트는 넣어준다.** 예전엔 목록에 없으면 그냥
+          //    버렸다 — 고친 노트만 따라오고 **새 노트는 영영 안 보였다.**
+          //    dobbin이 노트를 만드는 것이 이 서재의 본업인데(3단계),
+          //    그게 화면에 안 나타나면 만든 적이 없는 것과 같다.
+          return [patch.meta, ...prev];
         });
       }
     );
@@ -870,8 +874,10 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
         // 11th hotfix follow-up #2 — ESC also exits selection-mode, not
         // just clears selection. Keeps the toggle in sync with the
         // visual chrome (column collapses back to 6).
+        // 🔴 `selectionMode` 는 2026-05-22 에 없앴는데 이 줄이 남았다.
+        //    ESC 를 누를 때마다 `ReferenceError` 가 나서 그 뒤 핸들러가
+        //    통째로 죽었다 — 미리보기를 닫고 다음 것을 여는 흐름이 끊긴다.
         setSelectedNotePaths(new Set());
-        setSelectionMode(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);

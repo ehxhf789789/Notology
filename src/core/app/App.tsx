@@ -549,18 +549,21 @@ function App() {
   useEffect(() => {
     startLive();
     return onLive((ev) => {
-      // 🔴 **한 곳만 새로고침해서는 화면이 안 따라온다** (사용자 실측:
-      //    *"여전히 과거 상태로 유지되고 있고 내가 수동으로 리프레시를 해야
-      //    한다"*). `incrementSearchRefresh` 는 ContainerView 하나만 듣는다 —
-      //    파일 트리·캐시·캘린더는 그대로였다. **바뀌면 다 흔든다.**
+      // 🔴 **바뀐 것만 갈아 끼운다.** 예전엔 무슨 알림이든 전부 다시 읽게
+      //    했는데, 그게 *"매번 수정 때마다 처음 버퍼링으로 돌아가는"* 원인이었다.
+      //    한 줄이 바뀌었으면 한 줄만 바꾼다 — 목록도 트리도 안 흔든다.
+      if (ev.kind === 'file-changed' && ev.note) {
+        refreshActions.patchNote(ev.note as never);
+        contentCacheActions.invalidateContent(String(ev.path ?? ''));
+        return;
+      }
+      // 무엇이 바뀌었는지 모를 때만 통째로 다시 읽는다 (감시·파이프라인).
       if (ev.kind === 'file-changed' || ev.kind === 'vault-changed'
           || ev.kind === 'memos-changed' || ev.kind === 'inbox-changed') {
         refreshActions.incrementSearchRefresh();
-        refreshActions.incrementCalendarRefresh?.();
-        refreshActions.incrementOntologyRefresh?.();
-        // 캐시를 비운다 — 안 비우면 새로 읽어도 옛 내용을 준다
+        refreshActions.refreshCalendar();
+        refreshActions.incrementOntologyRefresh();
         contentCacheActions.invalidateAll();
-        // 파일 트리는 스스로 다시 읽어야 폴더 개수가 맞는다
         fileTreeActions.refreshFileTree();
       }
     });
