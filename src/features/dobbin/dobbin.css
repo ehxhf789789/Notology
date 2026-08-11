@@ -1,0 +1,131 @@
+/* dobbin 대화 패널 — notology의 어두운 테마를 따른다
+ *
+ * 🔴 색을 새로 만들지 않는다. `--` 토큰이 있으면 그것을 쓰고, 없을 때만
+ *    값을 적는다. 두 화면이 남처럼 보이면 "같은 도구"로 안 읽힌다.
+ */
+
+.dobbin-panel {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(420px, 92vw);
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary, #1e2026);
+  border-left: 1px solid var(--border-color, #2c2f37);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, .34);
+  animation: dobbin-in .16s ease-out;
+}
+@keyframes dobbin-in { from { transform: translateX(14px); opacity: .4 } }
+
+.dobbin-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border-color, #2c2f37);
+  color: var(--text-primary, #d6d8de);
+}
+.dobbin-title { font-weight: 600; font-size: 14px; }
+.dobbin-sub { flex: 1; font-size: 12px; color: var(--text-tertiary, #6f7480); }
+.dobbin-icon {
+  background: none; border: 0; cursor: pointer; padding: 4px;
+  color: var(--text-tertiary, #7d838f); border-radius: 5px;
+}
+.dobbin-icon:hover { background: var(--bg-hover, #2c2f37); color: var(--text-primary, #d6d8de); }
+
+.dobbin-body {
+  flex: 1; overflow-y: auto; padding: 14px 12px;
+  display: flex; flex-direction: column; gap: 12px;
+  font-size: 13.5px; line-height: 1.62;
+}
+
+.dobbin-empty { color: var(--text-tertiary, #7d838f); font-size: 13px; }
+.dobbin-empty p { margin: 0 0 6px; }
+.dobbin-hint { font-size: 12px; opacity: .8; margin-bottom: 14px !important; }
+.dobbin-example {
+  display: block; width: 100%; text-align: left; margin-bottom: 6px;
+  padding: 8px 10px; font-size: 12.5px; cursor: pointer;
+  background: var(--bg-tertiary, #24262d);
+  border: 1px solid var(--border-color, #2c2f37);
+  border-radius: 8px; color: var(--text-secondary, #9aa0ab);
+}
+.dobbin-example:hover { border-color: var(--accent, #4a7dbd); color: var(--text-primary, #d6d8de); }
+
+.dobbin-msg { border-radius: 10px; padding: 9px 11px; word-break: break-word; }
+.dobbin-msg.user {
+  align-self: flex-end; max-width: 88%;
+  background: var(--accent-soft, #2a3546); color: var(--text-primary, #d6d8de);
+}
+.dobbin-msg.assistant {
+  background: var(--bg-tertiary, #24262d); color: var(--text-primary, #d6d8de);
+}
+.dobbin-line { white-space: pre-wrap; }
+.dobbin-busy { display: flex; align-items: center; gap: 7px; color: var(--text-tertiary, #7d838f); }
+.dobbin-spin { animation: dobbin-rot 1s linear infinite; }
+@keyframes dobbin-rot { to { transform: rotate(360deg) } }
+
+/* 🔴 좌표는 갈 수 있는 것이어야 한다 (1-2-1) */
+.dobbin-code {
+  font-family: ui-monospace, 'D2Coding', monospace; font-size: 12px;
+  background: var(--bg-hover, #2c2f37); color: var(--accent-text, #9ecbff);
+  padding: 1px 5px; border-radius: 4px;
+}
+.dobbin-ref {
+  font-family: ui-monospace, 'D2Coding', monospace; font-size: 12px;
+  background: none; border: 0; border-bottom: 1px dashed var(--accent, #4a7dbd);
+  color: var(--accent-text, #9ecbff); cursor: pointer; padding: 0;
+}
+.dobbin-ref:hover { border-bottom-style: solid; }
+
+.dobbin-error {
+  background: #2a1a18; border: 1px solid #4a2a24; color: #e07a5f;
+  padding: 9px 11px; border-radius: 8px; font-size: 12.5px;
+}
+
+.dobbin-input {
+  display: flex; gap: 8px; padding: 10px 12px;
+  border-top: 1px solid var(--border-color, #2c2f37);
+}
+.dobbin-input textarea {
+  flex: 1; resize: none; font: inherit; font-size: 13px;
+  background: var(--bg-primary, #17181c); color: var(--text-primary, #d6d8de);
+  border: 1px solid var(--border-color, #2c2f37); border-radius: 9px;
+  padding: 8px 10px;
+}
+.dobbin-input textarea:focus { outline: none; border-color: var(--accent, #4a7dbd); }
+.dobbin-send {
+  align-self: flex-end; padding: 9px 11px; cursor: pointer;
+  background: var(--accent, #4a7dbd); color: #fff; border: 0; border-radius: 9px;
+}
+.dobbin-send:disabled { opacity: .35; cursor: default; }
+
+/* 부르는 버튼 — 사이드바 하단 */
+.dobbin-fab {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  padding: 8px 10px; margin: 0; cursor: pointer; font-size: 12.5px;
+  background: var(--bg-tertiary, #24262d); color: var(--text-secondary, #9aa0ab);
+  border: 1px solid var(--border-color, #2c2f37); border-radius: 8px;
+}
+.dobbin-fab:hover, .dobbin-fab.active {
+  border-color: var(--accent, #4a7dbd); color: var(--text-primary, #d6d8de);
+}
+
+/* 좁은 화면에서는 전체를 덮는다 — 폰에서 420px 패널은 아무것도 못 본다 */
+@media (max-width: 720px) {
+  .dobbin-panel { width: 100vw; }
+}
+
+.sidebar-dobbin { padding: 8px 10px 0; }
+
+/* dobbin이 답하는 표 — 좌표·위치·날짜가 한눈에 들어와야 한다 */
+.dobbin-table-wrap { overflow-x: auto; margin: 4px 0 8px; }
+.dobbin-table { border-collapse: collapse; font-size: 12px; width: 100%; }
+.dobbin-table th, .dobbin-table td {
+  border: 1px solid var(--border-color, #2c2f37);
+  padding: 5px 8px; text-align: left; vertical-align: top;
+}
+.dobbin-table th {
+  background: var(--bg-hover, #2c2f37); color: var(--text-secondary, #9aa0ab);
+  font-weight: 600; white-space: nowrap;
+}
+.dobbin-table td { color: var(--text-primary, #d6d8de); }
+.dobbin-table tr:hover td { background: rgba(255,255,255,.02); }

@@ -1,3 +1,4 @@
+import { DobbinButton } from '../../features/dobbin/DobbinPanel';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Plus, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
@@ -299,6 +300,10 @@ function Sidebar() {
         )}
 
         {/* Sidebar Footer — vault button + sync status + settings + collapse toggle */}
+        {/* 🔴 dobbin은 사이드바 하단에 상주한다. 사용자 요구:
+              "사용자가 편리하게 AI를 쉽게 대화하고 호출하고 지시할 수 있도록"
+              — 화면을 옮겨 다니게 하면 "쉽게"가 아니다. Ctrl+K로도 열린다. */}
+        <div className="sidebar-dobbin"><DobbinButton /></div>
         <div className="sidebar-footer">
           {!sidebarCollapsed && (
             <>

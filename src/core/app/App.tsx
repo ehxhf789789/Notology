@@ -1,3 +1,4 @@
+import { DobbinPanel, useDobbinShortcut } from '../../features/dobbin/DobbinPanel';
 import { TrashPanel } from '../../features/attachments/components/TrashPanel';
 import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { PanelRightOpen } from 'lucide-react';
@@ -220,7 +221,7 @@ function AppLayout() {
   // can settle. Modal appears only when the scan finds auto-fixable
   // patterns AND this device hasn't shown the prompt for this vault yet.
   // 🔴 보관함 복구 자동감지를 걷어냈다 — 서버가 NAS를 직접 들어 어긋날 두 벌이 없다
-  const repairReport = null; const dismissRepair = () => {};
+  // 🔴 보관함 복구를 걷어냈다 — 서버가 NAS를 직접 들어 어긋날 두 벌이 없다
 
   // 2026-05-24 (HanBin) — re-open the repair modal when the TitleBar
   // indicator is clicked (user backgrounded the apply and wants to
@@ -228,7 +229,6 @@ function AppLayout() {
   // the indicator. The re-opened modal shows whatever liveProgress is
   // current — re-using the most recent report (or a fresh re-scan when
   // none exists).
-  const [reopenedReport, setReopenedReport] = useState<typeof repairReport>(null);
   useEffect(() => {
     const handler = async () => {
       try {
@@ -460,14 +460,9 @@ function AppLayout() {
       {/* Track H bulk-delete banner. Self-hides when count is 0. */}
       {/* Trash panel — opens via store flag (toast button / settings / etc.). */}
       <TrashPanel />
+      <DobbinPanel />
       {/* 2026-05-24 (HanBin) — legacy vault repair prompt (one-shot per vault per device). */}
-      {repairReport && (
-        <VaultRepairModal report={repairReport} onClose={dismissRepair} />
-      )}
       {/* Re-opened repair modal when user clicks the TitleBar progress indicator. */}
-      {reopenedReport && !repairReport && (
-        <VaultRepairModal report={reopenedReport} onClose={() => setReopenedReport(null)} />
-      )}
       <div className="app-layout">
         {/* Left Sidebar. Stage 5.0.3b-simplify (2026-05-15): hidden-mode
             collapsed-bar removed — HanBin smoke test surfaced that two
@@ -543,6 +538,7 @@ function AppLayout() {
 }
 
 function App() {
+  useDobbinShortcut();   // Ctrl+K — 어디서든 dobbin을 부른다
   return (
     <AppInitializer>
       <AppLayout />
