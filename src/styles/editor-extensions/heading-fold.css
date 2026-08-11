@@ -74,3 +74,30 @@
 .tiptap-editor .heading-collapsed-content {
   display: none !important;
 }
+
+/* 🔴 **접기 단추가 글자를 밀고 있었다** (사용자 지적, 2026-08-12:
+   *"헤더가 좌측 가장자리에서 간격이 너무 띄워져 있다"*).
+
+   단추는 `opacity: 0` 으로 숨겨 놨지만 **자리는 그대로 차지한다** —
+   16px + 여백이 흐름 안에 있어서 모든 헤더 글자가 그만큼 오른쪽으로
+   밀렸다. 여기에 h1의 `padding-left: 0.86em` 이 더해져 두 겹이 됐다.
+
+   → 단추를 **여백(gutter)으로 빼낸다.** 글자는 왼쪽 끝에서 시작하고,
+     단추는 마우스를 올렸을 때 그 왼쪽 빈자리에 나타난다.
+     `visibility` 가 아니라 `position: absolute` 여야 자리를 안 먹는다. */
+.tiptap-editor .heading-wrapper { position: relative; }
+
+.tiptap-editor .heading-toggle-btn {
+  position: absolute;
+  left: -1.35em;
+  top: 0.15em;
+  margin: 0;
+}
+
+/* 헤더 안쪽 정렬 — 단추가 빠졌으니 gap도 필요 없다 */
+.tiptap-editor .heading-wrapper h1,
+.tiptap-editor .heading-wrapper h2,
+.tiptap-editor .heading-wrapper h3,
+.tiptap-editor .heading-wrapper h4,
+.tiptap-editor .heading-wrapper h5,
+.tiptap-editor .heading-wrapper h6 { gap: 0; }

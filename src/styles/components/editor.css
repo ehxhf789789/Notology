@@ -55,7 +55,9 @@
   letter-spacing: -0.01em;
   line-height: var(--paper-row);
   margin: 0 0 0.4em;                       /* ≈6 px breathing room */
-  padding-left: 0.86em;                    /* ≈12 px @ 14 px body */
+  /* 🔴 띠는 남기되 간격을 줄인다 — 접기 단추를 여백으로 뺐으므로
+     여기까지 넓으면 헤더만 혼자 들여쓰기된 것처럼 보인다 */
+  padding-left: 0.42em;                    /* ≈6 px @ 14 px body */
   border-left: 3px solid var(--tx-1);
   color: var(--tx-1);
 }
@@ -82,6 +84,28 @@
 .tiptap-editor h5,
 .tiptap-editor h6 {
   margin: 0 0 0.25em;
+}
+
+/* 🔴 **h4~h6 이 서로 구별되지 않았다** — 크기·굵기가 모두 같아서 세 단계가
+   한 단계로 보였다 (사용자: *"헤더 1~6 디자인 검토"*). 위계는 크기 하나로
+   만들지 않는다: h4는 굵기, h5는 색, h6은 작은 대문자꼴로 갈라 놓는다.
+   1-3의 *"예측 가능성"* 이 문서 안에서도 성립해야 한다. */
+.tiptap-editor h4 {
+  font-size: 1em;
+  font-weight: 650;
+  color: var(--tx-2);
+}
+.tiptap-editor h5 {
+  font-size: 0.93em;
+  font-weight: 600;
+  color: var(--tx-3);
+}
+.tiptap-editor h6 {
+  font-size: 0.86em;
+  font-weight: 600;
+  color: var(--tx-3);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .tiptap-editor h3:first-child { margin-top: 0; }

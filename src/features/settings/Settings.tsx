@@ -136,7 +136,6 @@ function Settings({ onClose }: SettingsProps) {
       Icon: p.Icon ?? Puzzle,
       emoji: p.Icon ? undefined : p.icon,
     })),
-    { id: 'developer',  label: t('developer', language),  Icon: Wrench },
   ];
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -451,204 +450,36 @@ function Settings({ onClose }: SettingsProps) {
               </div>
             )}
 
+            {/* 🔴 **템플릿·TYPE 은 dobbin 이 관리한다** (2-2-0, 사용자 재확인
+                2026-08-12: *"설정창에서 dobbin이 템플릿·타입·태그를 모두
+                관리하므로 수동 수정 관련은 모두 제거"*).
+
+                두 곳에서 같은 것을 고치면 어긋난다. 만드는 것도 고치는 것도
+                dobbin이 하고, 사람은 **볼 수 있어야 한다** — 볼 수 없으면
+                2-2-0의 규율 ⑤("사람은 볼 수 있다")가 성립하지 않는다. */}
             {activeTab === 'templates' && (
               <div className="settings-panel">
-                {(editingNoteTemplate || isCreatingNoteTemplate) ? (
-                  <NoteTemplateEditor
-                    template={editingNoteTemplate || undefined}
-                    onSave={(tmpl) => {
-                      if (editingNoteTemplate) {
-                        updateNoteTemplate(tmpl, vaultPath);
-                      } else {
-                        addNoteTemplate(tmpl, vaultPath);
-                      }
-                      setEditingNoteTemplate(null);
-                      setIsCreatingNoteTemplate(false);
-                    }}
-                    onCancel={() => {
-                      setEditingNoteTemplate(null);
-                      setIsCreatingNoteTemplate(false);
-                    }}
-                  />
-                ) : (
-                  <section className="settings-section">
-                    <div className="settings-section-header">
-                      <h3 className="settings-section-title">
-                        <FileText size={14} strokeWidth={2} aria-hidden="true" />
-                        <span>{t('noteTemplates', language)}</span>
-                      </h3>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        {/* 5.0.5a-migration — migration entry. Visible always
-                            (so users discover the tool); count badge appears
-                            only when there's actual work to do. */}
-                        <Button
-                          variant="secondary"
-                          size="md"
-                          leftIcon={<AlertTriangle size={14} strokeWidth={2} />}
-                          onClick={() => setShowMigrationModal(true)}
-                          title={t('tplMigrateBtn', language)}
-                        >
-                          {t('tplMigrateBtn', language)}
-                          {unmatchedCount > 0 && (
-                            <span className="tpl-migrate-trigger-badge">
-                              {tf('tplMigrateBadge', language, { count: String(unmatchedCount) })}
-                            </span>
-                          )}
-                        </Button>
-                        <Button
-                          variant="primary"
-                          size="md"
-                          leftIcon={<Plus size={14} strokeWidth={2} />}
-                          onClick={() => setIsCreatingNoteTemplate(true)}
-                          title={t('newTemplate', language)}
-                        >
-                          {t('newTemplate', language)}
-                        </Button>
+                <section className="settings-section">
+                  <h3 className="settings-section-title">
+                    <FileText size={14} strokeWidth={2} aria-hidden="true" />
+                    <span>노트 종류 (dobbin 관리)</span>
+                  </h3>
+                  <p className="settings-hint">
+                    종류와 템플릿은 dobbin이 보관소를 재서 관리합니다.
+                    바꾸시려면 dobbin에게 말씀하십시오 — 두 곳에서 고치면 어긋납니다.
+                  </p>
+                  <div className="tpl-readonly">
+                    {noteTemplates.map((tpl) => (
+                      <div className="tpl-readonly__row" key={tpl.id}>
+                        <span className="tpl-readonly__dot"
+                              style={{ background: tpl.customColor || 'var(--tx-3)' }} />
+                        <span className="tpl-readonly__prefix">{tpl.prefix}</span>
+                        <span className="tpl-readonly__name">{tpl.name}</span>
+                        <span className="tpl-readonly__pattern">{tpl.namePattern}</span>
                       </div>
-                    </div>
-                    <p className="settings-section-desc">{t('noteTemplatesDesc', language)}</p>
-                    {(() => {
-                      // 5.0.6f (2026-05-17, HanBin) — template card rendering
-                      // overhaul. Three things were broken in the prior pass:
-                      //   1) `isBuiltIn` only matched legacy `note-*` ids, so
-                      //      the new defaults (`tpl-entity` / `tpl-document` /
-                      //      `tpl-sketch`) showed edit/delete actions and
-                      //      could be removed accidentally.
-                      //   2) `descKeys` only mapped legacy type tags; new
-                      //      ENTITY type (and any custom prefix) fell through
-                      //      to "사용자 정의 템플릿", which made every card
-                      //      look identical regardless of role.
-                      //   3) Color signal was split between two CSS systems —
-                      //      the header bar read `--template-color` (driven
-                      //      by `cssclasses` token or customColor) while the
-                      //      corner chip read `icon-${type}` (driven by the
-                      //      type tag's class). Defaults whose cssclasses
-                      //      didn't line up with the legacy type tag showed
-                      //      mismatched colors (e.g. "개체" got a yellow bar
-                      //      + a purple chip). The chip now ALWAYS resolves
-                      //      through the same color the bar uses.
-                      const isBuiltIn = (id: string) =>
-                        id.startsWith('tpl-') ||
-                        (id.startsWith('note-') && !id.startsWith('note-custom-'));
-                      const descKeys: Record<string, string> = {
-                        'NOTE': 'templateDescNoteShort',
-                        'ENTITY': 'templateDescEntityShort',
-                        'DOC': 'templateDescDocumentShort',
-                        'SKETCH': 'templateDescSketchShortV2',
-                        'MTG': 'templateDescMtgShort',
-                        'SEM': 'templateDescSemShort',
-                        'EVENT': 'templateDescEventShort',
-                        'OFA': 'templateDescOfaShort',
-                        'PAPER': 'templateDescPaperShort',
-                        'LIT': 'templateDescLitShort',
-                        'DATA': 'templateDescDataShort',
-                        'THEO': 'templateDescTheoShort',
-                        'CONTACT': 'templateDescContactShort',
-                        'SETUP': 'templateDescSetupShort',
-                      };
-                      const resolveColor = (nt: NoteTemplate): string | undefined => {
-                        if (nt.customColor) return nt.customColor;
-                        const css = nt.frontmatter.cssclasses?.[0];
-                        if (css && css.endsWith('-type')) {
-                          // resolves through CSS var (defined in note-type-colors.css);
-                          // resolveTileColor in TemplateSelector uses the same pattern.
-                          return `var(--${css.replace(/-type$/, '')}-color)`;
-                        }
-                        return undefined;
-                      };
-                      const defaults = noteTemplates.filter(t => isBuiltIn(t.id));
-                      const customs = noteTemplates.filter(t => !isBuiltIn(t.id));
-                      const renderCard = (nt: NoteTemplate) => {
-                        const typeClass = nt.frontmatter.cssclasses?.[0] || '';
-                        const customColor = nt.customColor;
-                        const builtIn = isBuiltIn(nt.id);
-                        const isEnabled = enabledTemplateIds.includes(nt.id);
-                        const descKey = descKeys[nt.frontmatter.type || 'NOTE'] || 'templateDescCustomShort';
-                        const cardColor = resolveColor(nt);
-                        return (
-                          <div
-                            key={nt.id}
-                            className={`template-card${typeClass ? ' ' + typeClass : ''}${customColor ? ' has-custom-color' : ''}${!isEnabled ? ' template-disabled' : ''}${builtIn ? ' is-built-in' : ''}`}
-                            style={cardColor ? { '--template-color': cardColor } as React.CSSProperties : undefined}
-                          >
-                            <div className="template-card-header">
-                              <label className="template-card-checkbox">
-                                <input
-                                  type="checkbox"
-                                  checked={isEnabled}
-                                  onChange={() => toggleTemplateEnabled(nt.id, vaultPath)}
-                                />
-                              </label>
-                              <span
-                                className="template-card-icon"
-                                style={cardColor ? { backgroundColor: cardColor } : undefined}
-                              />
-                            </div>
-                            <div className="template-card-body">
-                              <div className="template-card-title-row">
-                                <span className="template-card-name">{nt.name}</span>
-                                <span
-                                  className="template-card-prefix"
-                                  style={cardColor ? { color: cardColor, borderColor: cardColor } : undefined}
-                                >
-                                  {nt.prefix}
-                                </span>
-                              </div>
-                              <p className="template-card-desc">{t(descKey, language)}</p>
-                            </div>
-                            <div className="template-card-footer">
-                              {builtIn ? (
-                                <span className="template-card-badge">{t('builtIn', language)}</span>
-                              ) : (
-                                <div className="template-card-actions">
-                                  <button
-                                    className="template-card-action-btn"
-                                    onClick={() => setEditingNoteTemplate(nt)}
-                                    title={t('templateMenuEdit', language)}
-                                    aria-label={t('templateMenuEdit', language)}
-                                  >
-                                    <Pencil size={12} strokeWidth={2} />
-                                  </button>
-                                  <button
-                                    className="template-card-action-btn delete"
-                                    onClick={() => removeNoteTemplate(nt.id, vaultPath)}
-                                    title={t('templateMenuDelete', language)}
-                                    aria-label={t('templateMenuDelete', language)}
-                                  >
-                                    <Trash2 size={12} strokeWidth={2} />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      };
-                      return (
-                        <>
-                          {defaults.length > 0 && (
-                            <div className="template-group">
-                              <div className="template-group-label">{t('defaultTemplates', language)}</div>
-                              <div className="template-grid">
-                                {defaults.map(renderCard)}
-                              </div>
-                            </div>
-                          )}
-                          {customs.length > 0 && (
-                            <div className="template-group">
-                              <div className="template-group-label">{t('customTemplates', language)}</div>
-                              <div className="template-grid">
-                                {customs.map(renderCard)}
-                              </div>
-                            </div>
-                          )}
-                          {defaults.length === 0 && customs.length === 0 && (
-                            <div className="template-empty">{t('noSearchResultsTemplate', language)}</div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </section>
-                )}
+                    ))}
+                  </div>
+                </section>
               </div>
             )}
 
@@ -665,36 +496,9 @@ function Settings({ onClose }: SettingsProps) {
               </div>
             )}
 
-            {activeTab === 'developer' && (
-              <div className="settings-panel">
-                <section className="settings-section">
-                  <h3 className="settings-section-title">
-                    <Wrench size={14} strokeWidth={2} aria-hidden="true" />
-                    <span>{t('developerTools', language)}</span>
-                  </h3>
-                  <SettingsRow label={t('devModeLabel', language)} description={t('devModeDesc', language)}>
-                    <Toggle
-                      checked={devMode}
-                      onChange={e => setDevMode(e.currentTarget.checked)}
-                      aria-label={t('devModeLabel', language)}
-                    />
-                  </SettingsRow>
-                </section>
+            {/* 🔴 개발자 탭 제거 — 보관소 복구·개발자 모드는 데스크톱 시절의
+                잔재다. 웹에서는 dobbin이 감시하고 고친다 (consistency.py). */}
 
-                {/* 2026-05-24 (HanBin) — Manual vault repair trigger.
-                    Visible in the Dev Mode tab regardless of devMode toggle —
-                    the toggle gates *risky* developer UI, but vault repair is
-                    safe (backup-and-verify), and HanBin's Q4 decision was to
-                    make the manual trigger live here so users can re-run on
-                    demand even after the first-open auto-prompt was dismissed. */}
-
-                {/* Phase 1 B3 (2026-05-24) — full vault snapshot manager.
-                    Foundational safety net for legacy vault migration. */}
-                <VaultSnapshotManager language={language} />
-              </div>
-            )}
-
-            {/* Plugin tabs */}
             {pluginTabs.map(plugin => (
               activeTab === plugin.id ? <plugin.component key={plugin.id} /> : null
             ))}

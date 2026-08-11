@@ -272,3 +272,18 @@
   color: var(--tx-3);
   cursor: not-allowed;
 }
+
+/* 종류 목록 — 보기만 (dobbin이 관리한다, 2-2-0 규율 ⑤) */
+.settings-hint { margin: 0 0 10px; font-size: 12px; line-height: 1.6;
+                 color: var(--tx-3); }
+.tpl-readonly { display: flex; flex-direction: column; gap: 2px; }
+.tpl-readonly__row {
+  display: flex; align-items: center; gap: 9px; padding: 7px 9px;
+  border-radius: 7px; font-size: 12.5px;
+}
+.tpl-readonly__row:nth-child(odd) { background: rgba(255,255,255,.03); }
+.tpl-readonly__dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.tpl-readonly__prefix { font-weight: 650; min-width: 62px; }
+.tpl-readonly__name { flex: 1; color: var(--tx-2); }
+.tpl-readonly__pattern { font-size: 11px; color: var(--tx-3);
+                         font-family: ui-monospace, Menlo, monospace; }
