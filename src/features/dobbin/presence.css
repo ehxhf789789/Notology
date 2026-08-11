@@ -7,7 +7,8 @@
 .dob-presence {
   position: relative;
   display: flex; align-items: center; gap: 9px; width: 100%;
-  padding: 9px 11px; cursor: pointer;
+  min-height: 48px;               /* primary — 크기가 곧 중요도다 */
+  padding: 9px 12px; cursor: pointer;
   font-size: 13px; font-weight: 500; letter-spacing: -0.01em;
   color: var(--text-secondary, #9aa0ab);
   background: linear-gradient(180deg,
@@ -126,24 +127,34 @@
   .dob-face, .dob-face *, .dob-bubble { animation: none !important; }
 }
 
-/* 사서와 투입구를 한 줄에 — 자료를 건네는 곳이 사서 옆이다 */
+/* 사서와 투입구를 한 줄에 — 자료를 건네는 곳이 사서 옆이다.
+ * 위계: dobbin = primary(48px, 채워짐) · 투입 = secondary(44px, 테두리만).
+ * 둘 다 40px 최소 히트 타깃을 넘는다. */
 .sidebar-dobbin { display: flex; align-items: stretch; gap: 6px; }
 .sidebar-dobbin .dob-presence { flex: 1; }
 
 .sidebar-ingest-btn {
-  flex: none; width: 40px;
+  position: relative; flex: none; width: 44px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; border-radius: 10px;
   color: var(--text-secondary, #9aa0ab);
-  background: var(--bg-tertiary, #24262d);
-  border: 1px solid var(--border-color, #2c2f37);
-  transition: color .18s ease, border-color .18s ease, background-color .18s ease,
-              transform 90ms ease;
+  background: transparent;                       /* secondary — 채우지 않는다 */
+  border: 1px dashed color-mix(in srgb, var(--text-secondary, #9aa0ab) 32%, transparent);
+  transition: color .18s ease, border-color .18s ease, background-color .18s ease;
 }
+/* 🔴 점선인 이유 — **던져 넣는 곳**이라는 뜻이다. 파일을 끌어다 놓는 자리를
+ *    점선으로 그리는 것은 오래된 약속이고, 설명 없이도 읽힌다. */
 .sidebar-ingest-btn:hover {
   color: var(--accent, #4a7dbd);
-  border-color: color-mix(in srgb, var(--accent, #4a7dbd) 52%, transparent);
-  background: color-mix(in srgb, var(--accent, #4a7dbd) 12%, transparent);
-  transform: translateY(-1px);
+  border-color: var(--accent, #4a7dbd);
+  border-style: solid;
+  background: color-mix(in srgb, var(--accent, #4a7dbd) 10%, transparent);
 }
-.sidebar-ingest-btn:active { transform: translateY(0); }
+.sidebar-ingest-btn:active {
+  background: color-mix(in srgb, var(--accent, #4a7dbd) 18%, transparent);
+}
+/* 파일을 끌고 오면 받을 준비가 됐다고 말한다 */
+body:has(.ingest-veil) .sidebar-ingest-btn {
+  color: var(--accent, #4a7dbd); border-color: var(--accent, #4a7dbd);
+  border-style: solid;
+}
