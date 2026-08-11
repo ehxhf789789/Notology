@@ -18,7 +18,8 @@
  *    성립하려면, 좌표가 글자가 아니라 **갈 수 있는 것**이어야 한다.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Send, X, Trash2, Loader2, Library } from 'lucide-react';
+import { Send, X, History, Loader2, Library } from 'lucide-react';
+import { DobbinHistory } from './DobbinHistory';
 import { useDobbinStore, dobbinActions } from './dobbinStore';
 import { askDobbin, LOCATION_CODE, VAULT_PATH } from './dobbinClient';
 import { hoverActions } from '../hover-windows/stores/hoverStore';
@@ -103,6 +104,7 @@ function renderBody(text: string): React.ReactNode[] {
 export function DobbinPanel() {
   const { open, busy, messages, error } = useDobbinStore();
   const [draft, setDraft] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
   // 🔴 **먼저 말한다.** 물어봐야만 알려주는 것은 사서가 아니다.
   //    할 말이 없으면 아무 말도 하지 않는다 — 빈 인사를 매번 하면
   //    그다음부터 안 읽는다 (2-14-3의 질문 규율과 같은 이유).
@@ -175,8 +177,14 @@ export function DobbinPanel() {
         <Library size={15} />
         <span className="dobbin-title">dobbin</span>
         <span className="dobbin-sub">이 서재의 사서</span>
-        <button className="dobbin-icon" title="대화 비우기"
-                onClick={() => dobbinActions.clear()}><Trash2 size={14} /></button>
+        {/* 🔴 **「대화 비우기」를 없앴다** (사용자, 2026-08-11: *"위험하니까
+            제거하고"*). 대화는 이제 서버에 남는 기록이고 — dobbin이 무엇을
+            했는지 감시하는 근거이기도 하다 (2-14-13). 한 번 눌러 지워지는
+            단추 옆에 두면 안 된다. 지우려면 서버에서 지운다. */}
+        {/* 지우는 단추가 있던 자리 — 이제 **기록 보기**다 (2026-08-11).
+            대화는 지울 것이 아니라 되짚을 것이다. */}
+        <button className="dobbin-icon" title="지난 대화 (날짜별·검색)"
+                onClick={() => setShowHistory(true)}><History size={14} /></button>
         <button className="dobbin-icon" title="닫기 (Esc)"
                 onClick={() => dobbinActions.close()}><X size={15} /></button>
       </header>
@@ -209,6 +217,8 @@ export function DobbinPanel() {
         {error && <div className="dobbin-error">{error}</div>}
         <div ref={endRef} />
       </div>
+
+      {showHistory && <DobbinHistory onClose={() => setShowHistory(false)} />}
 
       <div className="dobbin-input">
         <textarea
