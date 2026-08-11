@@ -107,6 +107,31 @@ export function DobbinPanel() {
   //    할 말이 없으면 아무 말도 하지 않는다 — 빈 인사를 매번 하면
   //    그다음부터 안 읽는다 (2-14-3의 질문 규율과 같은 이유).
   const [brief, setBrief] = useState<{ say: string; overdue: number } | null>(null);
+  // 🔴 **지난 대화를 이어서 보여준다** (사용자 질문, 2026-08-11:
+  //    *"notology에서 dobbin과 가장 최근 대화 기록을 볼 수 있나?"*).
+  //    못 봤다 — 대화는 브라우저 메모리에만 있어서 새로고침하면 사라졌고,
+  //    서버에는 **사람이 한 말만** 남고 dobbin의 답은 아예 없었다.
+  //    사서가 자기가 한 말을 기억 못 하면 *"아까 알려준 그거"* 를 못 받는다.
+  useEffect(() => {
+    if (!open) return;
+    if (useDobbinStore.getState().messages.length) return;   // 이미 있으면 그대로
+    let dead = false;
+    fetch('/api/conversation', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit: 30 }),
+    })
+      .then(r => r.json())
+      .then(j => {
+        if (dead || !j?.messages?.length) return;
+        for (const m of j.messages) {
+          dobbinActions.push({ role: m.role === 'dobbin' ? 'assistant' : 'user',
+                               content: m.content });
+        }
+      })
+      .catch(() => {});
+    return () => { dead = true; };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     let dead = false;
