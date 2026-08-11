@@ -25,6 +25,7 @@ import { hoverActions } from '../hover-windows/stores/hoverStore';
 import './dobbin.css';
 
 const EXAMPLES = [
+  '이번 주 할 일 뭐 있어?',
   '작년 10월 본부기획 자문회의 자료 찾아줘',
   '스마트건설 정책 문서 어디 있어?',
   '국방부 과제에 뭐가 들어 있지?',
@@ -102,6 +103,19 @@ function renderBody(text: string): React.ReactNode[] {
 export function DobbinPanel() {
   const { open, busy, messages, error } = useDobbinStore();
   const [draft, setDraft] = useState('');
+  // 🔴 **먼저 말한다.** 물어봐야만 알려주는 것은 사서가 아니다.
+  //    할 말이 없으면 아무 말도 하지 않는다 — 빈 인사를 매번 하면
+  //    그다음부터 안 읽는다 (2-14-3의 질문 규율과 같은 이유).
+  const [brief, setBrief] = useState<{ say: string; overdue: number } | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    let dead = false;
+    fetch('/api/briefing', { method: 'POST' })
+      .then(r => r.json())
+      .then(j => { if (!dead && j?.say) setBrief(j); })
+      .catch(() => {});
+    return () => { dead = true; };
+  }, [open]);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -143,6 +157,11 @@ export function DobbinPanel() {
       </header>
 
       <div className="dobbin-body">
+        {brief && (
+          <div className={`dobbin-brief${brief.overdue ? ' dobbin-brief--late' : ''}`}>
+            {brief.say.split('\n').map((l, i) => <div key={i}>{l}</div>)}
+          </div>
+        )}
         {messages.length === 0 && (
           <div className="dobbin-empty">
             <p>자료가 어디 있는지, 무엇이 있는지 물어보십시오.</p>

@@ -1,0 +1,66 @@
+/* 자료 투입 — 던지는 곳 (CLAUDE.md 1-2 ①) */
+
+.ingest-veil {
+  position: fixed; inset: 0; z-index: 9000;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--bg-primary, #16181c) 72%, transparent);
+  backdrop-filter: blur(3px);
+  pointer-events: none;                  /* 드롭 이벤트는 window 가 받는다 */
+  animation: ingest-in 120ms ease-out;
+}
+@keyframes ingest-in { from { opacity: 0 } to { opacity: 1 } }
+
+.ingest-veil__card {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 34px 54px; border-radius: 14px;
+  border: 2px dashed var(--accent, #4a7dbd);
+  background: var(--bg-secondary, #1d2026);
+  color: var(--text-primary, #e6e8ec);
+}
+.ingest-veil__title { font-size: 16px; font-weight: 600; }
+.ingest-veil__sub   { font-size: 12px; color: var(--text-muted, #8a8f99); }
+
+.ingest-tray {
+  position: fixed; right: 16px; bottom: 16px; z-index: 8500;
+  width: 340px; max-height: 52vh; display: flex; flex-direction: column;
+  border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--border-color, #2b2f36);
+  background: var(--bg-secondary, #1d2026);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 38%);
+  font-size: 12px; color: var(--text-primary, #e6e8ec);
+}
+.ingest-tray__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px; border-bottom: 1px solid var(--border-color, #2b2f36);
+}
+.ingest-tray__title { font-weight: 600; }
+.ingest-tray__x {
+  background: none; border: none; cursor: pointer; padding: 2px;
+  color: var(--text-muted, #8a8f99);
+}
+.ingest-tray__x:hover { color: var(--text-primary, #e6e8ec); }
+
+.ingest-tray__sum { display: flex; gap: 10px; padding: 7px 12px; }
+.ingest-tray__sum span { display: inline-flex; align-items: center; gap: 3px; }
+.ingest-tray__sum .ok   { color: #57c7a4; }
+.ingest-tray__sum .skip { color: var(--text-muted, #8a8f99); }
+.ingest-tray__sum .bad  { color: #e0796f; }
+
+.ingest-tray__list { overflow-y: auto; padding: 0 6px 6px; }
+.ingest-row {
+  display: flex; justify-content: space-between; gap: 8px;
+  padding: 4px 6px; border-radius: 5px;
+}
+.ingest-row:hover { background: color-mix(in srgb, var(--text-primary, #e6e8ec) 6%, transparent); }
+.ingest-row__name {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  direction: rtl; text-align: left;      /* 긴 경로는 끝(파일명)이 보여야 한다 */
+}
+.ingest-row__state { flex: none; color: var(--text-muted, #8a8f99); }
+.ingest-row--ok   .ingest-row__state { color: #57c7a4; }
+.ingest-row--fail .ingest-row__state { color: #e0796f; }
+
+.ingest-tray__foot {
+  padding: 8px 12px; border-top: 1px solid var(--border-color, #2b2f36);
+  color: var(--text-muted, #8a8f99); line-height: 1.5;
+}

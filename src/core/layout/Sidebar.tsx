@@ -1,7 +1,7 @@
 import { DobbinButton } from '../../features/dobbin/DobbinPanel';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Search, Plus, UploadCloud, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Slot } from '../infrastructure/slotRegistry';
 import {
   useVaultPath,
@@ -240,6 +240,15 @@ function Sidebar() {
                 disabled={!vaultPath}
               >
                 <Search size={16} strokeWidth={2} />
+              </button>
+              {/* 자료 투입 (CLAUDE.md 1-2 ①). 창 아무 데나 놓아도 되지만,
+                  폴더를 고르고 싶을 때가 있어 버튼도 둔다. */}
+              <button
+                className="sidebar-action-btn"
+                onClick={() => window.dispatchEvent(new Event('dobbin:ingest-open'))}
+                title="자료 넣기 — 창 아무 데나 놓아도 됩니다"
+              >
+                <UploadCloud size={17} strokeWidth={2} />
               </button>
             </div>
           )}

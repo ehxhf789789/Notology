@@ -1,5 +1,6 @@
 import { startLive, onLive } from '../../web/liveSync';
 import { DobbinPanel, useDobbinShortcut } from '../../features/dobbin/DobbinPanel';
+import { Ingest } from '../../features/ingest/Ingest';
 import { TrashPanel } from '../../features/attachments/components/TrashPanel';
 import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { PanelRightOpen } from 'lucide-react';
@@ -462,6 +463,8 @@ function AppLayout() {
       {/* Trash panel — opens via store flag (toast button / settings / etc.). */}
       <TrashPanel />
       <DobbinPanel />
+      {/* 자료 투입 — 창 아무 데나 놓으면 받는다 (CLAUDE.md 1-2 ①) */}
+      <Ingest />
       {/* 2026-05-24 (HanBin) — legacy vault repair prompt (one-shot per vault per device). */}
       {/* Re-opened repair modal when user clicks the TitleBar progress indicator. */}
       <div className="app-layout">

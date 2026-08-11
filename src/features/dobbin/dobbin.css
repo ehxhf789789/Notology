@@ -129,3 +129,16 @@
 }
 .dobbin-table td { color: var(--text-primary, #d6d8de); }
 .dobbin-table tr:hover td { background: rgba(255,255,255,.02); }
+
+/* dobbin이 먼저 말하는 자리 — 지난 기한이 있으면 색이 바뀐다 */
+.dobbin-brief {
+  margin: 10px 12px 4px; padding: 9px 11px; border-radius: 8px;
+  font-size: 12.5px; line-height: 1.65;
+  border-left: 3px solid var(--accent, #4a7dbd);
+  background: color-mix(in srgb, var(--accent, #4a7dbd) 10%, transparent);
+  color: var(--text-primary, #e6e8ec);
+}
+.dobbin-brief--late {
+  border-left-color: #e0796f;
+  background: color-mix(in srgb, #e0796f 12%, transparent);
+}

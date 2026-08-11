@@ -82,29 +82,43 @@ function emptyIndex(): AttachmentIndex {
   };
 }
 
+// 🔴 DTO에 없는 이름을 쓰고 있었다 (2026-08-11 실측).
+//    `AttachmentRefDto` 는 `{id, note_id, filename, local_path}` 인데
+//    이 함수는 `attachmentId`·`originalName`·`displayPath`·`linkedNotes` 를
+//    읽었다. vite 빌드는 타입을 검사하지 않아(esbuild가 타입만 벗긴다)
+//    조용히 통과했고, 실행할 때 `Cannot read properties of undefined
+//    (reading 'toLowerCase')` 로 hydrate 가 통째로 죽었다.
+//    → **DTO 하나를 진실로 삼는다.** 서버가 이미 그 모양으로 준다.
+function refId(r: AttachmentRefDto): string { return r.id; }
+function refName(r: AttachmentRefDto): string { return r.filename ?? ''; }
+function refDisplay(r: AttachmentRefDto): string { return r.local_path ?? ''; }
+function refNotes(r: AttachmentRefDto): string[] {
+  return r.note_id ? [r.note_id] : [];
+}
+
 function buildIndex(refs: AttachmentRefDto[]): AttachmentIndex {
   const idx = emptyIndex();
   for (const r of refs) {
-    idx.byId.set(r.attachmentId, r);
+    idx.byId.set(refId(r), r);
 
-    const nameKey = r.originalName.toLowerCase();
+    const nameKey = refName(r).toLowerCase();
     const nameList = idx.byName.get(nameKey) ?? [];
-    nameList.push(r.attachmentId);
+    nameList.push(refId(r));
     idx.byName.set(nameKey, nameList);
 
-    const displayBase = r.displayPath.split('/').pop()?.toLowerCase() ?? '';
+    const displayBase = refDisplay(r).split('/').pop()?.toLowerCase() ?? '';
     if (displayBase && displayBase !== nameKey) {
       const dispList = idx.byDisplayBasename.get(displayBase) ?? [];
-      dispList.push(r.attachmentId);
+      dispList.push(refId(r));
       idx.byDisplayBasename.set(displayBase, dispList);
     } else if (displayBase) {
       // Same as originalName — both maps point at the same list. Skip dup add.
     }
 
-    for (const noteId of r.linkedNotes) {
+    for (const noteId of refNotes(r)) {
       const key = noteId.toLowerCase();
       const set = idx.byNoteId.get(key) ?? new Set();
-      set.add(r.attachmentId);
+      set.add(refId(r));
       idx.byNoteId.set(key, set);
     }
   }
@@ -208,7 +222,7 @@ export const useAttachmentStore = create<AttachmentState>()(
       const noteKey = noteId.toLowerCase();
       for (const id of ids) {
         const r = index.byId.get(id);
-        if (r && r.linkedNotes.some((n) => n.toLowerCase() === noteKey)) {
+        if (r && refNotes(r).some((n) => n.toLowerCase() === noteKey)) {
           return r;
         }
       }
@@ -235,7 +249,7 @@ export const useAttachmentStore = create<AttachmentState>()(
       const r = get().index.byId.get(attachmentId);
       if (!r) return false;
       if (r.syncEtag) return false; // already synced, not stuck
-      const createdMs = parseAttachmentIdMs(r.attachmentId);
+      const createdMs = parseAttachmentIdMs(refId(r));
       if (createdMs === null) return false; // bad id format — refuse to flag
       return Date.now() - createdMs > STUCK_THRESHOLD_MS;
     },
