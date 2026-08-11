@@ -24,12 +24,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Send, Search, Loader2, ArrowDown, Mic } from 'lucide-react';
 import { useDobbinStore, dobbinActions } from './dobbinStore';
+import { Markdown } from './md';
+import { RefChips, type DobbinRef } from './refs';
 import { useDobbinView, rightActions } from '../../core/stores/rightTabStore';
 import { clientTools, runTool, isRecording, recordingSeconds } from './clientTools';
 import './surface.css';
 
 type Msg = { role: string; content: string; at: string;
-             choices?: { label: string; send: string }[] };
+             choices?: { label: string; send: string }[];
+             refs?: DobbinRef[] };
 const DAY = ['일', '월', '화', '수', '목', '금', '토'];
 
 function dayKey(iso: string) { return new Date(iso).toLocaleDateString('sv'); }
@@ -110,7 +113,9 @@ export function DobbinSurface() {
       dobbinActions.push({ role: 'assistant',
         content: msg?.content ?? '(답이 비었습니다)',
         // 🔴 되물으면 누를 것을 함께 받는다 (서버 choices.py)
-        choices: msg?.dobbin_choices ?? undefined });
+        choices: msg?.dobbin_choices ?? undefined,
+        // 🔴 짚은 자료 — 누르면 창이 열린다 (refs.tsx)
+        refs: msg?.dobbin_refs ?? undefined });
       // 🔴 **시킨 도구를 실행한다.** 말로 시킨 일이 말로 끝나면 안 된다.
       if (msg?.dobbin_action) {
         runTool(msg.dobbin_action,
@@ -146,7 +151,7 @@ export function DobbinSurface() {
     ...hist,
     ...messages.map(m => ({ role: m.role === 'assistant' ? 'dobbin' : 'user',
                             content: m.content, at: new Date().toISOString(),
-                            choices: m.choices })),
+                            choices: m.choices, refs: m.refs })),
   ];
   let last = '';
 
@@ -217,11 +222,14 @@ export function DobbinSurface() {
             <div key={i} data-day={isNew ? key : undefined}>
               {isNew && <div className="dsurf__daysep"><span>{dayLabel(m.at)}</span></div>}
               <div className={`dsurf__line${mine ? ' mine' : ''}`}>
-                <div className="dsurf__bubble">{m.content}</div>
+                <div className="dsurf__bubble">
+                  <Markdown text={m.content} refs={m.refs} />
+                </div>
                 <time className="dsurf__time">{timeLabel(m.at)}</time>
               </div>
               {/* 🔴 **지난 선택지는 살려 두지 않는다.** 이미 답한 물음의 단추가
                   남아 있으면 눌러도 흐름이 어긋난다 — 마지막 답에만 붙인다. */}
+              {!mine && m.refs?.length ? <RefChips refs={m.refs} /> : null}
               {!mine && m.choices?.length && i === shown.length - 1 && !busy && (
                 <div className="dsurf__picks">
                   {m.choices.map((c) => (

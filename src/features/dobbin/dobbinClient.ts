@@ -21,6 +21,8 @@ export interface DobbinMessage {
   /** 🔴 dobbin이 되물을 때 함께 오는 선택지 (서버 `choices.py`).
    *  **사람은 확인만 한다** — 과제 이름을 다시 타이핑하게 두지 않는다 (2-14-3). */
   choices?: DobbinChoice[];
+  /** dobbin이 짚은 자료 — 누르면 창이 열린다 (refs.tsx) */
+  refs?: unknown[];
 }
 
 /** 답변에 섞인 좌표 — `T01-정보통신-2512-0007` 꼴. 클릭해서 갈 수 있게 뽑는다. */
