@@ -101,3 +101,22 @@
 @keyframes tab-ask {
   0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); }
 }
+
+/* 인사말 — 탭에서 왼쪽으로 나온다. 할 말이 있을 때만 (2-14-2-2) */
+.right-tab__hello {
+  position: absolute; right: calc(100% + 8px); top: 50%;
+  transform: translateY(-50%);
+  max-width: 260px; width: max-content;
+  padding: 7px 11px; border-radius: 11px 11px 3px 11px;
+  font-size: 12px; line-height: 1.5; text-align: left; white-space: normal;
+  color: var(--text-primary, #e6e8ec);
+  background: var(--bg-secondary, #1d2026);
+  border: 1px solid var(--border-color, #2b2f36);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 28%);
+  animation: hello-in .34s cubic-bezier(.2,.9,.3,1.2);
+  cursor: pointer; z-index: 40;
+}
+.right-tab__hello.is-leaving { animation: hello-out .5s ease forwards; }
+@keyframes hello-in  { from { opacity:0; transform:translate(8px,-50%) scale(.94); }
+                       to   { opacity:1; transform:translate(0,-50%) scale(1); } }
+@keyframes hello-out { to   { opacity:0; transform:translate(6px,-50%) scale(.96); } }

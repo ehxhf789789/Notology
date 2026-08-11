@@ -244,6 +244,31 @@ export const useHoverStore = create<HoverState>()(
 
         const cleanedHoverFiles = state.hoverFiles.filter(h => !windowsToRemove.includes(h.id));
 
+        // 🔴 **연 창은 반드시 맨 앞이다** (사용자 신고 3회, 2026-08-11:
+        //    *"새로 열리는 창은 항상 앞 창으로 열려야 함"*).
+        //
+        //    실측한 값: 첨부 링크를 더블클릭하면 **뷰어 1003 · 노트 1004** —
+        //    노트가 앞으로 온다. 더블클릭은 `mousedown` 두 번을 포함하고,
+        //    그 두 번째가 노트 창의 포커스 처리를 다시 태운다. 창을 만드는
+        //    일은 그보다 뒤에 끝나므로 z를 먼저 정해 봐야 소용이 없다.
+        //
+        //    **한 프레임 뒤에 다시 올린다.** 그 시점에는 밀린 mousedown이
+        //    전부 처리된 뒤라 새 창이 확실히 맨 앞에 선다.
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(() => {
+            const s = get();
+            const live = s.hoverFiles.filter(h => !h.cached);
+            const top = Math.max(1001, ...live.map(h => h.zIndex));
+            if (live.some(h => h.id === newWindow.id && h.zIndex < top)) {
+              nextHoverZ = top + 1;
+              set((st) => ({
+                hoverFiles: st.hoverFiles.map(h =>
+                  h.id === newWindow.id ? { ...h, zIndex: nextHoverZ } : h),
+              }));
+            }
+          });
+        }
+
         return { hoverFiles: [...cleanedHoverFiles, newWindow] };
       });
     },

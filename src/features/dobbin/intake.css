@@ -69,3 +69,16 @@
   overflow-y: auto; margin-top: 6px;
 }
 .intake-q__picker button { text-align: left; }
+
+/* 🔴 그림이 없으면 읽은 글을 보인다 — 이름만 주고 정하라 할 수 없다 */
+.intake-q__excerpt {
+  margin: 6px 0 8px; padding: 7px 9px; border-radius: 7px;
+  background: var(--bg-tertiary, #24262d);
+  border: 1px solid var(--border-color, #2b2f36);
+  font-size: 11.5px; line-height: 1.55;
+}
+.intake-q__excerpt b { display: block; margin-bottom: 3px; font-size: 10.5px;
+                       color: var(--text-muted, #8a8f99); }
+.intake-q__excerpt p { margin: 0; color: var(--text-secondary, #9aa0ab);
+                       max-height: 88px; overflow: hidden; }
+.intake-q__preview img { cursor: zoom-in; }

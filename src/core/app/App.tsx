@@ -122,6 +122,30 @@ function AppLayout() {
     const t = setInterval(ask, 20000);
     return () => clearInterval(t);
   }, []);
+  // 🔴 **인사말도 오른쪽 탭으로 옮겼다** (사용자 지시). 왼쪽 dobbin이
+  //    없어졌으니 말할 자리도 여기다. **할 말이 있을 때만 말한다** —
+  //    빈 인사를 매번 하면 세 번째부터 닫는 단추만 찾게 된다 (2-14-2-2).
+  const [hello, setHello] = useState<string | null>(null);
+  const [helloGoing, setHelloGoing] = useState(false);
+  const helloOnce = useRef(false);
+  useEffect(() => {
+    if (helloOnce.current) return;
+    helloOnce.current = true;
+    const t0 = setTimeout(() => {
+      fetch('/api/briefing', { method: 'POST' })
+        .then(r => r.json())
+        .then(j => {
+          const line = (j?.say || '').split('\n')[0];
+          const greet = j?.overdue ? `지난 기한 ${j.overdue}건이 있습니다` : line;
+          if (!greet) return;                  // 조용할 땐 조용히 있는다
+          setHello(greet);
+          setTimeout(() => setHelloGoing(true), 7000);
+          setTimeout(() => { setHello(null); setHelloGoing(false); }, 8000);
+        })
+        .catch(() => {});
+    }, 1400);                                  // 화면이 자리를 잡은 뒤에 말한다
+    return () => clearTimeout(t0);
+  }, []);
   const sidebarCollapsed = useSidebarCollapsed();
   const hoverPanelAnimState = useHoverPanelAnimState();
 
@@ -537,6 +561,12 @@ function AppLayout() {
               onClick={() => { rightActions.pick('dobbin'); }}
               title="dobbin — 이 서재의 사서">
               <PenguinFace mood={dobbinBusy ? 'thinking' : 'idle'} size={19} />
+              {hello && (
+                <span className={`right-tab__hello${helloGoing ? ' is-leaving' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); setHelloGoing(true); }}>
+                  {hello}
+                </span>
+              )}
             </button>
             <button
               className={`right-tab${showHoverPanel && rightTab === 'intake' ? ' active' : ''}`}

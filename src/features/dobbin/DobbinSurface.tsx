@@ -25,6 +25,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Send, Search, CalendarDays, X, Loader2 } from 'lucide-react';
 import { useDobbinStore, dobbinActions } from './dobbinStore';
 import { PenguinFace } from './PenguinFace';
+import { RecordButton } from './RecordButton';
 import './surface.css';
 
 type Msg = { role: string; content: string; at: string;
@@ -218,6 +219,14 @@ export function DobbinSurface() {
         {busy && <div className="dsurf__busy"><Loader2 size={13} className="spin" /> 생각하는 중</div>}
         <div ref={endRef} />
       </div>
+
+      {/* 🔴 심부름 ④ — 녹음에서 회의록까지 이 자리에서 끝난다 */}
+      <RecordButton folder={null}
+                    onDone={(j) => dobbinActions.push({ role: 'assistant',
+                      content: j?.note
+                        ? `회의록을 만들었습니다 — ${String(j.note)}`
+                        : (j?.text ? `받아썼습니다 (${j.lines}줄). 어느 과제 회의였습니까?`
+                                   : `받아쓰지 못했습니다: ${j?.why ?? j?.error ?? '알 수 없음'}`) })} />
 
       <div className="dsurf__input">
         <textarea ref={inputRef} rows={2} value={draft} placeholder="dobbin에게 묻기…  (Enter 전송)"

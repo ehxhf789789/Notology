@@ -1,5 +1,4 @@
 // 🔴 버튼이 아니라 **거기 있는 존재**로 바꿨다 (DobbinPresence.tsx)
-import { DobbinPresence } from '../../features/dobbin/DobbinPresence';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Plus, UploadCloud, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
@@ -302,23 +301,13 @@ function Sidebar() {
         )}
 
         {/* Sidebar Footer — vault button + sync status + settings + collapse toggle */}
-        {/* 🔴 dobbin은 사이드바 하단에 상주한다. 사용자 요구:
-              "사용자가 편리하게 AI를 쉽게 대화하고 호출하고 지시할 수 있도록"
-              — 화면을 옮겨 다니게 하면 "쉽게"가 아니다. Ctrl+K로도 열린다. */}
-        <div className="sidebar-dobbin">
-          <DobbinPresence />
-          {/* 🔴 **자료를 건네는 곳은 사서 옆이다.** 위 줄(새 폴더·검색)은
-              탐색기를 다루는 것이고, 투입은 dobbin에게 맡기는 것이다.
-              같은 줄에 두면 "누구에게 주는가"가 화면에서 보인다. */}
-          <button
-            className="sidebar-ingest-btn"
-            onClick={() => window.dispatchEvent(new Event('dobbin:ingest-open'))}
-            title="자료 넣기 — 창 아무 데나 놓아도 됩니다"
-            aria-label="자료 넣기"
-          >
-            <UploadCloud size={17} strokeWidth={2} />
-          </button>
-        </div>
+        {/* 🔴 **dobbin과 자료 넣기는 오른쪽 탭으로 옮겼다** (사용자 지시,
+            2026-08-11: *"좌측 슬라이드의 dobbin, 파일 넣기 버튼 제거.
+            우측 슬라이드의 버튼(탭)으로 모든 기능 이동. 말풍선 및 알림
+            기능도 우측 슬라이드 버튼으로 이동."*).
+
+            **같은 일을 두 곳에서 부르면 어느 쪽이 진짜인지 모른다.**
+            왼쪽은 탐색기(무엇이 있나), 오른쪽은 dobbin에게 맡기는 자리다. */}
         <div className="sidebar-footer">
           {!sidebarCollapsed && (
             <>

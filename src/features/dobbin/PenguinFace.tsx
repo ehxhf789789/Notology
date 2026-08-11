@@ -19,6 +19,12 @@
  *    테마를 따라간다.
  */
 
+// 🔴 **스타일을 쓰는 쪽이 들여온다.** 이 파일이 `penguin.css` 를 안 부르고
+//    `DobbinPresence.tsx` 만 부르고 있었다. 사이드바에서 그 컴포넌트를
+//    걷어내자 **CSS가 통째로 번들에서 빠졌다** — 오른쪽 탭이 스타일 없이
+//    가로로 늘어서고 펭귄이 움직이지 않았다. 사용자가 본 "디자인이 깨짐"이 이것이다.
+import './penguin.css';
+
 export type Mood = 'idle' | 'reading' | 'thinking' | 'found' | 'alert';
 
 export function PenguinFace({ mood, size = 30 }: { mood: Mood; size?: number }) {

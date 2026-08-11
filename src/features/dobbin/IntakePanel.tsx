@@ -32,13 +32,14 @@ import './intake.css';
 type Q = {
   id: number; group: string; count: number; names: string[]; paths: string[];
   guess: { folder?: string | null; doc_type?: string | null; stage?: string | null };
-  why: string[]; confidence: number; ask: string;
+  why: string[]; confidence: number; ask: string; excerpt?: string | null;
   options: { label: string; value: string }[];
 };
 type Counts = { filed?: number; reading?: number; questions?: number;
                 by_state?: Record<string, number> };
 
-const PREVIEWABLE = /\.(pdf|png|jpe?g|gif|webp|svg|txt|md)$/i;
+// 🔴 그림으로 보여줄 수 있는 것 — PDF는 서버가 첫 장을 뽑아 준다
+const THUMBABLE = /\.(pdf|png|jpe?g|gif|webp|svg)$/i;
 
 export function IntakePanel() {
   const [qs, setQs] = useState<Q[]>([]);
@@ -124,7 +125,7 @@ export function IntakePanel() {
       {qs.map((q) => {
         const g = q.guess ?? {};
         const first = q.paths?.[0];
-        const canPreview = first && PREVIEWABLE.test(first);
+        const canThumb = first && THUMBABLE.test(first);
         return (
           <div key={q.id} className="intake-q">
             <div className="intake-q__head">
@@ -133,11 +134,25 @@ export function IntakePanel() {
             </div>
 
             {/* 🔴 눈으로 확인할 수 있어야 한다 — 이름만 보고는 못 정한다 */}
-            {canPreview && (
+            {canThumb && (
               <div className="intake-q__preview">
-                <img src={`/api/file?path=${encodeURIComponent('inbox:' + first)}`}
+                <img src={`/api/thumb?path=${encodeURIComponent('inbox:' + first)}`}
                      alt="" loading="lazy"
-                     onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
+                     onClick={() => window.open(
+                       `/api/file?path=${encodeURIComponent('inbox:' + first)}`, '_blank')}
+                     title="눌러서 원본 열기"
+                     onError={(e) => {
+                       (e.target as HTMLElement).parentElement!.style.display = 'none';
+                     }} />
+              </div>
+            )}
+            {/* 🔴 **그림이 안 되면 읽은 글을 보인다.** hwp·pptx는 그림이 없지만
+                사람은 첫 문단만 봐도 무엇인지 안다 — 이름만 주고 정하라는 것이
+                사용자가 지적한 그 문제다. */}
+            {!canThumb && q.excerpt && (
+              <div className="intake-q__excerpt">
+                <b>제가 읽은 것</b>
+                <p>{q.excerpt.slice(0, 260)}…</p>
               </div>
             )}
             {q.count > 1 && (

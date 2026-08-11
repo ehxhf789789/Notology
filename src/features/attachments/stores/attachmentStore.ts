@@ -29,6 +29,8 @@ interface AttachmentIndex {
   byName: Map<string, string[]>;
   /** lowercased display path basename → ids */
   byDisplayBasename: Map<string, string[]>;
+  /** 확장자를 뗀 이름 → id. 위키링크가 `[[파일명]]` 꼴이라 필요하다 */
+  byStem: Map<string, string[]>;
   /** lowercased note_id → set of attachment ids linked to that note */
   byNoteId: Map<string, Set<string>>;
 }
@@ -78,6 +80,11 @@ function emptyIndex(): AttachmentIndex {
     byId: new Map(),
     byName: new Map(),
     byDisplayBasename: new Map(),
+    // 🔴 **확장자 없는 위키링크를 위한 자리** (실측 2026-08-11).
+    //    본문 링크는 `[[KICT-…-vFIN2]]` 인데 실제 파일은 `….pdf` 다.
+    //    이름이 정확히 같아야만 찾으니 **첨부 링크를 눌러도 아무 일도
+    //    안 났다** — 사용자가 세 번 신고한 그 증상이다.
+    byStem: new Map(),
     byNoteId: new Map(),
   };
 }
@@ -105,6 +112,14 @@ function buildIndex(refs: AttachmentRefDto[]): AttachmentIndex {
     const nameList = idx.byName.get(nameKey) ?? [];
     nameList.push(refId(r));
     idx.byName.set(nameKey, nameList);
+
+    // 확장자를 뗀 이름으로도 찾을 수 있게 한다
+    const stem = nameKey.replace(/\.[^.]+$/, '');
+    if (stem && stem !== nameKey) {
+      const stemList = idx.byStem.get(stem) ?? [];
+      stemList.push(refId(r));
+      idx.byStem.set(stem, stemList);
+    }
 
     const displayBase = refDisplay(r).split('/').pop()?.toLowerCase() ?? '';
     if (displayBase && displayBase !== nameKey) {
@@ -213,7 +228,11 @@ export const useAttachmentStore = create<AttachmentState>()(
       const key = fileName.toLowerCase();
       // Prefer name match; fall back to display basename (covers collision
       // suffixes like `Report_1.pdf` when a note body still has the original).
-      const ids = index.byName.get(key) ?? index.byDisplayBasename.get(key);
+      // 이름 → 표시이름 → **확장자 없는 이름** 순으로 찾는다
+      const ids = index.byName.get(key)
+                ?? index.byDisplayBasename.get(key)
+                ?? index.byStem.get(key)
+                ?? index.byStem.get(key.replace(/\.[^.]+$/, ''));
       if (!ids || ids.length === 0) return null;
       if (ids.length === 1 || !noteId) {
         return index.byId.get(ids[0]) ?? null;

@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { invoke } from '../../web/core';
 import { Folder, FolderOpen, FolderDot, FolderRoot, FolderOpenDot, ChevronsUpDown, ChevronsDownUp, FolderPlus, RefreshCw, Check, Pause, Circle, GripVertical } from 'lucide-react';
 import { useFileTree, useSelectedContainer } from '../../core/stores/fileTreeStore';
 import { useContainerConfigs, useFolderStatuses, useContainerOrder, vaultConfigActions } from '../vault-config/stores/vaultConfigStore';
@@ -141,6 +142,23 @@ function FolderTree({ containers, rootContainer, onRootContainerChange, onNewSub
     });
   }, [containers, containerOrder]);
 
+  // 🔴 **배지와 목록이 다른 규칙으로 세고 있었다** (사용자 지적, 2026-08-11:
+  //    *"배지 숫자가 63인데 목록은 6"*). 여기서 재귀로 세면 하위 폴더의
+  //    노트까지 더해지는데, 목록(`query_notes`)은 바로 아래 것만 준다.
+  //    **같은 규칙에서 나온 숫자가 아니면 둘 중 하나는 반드시 거짓말이다.**
+  //    서버가 목록을 만드는 그 조건으로 센 값을 받아 그대로 쓴다.
+  const [serverCounts, setServerCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let dead = false;
+    const load = () => invoke<Record<string, number>>('note_counts')
+      .then(c => { if (!dead) setServerCounts(c || {}); })
+      .catch(() => {});
+    load();
+    const h = () => load();
+    window.addEventListener('dobbin:live', h);
+    return () => { dead = true; window.removeEventListener('dobbin:live', h); };
+  }, []);
+
   // Precompute note counts for all folders to avoid expensive recalculations during render
   // Key: folder path, Value: { collapsed: count when collapsed, expanded: count when expanded }
   const folderNoteCounts = useMemo(() => {
@@ -166,10 +184,14 @@ function FolderTree({ containers, rootContainer, onRootContainerChange, onNewSub
 
   // Helper to get cached note count
   const getNoteCount = useCallback((nodePath: string, isExpanded: boolean): number => {
+    // 서버가 센 값이 있으면 그것이 진실이다 — 목록을 만드는 그 조건으로 셌다
+    const key = nodePath.replace(/^[a-z]+:/, '').replace(/\\/g, '/');
+    const fromServer = serverCounts[key];
+    if (fromServer !== undefined) return fromServer;
     const cached = folderNoteCounts.get(nodePath);
     if (!cached) return 0;
     return isExpanded ? cached.expanded : cached.collapsed;
-  }, [folderNoteCounts]);
+  }, [folderNoteCounts, serverCounts]);
 
   // Mouse-based drag handler
   const handleMouseDown = useCallback((e: React.MouseEvent, containerName: string) => {
