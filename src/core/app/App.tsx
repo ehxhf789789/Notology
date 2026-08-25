@@ -149,14 +149,19 @@ function AppLayout() {
           //    **무엇인지 말하며 되묻는데**, 여기서 그 말을 버리고 「N건이
           //    있습니다」로 갈아치웠다 (사용자 2026-08-26: *"지난 기한이
           //    있다는건 대체 뭐냐?"*). 설명이 있으면 설명이 먼저다.
-          const greet = line || (j?.overdue ? `지난 기한 ${j.overdue}건이 있습니다` : '');
+          // 🔴 **알림은 한 문장이다** (사용자 2026-08-26: *"핵심만 명료하게
+          //    알리던지"*). 서버의 긴 설명·되물음은 눌러서 연 대화에서 보이고,
+          //    말풍선에는 첫 문장만 싣는다 (3-4-1: 사서는 길게 말하지 않는다).
+          const sent = line.match(/^.{6,90}?(다|요|오)\./);
+          const core = sent ? sent[0] : line.slice(0, 80);
+          const greet = core || (j?.overdue ? `지난 기한 ${j.overdue}건이 있습니다` : '');
           if (!greet) return;                  // 조용할 땐 조용히 있는다
           setHello(greet);
           // 🔴 **되묻는 말은 저절로 사라지지 않는다** (사용자 2026-08-26:
           //    *"알림만 띡 날리고 사라지면 그것을 내가 어떻게 답변하고
           //    지시하라는 말이냐?"*). 물음표·「알려주십시오」가 든 알림은
           //    사람이 답하거나 닫을 때까지 남는다. 단순 인사만 8초 뒤 걷는다.
-          const needsAnswer = /[?？]|알려주십시오|여쭙|맞습니까/.test(greet);
+          const needsAnswer = /[?？]|알려주십시오|여쭙|맞습니까/.test(j?.say || greet);
           if (!needsAnswer) {
             setTimeout(() => setHelloGoing(true), 7000);
             setTimeout(() => { setHello(null); setHelloGoing(false); }, 8000);
