@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { invoke } from '../../web/core';
 import { Folder, FolderOpen, FolderDot, FolderRoot, FolderOpenDot, ChevronsUpDown, ChevronsDownUp, FolderPlus, RefreshCw, Check, Pause, Circle, GripVertical } from 'lucide-react';
-import { useFileTree, useSelectedContainer } from '../../core/stores/fileTreeStore';
+import { useFileTree, useSelectedContainer, useVaultPath } from '../../core/stores/fileTreeStore';
 import { useContainerConfigs, useFolderStatuses, useContainerOrder, vaultConfigActions } from '../vault-config/stores/vaultConfigStore';
 import { modalActions } from '../modals/stores/modalStore';
 import { useTemplateStore } from '../templates/stores/templateStore';
@@ -147,17 +147,21 @@ function FolderTree({ containers, rootContainer, onRootContainerChange, onNewSub
   //    노트까지 더해지는데, 목록(`query_notes`)은 바로 아래 것만 준다.
   //    **같은 규칙에서 나온 숫자가 아니면 둘 중 하나는 반드시 거짓말이다.**
   //    서버가 목록을 만드는 그 조건으로 센 값을 받아 그대로 쓴다.
+  const vaultPath = useVaultPath();
   const [serverCounts, setServerCounts] = useState<Record<string, number>>({});
   useEffect(() => {
     let dead = false;
-    const load = () => invoke<Record<string, number>>('note_counts')
+    // 🔴 **어느 보관소를 열었는지 알려 준다** (2026-08-25). `notes.vault_path`
+    //    는 뿌리표가 없는 상대경로라, 안 주면 서버가 **두 뿌리를 합쳐 센다** —
+    //    실측: 배지 08_Contacts **125** 인데 목록은 **0개 노트**였다.
+    const load = () => invoke<Record<string, number>>('note_counts', { root: vaultPath })
       .then(c => { if (!dead) setServerCounts(c || {}); })
       .catch(() => {});
     load();
     const h = () => load();
     window.addEventListener('dobbin:live', h);
     return () => { dead = true; window.removeEventListener('dobbin:live', h); };
-  }, []);
+  }, [vaultPath]);
 
   // Precompute note counts for all folders to avoid expensive recalculations during render
   // Key: folder path, Value: { collapsed: count when collapsed, expanded: count when expanded }
