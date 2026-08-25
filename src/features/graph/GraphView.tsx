@@ -14,6 +14,7 @@ import { useNoteTemplates } from '../templates/stores/templateStore';
 import { useSearchReady } from '../../core/stores/refreshStore';
 import { getTemplateCustomColor } from '../content-cache/noteTypeHelpers';
 import { selectContainer } from '../../core/stores/appActions';
+import { tagColor as tagColorShared } from '../search/searchHelpers';
 import { t, tf } from '../../core/utils/i18n';
 import type { GraphData, GraphSettings } from '../../core/types';
 import { DEFAULT_GRAPH_SETTINGS } from '../../core/types';
@@ -265,6 +266,11 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
   const getNodeColor = useCallback((node: GraphNodeInternal): string => {
     const colors = graphSettings.nodeColors;
     if (node.nodeType === 'tag') {
+      // 🔴 칩과 그래프가 같은 색을 내야 한다 (2026-08-26 사용자: 뷰 불일치는
+      //    치명적). 축색의 단일 진실은 searchHelpers.tagColor — 이 표(4축만)
+      //    는 key·proj·acad 가 빠져 전부 예비색으로 뭉개고 있었다.
+      const c = tagColorShared(node.label || '');
+      if (c && !c.startsWith('var(')) return c;   // canvas 는 var() 를 모른다
       return TAG_NAMESPACE_COLORS[node.tagNamespace] || DEFAULT_TAG_COLOR;
     }
     if (node.nodeType === 'attachment') return colors.attachment;
