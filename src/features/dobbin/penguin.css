@@ -189,3 +189,5 @@
 
 .right-tab__hello-act { display: block; margin-top: 5px; font-size: 11px;
   font-style: normal; color: var(--text-muted, #8a8f99); }
+.vault-picker__edit { margin-left: auto; opacity: .45; cursor: pointer; padding: 0 2px; }
+.vault-picker__edit:hover { opacity: 1; }

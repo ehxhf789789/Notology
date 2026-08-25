@@ -167,7 +167,12 @@ export function preprocessWikiLinks(markdown: string): string {
 
   // Step 5: Restore image embeds
   imageEmbedPlaceholders.forEach((content, index) => {
-    result = result.replace(`\u0000IMG_EMBED_${index}\u0000`, `![[${content}]]`);
+    // 🔴 `![[이름.png|450]]` 의 `|450` 은 Obsidian 크기 지정이다 (CLAUDE.md
+    //    2-2-6 이 채점기에서 이미 배운 문법). 그대로 되살리면 MediaEmbed 가
+    //    못 알아봐 **글자로 샜다** (2026-08-26 스크린샷). 크기는 접고 그림은
+    //    그린다 — 안 그리는 것보다 원치 않는 크기가 낫다.
+    const noSize = content.split('|')[0];
+    result = result.replace(`\u0000IMG_EMBED_${index}\u0000`, `![[${noSize}]]`);
   });
 
   // Step 5.5: Convert HTML-fallback math tags back to $...$ / $$...$$ format.

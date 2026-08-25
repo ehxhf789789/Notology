@@ -685,7 +685,9 @@ export default function AttachmentsTab({
           <tr>
             <SortableHeader col="name"    sort={sort} onToggle={toggleSort} label={t('fileName', language)} />
             <SortableHeader col="linked"  sort={sort} onToggle={toggleSort} label={t('attachmentLinkedNotesShort', language)} />
-            <SortableHeader col="sync"    sort={sort} onToggle={toggleSort} label={t('attachmentSyncShort', language)} />
+            {/* 🔴 동기화 열 제거 (2026-08-26 사용자: "첨부 탭에 동기화
+                열은 대체 왜 있나?") — Synology 데스크톱 잔재. 웹은 서버가
+                원본이라 «동기화 상태» 라는 개념 자체가 없다. */}
             <SortableHeader col="size"    sort={sort} onToggle={toggleSort} label={t('attachmentSize', language)} />
             <SortableHeader col="created" sort={sort} onToggle={toggleSort} label={t('attachmentCreatedShort', language)} />
           </tr>
@@ -707,7 +709,7 @@ export default function AttachmentsTab({
           ))}
           {rows.length === 0 && (
             <tr>
-              <td className="search-td search-empty" colSpan={5}>
+              <td className="search-td search-empty" colSpan={4}>
                 {t('noAttachments', language)}
               </td>
             </tr>
@@ -757,27 +759,6 @@ function AttachmentRow({
         {ref.linkedNotes.length === 0
           ? <span className="attachments-tab-v2-muted">—</span>
           : <span>{ref.linkedNotes.length}</span>}
-      </td>
-      <td className="search-td">
-        <SyncStateBadge state={syncState} language={language} />
-        {syncState === 'stuck' && (
-          <button
-            className="attachments-tab-v2-mini-btn"
-            onClick={(e) => onRetry(row, e)}
-            title={t('attachmentStuckRetry', language)}
-          >
-            ↻
-          </button>
-        )}
-        {syncState === 'orphan' && (
-          <button
-            className="attachments-tab-v2-mini-btn attachments-tab-v2-mini-btn-danger"
-            onClick={(e) => onDeleteOrphan(row, e)}
-            title={t('attachmentStuckDiscard', language)}
-          >
-            ✕
-          </button>
-        )}
       </td>
       <td className="search-td">{formatSize(ref.sizeBytes)}</td>
       <td className="search-td">{formatCreated(ref.attachmentId)}</td>

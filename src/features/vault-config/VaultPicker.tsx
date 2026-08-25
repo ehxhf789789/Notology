@@ -103,6 +103,20 @@ export function VaultPicker() {
               {/* 🔴 읽기만 되는 곳은 그렇다고 말한다 — 눌러 놓고 못 쓰면 안 된다 */}
               {!r.writable && <span className="vault-picker__ro">읽기만</span>}
               {!r.exists && <span className="vault-picker__ro">없는 경로</span>}
+              {/* 🔴 이름 편집 (2026-08-26 지시). 열쇠·경로는 못 바꾼다 —
+                  이름은 사람의 말, 열쇠는 주소다 (서버 vaults.rename). */}
+              <span className="vault-picker__edit"
+                    onClick={async (ev) => {
+                      ev.stopPropagation();
+                      const nu = prompt('보관소 이름', r.label);
+                      if (!nu || nu === r.label) return;
+                      try {
+                        const res = await invoke<{ ok: boolean; why?: string }>(
+                          'rename_vault', { key: r.key, label: nu });
+                        if (!res?.ok) { setErr(res?.why || '못 바꿨습니다'); return; }
+                        await load();
+                      } catch (e) { setErr(String(e)); }
+                    }}>✎</span>
             </button>
           ))}
           {!adding ? (
