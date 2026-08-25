@@ -73,21 +73,20 @@
 .right-tabs {
   flex: none; align-self: stretch; z-index: 5;
   display: flex; flex-direction: column; gap: 4px; padding: 8px 0 0;
-  /* 🔴 **띠도 탭도 투명** (사용자 최종 결정 2026-08-25~26: "탭 3개 배경이
-     투명이어야 하는데" · "탭 배경도 투명화하라고 지시했는데 불이행중").
-     내가 두 번 반대로 갔다 — 처음엔 띠만, 다음엔 탭만. 정답은 **뽑힌 탭
-     하나만 배경을 갖고 나머지는 전부 앱 바닥이 비치는 것**이다. */
-  background-color: transparent;
+  /* 🔴 최종 사양 (사용자 2026-08-26: "검정색 배경을 없애고 탭 색은 유지하라니까?")
+     ── 띠 = 패널과 같은 색 (검정 세로 기둥이 보이면 안 된다)
+     ── 탭 = 제 상자 색 유지 (--bg-secondary + 테두리)
+     내가 두 번 반대로 읽었다: 「배경」은 띠의 검정이었고 「탭 색」은 지키라는
+     것이었다. 이 블록을 다시 바꾸기 전에 이 주석부터 읽어라. */
+  background-color: var(--bg-base);
 }
 .right-tab {
   position: relative; width: 34px; height: 34px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 8px 0 0 8px; cursor: pointer;
   color: var(--text-muted, #8a8f99);
-  /* 🔴 탭 자체 투명 — 유실됐던 수정 재적용 (2026-08-26).
-     revert 에 휩쓸려 소스에서 사라졌었다. 뽑힌 탭(.active)만 배경. */
-  background: transparent;
-  border: 1px solid transparent; border-right: none;
+  background: var(--bg-secondary, #1d2026);
+  border: 1px solid var(--border-color, #2b2f36); border-right: none;
   transition: color .16s ease, background-color .16s ease, transform .16s ease;
 }
 .right-tab:hover { color: var(--text-primary, #e6e8ec); transform: translateX(-2px); }
