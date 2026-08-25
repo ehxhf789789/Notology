@@ -39,6 +39,8 @@ export function VaultPicker() {
     } catch { /* 목록이 막혀도 화면은 산다 */ }
   }, []);
 
+  // 🔴 단추 이름도 서버 라벨로 — 열기 전(목록 비었을 때)만 예비 표를 쓴다
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => { if (open) void load(); }, [open, load]);
 
   // 바깥을 누르면 닫는다
@@ -77,7 +79,8 @@ export function VaultPicker() {
     } catch (e) { setErr(String(e)); }
   };
 
-  const here = rootLabel(vaultPath) || '보관소';
+  const here = roots.find(r => r.path === vaultPath)?.label
+    || rootLabel(vaultPath) || '보관소';
   const vaults = roots.filter(r => r.is_vault);
 
   return (

@@ -120,8 +120,16 @@ function AppLayout() {
       .then(r => r.json()).then(j => setIntakeQuestions(j?.questions ?? 0))
       .catch(() => {});
     ask();
+    // 🔴 **20초 폴링만으로는 뒤늦다** (사용자 지적 2026-08-26: 패널은 0인데
+    //    배지는 2). 서버가 바꾸는 순간 `dobbin:live`(inbox-changed) 가 오므로
+    //    그때 바로 다시 센다 — 배지와 패널이 같은 순간을 본다.
+    const live = (e: Event) => {
+      const k = (e as CustomEvent).detail?.kind;
+      if (k === 'inbox-changed' || k === 'vault-changed') ask();
+    };
+    window.addEventListener('dobbin:live', live);
     const t = setInterval(ask, 20000);
-    return () => clearInterval(t);
+    return () => { clearInterval(t); window.removeEventListener('dobbin:live', live); };
   }, []);
   // 🔴 **인사말도 오른쪽 탭으로 옮겼다** (사용자 지시). 왼쪽 dobbin이
   //    없어졌으니 말할 자리도 여기다. **할 말이 있을 때만 말한다** —
@@ -137,7 +145,11 @@ function AppLayout() {
         .then(r => r.json())
         .then(j => {
           const line = (j?.say || '').split('\n')[0];
-          const greet = j?.overdue ? `지난 기한 ${j.overdue}건이 있습니다` : line;
+          // 🔴 서버는 「최종 논문 제출 마감」 기한이 229일 지났습니다…처럼
+          //    **무엇인지 말하며 되묻는데**, 여기서 그 말을 버리고 「N건이
+          //    있습니다」로 갈아치웠다 (사용자 2026-08-26: *"지난 기한이
+          //    있다는건 대체 뭐냐?"*). 설명이 있으면 설명이 먼저다.
+          const greet = line || (j?.overdue ? `지난 기한 ${j.overdue}건이 있습니다` : '');
           if (!greet) return;                  // 조용할 땐 조용히 있는다
           setHello(greet);
           setTimeout(() => setHelloGoing(true), 7000);

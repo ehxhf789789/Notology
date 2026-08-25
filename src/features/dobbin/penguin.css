@@ -73,18 +73,10 @@
 .right-tabs {
   flex: none; align-self: stretch; z-index: 5;
   display: flex; flex-direction: column; gap: 4px; padding: 8px 0 0;
-  /* 🔴 **탭 뒤가 검게 보이던 것** (사용자 지적, 2026-08-12). 배경을 안 주면
-     그 칸만 앱 바닥이 그대로 드러나 **검은 띠**가 된다 — 탭은 편집 영역의
-     가장자리에 붙은 것처럼 보여야지 따로 뜬 검은 칸이면 안 된다. */
-  /* 🔴 테두리는 두지 않는다 (사용자 지시, 2026-08-12: *"탭 외에 배경에
-     테두리를 없앨 수 있나. 그냥 탭만 있었으면 좋겠고, 배경색은 유지"*).
-     선을 그으면 **없는 칸이 하나 더 있는 것처럼** 보인다 — 탭만 떠 있어야
-     서류철에서 종이가 삐져나온 모양이 된다. */
-  /* 🔴 **투명이다** (사용자 지시, 2026-08-25: *"탭 3개 배경이 투명이어야
-     하는데, 회색이 존재하여 디자인을 망치고 있다"*). 2026-08-12 에 검은 띠를
-     막으려고 `--bg-base` 를 깔았는데, 그 뒤로 편집 영역 색이 바뀌면서 이제는
-     **띠가 회색으로 도드라진다.** 탭은 제 배경을 이미 갖고 있으므로 칸에는
-     색을 주지 않는다 — 서류철에서 종이가 삐져나온 모양 그대로다. */
+  /* 🔴 **띠도 탭도 투명** (사용자 최종 결정 2026-08-25~26: "탭 3개 배경이
+     투명이어야 하는데" · "탭 배경도 투명화하라고 지시했는데 불이행중").
+     내가 두 번 반대로 갔다 — 처음엔 띠만, 다음엔 탭만. 정답은 **뽑힌 탭
+     하나만 배경을 갖고 나머지는 전부 앱 바닥이 비치는 것**이다. */
   background-color: transparent;
 }
 .right-tab {
@@ -92,8 +84,10 @@
   display: flex; align-items: center; justify-content: center;
   border-radius: 8px 0 0 8px; cursor: pointer;
   color: var(--text-muted, #8a8f99);
-  background: var(--bg-secondary, #1d2026);
-  border: 1px solid var(--border-color, #2b2f36); border-right: none;
+  /* 🔴 탭 자체 투명 — 유실됐던 수정 재적용 (2026-08-26).
+     revert 에 휩쓸려 소스에서 사라졌었다. 뽑힌 탭(.active)만 배경. */
+  background: transparent;
+  border: 1px solid transparent; border-right: none;
   transition: color .16s ease, background-color .16s ease, transform .16s ease;
 }
 .right-tab:hover { color: var(--text-primary, #e6e8ec); transform: translateX(-2px); }

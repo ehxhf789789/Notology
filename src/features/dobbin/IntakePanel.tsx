@@ -106,7 +106,9 @@ export function IntakePanel() {
   return (
     <div className="intake">
       <div className="intake__sum">
-        <span><FolderInput size={13} /> 받은 것 {(counts.by_state?.filed ?? 0)
+        {/* 🔴 「받은 것」이 무슨 수인지 사람이 몰랐다 (2026-08-26 지적).
+            투입구로 들어와 dobbin 이 읽은 파일의 누적이다 — 말에 그렇게 적는다 */}
+        <span title="투입구로 들어와 읽은 파일의 누적입니다"><FolderInput size={13} /> 투입구로 받음 {(counts.by_state?.filed ?? 0)
           + (counts.by_state?.asking ?? 0) + (counts.by_state?.answered ?? 0)}건</span>
         <span className="ok"><Check size={13} /> 스스로 꽂음 {counts.filed ?? 0}</span>
         <span className="ask"><HelpCircle size={13} /> 여쭐 것 {qs.length}</span>
