@@ -80,7 +80,12 @@
      테두리를 없앨 수 있나. 그냥 탭만 있었으면 좋겠고, 배경색은 유지"*).
      선을 그으면 **없는 칸이 하나 더 있는 것처럼** 보인다 — 탭만 떠 있어야
      서류철에서 종이가 삐져나온 모양이 된다. */
-  background-color: var(--bg-base);
+  /* 🔴 **투명이다** (사용자 지시, 2026-08-25: *"탭 3개 배경이 투명이어야
+     하는데, 회색이 존재하여 디자인을 망치고 있다"*). 2026-08-12 에 검은 띠를
+     막으려고 `--bg-base` 를 깔았는데, 그 뒤로 편집 영역 색이 바뀌면서 이제는
+     **띠가 회색으로 도드라진다.** 탭은 제 배경을 이미 갖고 있으므로 칸에는
+     색을 주지 않는다 — 서류철에서 종이가 삐져나온 모양 그대로다. */
+  background-color: transparent;
 }
 .right-tab {
   position: relative; width: 34px; height: 34px;
@@ -130,3 +135,50 @@
 @keyframes hello-in  { from { opacity:0; transform:translate(8px,-50%) scale(.94); }
                        to   { opacity:1; transform:translate(0,-50%) scale(1); } }
 @keyframes hello-out { to   { opacity:0; transform:translate(6px,-50%) scale(.96); } }
+
+/* ── 보관소 고르개 (2026-08-25) ─────────────────────────────── */
+.vault-picker { position: relative; flex: 1; min-width: 0; }
+.vault-picker__menu {
+  position: absolute; bottom: calc(100% + 6px); left: 0; min-width: 210px;
+  padding: 6px; border-radius: 10px; z-index: 60;
+  background: var(--bg-secondary, #1d2026);
+  border: 1px solid var(--border-color, #2b2f36);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 38%);
+}
+.vault-picker__head {
+  font-size: 11px; color: var(--text-muted, #8a8f99); padding: 3px 8px 6px;
+}
+.vault-picker__item, .vault-picker__add {
+  width: 100%; display: flex; align-items: center; gap: 7px;
+  padding: 7px 8px; border: none; border-radius: 7px; cursor: pointer;
+  background: transparent; color: var(--text-primary, #e6e8ec);
+  font-size: 12.5px; text-align: left;
+}
+.vault-picker__item:hover, .vault-picker__add:hover {
+  background: color-mix(in srgb, var(--accent, #4a7dbd) 14%, transparent);
+}
+.vault-picker__gap { width: 13px; display: inline-block; }
+.vault-picker__name { flex: 1; min-width: 0; overflow: hidden;
+                      text-overflow: ellipsis; white-space: nowrap; }
+.vault-picker__ro { font-size: 10px; color: var(--text-muted, #8a8f99); }
+.vault-picker__add { color: var(--accent, #4a7dbd); margin-top: 2px;
+                     border-top: 1px solid var(--border-color, #2b2f36);
+                     border-radius: 0 0 7px 7px; }
+.vault-picker__form { display: flex; flex-direction: column; gap: 5px;
+                      padding: 7px 6px 4px; }
+.vault-picker__form input {
+  padding: 6px 8px; font-size: 12px; border-radius: 6px;
+  background: var(--bg-base, #14161a); color: var(--text-primary, #e6e8ec);
+  border: 1px solid var(--border-color, #2b2f36);
+}
+.vault-picker__row { display: flex; gap: 5px; }
+.vault-picker__ok {
+  flex: 1; padding: 6px; border-radius: 6px; cursor: pointer; font-size: 12px;
+  background: var(--accent, #4a7dbd); color: #fff; border: none;
+}
+.vault-picker__cancel {
+  padding: 6px 8px; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--text-muted, #8a8f99);
+  border: 1px solid var(--border-color, #2b2f36);
+}
+.vault-picker__err { font-size: 11px; color: #e0796f; padding: 0 2px; }

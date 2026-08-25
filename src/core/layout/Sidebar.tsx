@@ -1,6 +1,7 @@
 // 🔴 버튼이 아니라 **거기 있는 존재**로 바꿨다 (DobbinPresence.tsx)
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { displayName, rootLabel } from '../utils/rootPath';
+import { VaultPicker } from '../../features/vault-config/VaultPicker';
 import { createPortal } from 'react-dom';
 import { Search, Plus, UploadCloud, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Slot } from '../infrastructure/slotRegistry';
@@ -314,14 +315,13 @@ function Sidebar() {
         <div className="sidebar-footer">
           {!sidebarCollapsed && (
             <>
-              <button
-                className="sidebar-footer-btn vault-btn"
-                onClick={() => modalActions.setShowVaultSelectorModal(true)}
-                title={t('openVault', language)}
-              >
-                <FolderClosed size={14} strokeWidth={2} />
-                <span className="sidebar-footer-btn-text">{vaultName || t('openVault', language)}</span>
-              </button>
+              {/* 🔴 **데스크톱 창 흐름의 잔재를 걷어냈다** (2026-08-25).
+                  옛 단추는 `switch_vault_requested` 를 보내 Tauri 네이티브
+                  창을 띄우려 했고, 웹에는 그런 창이 없어 **눌러도 조용히
+                  아무 일이 없었다** (사용자: *"보관소 선택 및 생성 기능도
+                  여전히 없다"*). `VaultPicker` 가 서버 등록부를 그대로
+                  보여 주고 거기서 만든다. */}
+              <VaultPicker />
               <Slot name="sidebar-footer-status" />
             </>
           )}
