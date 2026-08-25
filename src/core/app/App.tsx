@@ -135,6 +135,7 @@ function AppLayout() {
   //    없어졌으니 말할 자리도 여기다. **할 말이 있을 때만 말한다** —
   //    빈 인사를 매번 하면 세 번째부터 닫는 단추만 찾게 된다 (2-14-2-2).
   const [hello, setHello] = useState<string | null>(null);
+  const [helloAsk, setHelloAsk] = useState(false);
   const [helloGoing, setHelloGoing] = useState(false);
   const helloOnce = useRef(false);
   useEffect(() => {
@@ -162,6 +163,7 @@ function AppLayout() {
           //    지시하라는 말이냐?"*). 물음표·「알려주십시오」가 든 알림은
           //    사람이 답하거나 닫을 때까지 남는다. 단순 인사만 8초 뒤 걷는다.
           const needsAnswer = /[?？]|알려주십시오|여쭙|맞습니까/.test(j?.say || greet);
+          setHelloAsk(needsAnswer);
           if (!needsAnswer) {
             setTimeout(() => setHelloGoing(true), 7000);
             setTimeout(() => { setHello(null); setHelloGoing(false); }, 8000);
@@ -601,6 +603,12 @@ function AppLayout() {
                         setHello(null); setHelloGoing(false);
                       }}>
                   {hello}
+                  {/* 🔴 뭘 하라는지 알림이 스스로 말한다 (2026-08-26:
+                      "뭘 하라는거지?") — 행동 한 줄이 없는 알림은 소음이다 */}
+                  {helloAsk && (
+                    <i className="right-tab__hello-act">누르면 dobbin 대화가
+                      열립니다 — 끝난 일이면 「끝났어」 한 마디면 됩니다</i>
+                  )}
                   <b className="right-tab__hello-x"
                      onClick={(e) => { e.stopPropagation(); setHello(null); setHelloGoing(false); }}
                   > ✕</b>

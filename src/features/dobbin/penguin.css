@@ -118,8 +118,9 @@
 
 /* 인사말 — 탭에서 왼쪽으로 나온다. 할 말이 있을 때만 (2-14-2-2) */
 .right-tab__hello {
-  position: absolute; right: calc(100% + 8px); top: 50%;
-  transform: translateY(-50%);
+  /* 🔴 top:50%+translateY(-50%) 는 긴 알림이 **위로 자라 화면 밖으로
+     잘렸다** (2026-08-26 스크린샷). 탭 머리에 맞춰 아래로만 자란다. */
+  position: absolute; right: calc(100% + 8px); top: 0;
   max-width: 260px; width: max-content;
   padding: 7px 11px; border-radius: 11px 11px 3px 11px;
   font-size: 12px; line-height: 1.5; text-align: left; white-space: normal;
@@ -185,3 +186,6 @@
 /* 알림의 닫기 — 본문 클릭(대화 열기)과 구분되는 유일한 닫는 길 */
 .right-tab__hello-x { margin-left: 6px; opacity: .55; cursor: pointer; font-weight: 600; }
 .right-tab__hello-x:hover { opacity: 1; }
+
+.right-tab__hello-act { display: block; margin-top: 5px; font-size: 11px;
+  font-style: normal; color: var(--text-muted, #8a8f99); }
