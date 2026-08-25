@@ -175,3 +175,7 @@
   border: 1px solid var(--border-color, #2b2f36);
 }
 .vault-picker__err { font-size: 11px; color: #e0796f; padding: 0 2px; }
+
+/* 알림의 닫기 — 본문 클릭(대화 열기)과 구분되는 유일한 닫는 길 */
+.right-tab__hello-x { margin-left: 6px; opacity: .55; cursor: pointer; font-weight: 600; }
+.right-tab__hello-x:hover { opacity: 1; }

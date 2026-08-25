@@ -152,8 +152,15 @@ function AppLayout() {
           const greet = line || (j?.overdue ? `지난 기한 ${j.overdue}건이 있습니다` : '');
           if (!greet) return;                  // 조용할 땐 조용히 있는다
           setHello(greet);
-          setTimeout(() => setHelloGoing(true), 7000);
-          setTimeout(() => { setHello(null); setHelloGoing(false); }, 8000);
+          // 🔴 **되묻는 말은 저절로 사라지지 않는다** (사용자 2026-08-26:
+          //    *"알림만 띡 날리고 사라지면 그것을 내가 어떻게 답변하고
+          //    지시하라는 말이냐?"*). 물음표·「알려주십시오」가 든 알림은
+          //    사람이 답하거나 닫을 때까지 남는다. 단순 인사만 8초 뒤 걷는다.
+          const needsAnswer = /[?？]|알려주십시오|여쭙|맞습니까/.test(greet);
+          if (!needsAnswer) {
+            setTimeout(() => setHelloGoing(true), 7000);
+            setTimeout(() => { setHello(null); setHelloGoing(false); }, 8000);
+          }
         })
         .catch(() => {});
     }, 1400);                                  // 화면이 자리를 잡은 뒤에 말한다
@@ -580,8 +587,18 @@ function AppLayout() {
               <PenguinFace mood={dobbinBusy ? 'thinking' : 'idle'} size={19} />
               {hello && (
                 <span className={`right-tab__hello${helloGoing ? ' is-leaving' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setHelloGoing(true); }}>
+                      onClick={(e) => {
+                        // 🔴 알림을 누르면 **답할 자리(dobbin 대화)가 열린다.**
+                        //    「최종 논문 제출 끝났어」 한 마디면 완료 흐름
+                        //    (2-10-1)이 받는다. ✕ 만 닫는다.
+                        e.stopPropagation();
+                        rightActions.pick('dobbin');
+                        setHello(null); setHelloGoing(false);
+                      }}>
                   {hello}
+                  <b className="right-tab__hello-x"
+                     onClick={(e) => { e.stopPropagation(); setHello(null); setHelloGoing(false); }}
+                  > ✕</b>
                 </span>
               )}
             </button>
