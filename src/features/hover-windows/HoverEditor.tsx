@@ -837,10 +837,26 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   //   3. undefined otherwise (built-in CSS rules take over)
   // Without this fallback, picking a preset would color the note list but
   // leave the editor stuck on the default note-type (purple) styling.
+  // 🔴 **앞머리에 `type:` 이 없는 노트가 있다** (2026-08-25 실측: 행정 노트
+  //    15/15 가 `cssclasses: adm-type` 만 갖고 `type:` 이 없다). 여기서
+  //    바로 나가면 그 타입은 **영영 회색**이다 — 사용자가 두 번 지적한
+  //    *"행정 타입은 hover 창에 색이 반영이 안되고 있다"* 가 이 한 줄이다.
+  //
+  //    → 세 곳을 차례로 본다. 하나라도 있으면 색을 준다:
+  //        ① `type:`            앞머리가 밝힌 것
+  //        ② `cssclasses`       `adm-type` → `adm`  (사람이 실제로 쓰는 것)
+  //        ③ 파일 이름 접두      `ADM-231215-…` → `adm`  (3-1 의 명명 규칙)
   const templateCustomColor = useMemo(() => {
-    if (!frontmatter?.type) return undefined;
-    return getTemplateCustomColor(frontmatter.type.toLowerCase(), noteTemplates);
-  }, [frontmatter?.type, noteTemplates]);
+    const css = (frontmatter?.cssclasses as string[] | undefined)
+      ?.find(c => typeof c === 'string' && c.endsWith('-type'));
+    const fromName = (win.filePath?.split(/[/\\]/).pop() || '')
+      .match(/^([A-Z]{2,8})-\d{6}-/)?.[1];
+    const kind = frontmatter?.type
+      || (css ? css.replace(/-type$/, '') : undefined)
+      || fromName;
+    if (!kind) return undefined;
+    return getTemplateCustomColor(String(kind).toLowerCase(), noteTemplates);
+  }, [frontmatter?.type, frontmatter?.cssclasses, win.filePath, noteTemplates]);
 
   const syncStatus: SyncStatus = conflictState ? 'conflict'
     : remoteLock ? 'editing-elsewhere'
