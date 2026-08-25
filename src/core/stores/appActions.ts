@@ -258,6 +258,22 @@ export function selectContainer(path: string | null) {
   uiActions.setShowCalendar(false);
 }
 
+// 🔴 폴더노트는 hover 창으로 열지 않는다 (사용자 지시, 2026-08-25:
+//    "폴더 노트는 hover 창으로 열리면 안된다"). 파일명 == 부모 폴더명이면
+//    그 노트 자체가 폴더다 — Search.tsx 가 2026-08-11 에 받은 규칙
+//    (CONTAINER → selectContainer) 을 위키링크 클릭에도 편다.
+//    참이면 이동까지 끝냈다는 뜻이므로 호출부는 열기를 멈춘다.
+export function navigateIfFolderNote(path: string): boolean {
+  const norm = path.replace(/\\/g, '/');
+  if (!/\.md$/i.test(norm)) return false;
+  const parts = norm.split('/');
+  if (parts.length < 2) return false;
+  const stem = parts[parts.length - 1].replace(/\.md$/i, '');
+  if (stem !== parts[parts.length - 2]) return false;
+  selectContainer(parts.slice(0, -1).join('/'));
+  return true;
+}
+
 // ============================================================================
 // File operations
 // ============================================================================

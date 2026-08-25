@@ -194,6 +194,12 @@
   -webkit-mask-position: center;
   mask-position: center;
   background-color: currentColor;
+  /* 2026-08-26 (dobbin) — 🔴 예비 글리프. 마스크가 없는 타입은 이 사각형이
+     그대로 노출됐다 (adm·task·folder 가 표에 빠져 흰 네모로 보인 원인).
+     표에 없어도 최소한 파일 아이콘이 나오도록 기본 마스크를 깐다 —
+     아래 타입별 규칙이 있으면 그것이 덮는다. */
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'%3E%3C/path%3E%3Cpolyline points='14 2 14 8 20 8'%3E%3C/polyline%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'%3E%3C/path%3E%3Cpolyline points='14 2 14 8 20 8'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
 .wiki-link-inline.note-type-note::before {
@@ -893,3 +899,39 @@ html[data-theme="light"] .wiki-link-inline.wiki-link-stuck {
 html[data-theme="light"] .wiki-link-inline.wiki-link-orphan {
   color: color-mix(in srgb, var(--c-gray, #9ca3af) 80%, black) !important;
 }
+
+/* 2026-08-26 (dobbin) — 표에 빠져 있던 세 타입. 손으로 적은 아이콘 표의
+   세 번째 재발이라 기본 마스크(위)와 함께 넣는다. */
+.wiki-link-inline.note-type-adm {
+  color: var(--adm-color, #d97706);
+  background-color: var(--adm-bg, rgba(217,119,6,.12));
+  border-color: var(--adm-border, rgba(217,119,6,.35));
+}
+
+.wiki-link-inline.note-type-adm::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='8' y='2' width='8' height='4' rx='1' ry='1'%3E%3C/rect%3E%3Cpath d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'%3E%3C/path%3E%3Cpath d='M12 11h4'%3E%3C/path%3E%3Cpath d='M12 16h4'%3E%3C/path%3E%3Cpath d='M8 11h.01'%3E%3C/path%3E%3Cpath d='M8 16h.01'%3E%3C/path%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='8' y='2' width='8' height='4' rx='1' ry='1'%3E%3C/rect%3E%3Cpath d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'%3E%3C/path%3E%3Cpath d='M12 11h4'%3E%3C/path%3E%3Cpath d='M12 16h4'%3E%3C/path%3E%3Cpath d='M8 11h.01'%3E%3C/path%3E%3Cpath d='M8 16h.01'%3E%3C/path%3E%3C/svg%3E");
+}
+
+.wiki-link-inline.note-type-task {
+  color: var(--task-color, #16a34a);
+  background-color: var(--task-bg, rgba(22,163,74,.12));
+  border-color: var(--task-border, rgba(22,163,74,.35));
+}
+
+.wiki-link-inline.note-type-task::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 11 12 14 22 4'%3E%3C/polyline%3E%3Cpath d='M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'%3E%3C/path%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='9 11 12 14 22 4'%3E%3C/polyline%3E%3Cpath d='M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'%3E%3C/path%3E%3C/svg%3E");
+}
+
+.wiki-link-inline.note-type-folder {
+  color: var(--folder-color, #ca8a04);
+  background-color: var(--folder-bg, rgba(202,138,4,.12));
+  border-color: var(--folder-border, rgba(202,138,4,.35));
+}
+
+.wiki-link-inline.note-type-folder::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E");
+}
+

@@ -1,4 +1,5 @@
 import { useAttachmentStore } from '../../attachments/stores/attachmentStore';
+import { navigateIfFolderNote } from '../../../core/stores/appActions';
 import { useRef, useCallback, useMemo } from 'react';
 import { useFileTreeStore, useVaultPath, fileTreeActions } from '../../../core/stores/fileTreeStore';
 import { useHoverStore, hoverActions } from '../stores/hoverStore';
@@ -174,6 +175,8 @@ export function useFileResolution(
     const path = resolveFilePathImpl(fileName);
 
     if (path) {
+      // 🔴 폴더노트 링크는 컨테이너로 이동한다 — hover 금지 (appActions 참조)
+      if (navigateIfFolderNote(path)) return;
       const isPreviewable = /\.(md|pdf|png|jpg|jpeg|gif|webp|svg|bmp|ico|json|py|js|ts|jsx|tsx|css|html|xml|yaml|yml|toml|rs|go|java|c|cpp|h|hpp|cs|rb|php|sh|bash|sql|lua|r|swift|kt|scala|csv|doc|docx|ppt|pptx|xls|xlsx|hwp|hwpx)$/i.test(path);
       if (isPreviewable) {
         openHoverFile(path);
