@@ -1252,7 +1252,15 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
               <button
                 type="button"
                 className="graph-node-info__open-btn"
-                onClick={() => hoverActions.open(node.path)}
+                onClick={() => {
+                  // 🔴 노트를 열면 그래프의 노드 팝업은 스스로 닫힌다
+                  //    (2026-08-26 사용자: "그래프 뷰의 팝업은 자동으로
+                  //    닫히는 등 안정화나 최적화가 왜이렇게 안되어 있나").
+                  //    더블클릭 길은 이미 닫고 있었다 — 단추 길만 안 닫았다.
+                  hoverActions.open(node.path);
+                  setSelectedNoteId(null);
+                  setSelectedAttachmentId(null);
+                }}
               >
                 {t('openInHoverWindow', language)}
               </button>

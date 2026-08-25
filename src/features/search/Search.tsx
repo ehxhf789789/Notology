@@ -344,7 +344,7 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
   contentsWholeWordRef.current = contentsWholeWord;
   const recordRecentSearchRef = useRef(recordRecentSearch);
   recordRecentSearchRef.current = recordRecentSearch;
-  const searchContents = useCallback(async () => {
+  const searchContents = useCallback(async (fast = false) => {
     const query = contentsQueryRef.current.trim();
     if (!searchReadyRef.current || searchIndexingRef.current || !query) {
       setContentResults([]);
@@ -360,7 +360,11 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
       // 🔴 **어떻게 찾는가**가 그 사람의 스타일이다. 질의만 보낸다 — 본문은
       //    이미 서버에 있고, 로그가 자료의 사본이 되면 그 자체가 관리 대상이 된다.
       observe('search', effectiveQuery);
-      const results = await searchCommands.fullTextSearch(effectiveQuery, 50);
+      // 🔴 2단 검색 (2026-08-26 사용자: "왜 이렇게 버벅거리냐"). 글쇠마다
+      //    임베딩(모델 호출, GPU 를 딴 모델이 쥐면 수 초)을 태우던 것이
+      //    버벅임의 정체다. 타이핑 중에는 어휘만(fast) 받고, 손을 멈추면
+      //    아래 두 번째 예약이 의미 검색까지 얹어 결과를 갈아 끼운다.
+      const results = await searchCommands.fullTextSearch(effectiveQuery, 50, fast);
       if (query === contentsQueryRef.current.trim()) {
         setContentResults(results);
       }
@@ -393,8 +397,9 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
         setContentResults([]);
         return;
       }
-      const timeout = setTimeout(searchContents, 100);
-      return () => clearTimeout(timeout);
+      const quick = setTimeout(() => searchContents(true), 100);
+      const full = setTimeout(() => searchContents(false), 700);
+      return () => { clearTimeout(quick); clearTimeout(full); };
     }
   // contentsWholeWord deliberately included so toggling re-runs the search.
   // eslint-disable-next-line react-hooks/exhaustive-deps

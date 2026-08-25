@@ -165,8 +165,8 @@ export const searchCommands = {
   resetSearchState: () =>
     invoke<void>('reset_search_state'),
 
-  fullTextSearch: (query: string, limit?: number) =>
-    invoke<SearchResult[]>('full_text_search', { query, limit }),
+  fullTextSearch: (query: string, limit?: number, fast?: boolean) =>
+    invoke<SearchResult[]>('full_text_search', { query, limit, fast }),
 
   queryNotes: (filter: NoteFilter) =>
     invoke<NoteMetadata[]>('query_notes', { filter }),
