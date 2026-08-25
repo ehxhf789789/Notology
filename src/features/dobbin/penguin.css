@@ -71,15 +71,21 @@
    단추를 덮어 눌리지 않았다 (실측). 서류철 탭은 서류 **옆**에 붙어 있지
    서류 위에 있지 않다 — 레이아웃의 한 칸으로 세운다. */
 .right-tabs {
-  flex: none; align-self: stretch; z-index: 5;
+  /* 🔴 최종 사양 v2 (사용자 2026-08-26: "투명으로 원래 창을 확장하라고.
+     오른쪽 영역이 잘려보이잖아.")
+     ── 띠는 **레이아웃 폭을 먹지 않는다** (width:0) → 본 창이 끝까지 확장
+     ── 탭 상자들만 창 위에 떠서 겹친다 (translateX(-100%))
+     ── 띠는 클릭을 안 먹는다(pointer-events:none) — 예전에 absolute 로
+        띄웠다가 패널 머리 단추가 안 눌리던 사고의 답이 이것이다.
+        탭 자신만 auto 로 되살린다.
+     ── 탭 상자 색·테두리는 유지 (같은 날 앞선 지시) */
+  flex: none; align-self: stretch; z-index: 30;
   display: flex; flex-direction: column; gap: 4px; padding: 8px 0 0;
-  /* 🔴 최종 사양 (사용자 2026-08-26: "검정색 배경을 없애고 탭 색은 유지하라니까?")
-     ── 띠 = 패널과 같은 색 (검정 세로 기둥이 보이면 안 된다)
-     ── 탭 = 제 상자 색 유지 (--bg-secondary + 테두리)
-     내가 두 번 반대로 읽었다: 「배경」은 띠의 검정이었고 「탭 색」은 지키라는
-     것이었다. 이 블록을 다시 바꾸기 전에 이 주석부터 읽어라. */
-  background-color: var(--bg-base);
+  width: 0; overflow: visible; pointer-events: none;
+  background-color: transparent;
 }
+.right-tabs .right-tab { pointer-events: auto; transform: translateX(-100%); }
+.right-tabs .right-tab:hover { transform: translateX(-100%) translateX(-2px); }
 .right-tab {
   position: relative; width: 34px; height: 34px;
   display: flex; align-items: center; justify-content: center;
