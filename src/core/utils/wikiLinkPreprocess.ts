@@ -1,3 +1,5 @@
+import { preprocessCardLinks } from './cardlinkPreprocess';
+
 /**
  * WikiLink Pre-processor
  *
@@ -85,7 +87,11 @@ function escapeHtml(str: string): string {
 export function preprocessWikiLinks(markdown: string): string {
   if (!markdown) return markdown;
 
-  let result = markdown;
+  // 🔴 **옵시디언의 ```cardlink``` 를 먼저 링크 박스로 바꾼다** (2026-08-25).
+  //    교보재 노트 82개가 그 꼴을 쓰는데 그동안 전부 코드 덩어리로 보였다.
+  //    위키링크보다 **먼저** 해야 한다 — 울타리 안의 주소가 마크다운에
+  //    씹히기 전에 HTML 로 빠져나가야 하기 때문이다.
+  let result = preprocessCardLinks(markdown);
 
   // Step 1: Fix escaped brackets and characters (from previous broken saves)
   // Handle various escape patterns that markdown might produce:
