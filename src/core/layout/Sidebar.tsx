@@ -1,5 +1,6 @@
 // 🔴 버튼이 아니라 **거기 있는 존재**로 바꿨다 (DobbinPresence.tsx)
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { displayName, rootLabel } from '../utils/rootPath';
 import { createPortal } from 'react-dom';
 import { Search, Plus, UploadCloud, Settings as SettingsIcon, FolderClosed, ChevronDown, FolderPlus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Slot } from '../infrastructure/slotRegistry';
@@ -34,7 +35,9 @@ function Sidebar() {
   const language = useSettingsStore(s => s.language);
 
   // Get vault name from path
-  const vaultName = vaultPath ? vaultPath.split(/[/\\]/).filter(Boolean).pop() : '';
+  // 🔴 뿌리표(`vault:`)가 그대로 바닥 칸에 나오던 자리 (rootPath.ts 머리말).
+  //    `vault:` 에는 `/` 가 없어 `pop()` 이 통째로 돌려줬다.
+  const vaultName = vaultPath ? (displayName(vaultPath) || rootLabel(vaultPath)) : '';
   const [showSettings, setShowSettings] = useState(false);
 
   // Listen for 'open-settings' custom event (from sync_v2 popover, Ctrl+, etc.)

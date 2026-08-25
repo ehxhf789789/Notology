@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { fileCommands, searchCommands, utilCommands } from '../../core/services/tauriCommands';
 import { ChevronLeft } from 'lucide-react';
+import { displayName } from '../../core/utils/rootPath';
 import {
   useSelectedContainer,
   useFileTree,
@@ -707,7 +708,8 @@ function ContainerView() {
 
   if (!selectedContainer) return null;
 
-  const containerName = selectedContainer.split(/[/\\]/).pop() || '';
+  // 🔴 뿌리표(`vault:`)를 사람에게 보이지 않는다 — rootPath.ts 머리말
+  const containerName = displayName(selectedContainer);
 
   return (
     <div className="container-view">
