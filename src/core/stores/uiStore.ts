@@ -207,6 +207,10 @@ export const useSidebarCollapsed = () => useUIStore((s) => s.sidebarCollapsed);
 // Actions (stable references)
 export const uiActions = {
   setShowSearch: (show: boolean) => useUIStore.getState().setShowSearch(show),
+  // 🔴 **손으로 적은 표는 빠뜨린다** (2026-08-27 — 스토어에만 넣고 이 줄을
+  //    안 넣어 펭귄 탭 클릭이 undefined 호출로 죽었다. 이 저장소가 여러 번
+  //    겪은 «손으로 적은 표» 병의 재발).
+  setShowDobbinHome: (show: boolean) => useUIStore.getState().setShowDobbinHome(show),
   setShowCalendar: (show: boolean) => useUIStore.getState().setShowCalendar(show),
   setShowSidebar: (show: boolean) => useUIStore.getState().setShowSidebar(show),
   setShowHoverPanel: (show: boolean) => useUIStore.getState().setShowHoverPanel(show),
