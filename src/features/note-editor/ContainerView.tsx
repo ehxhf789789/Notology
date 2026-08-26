@@ -460,8 +460,17 @@ function ContainerView() {
     if (!folderNotePath || !frontmatter) return;
     const bodyToSave = currentBody !== undefined ? currentBody : body;
 
+    // 🔴 폴더노트의 title 은 **법으로 폴더명**이다 (3-4-1). 컨테이너를
+    //    빠르게 전환하면 지연 저장이 낡은 frontmatter(직전 폴더의 title)를
+    //    들고 새 경로에 써서, 08_Contacts.md 에 title: 09_Settings 가 박히는
+    //    사고가 실제로 났다 (2026-08-26 02:45 — A47 보호가 옛 판을 곁에
+    //    남겨 줘서 복구했다). 경로에서 다시 계산하면 경합이 있어도 정체는
+    //    안 바뀐다.
+    const stem = folderNotePath.replace(/\\/g, '/').split('/').pop()!
+      .replace(/\.md$/i, '');
     const updatedFm: NoteFrontmatter = {
       ...frontmatter,
+      title: stem,
       modified: getCurrentTimestamp(),
     };
     const fmString = serializeFrontmatter(updatedFm);
@@ -488,6 +497,12 @@ function ContainerView() {
 
     if (!fnPath || selectedContainer === prevContainerRef.current) return;
     prevContainerRef.current = selectedContainer;
+    // 🔴 직전 컨테이너의 지연 저장이 새 경로로 새지 않게 여기서 무른다
+    //    (위 saveFile 주석의 그 경합 — 타이머가 전환을 넘어 살아남았다).
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
 
     isLoadingRef.current = true;
     fileCommands.readFile(fnPath)
