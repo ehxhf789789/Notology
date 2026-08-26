@@ -46,7 +46,8 @@ const THUMBABLE = /\.(pdf|png|jpe?g|gif|webp|svg)$/i;
 export function IntakePanel() {
   const [qs, setQs] = useState<Q[]>([]);
   const [recent, setRecent] = useState<{ name: string; state: string;
-    at?: string | null; folder?: string | null; open?: string | null }[]>([]);
+    at?: string | null; folder?: string | null; open?: string | null;
+    note?: string | null; fs?: string | null }[]>([]);
   const [counts, setCounts] = useState<Counts>({});
   const [busy, setBusy] = useState(false);
   const [folders, setFolders] = useState<string[]>([]);
@@ -141,12 +142,24 @@ export function IntakePanel() {
                   e.dataTransfer.setData('text/uri-list', url);
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
-                onClick={() => r.open && openFile(r.open, r.name)}
+                onClick={() => {
+                  // 🔴 첨부의 대표 노트가 있으면 **노트가 열린다** (2026-08-26
+                  //    사용자: 링크를 클릭하면 첨부파일의 대표 노트가 열려야).
+                  //    노트가 아직 없으면(심의 중) 파일을 내려받는다.
+                  if (r.note) void hoverActions.open(r.note);
+                  else if (r.open) openFile(r.open, r.name);
+                }}
               >{r.name}</span>
+              {r.fs && (
+                <button className="intake__recent-loc" title="서버 경로 복사 — Claude Code 대화에 붙여넣으면 그 파일을 읽습니다"
+                        onClick={() => { void navigator.clipboard.writeText(r.fs!); }}>
+                  경로
+                </button>
+              )}
               {r.folder && (
                 <button className="intake__recent-loc"
                         title="이 칸으로 이동"
-                        onClick={() => selectContainer(r.folder!)}>
+                        onClick={() => selectContainer('library:' + r.folder!)}>
                   {r.state === 'asking' ? '심의 중 · ' : ''}{r.folder}
                 </button>
               )}
