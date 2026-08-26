@@ -83,19 +83,72 @@
                        max-height: 88px; overflow: hidden; }
 .intake-q__preview img { cursor: zoom-in; }
 
-/* 2026-08-26 — 투입구 파일: 누르면 내려받기, 끌면 파일로 나간다 */
-.intake-q__file {
-  cursor: grab; text-decoration: underline dotted; margin-right: 8px;
-}
-.intake-q__file:active { cursor: grabbing; }
 
-/* 최근 받음 (2026-08-26) */
-.intake__recent { padding: 8px 12px; border-top: 1px solid var(--border-color, #333);
-  display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
-.intake__recent > b { color: var(--text-muted, #999); font-weight: 600; }
-.intake__recent-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.intake__recent-row .intake-q__file { flex: 1; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap; }
-.intake__recent-loc { border: none; background: none; cursor: pointer;
-  color: var(--accent-color, #4a9eff); font-size: 11px; white-space: nowrap; }
+
+/* ── 2026-08-27 재설계: 행동이 먼저 보이게 ────────────────────────────
+   사용자: "자료 넣기 탭 UI/UX 가 상당히 불편하다".
+   전 판은 발췌 260자 + 근거 목록이 카드 위쪽을 다 먹어 정작 누를 단추가
+   화면 밖에 있었다. 판단 한 줄 → 단추 → (접힌) 근거 차례로 바꾼다. */
+
+.intake-q__guess { margin: 6px 0 8px; line-height: 1.5; }
+.intake-q__guess b { color: var(--text-primary, #e6e8ec); font-weight: 600; }
+.intake-q__guess em { color: #e0796f; font-style: normal; }
+.intake-q__meta { color: var(--text-muted, #8a8f99); }
+.intake-q__conf { float: right; font-size: 11px; color: var(--text-muted, #8a8f99); }
+
+.intake-q__opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.intake-q__opts button {
+  flex: 1 1 auto; min-height: 32px; padding: 6px 10px; border-radius: 7px;
+  border: 1px solid var(--border-color, #2b2f36); cursor: pointer;
+  background: var(--bg-tertiary, #24262d); color: inherit; font-size: 12px;
+}
+.intake-q__opts button.primary {
+  flex-basis: 100%; font-weight: 600; border-color: transparent;
+  background: var(--accent, #4a7dbd); color: #fff;
+}
+.intake-q__opts button:hover { filter: brightness(1.12); }
+
+/* 접힌 근거 — 필요할 때만 편다 */
+.intake-q__more { margin-top: 8px; }
+.intake-q__more > summary {
+  cursor: pointer; font-size: 11.5px; color: var(--text-muted, #8a8f99);
+  list-style: none; padding: 2px 0;
+}
+.intake-q__more > summary::-webkit-details-marker { display: none; }
+.intake-q__more > summary::before { content: '▸ '; }
+.intake-q__more[open] > summary::before { content: '▾ '; }
+.intake-q__excerpt { margin: 6px 0; line-height: 1.6; font-size: 11.5px;
+                     color: var(--text-muted, #8a8f99); }
+
+/* 최근 받음 — 이름이 잘리지 않게 두 줄로 */
+.intake__recent { display: flex; flex-direction: column; gap: 2px;
+                  padding-top: 8px; border-top: 1px solid var(--border-color, #2b2f36); }
+.intake__recent > b { color: var(--text-muted, #8a8f99); font-weight: 600;
+                      font-size: 11.5px; margin-bottom: 2px; }
+.intake__r { display: flex; flex-direction: column; gap: 1px; padding: 3px 0; }
+.intake__r-name {
+  cursor: grab; font-size: 12px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; text-decoration: underline dotted;
+  text-underline-offset: 3px; text-decoration-color: var(--border-color, #3a3f48);
+}
+.intake__r-name:active { cursor: grabbing; }
+.intake__r-name:hover { text-decoration-color: var(--accent, #4a7dbd); }
+.intake__r-loc {
+  align-self: flex-start; max-width: 100%; border: none; background: none;
+  padding: 0; cursor: pointer; font-size: 10.5px; text-align: left;
+  color: var(--text-muted, #8a8f99); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.intake__r-loc:hover { color: var(--accent, #4a7dbd); }
+.intake__r-dot { display: inline-block; width: 5px; height: 5px; margin-right: 4px;
+                 border-radius: 50%; background: #e0a458; vertical-align: middle; }
+
+.intake-q__picker { display: flex; flex-wrap: wrap; gap: 4px; max-height: 240px;
+                    overflow-y: auto; }
+.intake-q__picker button {
+  padding: 4px 8px; border-radius: 6px; font-size: 11px; cursor: pointer;
+  border: 1px solid var(--border-color, #2b2f36);
+  background: var(--bg-tertiary, #24262d); color: inherit;
+}
 .intake-q__newproj { border-style: dashed !important; }
+.intake-q__cancel { opacity: .75; }

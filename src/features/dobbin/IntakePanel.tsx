@@ -27,9 +27,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Check, FolderInput, HelpCircle } from 'lucide-react';
-import { openFile, downloadUrl, copyText } from '../../web/files';
+import { openFile, downloadUrl } from '../../web/files';
 import { selectContainer } from '../../core/stores/appActions';
 import './intake.css';
+
+type Recent = { name: string; state: string; at?: string | null;
+  folder?: string | null; open?: string | null; note?: string | null; };
 
 type Q = {
   id: number; group: string; count: number; names: string[]; paths: string[];
@@ -45,9 +48,7 @@ const THUMBABLE = /\.(pdf|png|jpe?g|gif|webp|svg)$/i;
 
 export function IntakePanel() {
   const [qs, setQs] = useState<Q[]>([]);
-  const [recent, setRecent] = useState<{ name: string; state: string;
-    at?: string | null; folder?: string | null; open?: string | null;
-    note?: string | null; fs?: string | null }[]>([]);
+  const [recent, setRecent] = useState<Recent[]>([]);
   const [counts, setCounts] = useState<Counts>({});
   const [busy, setBusy] = useState(false);
   const [folders, setFolders] = useState<string[]>([]);
@@ -109,115 +110,70 @@ export function IntakePanel() {
     setPicking(id);
   }, [folders.length]);
 
+  /** 최근 받은 한 줄 — 이름은 크게(끌 수 있게), 자리는 작게. */
+  const recentRow = (r: Recent) => (
+    <div key={r.name + (r.at ?? '')} className="intake__r">
+      <span
+        className="intake__r-name"
+        title="누르면 그 노트가 열립니다 · 끌면 파일로 나갑니다"
+        draggable
+        onDragStart={(e) => {
+          if (!r.open) return;
+          const url = new URL(downloadUrl(r.open), location.origin).href;
+          e.dataTransfer.setData('DownloadURL',
+            `application/octet-stream:${r.name}:${url}`);
+          e.dataTransfer.setData('text/uri-list', url);
+          e.dataTransfer.effectAllowed = 'copy';
+        }}
+        onClick={() => {
+          if (r.note) void hoverActions.open(r.note);
+          else if (r.open) openFile(r.open, r.name);
+        }}
+      >{r.name}</span>
+      {r.folder && (
+        <button className="intake__r-loc" title="이 칸으로 이동"
+                onClick={() => selectContainer('library:' + r.folder!)}>
+          {r.state === 'asking' && <span className="intake__r-dot" />}
+          {r.folder}
+        </button>
+      )}
+    </div>
+  );
+
+  const got = (counts.by_state?.filed ?? 0) + (counts.by_state?.asking ?? 0)
+            + (counts.by_state?.answered ?? 0);
+
   return (
     <div className="intake">
       <div className="intake__sum">
-        {/* 🔴 「받은 것」이 무슨 수인지 사람이 몰랐다 (2026-08-26 지적).
-            투입구로 들어와 dobbin 이 읽은 파일의 누적이다 — 말에 그렇게 적는다 */}
-        <span title="투입구로 들어와 읽은 파일의 누적입니다"><FolderInput size={13} /> 투입구로 받음 {(counts.by_state?.filed ?? 0)
-          + (counts.by_state?.asking ?? 0) + (counts.by_state?.answered ?? 0)}건</span>
-        <span className="ok"><Check size={13} /> 스스로 꽂음 {counts.filed ?? 0}</span>
-        <span className="ask"><HelpCircle size={13} /> 여쭐 것 {qs.length}</span>
+        <span title="투입구로 들어와 dobbin 이 읽은 파일의 누적입니다">
+          <FolderInput size={13} /> 받음 {got}
+        </span>
+        <span className="ok"><Check size={13} /> 꽂음 {counts.filed ?? 0}</span>
+        {qs.length > 0 && (
+          <span className="ask"><HelpCircle size={13} /> 확인 {qs.length}</span>
+        )}
         {busy && <span className="busy"><Loader2 size={13} className="spin" /> 읽는 중</span>}
       </div>
 
       {said && <div className="intake__said">{said}</div>}
 
-      {/* 🔴 최근 받은 것과 지금 자리 (2026-08-26 사용자: "최근 넣은 파일을
-          어디서 확인? 안 보이는데"). 이름=열기 · 자리=그 칸으로 이동. */}
-      {recent.length > 0 && (
-        <div className="intake__recent">
-          <b>최근 받음</b>
-          {recent.map((r) => (
-            <div key={r.name + (r.at ?? '')} className="intake__recent-row">
-              <span
-                className="intake-q__file"
-                title="누르면 내려받기 · 끌면 파일로 나갑니다"
-                draggable
-                onDragStart={(e) => {
-                  if (!r.open) return;
-                  const url = new URL(downloadUrl(r.open), location.origin).href;
-                  e.dataTransfer.setData('DownloadURL',
-                    `application/octet-stream:${r.name}:${url}`);
-                  e.dataTransfer.setData('text/uri-list', url);
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
-                onClick={() => {
-                  // 🔴 첨부의 대표 노트가 있으면 **노트가 열린다** (2026-08-26
-                  //    사용자: 링크를 클릭하면 첨부파일의 대표 노트가 열려야).
-                  //    노트가 아직 없으면(심의 중) 파일을 내려받는다.
-                  if (r.note) void hoverActions.open(r.note);
-                  else if (r.open) openFile(r.open, r.name);
-                }}
-              >{r.name}</span>
-              {r.fs && (
-                <button className="intake__recent-loc" title="서버 경로 복사 — Claude Code 대화에 붙여넣으면 그 파일을 읽습니다"
-                        onClick={(e) => {
-                          const b = e.currentTarget;
-                          void copyText(r.fs!).then((ok) => {
-                            b.textContent = ok ? '복사됨' : '실패';
-                            setTimeout(() => { b.textContent = '경로'; }, 1200);
-                          });
-                        }}>
-                  경로
-                </button>
-              )}
-              {r.fs && r.fs.startsWith('/mnt/nas/') && (
-                // 🔴 **경로를 짐작하지 않는다** (2026-08-27 사용자 지적).
-                //    첫 판은 \\main-nas\AIHub 를 박아 넣었는데 틀렸다:
-                //    ① 기기마다 매핑이 다르다 (Z:\ · smb:// · 없음)
-                //    ② 호스트명 `main-nas` 는 ISP DNS 가로채기(4-3)에 걸려
-                //       **다른 곳을 가리킬 수 있다** — 같은 이름의 남의 파일을
-                //       첨부하는 것이 최악이다.
-                //    → 이 브라우저(=이 컴퓨터)가 한 번 선언한 주소만 쓴다.
-                <button className="intake__recent-loc"
-                        title="이 PC의 NAS 주소로 경로 복사 — 파일 선택창에 붙여넣으면 바로 첨부됩니다"
-                        onClick={(e) => {
-                          const b = e.currentTarget;
-                          let base = localStorage.getItem('dobbin.uncBase') || '';
-                          if (!base) {
-                            const got = window.prompt(
-                              '이 컴퓨터에서 NAS(AIHub 공유)가 보이는 주소를 한 번만 알려주세요.\n'
-                              + '예) \\\\main-nas\\AIHub   ·   Z:\\   ·   smb://main-nas/AIHub\n'
-                              + '(컴퓨터마다 다를 수 있어 이 브라우저에만 저장합니다)');
-                            if (!got || !got.trim()) return;
-                            base = got.trim().replace(/[\\/]+$/, '');
-                            localStorage.setItem('dobbin.uncBase', base);
-                          }
-                          const rest = r.fs!.slice('/mnt/nas'.length);
-                          const win = /\\|^[A-Za-z]:/.test(base);
-                          const path = base + (win ? rest.replace(/\//g, '\\') : rest);
-                          void copyText(path).then((ok) => {
-                            b.textContent = ok ? '복사됨' : '실패';
-                            setTimeout(() => { b.textContent = 'PC'; }, 1200);
-                          });
-                        }}>
-                  PC
-                </button>
-              )}
-              {r.folder && (
-                <button className="intake__recent-loc"
-                        title="이 칸으로 이동"
-                        onClick={() => selectContainer('library:' + r.folder!)}>
-                  {r.state === 'asking' ? '심의 중 · ' : ''}{r.folder}
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {!busy && qs.length === 0 && (
+      {!busy && qs.length === 0 && recent.length === 0 && (
         <div className="intake__empty">
-          여쭐 것이 없습니다.<br />
-          <span>창 아무 데나 파일을 놓으시면 읽고 정리하겠습니다.</span>
+          창 아무 데나 파일을 놓으시면<br /><span>읽고 정리하겠습니다.</span>
         </div>
       )}
 
+      {/* 🔴 **행동이 먼저 보인다** (2026-08-27 사용자: 자료 넣기 UI/UX 가
+          불편하다). 전 판은 발췌 260자와 근거 목록이 카드 위쪽을 다 먹어
+          정작 누를 단추가 화면 밖에 있었다. 이제 «어디 두었나 → 단추» 가
+          위에 오고, 근거·미리보기·파일은 필요할 때 편다. */}
       {qs.map((q) => {
         const g = q.guess ?? {};
         const first = q.paths?.[0];
-        const canThumb = first && THUMBABLE.test(first);
+        const canThumb = !!first && THUMBABLE.test(first);
+        const prov = (g as { provisional?: string }).provisional;
+        const where = g.folder || prov;
         return (
           <div key={q.id} className="intake-q">
             <div className="intake-q__head">
@@ -225,73 +181,16 @@ export function IntakePanel() {
               {q.count > 1 && <span className="intake-q__n">{q.count}건</span>}
             </div>
 
-            {/* 🔴 눈으로 확인할 수 있어야 한다 — 이름만 보고는 못 정한다 */}
-            {canThumb && (
-              <div className="intake-q__preview">
-                <img src={`/api/thumb?path=${encodeURIComponent('inbox:' + first)}`}
-                     alt="" loading="lazy"
-                     onClick={() => window.open(
-                       `/api/file?path=${encodeURIComponent('inbox:' + first)}`, '_blank')}
-                     title="눌러서 원본 열기"
-                     onError={(e) => {
-                       (e.target as HTMLElement).parentElement!.style.display = 'none';
-                     }} />
-              </div>
-            )}
-            {/* 🔴 **그림이 안 되면 읽은 글을 보인다.** hwp·pptx는 그림이 없지만
-                사람은 첫 문단만 봐도 무엇인지 안다 — 이름만 주고 정하라는 것이
-                사용자가 지적한 그 문제다. */}
-            {!canThumb && q.excerpt && (
-              <div className="intake-q__excerpt">
-                <b>제가 읽은 것</b>
-                <p>{q.excerpt.slice(0, 260)}…</p>
-              </div>
-            )}
-            {/* 🔴 심의 중에도 파일은 실물이다 (2026-08-26 사용자: 급하게
-                넣은 자료를 다른 컴퓨터에서 바로). 누르면 내려받고, 끌면
-                DownloadURL 로 탐색기·바탕화면에 진짜 파일로 떨어진다. */}
-            <div className="intake-q__names">
-              {q.names.map((nm, i) => {
-                const vp = q.paths?.[i] ? `inbox:${q.paths[i]}` : null;
-                if (!vp) return <span key={nm}>{nm}</span>;
-                const url = new URL(downloadUrl(vp), location.origin).href;
-                return (
-                  <span
-                    key={nm}
-                    className="intake-q__file"
-                    title="누르면 내려받기 · 끌면 파일로 나갑니다"
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('DownloadURL',
-                        `application/octet-stream:${nm}:${url}`);
-                      e.dataTransfer.setData('text/uri-list', url);
-                      e.dataTransfer.effectAllowed = 'copy';
-                    }}
-                    onClick={() => openFile(vp, nm)}
-                  >{nm}</span>
-                );
-              })}
-            </div>
-
-            {/* 내 추정 + 근거 — 백지로 묻지 않는다 (2-14-3) */}
             <div className="intake-q__guess">
-              <b>{(g as {provisional?: string}).provisional ? '잠정 배치함' : '제 판단'}</b>{' '}
-              {g.folder ? g.folder : <em>어디에 둘지 모르겠습니다</em>}
-              {g.doc_type && <> · {g.doc_type}</>}
-              {g.stage && <> · {g.stage}</>}
-              <span className="intake-q__conf">확신 {Math.round(q.confidence * 100)}%</span>
+              {prov ? '여기 두었습니다 · ' : '제 판단 · '}
+              {where ? <b>{where}</b> : <em>어디에 둘지 모르겠습니다</em>}
+              {g.doc_type && <span className="intake-q__meta"> · {g.doc_type}</span>}
+              <span className="intake-q__conf">{Math.round(q.confidence * 100)}%</span>
             </div>
-            {q.why?.length > 0 && (
-              <ul className="intake-q__why">
-                {q.why.map((w, i) => <li key={i}>{w}</li>)}
-              </ul>
-            )}
 
             {picking === q.id ? (
               <div className="intake-q__picker">
-                {/* 🔴 새 과제라는 답도 받는다 (2026-08-26 사용자: "새로운
-                    과제 관련인데 기존 체계에서만 정의하라고 함"). 인스턴스
-                    증설은 사람의 결정(2-2) — 그 문이 여기다. */}
+                {/* 새 과제라는 답도 받는다 — 인스턴스 증설은 사람의 결정 (2-2) */}
                 <button
                   className="intake-q__newproj"
                   onClick={() => {
@@ -300,7 +199,9 @@ export function IntakePanel() {
                       + '\n 클래스를 정하려면 01_Tasks/이름 처럼 입력)');
                     if (nm?.trim()) answer(q.id, 'new_project', nm.trim());
                   }}
-                >＋ 새 과제 만들어 거기로</button>
+                >＋ 새 과제</button>
+                <button className="intake-q__cancel"
+                        onClick={() => setPicking(null)}>취소</button>
                 {folders.slice(0, 40).map((f) => (
                   <button key={f} onClick={() => answer(q.id, 'other', f)}>{f}</button>
                 ))}
@@ -317,9 +218,66 @@ export function IntakePanel() {
                 ))}
               </div>
             )}
+
+            <details className="intake-q__more">
+              <summary>근거와 파일 보기</summary>
+              {canThumb && (
+                <div className="intake-q__preview">
+                  <img src={`/api/thumb?path=${encodeURIComponent('inbox:' + first)}`}
+                       alt="" loading="lazy"
+                       onClick={() => window.open(
+                         `/api/file?path=${encodeURIComponent('inbox:' + first)}`, '_blank')}
+                       title="눌러서 원본 열기"
+                       onError={(e) => {
+                         (e.target as HTMLElement).parentElement!.style.display = 'none';
+                       }} />
+                </div>
+              )}
+              {q.why?.length > 0 && (
+                <ul className="intake-q__why">
+                  {q.why.map((w, i) => <li key={i}>{w}</li>)}
+                </ul>
+              )}
+              {q.excerpt && (
+                <p className="intake-q__excerpt">{q.excerpt.slice(0, 400)}…</p>
+              )}
+              <div className="intake-q__names">
+                {q.names.map((nm, i) => {
+                  const vp = q.paths?.[i] ? `inbox:${q.paths[i]}` : null;
+                  if (!vp) return <span key={nm}>{nm}</span>;
+                  const url = new URL(downloadUrl(vp), location.origin).href;
+                  return (
+                    <span key={nm} className="intake__r-name"
+                          title="누르면 내려받기 · 끌면 파일로 나갑니다"
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('DownloadURL',
+                              `application/octet-stream:${nm}:${url}`);
+                            e.dataTransfer.setData('text/uri-list', url);
+                            e.dataTransfer.effectAllowed = 'copy';
+                          }}
+                          onClick={() => openFile(vp, nm)}
+                    >{nm}</span>
+                  );
+                })}
+              </div>
+            </details>
           </div>
         );
       })}
+
+      {recent.length > 0 && (
+        <div className="intake__recent">
+          <b>최근 받음</b>
+          {recent.slice(0, 6).map(recentRow)}
+          {recent.length > 6 && (
+            <details className="intake-q__more">
+              <summary>{recent.length - 6}건 더</summary>
+              {recent.slice(6).map(recentRow)}
+            </details>
+          )}
+        </div>
+      )}
     </div>
   );
 }
