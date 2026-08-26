@@ -43,3 +43,33 @@ export function openFile(path: string, name?: string): void {
   a.click();
   a.remove();
 }
+
+/** 클립보드 복사 — 🔴 **HTTP 에서도 된다** (2026-08-26).
+ *
+ * `navigator.clipboard` 는 보안 컨텍스트(HTTPS·localhost)에만 있다. 이 앱은
+ * `http://100.110.65.54` 라 그 API 가 **undefined** 고, writeText 를 부르던
+ * 일곱 자리가 전부 조용히 실패하고 있었다 (사용자: *"붙여넣어지지 않음"*).
+ * 몰래 textarea 를 만들어 execCommand('copy') 로 내려간다.
+ */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    if (window.isSecureContext && navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* 아래 예비 길로 */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}

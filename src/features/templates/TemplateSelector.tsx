@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { copyText } from '../../web/files';
 import { useModalStore, modalActions } from '../modals/stores/modalStore';
 import { useTemplateStore, templateActions } from './stores/templateStore';
 import { useSettingsStore } from '../../core/stores/settingsStore';
@@ -195,7 +196,7 @@ function TemplateSelector() {
       // Strip the id so the JSON is a "blueprint" — when re-imported it
       // gets a fresh id, avoiding collisions with the source template.
       const blueprint = { ...template, id: undefined };
-      await navigator.clipboard.writeText(JSON.stringify(blueprint, null, 2));
+      await copyText(JSON.stringify(blueprint, null, 2));
       modalActions.showAlertModal(
         t('templateMenuCopyJson', language),
         t('templateCopiedToClipboard', language),

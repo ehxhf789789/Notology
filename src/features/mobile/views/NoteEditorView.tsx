@@ -5,6 +5,7 @@
  * Sketch notes → SVG preview with pinch-zoom.
  */
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
+import { copyText } from '../../../web/files';
 import { Loader2, MoreVertical, ExternalLink, Tag, MessageSquare, Share2 } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { fileCommands, utilCommands } from '../../../core/services/tauriCommands';
@@ -357,7 +358,7 @@ export default function NoteEditorView({ notePath, onNavigateToNote }: Props) {
               label: '파일명 복사',
               onPress: async () => {
                 const name = notePath.split(/[/\\]/).pop() ?? '';
-                await navigator.clipboard.writeText(name);
+                await copyText(name);
                 showToast('파일명이 복사되었습니다');
                 setShowShareSheet(false);
               },

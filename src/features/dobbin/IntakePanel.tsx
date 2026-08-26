@@ -27,7 +27,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Check, FolderInput, HelpCircle } from 'lucide-react';
-import { openFile, downloadUrl } from '../../web/files';
+import { openFile, downloadUrl, copyText } from '../../web/files';
 import { selectContainer } from '../../core/stores/appActions';
 import './intake.css';
 
@@ -152,7 +152,13 @@ export function IntakePanel() {
               >{r.name}</span>
               {r.fs && (
                 <button className="intake__recent-loc" title="서버 경로 복사 — Claude Code 대화에 붙여넣으면 그 파일을 읽습니다"
-                        onClick={() => { void navigator.clipboard.writeText(r.fs!); }}>
+                        onClick={(e) => {
+                          const b = e.currentTarget;
+                          void copyText(r.fs!).then((ok) => {
+                            b.textContent = ok ? '복사됨' : '실패';
+                            setTimeout(() => { b.textContent = '경로'; }, 1200);
+                          });
+                        }}>
                   경로
                 </button>
               )}

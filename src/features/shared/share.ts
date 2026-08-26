@@ -5,6 +5,7 @@
  * Desktop: Falls back to clipboard copy + toast notification.
  */
 import { invoke } from '../../web/core';
+import { copyText } from '../../web/files';
 import { isNativeMobile } from '../../core/utils/platform';
 
 export interface ShareOptions {
@@ -30,7 +31,7 @@ export async function shareFile(
   }
 
   // Desktop fallback: copy path to clipboard
-  await navigator.clipboard.writeText(filePath);
+  await copyText(filePath);
 }
 
 /** Share text via OS share sheet (mobile) or clipboard (desktop). */
@@ -57,7 +58,7 @@ export async function shareText(
     }
   }
 
-  await navigator.clipboard.writeText(text);
+  await copyText(text);
 }
 
 /** Share content with auto-detection of type. */

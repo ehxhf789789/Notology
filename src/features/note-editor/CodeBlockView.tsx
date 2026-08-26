@@ -1,4 +1,5 @@
 import { NodeViewContent, NodeViewWrapper } from '@tiptap/react';
+import { copyText } from '../../web/files';
 import type { NodeViewProps } from '@tiptap/react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -44,7 +45,7 @@ function CodeBlockView({ node, updateAttributes, deleteNode, editor }: NodeViewP
 
   const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(code);
+      await copyText(code);
       setCopied(true);
     } catch (err) {
       console.error('Failed to copy:', err);

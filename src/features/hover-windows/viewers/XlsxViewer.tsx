@@ -1,4 +1,5 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import { copyText } from '../../../web/files';
 import * as XLSX from 'xlsx';
 
 interface XlsxViewerProps {
@@ -247,7 +248,7 @@ export function XlsxViewer({ data }: XlsxViewerProps) {
     // Convert to TSV (tab-separated values)
     const tsv = rows.map(row => row.join('\t')).join('\n');
     try {
-      await navigator.clipboard.writeText(tsv);
+      await copyText(tsv);
     } catch (err) {
       console.error('[XlsxViewer] Copy failed:', err);
     }
