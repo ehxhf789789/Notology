@@ -7,6 +7,7 @@ import {
   CheckSquare,
   MessageCircle,
   Search as SearchIcon,
+  Maximize2,
 } from 'lucide-react';
 import { memoCommands } from '../services/tauriCommands';
 import { useVaultPath } from '../stores/fileTreeStore';
@@ -14,7 +15,7 @@ import { refreshActions } from '../stores/refreshStore';
 import { hoverActions } from '../../features/hover-windows/stores/hoverStore';
 import { useCalendarRefreshTrigger } from '../stores/refreshStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { useUIStore } from '../stores/uiStore';
+import { useUIStore, uiActions } from '../stores/uiStore';
 import { useRightTab, useDobbinView, rightActions } from '../stores/rightTabStore';
 import { IntakePanel } from '../../features/dobbin/IntakePanel';
 import { DobbinSurface } from '../../features/dobbin/DobbinSurface';
@@ -100,6 +101,18 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
             접기 단추와 겹쳐 있었다 (사용자 지적, 2026-08-12).
             달력·검색은 여기, 공용 머리의 오른쪽에 나란히 선다. */}
         <div className="right-panel-header-actions">
+          {/* 🔴 좁은 자리에서 넓은 자리로 가는 길 — dobbin 홈의 «곁에 두기» 와
+              짝이다 (UIUX_PLAN P0: 두 자리를 오가는 길을 각 화면에 하나씩). */}
+          {(tab === 'dobbin' || tab === 'intake') && (
+            <IconButton
+              icon={<Maximize2 size={15} />}
+              aria-label="넓게 보기"
+              variant="ghost"
+              size="sm"
+              onClick={() => { setShowHoverPanel(false);
+                               uiActions.setShowDobbinHome(true); }}
+            />
+          )}
           {tab === 'dobbin' && (
             <>
               <IconButton

@@ -42,6 +42,8 @@ let hoverPanelAnimTimeout: ReturnType<typeof setTimeout> | null = null;
 interface UIState {
   // State
   showSearch: boolean;
+  /** dobbin 홈이 중앙에 서 있나 (UIUX_PLAN P0) */
+  showDobbinHome: boolean;
   showCalendar: boolean;
   showHoverPanel: boolean;
   showSidebar: boolean;
@@ -53,6 +55,7 @@ interface UIState {
 
   // Actions
   setShowSearch: (show: boolean) => void;
+  setShowDobbinHome: (show: boolean) => void;
   setShowCalendar: (show: boolean) => void;
   setShowSidebar: (show: boolean) => void;
   setShowHoverPanel: (show: boolean) => void;
@@ -72,6 +75,7 @@ export const useUIStore = create<UIState>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
     showSearch: false,
+    showDobbinHome: false,
     showCalendar: false,
     showHoverPanel: false,
     showSidebar: true,
@@ -85,10 +89,22 @@ export const useUIStore = create<UIState>()(
     // container so the sidebar doesn't show a stale "currently focused"
     // highlight on the container the user was just in. Search is a
     // VAULT-WIDE view; pointing back at one container would mislead.
+    // 🔴 dobbin 홈 — 검색과 **같은 층**이다 (중앙 무대). 셋(검색·홈·컨테이너)이
+    //    서로 배타인 것은 화면이 하나이기 때문이지 dobbin 이 보조라서가 아니다.
+    setShowDobbinHome: (show: boolean) => {
+      set({ showDobbinHome: show });
+      if (show) {
+        set({ showSearch: false, showCalendar: false });
+        import('./fileTreeStore').then(({ fileTreeActions }) => {
+          fileTreeActions.setSelectedContainer(null);
+        }).catch(() => { /* defensive */ });
+      }
+    },
+
     setShowSearch: (show: boolean) => {
       set({ showSearch: show });
       if (show) {
-        set({ showCalendar: false });
+        set({ showCalendar: false, showDobbinHome: false });
         // Lazy import to avoid circular dep — fileTreeActions lives in
         // fileTreeStore which imports settings.
         import('./fileTreeStore').then(({ fileTreeActions }) => {
@@ -179,6 +195,7 @@ export const useUIStore = create<UIState>()(
 
 // Selector hooks
 export const useShowSearch = () => useUIStore((s) => s.showSearch);
+export const useShowDobbinHome = () => useUIStore((s) => s.showDobbinHome);
 export const useShowCalendar = () => useUIStore((s) => s.showCalendar);
 export const useShowHoverPanel = () => useUIStore((s) => s.showHoverPanel);
 export const useShowSidebar = () => useUIStore((s) => s.showSidebar);

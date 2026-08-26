@@ -26,6 +26,7 @@ import {
   modalActions,
   useLanguage,
   useShowSearch,
+  useShowDobbinHome,
   useShowHoverPanel,
   useHoverPanelAnimState,
   useSidebarWidth,
@@ -38,6 +39,7 @@ import {
 import { useSearchIndexing } from '../stores/refreshStore';
 import Sidebar from '../layout/Sidebar';
 import ContainerView from '../../features/note-editor/ContainerView';
+import { DobbinHome } from '../../features/dobbin/DobbinHome';
 import Search from '../../features/search/Search';
 import HoverEditorLayer from '../../features/hover-windows/HoverEditorLayer';
 import RightPanel from '../layout/RightPanel';
@@ -108,6 +110,7 @@ function AppLayout() {
 
   // UI state (individual Zustand subscriptions - only re-renders when specific value changes)
   const showSearch = useShowSearch();
+  const showDobbinHome = useShowDobbinHome();
   const showHoverPanel = useShowHoverPanel();
   const rightTab = useRightTab();
   const dobbinBusy = useDobbinStore((s) => s.busy);
@@ -566,7 +569,11 @@ function AppLayout() {
         </div>
         <div className="editor-area">
           <Slot name="editor-banner" />
-          {showSearch ? (
+          {/* 🔴 dobbin 이 중앙에 설 수 있다 (UIUX_PLAN P0). 검색이 이미 쓰던
+              그 자리이고, 셋은 uiStore 가 서로 배타로 지킨다. */}
+          {showDobbinHome ? (
+            <DobbinHome />
+          ) : showSearch ? (
             <Search refreshTrigger={searchRefreshTrigger} />
           ) : selectedContainer ? (
             <ContainerView />
@@ -594,7 +601,7 @@ function AppLayout() {
             </button>
             <button
               className={`right-tab${showHoverPanel && rightTab === 'dobbin' ? ' active' : ''}`}
-              onClick={() => { rightActions.pick('dobbin'); }}
+              onClick={() => { uiActions.setShowDobbinHome(true); }}
               title="dobbin — 이 서재의 사서">
               <PenguinFace mood={dobbinBusy ? 'thinking' : overdueN > 0 ? 'alert' : 'idle'} size={19} />
               {hello && (
@@ -604,7 +611,7 @@ function AppLayout() {
                         //    「최종 논문 제출 끝났어」 한 마디면 완료 흐름
                         //    (2-10-1)이 받는다. ✕ 만 닫는다.
                         e.stopPropagation();
-                        rightActions.pick('dobbin');
+                        uiActions.setShowDobbinHome(true);
                         setHello(null); setHelloGoing(false);
                       }}>
                   {hello}
@@ -622,7 +629,7 @@ function AppLayout() {
             </button>
             <button
               className={`right-tab${showHoverPanel && rightTab === 'intake' ? ' active' : ''}`}
-              onClick={() => { rightActions.pick('intake'); }}
+              onClick={() => { uiActions.setShowDobbinHome(true); }}
               title="자료 넣기 · 검수">
               <UploadCloud size={17} />
               {/* 🔴 말풍선 — 물을 것이 있으면 여기 뜬다 (1-2-1) */}

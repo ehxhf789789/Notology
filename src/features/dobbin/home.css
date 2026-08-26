@@ -1,0 +1,84 @@
+/* dobbin 홈 — 중앙 뷰 (docs/UIUX_PLAN.md P0)
+   🔴 규격은 검색 뷰(.search-view / .search-hero)에서 그대로 가져온다.
+      새 디자인 언어를 만들지 않는다 — 같은 층에 서는 화면은 같아 보여야 한다. */
+
+.dhome {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--bg-base);
+  min-width: 0;
+}
+
+/* 머리 — .search-hero 와 같은 여백·구분선 */
+.dhome__hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 12px;
+  border-bottom: 0.5px solid var(--sep-l);
+  background: var(--bg-base);
+  flex-shrink: 0;
+}
+.dhome__icon { display: inline-flex; align-items: center; flex: none; }
+.dhome__text { min-width: 0; flex: 1 1 auto; }
+.dhome__title {
+  margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.01em;
+  color: var(--tx-1);
+}
+.dhome__sub { margin: 1px 0 0; font-size: 12px; color: var(--tx-3); }
+
+.dhome__aside {
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  min-height: 30px; padding: 5px 10px; border-radius: 7px; cursor: pointer;
+  border: 0.5px solid var(--bdr-2); background: transparent;
+  color: var(--tx-2); font-size: 12px;
+}
+.dhome__aside:hover { background: var(--bg-hover); color: var(--tx-1); }
+
+/* 브리핑 한 줄 */
+.dhome__brief {
+  flex-shrink: 0; padding: 9px 16px; font-size: 12.5px; line-height: 1.5;
+  color: var(--tx-2); background: var(--bg-elev-3);
+  border-bottom: 0.5px solid var(--sep-l);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 몸통 — 왼쪽은 일감, 오른쪽은 대화 */
+.dhome__body { display: flex; flex: 1 1 auto; min-height: 0; }
+.dhome__main { flex: 1 1 auto; min-width: 0; overflow-y: auto; }
+.dhome__chat {
+  flex: 0 0 clamp(320px, 30%, 420px);
+  display: flex; flex-direction: column; min-height: 0; min-width: 0;
+  border-left: 0.5px solid var(--sep-l);
+  background: var(--bg-base);
+}
+
+/* 좁으면 세로로 접는다 (ResizeObserver 가 붙이는 클래스) */
+.dhome.is-narrow .dhome__body { flex-direction: column; }
+.dhome.is-narrow .dhome__chat {
+  flex: 0 0 46%; border-left: none; border-top: 0.5px solid var(--sep-l);
+}
+
+/* 🔴 자료 넣기를 **넓게** 놓는다 — 카드가 폭에 따라 열을 늘린다.
+      좁을 때는 저절로 1열이 되므로 우측 패널에서 쓰던 모습 그대로다. */
+.intake--home {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 10px;
+  align-items: start;
+  padding: 14px 16px;
+}
+.intake--home .intake__sum,
+.intake--home .intake__said,
+.intake--home .intake__empty,
+.intake--home .intake__recent { grid-column: 1 / -1; }
+.intake--home .intake__sum { font-size: 12px; }
+/* 넓은 자리에서는 최근 받음도 두 줄로 접을 이유가 없다 — 한 줄에 이름·자리 */
+.intake--home .intake__r {
+  flex-direction: row; align-items: baseline; gap: 10px;
+  padding: 4px 0; border-bottom: 0.5px solid var(--sep-l);
+}
+.intake--home .intake__r:last-child { border-bottom: none; }
+.intake--home .intake__r-name { flex: 1 1 auto; min-width: 0; }
+.intake--home .intake__r-loc { flex: 0 0 auto; max-width: 46%; }

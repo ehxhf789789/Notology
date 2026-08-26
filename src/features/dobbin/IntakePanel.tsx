@@ -46,7 +46,7 @@ type Counts = { filed?: number; reading?: number; questions?: number;
 // 🔴 그림으로 보여줄 수 있는 것 — PDF는 서버가 첫 장을 뽑아 준다
 const THUMBABLE = /\.(pdf|png|jpe?g|gif|webp|svg)$/i;
 
-export function IntakePanel() {
+export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' } = {}) {
   const [qs, setQs] = useState<Q[]>([]);
   const [recent, setRecent] = useState<Recent[]>([]);
   const [counts, setCounts] = useState<Counts>({});
@@ -144,7 +144,7 @@ export function IntakePanel() {
             + (counts.by_state?.answered ?? 0);
 
   return (
-    <div className="intake">
+    <div className={`intake${variant === 'home' ? ' intake--home' : ''}`}>
       <div className="intake__sum">
         <span title="투입구로 들어와 dobbin 이 읽은 파일의 누적입니다">
           <FolderInput size={13} /> 받음 {got}

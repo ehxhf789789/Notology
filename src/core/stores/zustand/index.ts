@@ -92,6 +92,7 @@ export {
 export {
   useUIStore,
   useShowSearch,
+  useShowDobbinHome,
   useShowCalendar,
   useShowHoverPanel,
   useShowSidebar,

@@ -256,6 +256,10 @@ export function selectContainer(path: string | null) {
   fileTreeActions.setSelectedContainer(path);
   uiActions.setShowSearch(false);
   uiActions.setShowCalendar(false);
+  // 🔴 홈이 열린 채 폴더를 누르면 화면이 안 바뀐다 — 중앙 분기에서 홈이
+  //    컨테이너보다 앞이기 때문이다 (UIUX_PLAN P0). 검색이 이미 같은 이유로
+  //    여기서 닫히고 있었다. **한 자리에서 함께 닫는다.**
+  uiActions.setShowDobbinHome(false);
 }
 
 // 🔴 폴더노트는 hover 창으로 열지 않는다 (사용자 지시, 2026-08-25:
