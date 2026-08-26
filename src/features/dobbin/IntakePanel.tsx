@@ -163,17 +163,31 @@ export function IntakePanel() {
                 </button>
               )}
               {r.fs && r.fs.startsWith('/mnt/nas/') && (
-                // 🔴 윈도우 경로(UNC) — 카톡·claude.ai 같은 앱의 «파일 선택»
-                //    창 주소칸에 붙여넣으면 바탕화면 경유 없이 바로 첨부된다
-                //    (2026-08-27 사용자: 나머지 목적지가 여전히 안 됨).
-                //    /mnt/nas ↔ \\main-nas\AIHub (fstab 실측).
+                // 🔴 **경로를 짐작하지 않는다** (2026-08-27 사용자 지적).
+                //    첫 판은 \\main-nas\AIHub 를 박아 넣었는데 틀렸다:
+                //    ① 기기마다 매핑이 다르다 (Z:\ · smb:// · 없음)
+                //    ② 호스트명 `main-nas` 는 ISP DNS 가로채기(4-3)에 걸려
+                //       **다른 곳을 가리킬 수 있다** — 같은 이름의 남의 파일을
+                //       첨부하는 것이 최악이다.
+                //    → 이 브라우저(=이 컴퓨터)가 한 번 선언한 주소만 쓴다.
                 <button className="intake__recent-loc"
-                        title="윈도우 경로 복사 — 카톡·클로드 웹의 파일 선택창에 붙여넣으면 바로 첨부됩니다"
+                        title="이 PC의 NAS 주소로 경로 복사 — 파일 선택창에 붙여넣으면 바로 첨부됩니다"
                         onClick={(e) => {
                           const b = e.currentTarget;
-                          const unc = '\\\\main-nas\\AIHub'
-                            + r.fs!.slice('/mnt/nas'.length).replace(/\//g, '\\');
-                          void copyText(unc).then((ok) => {
+                          let base = localStorage.getItem('dobbin.uncBase') || '';
+                          if (!base) {
+                            const got = window.prompt(
+                              '이 컴퓨터에서 NAS(AIHub 공유)가 보이는 주소를 한 번만 알려주세요.\n'
+                              + '예) \\\\main-nas\\AIHub   ·   Z:\\   ·   smb://main-nas/AIHub\n'
+                              + '(컴퓨터마다 다를 수 있어 이 브라우저에만 저장합니다)');
+                            if (!got || !got.trim()) return;
+                            base = got.trim().replace(/[\\/]+$/, '');
+                            localStorage.setItem('dobbin.uncBase', base);
+                          }
+                          const rest = r.fs!.slice('/mnt/nas'.length);
+                          const win = /\\|^[A-Za-z]:/.test(base);
+                          const path = base + (win ? rest.replace(/\//g, '\\') : rest);
+                          void copyText(path).then((ok) => {
                             b.textContent = ok ? '복사됨' : '실패';
                             setTimeout(() => { b.textContent = 'PC'; }, 1200);
                           });
