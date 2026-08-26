@@ -162,6 +162,25 @@ export function IntakePanel() {
                   경로
                 </button>
               )}
+              {r.fs && r.fs.startsWith('/mnt/nas/') && (
+                // 🔴 윈도우 경로(UNC) — 카톡·claude.ai 같은 앱의 «파일 선택»
+                //    창 주소칸에 붙여넣으면 바탕화면 경유 없이 바로 첨부된다
+                //    (2026-08-27 사용자: 나머지 목적지가 여전히 안 됨).
+                //    /mnt/nas ↔ \\main-nas\AIHub (fstab 실측).
+                <button className="intake__recent-loc"
+                        title="윈도우 경로 복사 — 카톡·클로드 웹의 파일 선택창에 붙여넣으면 바로 첨부됩니다"
+                        onClick={(e) => {
+                          const b = e.currentTarget;
+                          const unc = '\\\\main-nas\\AIHub'
+                            + r.fs!.slice('/mnt/nas'.length).replace(/\//g, '\\');
+                          void copyText(unc).then((ok) => {
+                            b.textContent = ok ? '복사됨' : '실패';
+                            setTimeout(() => { b.textContent = 'PC'; }, 1200);
+                          });
+                        }}>
+                  PC
+                </button>
+              )}
               {r.folder && (
                 <button className="intake__recent-loc"
                         title="이 칸으로 이동"
