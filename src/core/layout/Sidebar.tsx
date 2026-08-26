@@ -10,8 +10,9 @@ import {
   useFileTree,
   useSelectedContainer,
 } from '../stores/zustand';
-import { useShowSearch, useSidebarCollapsed, useUIStore, uiActions } from '../stores/uiStore';
+import { useShowSearch, useShowDobbinHome, useSidebarCollapsed, useUIStore, uiActions } from '../stores/uiStore';
 import { IconButton, Tooltip } from '../../design-system/components';
+import { PenguinFace } from '../../features/dobbin/PenguinFace';
 import { useContainerConfigs, vaultConfigActions } from '../../features/vault-config/stores/vaultConfigStore';
 import { modalActions } from '../../features/modals/stores/modalStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -31,6 +32,7 @@ function Sidebar() {
 
   // ========== ZUSTAND UI STATE ==========
   const showSearch = useShowSearch();
+  const showDobbinHome = useShowDobbinHome();
   const sidebarCollapsed = useSidebarCollapsed();
   const containerConfigs = useContainerConfigs();
   const language = useSettingsStore(s => s.language);
@@ -245,6 +247,19 @@ function Sidebar() {
               >
                 <Search size={16} strokeWidth={2} />
               </button>
+              {/* 🔴 **무대를 바꾸는 것은 왼쪽에 둔다** (2026-08-27 사용자:
+                  "탭 구조가 아니라 좌측 슬라이드에 버튼으로"). 검색이 이미
+                  그 규칙이었다 — 좌측 = 중앙 뷰, 우측 탭 = 곁에 두는 패널.
+                  2026-08-11 에 좌측에서 뺐던 dobbin 단추와는 성격이 다르다:
+                  그때는 «패널을 여는» 단추였고 지금은 «홈을 여는» 단추다. */}
+              <button
+                className={`sidebar-action-btn ${showDobbinHome ? 'active' : ''}`}
+                onClick={() => uiActions.setShowDobbinHome(true)}
+                title="dobbin — 이 서재의 사서"
+                disabled={!vaultPath}
+              >
+                <PenguinFace mood="idle" size={17} />
+              </button>
 
             </div>
           )}
@@ -275,6 +290,17 @@ function Sidebar() {
                 pressed={showSearch}
                 disabled={!vaultPath}
                 onClick={() => uiActions.setShowSearch(true)}
+              />
+            </Tooltip>
+            <Tooltip content="dobbin — 이 서재의 사서" placement="right">
+              <IconButton
+                icon={<PenguinFace mood="idle" size={17} />}
+                aria-label="dobbin"
+                variant="ghost"
+                size="md"
+                pressed={showDobbinHome}
+                disabled={!vaultPath}
+                onClick={() => uiActions.setShowDobbinHome(true)}
               />
             </Tooltip>
           </nav>

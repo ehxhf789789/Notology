@@ -601,8 +601,8 @@ function AppLayout() {
             </button>
             <button
               className={`right-tab${showHoverPanel && rightTab === 'dobbin' ? ' active' : ''}`}
-              onClick={() => { uiActions.setShowDobbinHome(true); }}
-              title="dobbin — 이 서재의 사서">
+              onClick={() => { rightActions.pick('dobbin'); }}
+              title="dobbin — 곁에 두기">
               <PenguinFace mood={dobbinBusy ? 'thinking' : overdueN > 0 ? 'alert' : 'idle'} size={19} />
               {hello && (
                 <span className={`right-tab__hello${helloGoing ? ' is-leaving' : ''}`}
@@ -629,7 +629,7 @@ function AppLayout() {
             </button>
             <button
               className={`right-tab${showHoverPanel && rightTab === 'intake' ? ' active' : ''}`}
-              onClick={() => { uiActions.setShowDobbinHome(true); }}
+              onClick={() => { rightActions.pick('intake'); }}
               title="자료 넣기 · 검수">
               <UploadCloud size={17} />
               {/* 🔴 말풍선 — 물을 것이 있으면 여기 뜬다 (1-2-1) */}

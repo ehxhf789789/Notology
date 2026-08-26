@@ -29,6 +29,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Check, FolderInput, HelpCircle } from 'lucide-react';
 import { openFile, downloadUrl } from '../../web/files';
 import { selectContainer } from '../../core/stores/appActions';
+import { hoverActions } from '../hover-windows/stores/hoverStore';
 import './intake.css';
 
 type Recent = { name: string; state: string; at?: string | null;
