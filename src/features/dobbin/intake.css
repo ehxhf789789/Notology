@@ -82,3 +82,9 @@
 .intake-q__excerpt p { margin: 0; color: var(--text-secondary, #9aa0ab);
                        max-height: 88px; overflow: hidden; }
 .intake-q__preview img { cursor: zoom-in; }
+
+/* 2026-08-26 — 투입구 파일: 누르면 내려받기, 끌면 파일로 나간다 */
+.intake-q__file {
+  cursor: grab; text-decoration: underline dotted; margin-right: 8px;
+}
+.intake-q__file:active { cursor: grabbing; }

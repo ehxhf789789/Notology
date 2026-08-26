@@ -21,6 +21,7 @@
 import { useAttachmentStore } from '../attachments/stores/attachmentStore';
 import { syncV2Commands, type AttachmentRefDto } from '../attachments/attachmentCommands';
 import { requestAttachmentDelete } from '../attachments/attachmentDelete';
+import { isWeb } from '../../web/files';
 import { startAttachmentDrag, startMultiAttachmentDrag } from '../attachments/attachmentDragOut';
 import { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { useVaultPath } from '../../core/stores/fileTreeStore';
@@ -477,6 +478,18 @@ export default function AttachmentsTab({
   // payload (which WebView2 can't promote to a file promise — confirmed
   // in PART 5 POC).
   const handleRowDragStart = useCallback((row: AttachmentRow, e: React.DragEvent) => {
+    // 🔴 웹에서는 preventDefault 를 하면 안 된다 (2026-08-26). DownloadURL
+    //    드래그는 **브라우저의 기본 드래그**에 실어 보내는 것이라, 막으면
+    //    startAttachmentDrag 안의 웹 갈래가 영영 죽은 코드가 된다 — 실제로
+    //    그 상태였다 (지어 놓고 안 부른 세 번째 사례).
+    if (isWeb()) {
+      e.stopPropagation();
+      // 브라우저 드래그는 한 번에 한 파일이다 — 여러 개는 차례로 끌거나
+      // 내려받기를 쓴다 (DownloadURL 규격의 한계).
+      void startAttachmentDrag(row.ref.originalName, row.ref.linkedNotes[0],
+                               e.nativeEvent as DragEvent);
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'none';

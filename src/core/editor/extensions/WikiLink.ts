@@ -10,6 +10,8 @@ import { preloadHoverContent } from '../../../features/hover-windows/stores/hove
 import { useSettingsStore } from '../../stores/settingsStore';
 import { t } from '../../utils/i18n';
 import { getAttachmentCategory } from '../../../features/suggestions/attachmentCategory';
+import { startAttachmentDrag, startMultiAttachmentDrag } from '../../../features/attachments/attachmentDragOut';
+import { isWeb } from '../../../web/files';
 import { useFileTreeStore } from '../../stores/fileTreeStore';
 import { contentCacheActions } from '../../../features/content-cache/stores/contentCacheStore';
 
@@ -869,6 +871,18 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                 return false;
               }
 
+              if (isWeb()) {
+                // 🔴 웹: preventDefault 금지 — DownloadURL 은 **브라우저의
+                //    기본 드래그**에 실린다. 탐색기·바탕화면에 놓으면 진짜
+                //    파일이 된다 (2026-08-26 사용자 요구). 여태 이 자리는
+                //    import 가 빠져 ReferenceError 로 죽어 있었다.
+                event.stopPropagation();
+                const nid = getNotePath?.()
+                  ?.replace(/\\/g, '/').split('/').pop()
+                  ?.replace(/\.md$/i, '');
+                void startAttachmentDrag(fileName, nid, event);
+                return true;
+              }
               event.preventDefault();
               event.stopPropagation();
               if (event.dataTransfer) {

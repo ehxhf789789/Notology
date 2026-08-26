@@ -27,6 +27,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Check, FolderInput, HelpCircle } from 'lucide-react';
+import { openFile, downloadUrl } from '../../web/files';
 import './intake.css';
 
 type Q = {
@@ -157,9 +158,31 @@ export function IntakePanel() {
                 <p>{q.excerpt.slice(0, 260)}…</p>
               </div>
             )}
-            {q.count > 1 && (
-              <div className="intake-q__names">{q.names.join(' · ')}</div>
-            )}
+            {/* 🔴 심의 중에도 파일은 실물이다 (2026-08-26 사용자: 급하게
+                넣은 자료를 다른 컴퓨터에서 바로). 누르면 내려받고, 끌면
+                DownloadURL 로 탐색기·바탕화면에 진짜 파일로 떨어진다. */}
+            <div className="intake-q__names">
+              {q.names.map((nm, i) => {
+                const vp = q.paths?.[i] ? `inbox:${q.paths[i]}` : null;
+                if (!vp) return <span key={nm}>{nm}</span>;
+                const url = new URL(downloadUrl(vp), location.origin).href;
+                return (
+                  <span
+                    key={nm}
+                    className="intake-q__file"
+                    title="누르면 내려받기 · 끌면 파일로 나갑니다"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('DownloadURL',
+                        `application/octet-stream:${nm}:${url}`);
+                      e.dataTransfer.setData('text/uri-list', url);
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
+                    onClick={() => openFile(vp, nm)}
+                  >{nm}</span>
+                );
+              })}
+            </div>
 
             {/* 내 추정 + 근거 — 백지로 묻지 않는다 (2-14-3) */}
             <div className="intake-q__guess">
