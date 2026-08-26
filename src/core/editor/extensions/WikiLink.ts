@@ -880,7 +880,22 @@ export const WikiLink = Node.create<WikiLinkOptions>({
                 const nid = getNotePath?.()
                   ?.replace(/\\/g, '/').split('/').pop()
                   ?.replace(/\.md$/i, '');
+                // 🔴 첨부 목록이 이 이름을 모르면(방금 취입된 파일 등)
+                //    이름으로 서버에 묻는 URL 을 싣는다 — 실패가 «텍스트만
+                //    끌리는» 조용한 퇴행으로 새지 않게 (2026-08-26 실측).
+                //    dragstart 동기 구간 안이라 setData 가 아직 유효하다.
+                const _t = event.dataTransfer;
                 void startAttachmentDrag(fileName, nid, event);
+                if (_t && !_t.types.includes('DownloadURL')) {
+                  const url = new URL('/api/file?name='
+                    + encodeURIComponent(fileName) + '&download=1',
+                    location.origin).href;
+                  _t.setData('DownloadURL',
+                    `application/octet-stream:${fileName}:${url}`);
+                  _t.setData('text/uri-list', url);
+                  _t.setData('text/plain', fileName);
+                  _t.effectAllowed = 'copy';
+                }
                 return true;
               }
               event.preventDefault();

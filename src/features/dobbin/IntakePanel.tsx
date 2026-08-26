@@ -242,7 +242,7 @@ export function IntakePanel() {
 
             {/* 내 추정 + 근거 — 백지로 묻지 않는다 (2-14-3) */}
             <div className="intake-q__guess">
-              <b>제 판단</b>{' '}
+              <b>{(g as {provisional?: string}).provisional ? '잠정 배치함' : '제 판단'}</b>{' '}
               {g.folder ? g.folder : <em>어디에 둘지 모르겠습니다</em>}
               {g.doc_type && <> · {g.doc_type}</>}
               {g.stage && <> · {g.stage}</>}
