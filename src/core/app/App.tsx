@@ -137,6 +137,10 @@ function AppLayout() {
   const [hello, setHello] = useState<string | null>(null);
   const [helloAsk, setHelloAsk] = useState(false);
   const [helloGoing, setHelloGoing] = useState(false);
+  // 🔴 지난 기한은 말풍선이 사라져도 **얼굴에 남는다** (A54 · 2026-08-27).
+  //    alert 상태(붉은 맥박)는 CSS 가 처음부터 갖고 있었는데 아무도 안 썼다 —
+  //    패널을 접어도 탭은 서 있으므로, 접힌 채로도 밀린 일이 보인다.
+  const [overdueN, setOverdueN] = useState(0);
   const helloOnce = useRef(false);
   useEffect(() => {
     if (helloOnce.current) return;
@@ -145,6 +149,7 @@ function AppLayout() {
       fetch('/api/briefing', { method: 'POST' })
         .then(r => r.json())
         .then(j => {
+          setOverdueN(j?.overdue ?? 0);
           const line = (j?.say || '').split('\n')[0];
           // 🔴 서버는 「최종 논문 제출 마감」 기한이 229일 지났습니다…처럼
           //    **무엇인지 말하며 되묻는데**, 여기서 그 말을 버리고 「N건이
@@ -591,7 +596,7 @@ function AppLayout() {
               className={`right-tab${showHoverPanel && rightTab === 'dobbin' ? ' active' : ''}`}
               onClick={() => { rightActions.pick('dobbin'); }}
               title="dobbin — 이 서재의 사서">
-              <PenguinFace mood={dobbinBusy ? 'thinking' : 'idle'} size={19} />
+              <PenguinFace mood={dobbinBusy ? 'thinking' : overdueN > 0 ? 'alert' : 'idle'} size={19} />
               {hello && (
                 <span className={`right-tab__hello${helloGoing ? ' is-leaving' : ''}`}
                       onClick={(e) => {

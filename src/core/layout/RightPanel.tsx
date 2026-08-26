@@ -88,7 +88,10 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
                 {tab === 'dobbin' ? 'dobbin' : '자료 넣기'}
               </span>
               <span className="right-panel-today-date">
-                {tab === 'dobbin' ? '사서에게 묻기' : '읽고 정리합니다'}
+                {/* 🔴 「사서에게 묻기」가 아니다 (A54 · 2026-08-27). 상주
+                    관리자를 「물어보는 도구」로 적으면 자리와 말이 같이
+                    틀린다 — dobbin 은 늘 여기서 서재를 돌보고 있다. */}
+                {tab === 'dobbin' ? '이 서재를 돌보고 있습니다' : '읽고 정리합니다'}
               </span>
             </div>
           )}
