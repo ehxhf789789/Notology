@@ -88,3 +88,14 @@
   cursor: grab; text-decoration: underline dotted; margin-right: 8px;
 }
 .intake-q__file:active { cursor: grabbing; }
+
+/* 최근 받음 (2026-08-26) */
+.intake__recent { padding: 8px 12px; border-top: 1px solid var(--border-color, #333);
+  display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.intake__recent > b { color: var(--text-muted, #999); font-weight: 600; }
+.intake__recent-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.intake__recent-row .intake-q__file { flex: 1; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.intake__recent-loc { border: none; background: none; cursor: pointer;
+  color: var(--accent-color, #4a9eff); font-size: 11px; white-space: nowrap; }
+.intake-q__newproj { border-style: dashed !important; }

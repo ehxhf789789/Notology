@@ -28,6 +28,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Check, FolderInput, HelpCircle } from 'lucide-react';
 import { openFile, downloadUrl } from '../../web/files';
+import { selectContainer } from '../../core/stores/appActions';
 import './intake.css';
 
 type Q = {
@@ -44,6 +45,8 @@ const THUMBABLE = /\.(pdf|png|jpe?g|gif|webp|svg)$/i;
 
 export function IntakePanel() {
   const [qs, setQs] = useState<Q[]>([]);
+  const [recent, setRecent] = useState<{ name: string; state: string;
+    at?: string | null; folder?: string | null; open?: string | null }[]>([]);
   const [counts, setCounts] = useState<Counts>({});
   const [busy, setBusy] = useState(false);
   const [folders, setFolders] = useState<string[]>([]);
@@ -63,6 +66,7 @@ export function IntakePanel() {
         body: JSON.stringify({ action: 'questions' }) });
       const j = await r.json();
       setQs(j?.questions ?? []);
+      setRecent(j?.recent ?? []);
       setCounts(j?.counts ?? {});
     } catch { /* 조용히 */ }
     setBusy(false);
@@ -117,6 +121,39 @@ export function IntakePanel() {
       </div>
 
       {said && <div className="intake__said">{said}</div>}
+
+      {/* 🔴 최근 받은 것과 지금 자리 (2026-08-26 사용자: "최근 넣은 파일을
+          어디서 확인? 안 보이는데"). 이름=열기 · 자리=그 칸으로 이동. */}
+      {recent.length > 0 && (
+        <div className="intake__recent">
+          <b>최근 받음</b>
+          {recent.map((r) => (
+            <div key={r.name + (r.at ?? '')} className="intake__recent-row">
+              <span
+                className="intake-q__file"
+                title="누르면 내려받기 · 끌면 파일로 나갑니다"
+                draggable
+                onDragStart={(e) => {
+                  if (!r.open) return;
+                  const url = new URL(downloadUrl(r.open), location.origin).href;
+                  e.dataTransfer.setData('DownloadURL',
+                    `application/octet-stream:${r.name}:${url}`);
+                  e.dataTransfer.setData('text/uri-list', url);
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+                onClick={() => r.open && openFile(r.open, r.name)}
+              >{r.name}</span>
+              {r.folder && (
+                <button className="intake__recent-loc"
+                        title="이 칸으로 이동"
+                        onClick={() => selectContainer(r.folder!)}>
+                  {r.state === 'asking' ? '심의 중 · ' : ''}{r.folder}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {!busy && qs.length === 0 && (
         <div className="intake__empty">
@@ -200,6 +237,18 @@ export function IntakePanel() {
 
             {picking === q.id ? (
               <div className="intake-q__picker">
+                {/* 🔴 새 과제라는 답도 받는다 (2026-08-26 사용자: "새로운
+                    과제 관련인데 기존 체계에서만 정의하라고 함"). 인스턴스
+                    증설은 사람의 결정(2-2) — 그 문이 여기다. */}
+                <button
+                  className="intake-q__newproj"
+                  onClick={() => {
+                    const nm = window.prompt(
+                      '새 과제 이름\n(예: 지식화 연구 → 02_Projects/지식화 연구'
+                      + '\n 클래스를 정하려면 01_Tasks/이름 처럼 입력)');
+                    if (nm?.trim()) answer(q.id, 'new_project', nm.trim());
+                  }}
+                >＋ 새 과제 만들어 거기로</button>
                 {folders.slice(0, 40).map((f) => (
                   <button key={f} onClick={() => answer(q.id, 'other', f)}>{f}</button>
                 ))}
