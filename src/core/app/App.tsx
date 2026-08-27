@@ -630,28 +630,8 @@ function AppLayout() {
                   {noticeN}
                 </span>
               )}
-              {hello && (
-                <span className={`right-tab__hello${helloGoing ? ' is-leaving' : ''}`}
-                      onClick={(e) => {
-                        // 🔴 알림을 누르면 **답할 자리(dobbin 대화)가 열린다.**
-                        //    「최종 논문 제출 끝났어」 한 마디면 완료 흐름
-                        //    (2-10-1)이 받는다. ✕ 만 닫는다.
-                        e.stopPropagation();
-                        uiActions.setShowDobbinHome(true);
-                        setHello(null); setHelloGoing(false);
-                      }}>
-                  {hello}
-                  {/* 🔴 뭘 하라는지 알림이 스스로 말한다 (2026-08-26:
-                      "뭘 하라는거지?") — 행동 한 줄이 없는 알림은 소음이다 */}
-                  {helloAsk && (
-                    <i className="right-tab__hello-act">누르면 dobbin 대화가
-                      열립니다 — 끝난 일이면 「끝났어」 한 마디면 됩니다</i>
-                  )}
-                  <b className="right-tab__hello-x"
-                     onClick={(e) => { e.stopPropagation(); setHello(null); setHelloGoing(false); }}
-                  > ✕</b>
-                </span>
-              )}
+              {/* 🔴 말풍선 폐지 (2026-08-27) — 8초 뒤 사라지고 잘리던 그것을
+                  알림함이 대신한다. 여기는 숫자 배지만 남는다. */}
             </button>
             
           </div>

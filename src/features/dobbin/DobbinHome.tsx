@@ -18,7 +18,7 @@
  *    두 벌로 만들면 어긋난다 (이 저장소가 여러 번 겪은 실수).
  */
 import { useEffect, useRef, useState } from 'react';
-import { PanelRight } from 'lucide-react';
+import { PanelRight, X } from 'lucide-react';
 import { PenguinFace } from './PenguinFace';
 import { IntakePanel } from './IntakePanel';
 import { DobbinSurface } from './DobbinSurface';
@@ -44,6 +44,7 @@ function useNarrow<T extends HTMLElement>(px = 900) {
 export function DobbinHome() {
   const { ref, narrow } = useNarrow<HTMLDivElement>();
   const [brief, setBrief] = useState<string | null>(null);
+  const [briefOpen, setBriefOpen] = useState(false);
 
   useEffect(() => {
     let dead = false;
@@ -66,18 +67,29 @@ export function DobbinHome() {
         </div>
         {/* 🔴 두 자리를 오가는 길을 **각 화면에 하나씩** 둔다 (숨은 조작 금지).
             여기서는 «곁에 두기» — 노트를 보면서 흘끗 볼 때. */}
-        <button className="dhome__aside" title="우측 패널로 보내기"
+        {/* 🔴 이름이 동작과 달랐다 (2026-08-27) — «곁에 두기» 는 «둘 다
+            보인다» 로 읽히는데 실제로는 홈을 닫고 패널로 옮긴다. 말을 맞춘다. */}
+        <button className="dhome__aside" title="좁은 패널로 옮겨 노트를 보며 쓰기"
                 onClick={() => { uiActions.setShowDobbinHome(false);
                                  rightActions.pick('dobbin'); }}>
-          <PanelRight size={15} /> 곁에 두기
+          <PanelRight size={15} /> 패널로
+        </button>
+        {/* 🔴 나가는 길이 «패널로» 하나뿐이라 갇힌 느낌이었다 */}
+        <button className="dhome__aside" title="닫기"
+                onClick={() => uiActions.setShowDobbinHome(false)}>
+          <X size={15} />
         </button>
       </header>
 
-      {/* 브리핑 한 줄 — 할 말이 있을 때만 (2-10-1: 빈 인사는 하지 않는다) */}
+      {/* 브리핑 — 할 말이 있을 때만 (2-10-1: 빈 인사는 하지 않는다).
+          🔴 죽은 줄이었다: 잘려 보이는데 눌러도 아무 일이 없었다.
+             누르면 펼친다 — 잘린 글을 보는 것이 사람이 원한 일이다. */}
       {brief && (
-        <div className="dhome__brief" title="dobbin 이 먼저 하는 말">
-          {brief.split('\n')[0]}
-        </div>
+        <button className={`dhome__brief${briefOpen ? ' is-open' : ''}`}
+                title={briefOpen ? '접기' : '전부 보기'}
+                onClick={() => setBriefOpen(v => !v)}>
+          {briefOpen ? brief : brief.split('\n')[0]}
+        </button>
       )}
 
       <div className="dhome__body">

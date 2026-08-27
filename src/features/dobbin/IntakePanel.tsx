@@ -220,7 +220,10 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
               </div>
             )}
 
-            <details className="intake-q__more">
+            {/* 🔴 확신이 낮으면 근거를 **펼친 채로** 준다 (2026-08-27).
+                «어디에 둘지 모르겠습니다 0%» 인데 근거가 접혀 있으면 사람이
+                판단할 재료가 없다 — 행동을 앞세운 것의 부작용이었다. */}
+            <details className="intake-q__more" open={q.confidence < 0.45}>
               <summary>근거와 파일 보기</summary>
               {canThumb && (
                 <div className="intake-q__preview">

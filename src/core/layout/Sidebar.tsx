@@ -254,7 +254,7 @@ function Sidebar() {
                   그때는 «패널을 여는» 단추였고 지금은 «홈을 여는» 단추다. */}
               <button
                 className={`sidebar-action-btn ${showDobbinHome ? 'active' : ''}`}
-                onClick={() => uiActions.setShowDobbinHome(true)}
+                onClick={() => uiActions.setShowDobbinHome(!showDobbinHome)}
                 title="dobbin — 이 서재의 사서"
                 disabled={!vaultPath}
               >
@@ -300,7 +300,7 @@ function Sidebar() {
                 size="md"
                 pressed={showDobbinHome}
                 disabled={!vaultPath}
-                onClick={() => uiActions.setShowDobbinHome(true)}
+                onClick={() => uiActions.setShowDobbinHome(!showDobbinHome)}
               />
             </Tooltip>
           </nav>

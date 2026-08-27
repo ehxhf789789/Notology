@@ -95,6 +95,15 @@ export const useUIStore = create<UIState>()(
       set({ showDobbinHome: show });
       if (show) {
         set({ showSearch: false, showCalendar: false });
+        // 🔴 **화면에 dobbin 은 하나다** (2026-08-27 사용자 지적: 대화창이
+        //    두 개, 알림도 두 벌이었다). 역할을 나눠도 «동시에 보이면»
+        //    사람에게는 그냥 중복이다. 홈이 서면 곁의 dobbin 은 접는다 —
+        //    달력을 보고 있었다면 그건 다른 것이므로 두 채로 둔다.
+        import('./rightTabStore').then(({ useRightTabStore }) => {
+          if (useRightTabStore.getState().tab === 'dobbin') {
+            set({ showHoverPanel: false });
+          }
+        }).catch(() => { /* defensive */ });
         import('./fileTreeStore').then(({ fileTreeActions }) => {
           fileTreeActions.setSelectedContainer(null);
         }).catch(() => { /* defensive */ });

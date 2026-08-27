@@ -38,11 +38,14 @@
 
 /* 브리핑 한 줄 */
 .dhome__brief {
-  flex-shrink: 0; padding: 9px 16px; font-size: 12.5px; line-height: 1.5;
-  color: var(--tx-2); background: var(--bg-elev-3);
-  border-bottom: 0.5px solid var(--sep-l);
+  flex-shrink: 0; width: 100%; padding: 9px 16px; font-size: 12.5px;
+  line-height: 1.55; color: var(--tx-2); background: var(--bg-elev-3);
+  border: none; border-bottom: 0.5px solid var(--sep-l);
+  text-align: left; cursor: pointer;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.dhome__brief:hover { background: var(--bg-hover); }
+.dhome__brief.is-open { white-space: pre-wrap; max-height: 30vh; overflow-y: auto; }
 
 /* 몸통 — 왼쪽은 일감, 오른쪽은 대화 */
 .dhome__body { display: flex; flex: 1 1 auto; min-height: 0; }
@@ -64,7 +67,10 @@
       좁을 때는 저절로 1열이 되므로 우측 패널에서 쓰던 모습 그대로다. */
 .intake--home {
   display: grid;
+  /* 🔴 열을 셋으로 막는다 — 넓은 화면에서 여섯 열이 되면 카드가 납작해지고
+     그 아래가 통째로 빈다 (2026-08-27 화면). 카드는 읽는 것이지 타일이 아니다. */
   grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  max-width: 1180px;
   gap: 10px;
   align-items: start;
   padding: 14px 16px;
