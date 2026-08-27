@@ -160,3 +160,37 @@
   color: inherit; font-size: 11.5px; margin-bottom: 2px;
 }
 .intake__r-at { flex: none; font-size: 10.5px; color: var(--tx-3); }
+
+/* 확장성 (2026-08-27) — 카드는 여섯까지, 나머지는 한 줄로 · 일괄 처리 */
+.intake__bulk {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 9px; font-size: 12px;
+  border: 0.5px solid var(--bdr-1); background: var(--bg-elev-3);
+}
+.intake__bulk span { flex: 1 1 auto; color: var(--tx-2); }
+.intake__bulk button {
+  flex: none; padding: 5px 12px; border-radius: 7px; cursor: pointer;
+  border: none; background: var(--c-accent); color: #fff; font-size: 12px;
+  font-weight: 600;
+}
+.intake__bulk button:hover { filter: brightness(1.1); }
+
+.intake__rest { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px;
+                padding-top: 6px; }
+.intake__rest > b { font-size: 11.5px; color: var(--tx-3); margin-bottom: 2px; }
+.intake__rest-row {
+  display: flex; align-items: center; gap: 8px; padding: 5px 0;
+  border-bottom: 0.5px solid var(--sep-l); font-size: 12px;
+}
+.intake__rest-name { flex: 1 1 auto; min-width: 0; overflow: hidden;
+                     text-overflow: ellipsis; white-space: nowrap; }
+.intake__rest-where { flex: 0 1 auto; max-width: 40%; color: var(--tx-3);
+                      font-size: 11px; overflow: hidden;
+                      text-overflow: ellipsis; white-space: nowrap; }
+.intake__rest-row button {
+  flex: none; padding: 3px 9px; border-radius: 6px; font-size: 11px;
+  cursor: pointer; border: 0.5px solid var(--bdr-2);
+  background: var(--bg-tertiary, transparent); color: inherit;
+}
+.intake__rest-row button:disabled { opacity: .4; cursor: default; }
+.intake__rest-more { font-size: 11px; color: var(--tx-3); padding-top: 6px; }

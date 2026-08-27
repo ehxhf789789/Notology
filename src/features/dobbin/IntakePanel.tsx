@@ -45,6 +45,8 @@ function when(iso: string): string {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+const CARD_MAX = 6;   // 카드로 낼 최대 (그 위는 한 줄로)
+
 type Recent = { name: string; state: string; at?: string | null;
   folder?: string | null; open?: string | null; note?: string | null; };
 
@@ -62,6 +64,7 @@ const THUMBABLE = /\.(pdf|png|jpe?g|gif|webp|svg)$/i;
 
 export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' } = {}) {
   const [qs, setQs] = useState<Q[]>([]);
+  const [total, setTotal] = useState(0);
   const [recent, setRecent] = useState<Recent[]>([]);
   const [counts, setCounts] = useState<Counts>({});
   const [busy, setBusy] = useState(false);
@@ -83,6 +86,7 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
         body: JSON.stringify({ action: 'questions' }) });
       const j = await r.json();
       setQs(j?.questions ?? []);
+      setTotal(j?.total ?? (j?.questions ?? []).length);
       setRecent(j?.recent ?? []);
       setCounts(j?.counts ?? {});
     } catch { /* 조용히 */ }
@@ -112,6 +116,23 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
     } catch { /* 조용히 */ }
     setPicking(null);
     load();
+  }, [load]);
+
+  // 제안한 자리가 있는 것만 일괄 대상 — «모르겠다» 에 «맞습니다» 는 뜻이 없다
+  const sure = qs.filter((q) => {
+    const g = (q.guess ?? {}) as { folder?: string; provisional?: string };
+    return !!(g.folder || g.provisional);
+  });
+  const answerMany = useCallback(async (ids: number[]) => {
+    setBusy(true);
+    try {
+      const r = await fetch('/api/intake', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'answer_many', ids, value: 'yes' }) });
+      const j = await r.json();
+      setSaid(j?.say ?? '');
+      await load();
+    } finally { setBusy(false); }
   }, [load]);
 
   const pickFolders = useCallback(async (id: number) => {
@@ -192,7 +213,20 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
           불편하다). 전 판은 발췌 260자와 근거 목록이 카드 위쪽을 다 먹어
           정작 누를 단추가 화면 밖에 있었다. 이제 «어디 두었나 → 단추» 가
           위에 오고, 근거·미리보기·파일은 필요할 때 편다. */}
-      {qs.map((q) => {
+      {/* 🔴 **100건이어도 무너지지 않는다** (2026-08-27 사용자: 확장성이
+          전혀 고려되지 않은 구조다). 카드는 읽고 판단하는 물건이라 여섯 장이
+          넘으면 훑는 물건이 된다 — 앞의 여섯만 카드로 두고 나머지는 한 줄씩,
+          그리고 «제안대로 모두» 한 번으로 끝낼 길을 준다. */}
+      {sure.length > 1 && (
+        <div className="intake__bulk">
+          <span>제안한 자리가 있는 것이 {sure.length}건입니다.</span>
+          <button onClick={() => answerMany(sure.map((q) => q.id))}>
+            그대로 모두 확정
+          </button>
+        </div>
+      )}
+
+      {qs.slice(0, CARD_MAX).map((q) => {
         const g = q.guess ?? {};
         const first = q.paths?.[0];
         const canThumb = !!first && THUMBABLE.test(first);
@@ -301,6 +335,32 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
           </div>
         );
       })}
+
+      {qs.length > CARD_MAX && (
+        <div className="intake__rest">
+          {/* 🔴 «그 밖에 N건» 은 **여기 보이는 줄 수**여야 한다 — 총계를
+              적으면 131 이라 해놓고 14줄만 보이는 꼴이 된다 (같은 병이
+              오늘만 세 번째다). 총계는 아래 한 줄이 따로 말한다. */}
+          <b>그 밖에 {qs.length - CARD_MAX}건</b>
+          {qs.slice(CARD_MAX).map((q) => {
+            const g = q.guess ?? {};
+            const where = g.folder || (g as { provisional?: string }).provisional;
+            return (
+              <div key={q.id} className="intake__rest-row">
+                <span className="intake__rest-name" title={q.group}>{q.group}</span>
+                <span className="intake__rest-where">{where || '자리 미정'}</span>
+                <button disabled={!where} onClick={() => answer(q.id, 'yes')}>확정</button>
+                <button onClick={() => pickFolders(q.id)}>다른 곳</button>
+              </div>
+            );
+          })}
+          {total > qs.length && (
+            <span className="intake__rest-more">
+              …그리고 {total - qs.length}건이 더 있습니다. 위에서 처리하시면 이어서 보여드립니다.
+            </span>
+          )}
+        </div>
+      )}
 
       {recent.length > 0 && (
         <div className="intake__recent">
