@@ -194,3 +194,34 @@
 }
 .intake__rest-row button:disabled { opacity: .4; cursor: default; }
 .intake__rest-more { font-size: 11px; color: var(--tx-3); padding-top: 6px; }
+
+
+/* ── 2026-08-27: 카드를 **한 가지 꼴**로 ─────────────────────────────
+   사용자: 박스 높이가 모두 제각각인데 정보가 많아도 편의가 확보되나.
+   실측 173~341px (편차 168) · 같은 줄에서도 높이가 달랐다.
+   🔴 눈이 줄을 따라가려면 **같은 줄은 같은 높이**여야 하고, 카드 하나가
+      길어져도 다른 카드가 끌려가면 안 된다. 내용에 상한을 준다. */
+
+.intake--home { align-items: stretch; }           /* 같은 줄은 같은 높이 */
+.intake--home .intake-q {
+  display: flex; flex-direction: column;
+  /* 판단 → 단추까지는 늘 같은 자리에 있고, 접힌 근거만 아래로 자란다 */
+}
+.intake--home .intake-q__more { margin-top: auto; }
+
+/* 제목은 한 줄 — 긴 파일명이 카드를 두 배로 만들던 자리 */
+.intake-q__name {
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+  overflow: hidden; word-break: break-all;
+}
+/* 펼친 근거에 상한 — 길면 그 안에서 구른다 (카드가 끌려가지 않는다) */
+.intake-q__more[open] > *:not(summary) { }
+.intake-q__more[open] {
+  max-height: 210px; overflow-y: auto; overscroll-behavior: contain;
+}
+.intake-q__excerpt {
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.intake-q__why { max-height: 66px; overflow: hidden; }
+.intake-q__preview, .intake-q__preview img { max-height: 120px; }

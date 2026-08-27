@@ -75,7 +75,11 @@
        읽기에 충분하다. */
   grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
   gap: 10px;
-  align-items: start;
+  /* 🔴 같은 줄은 같은 높이 (2026-08-27 사용자: 박스 높이가 제각각).
+     start 면 카드마다 제 높이로 서서 줄이 들쭉날쭉해진다 — 눈이 줄을
+     따라가지 못한다. stretch 로 줄을 맞추고, 카드 안에서 내용에 상한을
+     둔다 (intake.css). */
+  align-items: stretch;
   padding: 14px 16px;
 }
 .intake--home .intake__sum,
