@@ -20,3 +20,17 @@
   background: transparent; color: var(--tx-2);
 }
 .ntc__act:hover { background: var(--bg-hover); color: var(--tx-1); }
+
+/* 알림 팝오버 (2026-08-27) — 패널을 대신한다. 읽기 전용이라 좁아도 된다. */
+.ntc__pop { width: 340px; max-width: 86vw; display: flex; flex-direction: column; }
+.ntc__pop-head { padding: 10px 12px 8px; border-bottom: 0.5px solid var(--sep-l);
+                 display: flex; align-items: baseline; gap: 6px; }
+.ntc__pop-head b { font-size: 13px; color: var(--tx-1); }
+.ntc__pop-head span { font-size: 11px; color: var(--tx-3); }
+.ntc__pop-body { max-height: min(52vh, 460px); overflow-y: auto; }
+.ntc__pop-go {
+  padding: 9px 12px; border: none; border-top: 0.5px solid var(--sep-l);
+  background: transparent; color: var(--c-accent); cursor: pointer;
+  font-size: 12px; text-align: center;
+}
+.ntc__pop-go:hover { background: var(--bg-hover); }

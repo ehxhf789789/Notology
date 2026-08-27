@@ -39,6 +39,7 @@ import {
 import { useSearchIndexing } from '../stores/refreshStore';
 import Sidebar from '../layout/Sidebar';
 import ContainerView from '../../features/note-editor/ContainerView';
+import { NoticeBell } from '../../features/dobbin/NoticeBell';
 import { DobbinHome } from '../../features/dobbin/DobbinHome';
 import Search from '../../features/search/Search';
 import HoverEditorLayer from '../../features/hover-windows/HoverEditorLayer';
@@ -617,22 +618,10 @@ function AppLayout() {
               title="달력 · 할 일">
               <CalendarDays size={17} />
             </button>
-            <button
-              className={`right-tab${showHoverPanel && rightTab === 'dobbin' ? ' active' : ''}`}
-              onClick={() => { rightActions.pick('dobbin'); }}
-              title="dobbin — 곁에 두기">
-              <PenguinFace mood={dobbinBusy ? 'thinking' : overdueN > 0 ? 'alert' : 'idle'} size={19} />
-              {/* 🔴 배지는 **안 본 알림 수**다 (2026-08-27). 자료넣기 탭이
-                  갖고 있던 그 자리를 여기가 이어받는다 — 탭이 둘로 갈려
-                  «어디를 봐야 하나» 가 됐던 것이 사용자가 지적한 겹침이다. */}
-              {noticeN > 0 && (
-                <span className="right-tab__ask" aria-label={`${noticeN}건 알림`}>
-                  {noticeN}
-                </span>
-              )}
-              {/* 🔴 말풍선 폐지 (2026-08-27) — 8초 뒤 사라지고 잘리던 그것을
-                  알림함이 대신한다. 여기는 숫자 배지만 남는다. */}
-            </button>
+            {/* 🔴 dobbin 을 패널에서 걷었다 (2026-08-27 사용자: 홈이 다 하는데
+                패널이 왜 필요한가 — 필요 없다). 곁눈질에 남는 수요는 «대화»
+                가 아니라 «알림»이라 벨 + 팝오버로 충분하다. */}
+            <NoticeBell mood={dobbinBusy ? 'thinking' : overdueN > 0 ? 'alert' : 'idle'} />
             
           </div>
         {/* Right Panel with slide animation. Stage 5.0.3a-rework

@@ -7,7 +7,6 @@ import {
   CheckSquare,
   MessageCircle,
   Search as SearchIcon,
-  Maximize2,
 } from 'lucide-react';
 import { memoCommands } from '../services/tauriCommands';
 import { useVaultPath } from '../stores/fileTreeStore';
@@ -16,9 +15,6 @@ import { hoverActions } from '../../features/hover-windows/stores/hoverStore';
 import { useCalendarRefreshTrigger } from '../stores/refreshStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useUIStore, uiActions } from '../stores/uiStore';
-import { useRightTab, useDobbinView, rightActions } from '../stores/rightTabStore';
-import { NoticeList, useNotices } from '../../features/dobbin/NoticeList';
-import { DobbinSurface } from '../../features/dobbin/DobbinSurface';
 import { t, tf } from '../utils/i18n';
 import { loadComments, saveComments } from '../../features/comments/comments';
 import { notifyMemoChanged } from '../utils/windowSync';
@@ -59,16 +55,14 @@ const getTodayString = (): string => formatDate(new Date());
 
 const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
   const language = useSettingsStore(s => s.language);
-  const { list: notices } = useNotices();
   const setShowHoverPanel = useUIStore(s => s.setShowHoverPanel);
-  const tab = useRightTab();
-  const view = useDobbinView();
 
   return (
     <div className="right-panel" style={{ width }}>
       <header className="right-panel-header">
         <div className="right-panel-header-left">
-          {tab === 'calendar' ? (
+          {/* 이 패널은 달력·할 일 전용이다 (2026-08-27) */}
+
             <>
               <div className="right-panel-today-icon">
                 <CalendarDays size={14} />
@@ -84,54 +78,12 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
                 </span>
               </div>
             </>
-          ) : (
-            <div className="right-panel-today-info">
-              <span className="right-panel-today-label">
-                dobbin
-              </span>
-              <span className="right-panel-today-date">
-                {/* 🔴 「사서에게 묻기」가 아니다 (A54 · 2026-08-27). 상주
-                    관리자를 「물어보는 도구」로 적으면 자리와 말이 같이
-                    틀린다 — dobbin 은 늘 여기서 서재를 돌보고 있다. */}
-                이 서재를 돌보고 있습니다
-              </span>
-            </div>
-          )}
+
         </div>
         {/* 🔴 **머리글은 하나다.** dobbin 화면이 자기 머리를 또 그려서
             접기 단추와 겹쳐 있었다 (사용자 지적, 2026-08-12).
             달력·검색은 여기, 공용 머리의 오른쪽에 나란히 선다. */}
         <div className="right-panel-header-actions">
-          {/* 🔴 좁은 자리에서 넓은 자리로 가는 길 — dobbin 홈의 «곁에 두기» 와
-              짝이다 (UIUX_PLAN P0: 두 자리를 오가는 길을 각 화면에 하나씩). */}
-          {tab === 'dobbin' && (
-            <IconButton
-              icon={<Maximize2 size={15} />}
-              aria-label="넓게 보기"
-              variant="ghost"
-              size="sm"
-              onClick={() => { setShowHoverPanel(false);
-                               uiActions.setShowDobbinHome(true); }}
-            />
-          )}
-          {tab === 'dobbin' && (
-            <>
-              <IconButton
-                icon={<CalendarDays size={16} />}
-                aria-label="날짜로 찾기"
-                variant={view === 'cal' ? 'soft' : 'ghost'}
-                size="sm"
-                onClick={() => rightActions.view('cal')}
-              />
-              <IconButton
-                icon={<SearchIcon size={16} />}
-                aria-label="대화 검색"
-                variant={view === 'search' ? 'soft' : 'ghost'}
-                size="sm"
-                onClick={() => rightActions.view('search')}
-              />
-            </>
-          )}
           <IconButton
             icon={<PanelRightClose size={18} />}
             aria-label={t('close', language)}
@@ -143,20 +95,9 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
       </header>
 
       {/* 🔴 탭이 정한 것만 보여준다 — 서류철처럼 하나만 앞에 온다 */}
-      {tab === 'calendar' && <CalendarSurface />}
-      {/* 🔴 곁눈질 패널 = **알림 + 대화** (2026-08-27 사용자: 탭과 버튼이
-          겹친다 · dobbin 이 적극적으로 알리고 내가 볼 수 있게).
-          자료 넣기는 홈이 맡는다 — 좁은 자리에서 카드를 넘기는 것이
-          불편의 원인이었다. 여기서는 «알림»으로 요약해 보여주고, 누르면
-          홈으로 간다. */}
-      {tab === 'dobbin' && (
-        <>
-          <div className="right-panel-notices">
-            <NoticeList list={notices} />
-          </div>
-          <DobbinSurface />
-        </>
-      )}
+      <CalendarSurface />
+      {/* 🔴 dobbin 은 여기 없다 (2026-08-27) — 홈이 다 한다. 이 패널은
+          달력·할 일 전용이다. 알림은 탭 스트립의 벨이 맡는다. */}
     </div>
   );
 });
