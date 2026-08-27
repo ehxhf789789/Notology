@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Check, HelpCircle, CalendarClock, Archive } from 'lucide-react';
 import { uiActions } from '../../core/stores/uiStore';
+import { markAllSeen } from './noticeStore';
 import { hoverActions } from '../hover-windows/stores/hoverStore';
 import './notice.css';
 
@@ -19,17 +20,9 @@ export interface Notice {
   act?: { label: string; go: string };
 }
 
+// 🔴 가져오기·세기는 noticeStore 한 자리에서 한다 (2026-08-27) — 두 화면이
+//    각자 20초마다 물어 서로 다른 순간의 값을 보이던 것을 합쳤다.
 const SEEN_KEY = 'dobbin.noticesSeen';
-
-/** 배지용 — 안 본 알림 수. 화면 여러 곳이 같은 자를 쓴다. */
-export function unseenCount(list: Notice[]): number {
-  const seen = new Set<string>(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'));
-  return list.filter(n => !seen.has(n.id)).length;
-}
-
-export function markAllSeen(list: Notice[]): void {
-  localStorage.setItem(SEEN_KEY, JSON.stringify(list.map(n => n.id).slice(0, 200)));
-}
 
 const ICON: Record<string, React.ReactNode> = {
   ask: <HelpCircle size={13} />,
@@ -38,23 +31,6 @@ const ICON: Record<string, React.ReactNode> = {
   today: <CalendarClock size={13} />,
   kept: <Archive size={13} />,
 };
-
-export function useNotices(pollMs = 20000) {
-  const [list, setList] = useState<Notice[]>([]);
-  const load = useCallback(() => {
-    fetch('/api/notices').then(r => r.json())
-      .then(j => setList(j?.notices ?? []))
-      .catch(() => { /* 조용히 — 알림이 못 와도 화면은 산다 */ });
-  }, []);
-  useEffect(() => {
-    load();
-    const t = setInterval(load, pollMs);
-    const h = () => load();
-    window.addEventListener('dobbin:live', h);
-    return () => { clearInterval(t); window.removeEventListener('dobbin:live', h); };
-  }, [load, pollMs]);
-  return { list, reload: load };
-}
 
 export function NoticeList({ list }: { list: Notice[] }) {
   const [seen, setSeen] = useState<Set<string>>(() =>
@@ -66,7 +42,6 @@ export function NoticeList({ list }: { list: Notice[] }) {
     const t = setTimeout(() => {
       markAllSeen(list);
       setSeen(new Set(list.map(n => n.id)));
-      window.dispatchEvent(new CustomEvent('dobbin:notices-seen'));
     }, 1200);
     return () => clearTimeout(t);
   }, [list]);

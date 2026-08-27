@@ -111,6 +111,9 @@ function AppLayout() {
   // UI state (individual Zustand subscriptions - only re-renders when specific value changes)
   const showSearch = useShowSearch();
   const showDobbinHome = useShowDobbinHome();
+  // 한 번이라도 연 뒤에는 계속 마운트해 둔다 (상태 보존)
+  const [homeEverOpened, setHomeEverOpened] = useState(false);
+  useEffect(() => { if (showDobbinHome) setHomeEverOpened(true); }, [showDobbinHome]);
   const showHoverPanel = useShowHoverPanel();
   const rightTab = useRightTab();
   const dobbinBusy = useDobbinStore((s) => s.busy);
@@ -571,10 +574,17 @@ function AppLayout() {
         <div className="editor-area">
           <Slot name="editor-banner" />
           {/* 🔴 dobbin 이 중앙에 설 수 있다 (UIUX_PLAN P0). 검색이 이미 쓰던
-              그 자리이고, 셋은 uiStore 가 서로 배타로 지킨다. */}
-          {showDobbinHome ? (
-            <DobbinHome />
-          ) : showSearch ? (
+              그 자리이고, 셋은 uiStore 가 서로 배타로 지킨다.
+              🔴 **한 번 뜬 뒤에는 숨기기만 한다** (P2 · 2026-08-27). 컨테이너를
+                 누를 때마다 언마운트되면 대화 스크롤·쓰던 글·펼침 상태가
+                 매번 처음으로 돌아간다 — «이어지는 존재»가 아니라 켜고 끄는
+                 위젯이 되는 물리적 원인이 그것이었다. */}
+          {homeEverOpened && (
+            <div style={{ display: showDobbinHome ? 'contents' : 'none' }}>
+              <DobbinHome />
+            </div>
+          )}
+          {showDobbinHome ? null : showSearch ? (
             <Search refreshTrigger={searchRefreshTrigger} />
           ) : selectedContainer ? (
             <ContainerView />

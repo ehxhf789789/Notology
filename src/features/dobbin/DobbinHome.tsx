@@ -18,10 +18,11 @@
  *    두 벌로 만들면 어긋난다 (이 저장소가 여러 번 겪은 실수).
  */
 import { useEffect, useRef, useState } from 'react';
-import { X, CalendarDays, Search as SearchIcon } from 'lucide-react';
+import { CalendarDays, Search as SearchIcon } from 'lucide-react';
 import { PenguinFace } from './PenguinFace';
 import { IntakePanel } from './IntakePanel';
-import { NoticeList, useNotices, markAllSeen } from './NoticeList';
+import { NoticeList } from './NoticeList';
+import { useNotices, markAllSeen } from './noticeStore';
 import { DobbinSurface } from './DobbinSurface';
 import { uiActions } from '../../core/stores/uiStore';
 import { rightActions, useDobbinView } from '../../core/stores/rightTabStore';
@@ -82,11 +83,9 @@ export function DobbinHome() {
         </div>
         {/* 🔴 두 자리를 오가는 길을 **각 화면에 하나씩** 둔다 (숨은 조작 금지).
             여기서는 «곁에 두기» — 노트를 보면서 흘끗 볼 때. */}
-        {/* 🔴 나가는 길이 «패널로» 하나뿐이라 갇힌 느낌이었다 */}
-        <button className="dhome__aside" title="닫기"
-                onClick={() => uiActions.setShowDobbinHome(false)}>
-          <X size={15} />
-        </button>
+        {/* 🔴 닫기 단추를 두지 않는다 (2026-08-27 사용자) — 컨테이너를
+            누르면 저절로 닫히고, 좌측 dobbin 단추가 토글이다. 오른쪽 위에
+            단추를 놓으면 우측 탭(달력)을 가린다. */}
       </header>
 
       {/* 브리핑 — 할 말이 있을 때만 (2-10-1: 빈 인사는 하지 않는다).
