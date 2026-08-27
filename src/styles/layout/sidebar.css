@@ -644,3 +644,11 @@
   text-align: center; font-weight: 700;
   background: var(--c-danger); color: #fff;
 }
+
+
+/* 히트 타깃 (2026-08-27 적대 검토) — 2-14-2-5 의 규격: 눈에 보이는 크기와
+   눌리는 크기를 분리한다. 24×24·28×28 짜리가 셋 있었다. */
+.sidebar-toggle-btn, .sidebar-footer-btn { position: relative; }
+.sidebar-toggle-btn::before, .sidebar-footer-btn::before {
+  content: ''; position: absolute; inset: -8px; border-radius: 8px;
+}

@@ -127,6 +127,11 @@
                       font-size: 11.5px; margin-bottom: 2px; }
 .intake__r { display: flex; flex-direction: column; gap: 1px; padding: 3px 0; }
 .intake__r-name {
+  /* 🔴 **어느 부모 아래서도 잘려야 한다** (2026-08-27 적대 검토: 200자 이름이
+     카드 안에서 2022px 로 삐져나왔다). 이 클래스를 카드 안 파일 칩에도 썼는데
+     거기 부모는 flex 가 아니라 블록이라, 인라인 상자에는 overflow:hidden 이
+     듣지 않았다. display:block 으로 스스로 상자가 되게 한다. */
+  display: block; max-width: 100%;
   cursor: grab; font-size: 12px; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; text-decoration: underline dotted;
   text-underline-offset: 3px; text-decoration-color: var(--border-color, #3a3f48);
