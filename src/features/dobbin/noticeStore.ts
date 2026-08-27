@@ -63,6 +63,9 @@ function subscribe(fn: () => void) {
   return () => { subs.delete(fn); if (!subs.size) stop(); };
 }
 
+// 🔴 접는 일은 **서버가 한다** (notices.py) — 규칙을 두 곳에 두면 어긋난다.
+//    화면은 받은 것을 그대로 보이고, 배지는 그 줄 수를 센다.
+
 /** 알림 목록 — 여러 화면이 **같은 순간의 같은 값**을 본다. */
 export function useNotices() {
   const [, bump] = useState(0);
@@ -70,7 +73,7 @@ export function useNotices() {
   return { list, reload: load };
 }
 
-/** 안 본 알림 수. 배지가 쓴다. */
+/** 안 본 알림 수 — **목록과 같은 자를 쓴다.** */
 export function useUnseen(): number {
   const { list: l } = useNotices();
   const seen = new Set<string>(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'));

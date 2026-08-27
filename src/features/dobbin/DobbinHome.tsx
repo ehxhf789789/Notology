@@ -48,7 +48,7 @@ export function DobbinHome() {
   const [brief, setBrief] = useState<string | null>(null);
   const [briefOpen, setBriefOpen] = useState(false);
   const { list: notices } = useNotices();
-  const report = notices.filter(n => n.kind !== 'ask');
+  const report = notices;
   // 홈을 연 것이 곧 «봤다» — 좌측 배지는 그때 내려간다
   useEffect(() => {
     if (!notices.length) return;
@@ -106,7 +106,7 @@ export function DobbinHome() {
               같은 말을 두 번 하지 않는다. */}
           {report.length > 0 && (
             <section className="dhome__report">
-              <h2 className="dhome__h2">dobbin 이 한 일 · 알림</h2>
+              <h2 className="dhome__h2">알림</h2>
               <NoticeList list={report} />
             </section>
           )}
