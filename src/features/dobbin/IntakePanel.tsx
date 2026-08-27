@@ -151,7 +151,7 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
       {r.folder && (
         <button className="intake__r-loc" title="이 칸으로 이동"
                 onClick={() => selectContainer('library:' + r.folder!)}>
-          {r.state === 'asking' ? '심의 중 · ' : ''}{r.folder}
+          {r.state === 'asking' ? '정리 중 · ' : ''}{r.folder}
         </button>
       )}
     </div>
@@ -163,12 +163,19 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
   return (
     <div className={`intake${variant === 'home' ? ' intake--home' : ''}`}>
       <div className="intake__sum">
-        <span title="투입구로 들어와 dobbin 이 읽은 파일의 누적입니다">
-          <FolderInput size={13} /> 받음 {got}
+        {/* 🔴 «받음·꽂음» 은 서가 안에서 쓰는 말이지 사람에게 할 말이 아니다
+            (2026-08-27 사용자: 표현을 친화적으로). 무슨 일이 있었는지를
+            그대로 적는다. */}
+        <span title="넣어 주신 자료 가운데 dobbin 이 읽은 것의 누적입니다">
+          <FolderInput size={13} /> 받은 자료 {got}
         </span>
-        <span className="ok"><Check size={13} /> 꽂음 {counts.filed ?? 0}</span>
+        <span className="ok" title="dobbin 이 스스로 자리를 정해 넣어 둔 것">
+          <Check size={13} /> 정리 완료 {counts.filed ?? 0}
+        </span>
         {qs.length > 0 && (
-          <span className="ask"><HelpCircle size={13} /> 확인 {qs.length}</span>
+          <span className="ask" title="한 번씩 눌러 주시면 끝납니다">
+            <HelpCircle size={13} /> 확인 부탁 {qs.length}
+          </span>
         )}
         {busy && <span className="busy"><Loader2 size={13} className="spin" /> 읽는 중</span>}
       </div>
@@ -199,7 +206,7 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
             </div>
 
             <div className="intake-q__guess">
-              {prov ? '여기 두었습니다 · ' : '제 판단 · '}
+              {prov ? '우선 여기 두었습니다 · ' : '이렇게 보입니다 · '}
               {where ? <b>{where}</b> : <em>어디에 둘지 모르겠습니다</em>}
               {g.doc_type && <span className="intake-q__meta"> · {g.doc_type}</span>}
               <span className="intake-q__conf">{Math.round(q.confidence * 100)}%</span>
@@ -249,7 +256,7 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
                 «어디에 둘지 모르겠습니다 0%» 인데 근거가 접혀 있으면 사람이
                 판단할 재료가 없다 — 행동을 앞세운 것의 부작용이었다. */}
             <details className="intake-q__more" open={q.confidence < 0.45}>
-              <summary>근거와 파일 보기</summary>
+              <summary>왜 그렇게 봤는지 · 파일 보기</summary>
               {canThumb && (
                 <div className="intake-q__preview">
                   <img src={`/api/thumb?path=${encodeURIComponent('inbox:' + first)}`}
