@@ -17,7 +17,7 @@ import { useCalendarRefreshTrigger } from '../stores/refreshStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useUIStore, uiActions } from '../stores/uiStore';
 import { useRightTab, useDobbinView, rightActions } from '../stores/rightTabStore';
-import { IntakePanel } from '../../features/dobbin/IntakePanel';
+import { NoticeList, useNotices } from '../../features/dobbin/NoticeList';
 import { DobbinSurface } from '../../features/dobbin/DobbinSurface';
 import { t, tf } from '../utils/i18n';
 import { loadComments, saveComments } from '../../features/comments/comments';
@@ -59,6 +59,7 @@ const getTodayString = (): string => formatDate(new Date());
 
 const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
   const language = useSettingsStore(s => s.language);
+  const { list: notices } = useNotices();
   const setShowHoverPanel = useUIStore(s => s.setShowHoverPanel);
   const tab = useRightTab();
   const view = useDobbinView();
@@ -86,13 +87,13 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
           ) : (
             <div className="right-panel-today-info">
               <span className="right-panel-today-label">
-                {tab === 'dobbin' ? 'dobbin' : '자료 넣기'}
+                dobbin
               </span>
               <span className="right-panel-today-date">
                 {/* 🔴 「사서에게 묻기」가 아니다 (A54 · 2026-08-27). 상주
                     관리자를 「물어보는 도구」로 적으면 자리와 말이 같이
                     틀린다 — dobbin 은 늘 여기서 서재를 돌보고 있다. */}
-                {tab === 'dobbin' ? '이 서재를 돌보고 있습니다' : '읽고 정리합니다'}
+                이 서재를 돌보고 있습니다
               </span>
             </div>
           )}
@@ -103,7 +104,7 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
         <div className="right-panel-header-actions">
           {/* 🔴 좁은 자리에서 넓은 자리로 가는 길 — dobbin 홈의 «곁에 두기» 와
               짝이다 (UIUX_PLAN P0: 두 자리를 오가는 길을 각 화면에 하나씩). */}
-          {(tab === 'dobbin' || tab === 'intake') && (
+          {tab === 'dobbin' && (
             <IconButton
               icon={<Maximize2 size={15} />}
               aria-label="넓게 보기"
@@ -143,8 +144,19 @@ const RightPanel = memo(function RightPanel({ width }: RightPanelProps) {
 
       {/* 🔴 탭이 정한 것만 보여준다 — 서류철처럼 하나만 앞에 온다 */}
       {tab === 'calendar' && <CalendarSurface />}
-      {tab === 'dobbin' && <DobbinSurface />}
-      {tab === 'intake' && <IntakePanel />}
+      {/* 🔴 곁눈질 패널 = **알림 + 대화** (2026-08-27 사용자: 탭과 버튼이
+          겹친다 · dobbin 이 적극적으로 알리고 내가 볼 수 있게).
+          자료 넣기는 홈이 맡는다 — 좁은 자리에서 카드를 넘기는 것이
+          불편의 원인이었다. 여기서는 «알림»으로 요약해 보여주고, 누르면
+          홈으로 간다. */}
+      {tab === 'dobbin' && (
+        <>
+          <div className="right-panel-notices">
+            <NoticeList list={notices} />
+          </div>
+          <DobbinSurface />
+        </>
+      )}
     </div>
   );
 });

@@ -1,0 +1,22 @@
+/* 알림함 (UIUX_PLAN P3) — 토큰은 전부 기존 것. 새 색을 만들지 않는다. */
+.ntc { display: flex; flex-direction: column; }
+.ntc__empty { padding: 22px 14px; text-align: center; font-size: 12px;
+              color: var(--tx-3); }
+.ntc__row {
+  display: flex; gap: 8px; padding: 9px 12px;
+  border-bottom: 0.5px solid var(--sep-l);
+}
+.ntc__row.is-new { background: var(--bg-sel); }
+.ntc__ico { flex: none; margin-top: 1px; color: var(--tx-3); }
+.ntc__ico--ask { color: var(--c-warning); }
+.ntc__ico--done { color: var(--c-success); }
+.ntc__ico--due { color: var(--c-danger); }
+.ntc__body { min-width: 0; flex: 1 1 auto; }
+.ntc__text { margin: 0; font-size: 12px; line-height: 1.55; color: var(--tx-1);
+             word-break: break-word; }
+.ntc__act {
+  margin-top: 5px; padding: 3px 9px; border-radius: 6px; cursor: pointer;
+  font-size: 11.5px; border: 0.5px solid var(--bdr-2);
+  background: transparent; color: var(--tx-2);
+}
+.ntc__act:hover { background: var(--bg-hover); color: var(--tx-1); }

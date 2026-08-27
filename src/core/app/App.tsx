@@ -1,7 +1,7 @@
 import { startLive, onLive } from '../../web/liveSync';
 import { DobbinPanel, useDobbinShortcut } from '../../features/dobbin/DobbinPanel';
 import { Ingest } from '../../features/ingest/Ingest';
-import { CalendarDays, UploadCloud } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
 import { PenguinFace } from '../../features/dobbin/PenguinFace';
 import { RecordBar } from '../../features/dobbin/RecordBar';
 import { rightActions, useRightTab } from '../stores/rightTabStore';
@@ -144,6 +144,24 @@ function AppLayout() {
   //    alert 상태(붉은 맥박)는 CSS 가 처음부터 갖고 있었는데 아무도 안 썼다 —
   //    패널을 접어도 탭은 서 있으므로, 접힌 채로도 밀린 일이 보인다.
   const [overdueN, setOverdueN] = useState(0);
+  // 🔴 알림 배지 — 서버가 아는 사실만 센다 (notices.py). 20초마다·live 때마다.
+  const [noticeN, setNoticeN] = useState(0);
+  useEffect(() => {
+    const load = () => fetch('/api/notices').then(r => r.json())
+      .then(j => {
+        const seen = new Set<string>(
+          JSON.parse(localStorage.getItem('dobbin.noticesSeen') || '[]'));
+        setNoticeN((j?.notices ?? []).filter((n: { id: string }) =>
+          !seen.has(n.id)).length);
+      }).catch(() => { /* 조용히 */ });
+    load();
+    const t = setInterval(load, 20000);
+    window.addEventListener('dobbin:live', load);
+    window.addEventListener('dobbin:notices-seen', load);
+    return () => { clearInterval(t);
+      window.removeEventListener('dobbin:live', load);
+      window.removeEventListener('dobbin:notices-seen', load); };
+  }, []);
   const helloOnce = useRef(false);
   useEffect(() => {
     if (helloOnce.current) return;
@@ -604,6 +622,14 @@ function AppLayout() {
               onClick={() => { rightActions.pick('dobbin'); }}
               title="dobbin — 곁에 두기">
               <PenguinFace mood={dobbinBusy ? 'thinking' : overdueN > 0 ? 'alert' : 'idle'} size={19} />
+              {/* 🔴 배지는 **안 본 알림 수**다 (2026-08-27). 자료넣기 탭이
+                  갖고 있던 그 자리를 여기가 이어받는다 — 탭이 둘로 갈려
+                  «어디를 봐야 하나» 가 됐던 것이 사용자가 지적한 겹침이다. */}
+              {noticeN > 0 && (
+                <span className="right-tab__ask" aria-label={`${noticeN}건 알림`}>
+                  {noticeN}
+                </span>
+              )}
               {hello && (
                 <span className={`right-tab__hello${helloGoing ? ' is-leaving' : ''}`}
                       onClick={(e) => {
@@ -627,18 +653,7 @@ function AppLayout() {
                 </span>
               )}
             </button>
-            <button
-              className={`right-tab${showHoverPanel && rightTab === 'intake' ? ' active' : ''}`}
-              onClick={() => { rightActions.pick('intake'); }}
-              title="자료 넣기 · 검수">
-              <UploadCloud size={17} />
-              {/* 🔴 말풍선 — 물을 것이 있으면 여기 뜬다 (1-2-1) */}
-              {intakeQuestions > 0 && (
-                <span className="right-tab__ask" aria-label={`${intakeQuestions}건 여쭐 것`}>
-                  {intakeQuestions}
-                </span>
-              )}
-            </button>
+            
           </div>
         {/* Right Panel with slide animation. Stage 5.0.3a-rework
             (2026-05-15) restored the collapsed-bar with toggle button
