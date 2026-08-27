@@ -32,6 +32,19 @@ import { selectContainer } from '../../core/stores/appActions';
 import { hoverActions } from '../hover-windows/stores/hoverStore';
 import './intake.css';
 
+/** 언제 — 「방금 · 3시간 전 · 어제 · 8/25」. 사람이 읽는 말로. */
+function when(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (!t) return '';
+  const m = Math.floor((Date.now() - t) / 60000);
+  if (m < 2) return '방금';
+  if (m < 60) return `${m}분 전`;
+  if (m < 24 * 60) return `${Math.floor(m / 60)}시간 전`;
+  if (m < 48 * 60) return '어제';
+  const d = new Date(t);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
 type Recent = { name: string; state: string; at?: string | null;
   folder?: string | null; open?: string | null; note?: string | null; };
 
@@ -54,6 +67,7 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
   const [busy, setBusy] = useState(false);
   const [folders, setFolders] = useState<string[]>([]);
   const [picking, setPicking] = useState<number | null>(null);
+  const [pick, setPick] = useState('');
   const [said, setSaid] = useState<string>('');
 
   const load = useCallback(async (scan = false) => {
@@ -131,11 +145,13 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
           else if (r.open) openFile(r.open, r.name);
         }}
       >{r.name}</span>
+      {/* 🔴 점만으로는 무슨 뜻인지 모른다 — 글자로 적는다. 그리고 «최근»
+          인데 언제인지가 없었다 (2026-08-27 적대 검토). */}
+      {r.at && <span className="intake__r-at">{when(r.at)}</span>}
       {r.folder && (
         <button className="intake__r-loc" title="이 칸으로 이동"
                 onClick={() => selectContainer('library:' + r.folder!)}>
-          {r.state === 'asking' && <span className="intake__r-dot" />}
-          {r.folder}
+          {r.state === 'asking' ? '심의 중 · ' : ''}{r.folder}
         </button>
       )}
     </div>
@@ -203,9 +219,18 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
                 >＋ 새 과제</button>
                 <button className="intake-q__cancel"
                         onClick={() => setPicking(null)}>취소</button>
-                {folders.slice(0, 40).map((f) => (
-                  <button key={f} onClick={() => answer(q.id, 'other', f)}>{f}</button>
-                ))}
+                {/* 🔴 마흔 개를 늘어놓는 것은 «고르게 하는» 게 아니라 «훑게
+                    하는» 것이다 (2026-08-27 적대 검토). 좁혀서 준다. */}
+                <input className="intake-q__find" autoFocus
+                       placeholder="칸 이름으로 좁히기…"
+                       value={pick} onChange={(e) => setPick(e.target.value)} />
+                {folders
+                  .filter((f) => !pick.trim()
+                    || f.toLowerCase().includes(pick.trim().toLowerCase()))
+                  .slice(0, 24)
+                  .map((f) => (
+                    <button key={f} onClick={() => answer(q.id, 'other', f)}>{f}</button>
+                  ))}
               </div>
             ) : (
               <div className="intake-q__opts">

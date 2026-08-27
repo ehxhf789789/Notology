@@ -152,3 +152,11 @@
 }
 .intake-q__newproj { border-style: dashed !important; }
 .intake-q__cancel { opacity: .75; }
+
+/* 2026-08-27 적대 검토 — 고르개 좁히기 · 언제인지 */
+.intake-q__find {
+  flex: 1 1 100%; min-height: 28px; padding: 4px 8px; border-radius: 6px;
+  border: 0.5px solid var(--bdr-2); background: var(--bg-input);
+  color: inherit; font-size: 11.5px; margin-bottom: 2px;
+}
+.intake__r-at { flex: none; font-size: 10.5px; color: var(--tx-3); }
