@@ -18,11 +18,13 @@
  *    두 벌로 만들면 어긋난다 (이 저장소가 여러 번 겪은 실수).
  */
 import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, CalendarDays, Search as SearchIcon } from 'lucide-react';
 import { PenguinFace } from './PenguinFace';
 import { IntakePanel } from './IntakePanel';
+import { NoticeList, useNotices, markAllSeen } from './NoticeList';
 import { DobbinSurface } from './DobbinSurface';
 import { uiActions } from '../../core/stores/uiStore';
+import { rightActions, useDobbinView } from '../../core/stores/rightTabStore';
 import './home.css';
 
 /** 좁아지면 세로로 접는다. 🔴 미디어쿼리로는 못 잰다 — 이 영역의 폭은
@@ -44,6 +46,20 @@ export function DobbinHome() {
   const { ref, narrow } = useNarrow<HTMLDivElement>();
   const [brief, setBrief] = useState<string | null>(null);
   const [briefOpen, setBriefOpen] = useState(false);
+  const { list: notices } = useNotices();
+  const report = notices.filter(n => n.kind !== 'ask');
+  // 홈을 연 것이 곧 «봤다» — 좌측 배지는 그때 내려간다
+  useEffect(() => {
+    if (!notices.length) return;
+    const t = setTimeout(() => {
+      markAllSeen(notices);
+      window.dispatchEvent(new CustomEvent('dobbin:notices-seen'));
+    }, 900);
+    return () => clearTimeout(t);
+  }, [notices]);
+  const dview = useDobbinView();
+  const calOn = dview === 'cal';
+  const findOn = dview === 'search';
 
   useEffect(() => {
     let dead = false;
@@ -86,9 +102,35 @@ export function DobbinHome() {
 
       <div className="dhome__body">
         <div className="dhome__main">
+          {/* 🔴 알림은 홈 안에 산다 (2026-08-27) — 탭의 벨은 걷었다.
+              «확인할 것»은 바로 아래 카드가 맡으므로 여기서는 뺀다 —
+              같은 말을 두 번 하지 않는다. */}
+          {report.length > 0 && (
+            <section className="dhome__report">
+              <h2 className="dhome__h2">dobbin 이 한 일 · 알림</h2>
+              <NoticeList list={report} />
+            </section>
+          )}
           <IntakePanel variant="home" />
         </div>
         <div className="dhome__chat">
+          {/* 🔴 **만들어 둔 것을 버리지 않는다** (2026-08-27 사용자 지적).
+              대화 달력·대화 검색은 DobbinSurface 안에 그대로 살아 있는데,
+              패널 머리를 걷으면서 **여는 단추만** 사라졌었다. 여기 단다 —
+              대화를 쓰는 자리에 붙는 것이 제자리이기도 하다. */}
+          <div className="dhome__chat-head">
+            <span className="dhome__chat-title">대화</span>
+            <button className={`dhome__chat-btn${calOn ? ' is-on' : ''}`}
+                    title="날짜로 대화 찾기"
+                    onClick={() => rightActions.view('cal')}>
+              <CalendarDays size={15} />
+            </button>
+            <button className={`dhome__chat-btn${findOn ? ' is-on' : ''}`}
+                    title="대화 검색"
+                    onClick={() => rightActions.view('search')}>
+              <SearchIcon size={15} />
+            </button>
+          </div>
           <DobbinSurface />
         </div>
       </div>

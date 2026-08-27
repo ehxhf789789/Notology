@@ -635,3 +635,12 @@
   from { opacity: 0; transform: translateY(-4px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* dobbin 단추의 알림 수 (2026-08-27) — 우측 탭의 그 자리를 여기가 잇는다 */
+.sidebar-action-btn--dobbin { position: relative; }
+.sidebar-action-btn__n {
+  position: absolute; top: 1px; right: 1px; min-width: 14px; height: 14px;
+  padding: 0 3px; border-radius: 999px; font-size: 9.5px; line-height: 14px;
+  text-align: center; font-weight: 700;
+  background: var(--c-danger); color: #fff;
+}

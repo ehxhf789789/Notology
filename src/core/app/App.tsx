@@ -39,7 +39,6 @@ import {
 import { useSearchIndexing } from '../stores/refreshStore';
 import Sidebar from '../layout/Sidebar';
 import ContainerView from '../../features/note-editor/ContainerView';
-import { NoticeBell } from '../../features/dobbin/NoticeBell';
 import { DobbinHome } from '../../features/dobbin/DobbinHome';
 import Search from '../../features/search/Search';
 import HoverEditorLayer from '../../features/hover-windows/HoverEditorLayer';
@@ -145,24 +144,7 @@ function AppLayout() {
   //    alert 상태(붉은 맥박)는 CSS 가 처음부터 갖고 있었는데 아무도 안 썼다 —
   //    패널을 접어도 탭은 서 있으므로, 접힌 채로도 밀린 일이 보인다.
   const [overdueN, setOverdueN] = useState(0);
-  // 🔴 알림 배지 — 서버가 아는 사실만 센다 (notices.py). 20초마다·live 때마다.
-  const [noticeN, setNoticeN] = useState(0);
-  useEffect(() => {
-    const load = () => fetch('/api/notices').then(r => r.json())
-      .then(j => {
-        const seen = new Set<string>(
-          JSON.parse(localStorage.getItem('dobbin.noticesSeen') || '[]'));
-        setNoticeN((j?.notices ?? []).filter((n: { id: string }) =>
-          !seen.has(n.id)).length);
-      }).catch(() => { /* 조용히 */ });
-    load();
-    const t = setInterval(load, 20000);
-    window.addEventListener('dobbin:live', load);
-    window.addEventListener('dobbin:notices-seen', load);
-    return () => { clearInterval(t);
-      window.removeEventListener('dobbin:live', load);
-      window.removeEventListener('dobbin:notices-seen', load); };
-  }, []);
+
   const helloOnce = useRef(false);
   useEffect(() => {
     if (helloOnce.current) return;
@@ -618,10 +600,7 @@ function AppLayout() {
               title="달력 · 할 일">
               <CalendarDays size={17} />
             </button>
-            {/* 🔴 dobbin 을 패널에서 걷었다 (2026-08-27 사용자: 홈이 다 하는데
-                패널이 왜 필요한가 — 필요 없다). 곁눈질에 남는 수요는 «대화»
-                가 아니라 «알림»이라 벨 + 팝오버로 충분하다. */}
-            <NoticeBell mood={dobbinBusy ? 'thinking' : overdueN > 0 ? 'alert' : 'idle'} />
+
             
           </div>
         {/* Right Panel with slide animation. Stage 5.0.3a-rework

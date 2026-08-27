@@ -88,3 +88,24 @@
 .intake--home .intake__r:last-child { border-bottom: none; }
 .intake--home .intake__r-name { flex: 1 1 auto; min-width: 0; }
 .intake--home .intake__r-loc { flex: 0 0 auto; max-width: 46%; }
+
+/* 대화 머리 — 달력·검색 (2026-08-27) */
+.dhome__chat-head {
+  display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+  padding: 8px 10px 6px; border-bottom: 0.5px solid var(--sep-l);
+}
+.dhome__chat-title { flex: 1 1 auto; font-size: 12px; color: var(--tx-3); }
+.dhome__chat-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 7px; cursor: pointer;
+  border: none; background: transparent; color: var(--tx-2);
+}
+.dhome__chat-btn:hover { background: var(--bg-hover); color: var(--tx-1); }
+.dhome__chat-btn.is-on { background: var(--bg-sel); color: var(--c-accent); }
+
+/* 알림 — 홈 안에 산다 */
+.dhome__report { grid-column: 1 / -1; padding: 14px 16px 0; }
+.dhome__h2 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--tx-3); }
+.dhome__report .ntc { border: 0.5px solid var(--bdr-1); border-radius: 10px;
+                      overflow: hidden; background: var(--bg-elev-1); }
+.dhome__report .ntc__row:last-child { border-bottom: none; }

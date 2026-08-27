@@ -13,6 +13,7 @@ import {
 import { useShowSearch, useShowDobbinHome, useSidebarCollapsed, useUIStore, uiActions } from '../stores/uiStore';
 import { IconButton, Tooltip } from '../../design-system/components';
 import { PenguinFace } from '../../features/dobbin/PenguinFace';
+import { useDobbinPulse } from '../../features/dobbin/useDobbinPulse';
 import { useContainerConfigs, vaultConfigActions } from '../../features/vault-config/stores/vaultConfigStore';
 import { modalActions } from '../../features/modals/stores/modalStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -33,6 +34,7 @@ function Sidebar() {
   // ========== ZUSTAND UI STATE ==========
   const showSearch = useShowSearch();
   const showDobbinHome = useShowDobbinHome();
+  const pulse = useDobbinPulse();
   const sidebarCollapsed = useSidebarCollapsed();
   const containerConfigs = useContainerConfigs();
   const language = useSettingsStore(s => s.language);
@@ -253,12 +255,20 @@ function Sidebar() {
                   2026-08-11 에 좌측에서 뺐던 dobbin 단추와는 성격이 다르다:
                   그때는 «패널을 여는» 단추였고 지금은 «홈을 여는» 단추다. */}
               <button
-                className={`sidebar-action-btn ${showDobbinHome ? 'active' : ''}`}
+                className={`sidebar-action-btn sidebar-action-btn--dobbin ${showDobbinHome ? 'active' : ''}`}
                 onClick={() => uiActions.setShowDobbinHome(!showDobbinHome)}
-                title="dobbin — 이 서재의 사서"
+                title={pulse.unseen > 0
+                  ? `dobbin — 알림 ${pulse.unseen}건`
+                  : 'dobbin — 이 서재의 사서'}
                 disabled={!vaultPath}
               >
-                <PenguinFace mood="idle" size={17} />
+                {/* 🔴 상태가 있어야 애니메이션이 있다 (2-14-2-2) — 읽는 중이면
+                    생각하고, 알릴 것이 있으면 붉게 맥박한다. 장식이 아니다. */}
+                <PenguinFace mood={pulse.mood} size={17} />
+                {pulse.unseen > 0 && (
+                  <span className="sidebar-action-btn__n"
+                        aria-label={`${pulse.unseen}건 알림`}>{pulse.unseen}</span>
+                )}
               </button>
 
             </div>
@@ -294,7 +304,7 @@ function Sidebar() {
             </Tooltip>
             <Tooltip content="dobbin — 이 서재의 사서" placement="right">
               <IconButton
-                icon={<PenguinFace mood="idle" size={17} />}
+                icon={<PenguinFace mood={pulse.mood} size={17} />}
                 aria-label="dobbin"
                 variant="ghost"
                 size="md"
