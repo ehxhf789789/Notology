@@ -99,7 +99,17 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
   useEffect(() => {
     const h = (e: Event) => {
       const d = (e as CustomEvent).detail;
-      if (d?.kind === 'inbox-changed') load(true);
+      if (d?.kind === 'inbox-changed') {
+        // 🔴 화면이 먼저 반응한다 (P5) — 서버 판정(수 초)을 기다리지 않고
+        //    «지금 읽고 있다» 줄부터 세운다. 판정이 오면 load 가 갈아 끼운다.
+        if (d?.path) {
+          const nm = String(d.path).split('/').pop() || String(d.path);
+          setRecent((prev) => prev.some((r) => r.name === nm) ? prev
+            : [{ name: nm, state: 'reading', at: new Date().toISOString(),
+                 folder: null, open: null, note: null }, ...prev]);
+        }
+        load(true);
+      }
     };
     window.addEventListener('dobbin:live', h);
     return () => window.removeEventListener('dobbin:live', h);
@@ -168,7 +178,8 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
       >{r.name}</span>
       {/* 🔴 점만으로는 무슨 뜻인지 모른다 — 글자로 적는다. 그리고 «최근»
           인데 언제인지가 없었다 (2026-08-27 적대 검토). */}
-      {r.at && <span className="intake__r-at">{when(r.at)}</span>}
+      {r.state === 'reading' && <span className="intake__r-at">읽는 중…</span>}
+      {r.at && r.state !== 'reading' && <span className="intake__r-at">{when(r.at)}</span>}
       {r.folder && (
         <button className="intake__r-loc" title="이 칸으로 이동"
                 onClick={() => selectContainer('library:' + r.folder!)}>
@@ -283,6 +294,16 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
                     {o.label}
                   </button>
                 ))}
+                {/* 🔴 대안 — 표가 갈렸거나 낱말이 두 서가를 부를 때, 2등을
+                    단추로 준다 (P4). CDE2026 의 정답이 정확히 2등이었다. */}
+                {((g as { alts?: { folder: string; why?: string }[] }).alts ?? [])
+                  .slice(0, 2).map((a) => (
+                    <button key={a.folder} className="intake-q__alt"
+                            title={a.why || ''}
+                            onClick={() => answer(q.id, 'other', a.folder)}>
+                      {a.folder.split('/').pop()} 쪽입니다
+                    </button>
+                  ))}
               </div>
             )}
 

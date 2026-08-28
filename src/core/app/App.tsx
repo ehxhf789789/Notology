@@ -111,6 +111,27 @@ function AppLayout() {
   // UI state (individual Zustand subscriptions - only re-renders when specific value changes)
   const showSearch = useShowSearch();
   const showDobbinHome = useShowDobbinHome();
+  // P1 — 우측 패널 폭 (드래그 + 기억)
+  const [rightWidth, setRightWidth] = useState<number>(() => {
+    const v = parseInt(localStorage.getItem('dobbin.rightWidth') || '', 10);
+    return v >= 280 && v <= 720 ? v : HOVER_PANEL_WIDTH;
+  });
+  const startRightResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = rightWidth;
+    const move = (ev: MouseEvent) => {
+      const w = Math.min(720, Math.max(280, startW + (startX - ev.clientX)));
+      setRightWidth(w);
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      setRightWidth((w) => { localStorage.setItem('dobbin.rightWidth', String(w)); return w; });
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  }, [rightWidth]);
   // 한 번이라도 연 뒤에는 계속 마운트해 둔다 (상태 보존)
   const [homeEverOpened, setHomeEverOpened] = useState(false);
   useEffect(() => { if (showDobbinHome) setHomeEverOpened(true); }, [showDobbinHome]);
@@ -621,10 +642,16 @@ function AppLayout() {
           className={`hover-panel-wrapper ${showHoverPanel ? 'open' : 'closed'} ${hoverPanelAnimState}`}
           style={{
             width: showHoverPanel || hoverPanelAnimState === 'closing'
-              ? HOVER_PANEL_WIDTH
+              ? rightWidth
               : undefined,
           }}
         >
+          {/* 🔴 P1 — 좌측은 끌어 늘리는데 우측만 280px 고정이었다.
+              좌측과 같은 divider 부품, 반대 방향. */}
+          {showHoverPanel && (
+            <div className="divider divider--right"
+                 onMouseDown={startRightResize} />
+          )}
           {showHoverPanel || hoverPanelAnimState === 'closing' ? (
             <RightPanel width={HOVER_PANEL_WIDTH} />
           ) : null}

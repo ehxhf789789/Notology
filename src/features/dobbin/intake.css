@@ -230,3 +230,8 @@
 }
 .intake-q__why { max-height: 66px; overflow: hidden; }
 .intake-q__preview, .intake-q__preview img { max-height: 120px; }
+
+/* 대안 단추 (P4) — 2등 후보. 근거는 title 로 */
+.intake-q__opts .intake-q__alt {
+  border-style: dashed; color: var(--tx-2);
+}

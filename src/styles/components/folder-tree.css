@@ -441,3 +441,7 @@ body:has(.container-tree-section.dragging) * {
   font-size: var(--fs-14);
   color: var(--tx-3);
 }
+
+/* P1 (2026-08-27) — 우측 패널 divider: 왼쪽 가장자리에 선다 */
+.hover-panel-wrapper { position: relative; }
+.divider--right { position: absolute; left: 0; top: 0; bottom: 0; z-index: 5; }
