@@ -75,7 +75,7 @@ export function DobbinHome() {
     <div ref={ref} className={`dhome${narrow ? ' is-narrow' : ''}`}>
       <header className="dhome__hero">
         <span className="dhome__icon" aria-hidden="true">
-          <PenguinFace mood="idle" size={26} />
+          <PenguinFace mood="idle" size={34} />
         </span>
         <div className="dhome__text">
           <h1 className="dhome__title">dobbin</h1>

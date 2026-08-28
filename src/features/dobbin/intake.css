@@ -168,15 +168,20 @@
 
 /* 확장성 (2026-08-27) — 카드는 여섯까지, 나머지는 한 줄로 · 일괄 처리 */
 .intake__bulk {
-  grid-column: 1 / -1; display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: 9px; font-size: 12px;
+  /* 🔴 안내 한 줄은 **띠**지 카드가 아니다 (2026-08-28 사용자: 높이가
+     과도하게 길다 — 실측 59px). 줄바꿈을 막고 단추 높이에 맞춘 32px 띠로.
+     grid 의 stretch 에 부풀지 않게 align-self 도 박는다. */
+  grid-column: 1 / -1; align-self: start;
+  display: flex; align-items: center; gap: 10px;
+  min-height: 32px; padding: 3px 10px; border-radius: 8px; font-size: 12px;
   border: 0.5px solid var(--bdr-1); background: var(--bg-elev-3);
 }
-.intake__bulk span { flex: 1 1 auto; color: var(--tx-2); }
+.intake__bulk span { flex: 1 1 auto; color: var(--tx-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .intake__bulk button {
-  flex: none; padding: 5px 12px; border-radius: 7px; cursor: pointer;
-  border: none; background: var(--c-accent); color: #fff; font-size: 12px;
-  font-weight: 600;
+  flex: none; min-height: 26px; padding: 3px 12px; border-radius: 6px;
+  cursor: pointer; border: none; background: var(--c-accent); color: #fff;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
 }
 .intake__bulk button:hover { filter: brightness(1.1); }
 

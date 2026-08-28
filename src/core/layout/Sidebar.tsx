@@ -264,7 +264,7 @@ function Sidebar() {
               >
                 {/* 🔴 상태가 있어야 애니메이션이 있다 (2-14-2-2) — 읽는 중이면
                     생각하고, 알릴 것이 있으면 붉게 맥박한다. 장식이 아니다. */}
-                <PenguinFace mood={pulse.mood} size={17} />
+                <PenguinFace mood={pulse.mood} size={22} />
                 {pulse.unseen > 0 && (
                   <span className="sidebar-action-btn__n"
                         aria-label={`${pulse.unseen}건 알림`}>{pulse.unseen}</span>
@@ -304,7 +304,7 @@ function Sidebar() {
             </Tooltip>
             <Tooltip content="dobbin — 이 서재의 사서" placement="right">
               <IconButton
-                icon={<PenguinFace mood={pulse.mood} size={17} />}
+                icon={<PenguinFace mood={pulse.mood} size={22} />}
                 aria-label="dobbin"
                 variant="ghost"
                 size="md"

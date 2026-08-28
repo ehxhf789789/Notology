@@ -202,3 +202,6 @@
 .dref__chip:hover { color: var(--accent, #4a7dbd);
   border-color: color-mix(in srgb, var(--accent,#4a7dbd) 50%, transparent); }
 .dref__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 기본(13.33px) 글자가 새지 않게 — 클래스 없는 단추들 (달력 ‹›, 접기 등) */
+.dsurf button { font-size: 12px; }

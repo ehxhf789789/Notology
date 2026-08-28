@@ -13,7 +13,10 @@
 /* idle — 느린 숨. 4초라 눈에 걸리지 않는다 */
 .peng--idle .peng-head { animation: peng-breathe 4s ease-in-out infinite; }
 @keyframes peng-breathe {
-  0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); }
+  /* 🔴 22px 에서 4.5% 는 1px 도 안 움직인다 (2026-08-28 사용자: 애니메이션이
+     잘 안 보인다). 진폭은 «작아도 보이는» 8% — 다만 여전히 4초 느린 숨이다
+     (2-14-2-2: 늘 움직이는 것은 기계다 — 빈도가 아니라 진폭을 키운다). */
+  0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); }
 }
 /* 깜빡임 — 불규칙해야 살아 있다 */
 .peng-eye, .peng-pupil { transform-origin: center; }
@@ -36,7 +39,7 @@
 .peng--thinking .peng-head { transform: rotate(-6deg); }
 @keyframes peng-dot {
   0%, 70%, 100% { opacity: 0; transform: translateY(1px); }
-  30% { opacity: 1; transform: translateY(-1.5px); }
+  30% { opacity: 1; transform: translateY(-2.5px); }
 }
 
 /* found — 한 번 폴짝. 지느러미가 든다 */
@@ -44,7 +47,7 @@
 .peng--found .peng-wing--l { animation: peng-flap-l .6s ease-out; }
 .peng--found .peng-wing--r { animation: peng-flap-r .6s ease-out; }
 @keyframes peng-hop {
-  0% { transform: translateY(0); } 45% { transform: translateY(-3.5px) scale(1.06); }
+  0% { transform: translateY(0); } 45% { transform: translateY(-5px) scale(1.12); }
   100% { transform: translateY(0); }
 }
 @keyframes peng-flap-l {
