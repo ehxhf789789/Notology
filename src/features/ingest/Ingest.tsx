@@ -73,6 +73,8 @@ async function send(it: Item): Promise<Item> {
     });
     const j = await r.json();
     if (!j.ok) return { ...it, state: 'fail', why: j.why || `HTTP ${r.status}` };
+    // 관찰 ①-g: 무엇을 던지는가 — 투입이 곧 «지금 하는 일»의 신호다
+    import('../dobbin/observe').then(m => m.observe('intake', it.rel)).catch(() => {});
     return { ...it, state: j.skipped ? 'skip' : 'ok', why: j.why };
   } catch (e) {
     return { ...it, state: 'fail', why: String(e).slice(0, 80) };

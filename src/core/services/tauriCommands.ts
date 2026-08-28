@@ -43,6 +43,8 @@ export const fileCommands = {
   writeFile: (path: string, frontmatter: string | null, body: string) =>
     invoke<void>('write_file', { path, frontmatter, body }).then(() => {
       EventBus.emit('file:saved', { path });
+      // 관찰 ①-g: 무엇을 고쳐 쓰는가 — 경로만, 본문은 안 보낸다 (2-14-2-1)
+      import('../../features/dobbin/observe').then(m => m.observe('edit_note', path)).catch(() => {});
     }),
 
   deleteFile: (path: string) =>

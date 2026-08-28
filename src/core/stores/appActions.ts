@@ -254,6 +254,8 @@ export async function removeVault(vaultPathToRemove: string) {
 
 export function selectContainer(path: string | null) {
   fileTreeActions.setSelectedContainer(path);
+  // 관찰 ①-g: 어느 서가를 여는가 — 탐색 패턴이 관심사의 재료다
+  if (path) import('../../features/dobbin/observe').then(m => m.observe('open_folder', path)).catch(() => {});
   uiActions.setShowSearch(false);
   uiActions.setShowCalendar(false);
   // 🔴 홈이 열린 채 폴더를 누르면 화면이 안 바뀐다 — 중앙 분기에서 홈이

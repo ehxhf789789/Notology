@@ -94,6 +94,8 @@ export const useUIStore = create<UIState>()(
     setShowDobbinHome: (show: boolean) => {
       set({ showDobbinHome: show });
       if (show) {
+        // 관찰 ①-g: dobbin 을 찾는 순간 — 언제 사서를 부르는가
+        import('../../features/dobbin/observe').then(m => m.observe('open_home')).catch(() => {});
         set({ showSearch: false, showCalendar: false });
         // 🔴 dobbin 은 패널에 없다 (2026-08-27) — 겹칠 것이 없다
         import('./fileTreeStore').then(({ fileTreeActions }) => {
