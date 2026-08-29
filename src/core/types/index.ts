@@ -494,8 +494,10 @@ export interface TagConfig {
  *
  * `domain`은 보관소에 없지만 앱 곳곳이 참조하므로 남겨 둔다.
  */
-export type FacetNamespace =
-  | 'domain' | 'who' | 'org' | 'ctx' | 'key' | 'proj' | 'acad';
+// 🔴 축 이름표도 여기서 다시 적지 않는다 — `tagOntology` 한 곳이다.
+import { FACET_NAMESPACES } from './tagOntology';
+export type { FacetNamespace } from './tagOntology';
+import type { FacetNamespace } from './tagOntology';
 
 export interface FacetedTagSettings {
   domain: Record<string, TagConfig>;
@@ -523,12 +525,11 @@ export interface FacetInfo {
   description: string;
 }
 
-export const FACET_INFOS: FacetInfo[] = [
-  { namespace: 'domain', label: 'facetDomain', description: 'facetDomainDesc' },
-  { namespace: 'who', label: 'facetWho', description: 'facetWhoDesc' },
-  { namespace: 'org', label: 'facetOrg', description: 'facetOrgDesc' },
-  { namespace: 'ctx', label: 'facetCtx', description: 'facetCtxDesc' },
-];
+// 🔴 파생이다. 축을 늘릴 곳은 `tagOntology.FACET_NAMESPACES` 한 곳뿐이고
+//    여기서 다시 적으면 또 두 벌이 된다 (2026-08-29 사용자: «왜 모든 태그가
+//    노트에서 보이지 않나» — 두 벌로 갈라져 절반이 안 보였다).
+export const FACET_INFOS: FacetInfo[] = FACET_NAMESPACES.map(
+  ({ namespace, label, description }) => ({ namespace, label, description }));
 
 // Tag Color Presets - 10 background colors with good contrast
 export interface TagColorPreset {

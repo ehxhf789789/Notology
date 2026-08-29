@@ -7,11 +7,11 @@ import HierarchicalTagSelector from './HierarchicalTagSelector';
 import { useOntologyRefreshTrigger, refreshActions } from '../../core/stores/refreshStore';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { t } from '../../core/utils/i18n';
-import { BookOpen, Users, Building2, Activity } from 'lucide-react';
+import { BookOpen, Users, Building2, Activity, Hash, Briefcase, GraduationCap } from 'lucide-react';
 import type { FacetIconName } from '../../core/types/tagOntology';
 
 const FACET_ICONS: Record<FacetIconName, React.ComponentType<{ size?: number; className?: string }>> = {
-  BookOpen, Users, Building2, Activity,
+  BookOpen, Users, Building2, Activity, Hash, Briefcase, GraduationCap,
 };
 
 interface FacetedTagEditorProps {
@@ -170,9 +170,9 @@ function FacetedTagEditor({ tags, onChange, vaultPath }: FacetedTagEditorProps) 
               <div>
                 <span className="facet-label">
                   {(() => { const Icon = FACET_ICONS[facet.icon]; return <Icon size={13} className="facet-icon" />; })()}
-                  {facet.label}
+                  {t(facet.label, language)}
                 </span>
-                <span className="facet-description">{facet.description}</span>
+                <span className="facet-description">{t(facet.description, language)}</span>
               </div>
               <button
                 className="facet-add-btn"

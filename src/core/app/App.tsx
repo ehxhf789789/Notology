@@ -42,6 +42,7 @@ import ContainerView from '../../features/note-editor/ContainerView';
 import { DobbinHome } from '../../features/dobbin/DobbinHome';
 import Search from '../../features/search/Search';
 import HoverEditorLayer from '../../features/hover-windows/HoverEditorLayer';
+import MinimizedDock from '../../features/hover-windows/MinimizedDock';
 import RightPanel from '../layout/RightPanel';
 import ContextMenu from '../../features/context-menu/ContextMenu';
 import { Slot } from '../infrastructure/slotRegistry';
@@ -659,6 +660,8 @@ function AppLayout() {
         </div>
       </div>
       <HoverEditorLayer />
+      {/* 접힌 창 독 — 최소화한 창이 어디 있는지 보이고 눌러서 펼친다 */}
+      <MinimizedDock />
       <ContextMenu />
       <Suspense fallback={null}>
         <MoveNoteModal />

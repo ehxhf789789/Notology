@@ -1,3 +1,4 @@
+import { emptyFacetSelection } from '../shared/TagInputSection';
 import type { FolderNoteTemplate, NoteTemplate, NoteFrontmatter, NoteKind } from '../../core/types';
 import type { NoteType } from '../../core/types/frontmatter';
 import type { FacetedTagSelection } from '../shared/TagInputSection';
@@ -284,7 +285,7 @@ export function applyNoteTemplateVariables(
     // and merged on top of tagCategories.
     const templateFlatTags = template.frontmatter.tags;
     if (Array.isArray(templateFlatTags) && templateFlatTags.length > 0) {
-      const bucket = { domain: [] as string[], who: [] as string[], org: [] as string[], ctx: [] as string[] };
+      const bucket = emptyFacetSelection();   // 🔴 축은 표에서 (2026-08-29)
       for (const raw of templateFlatTags) {
         if (typeof raw !== 'string') continue;
         const v = raw.trim();

@@ -30,6 +30,9 @@ export interface FacetedTags {
   who?: string[];
   org?: string[];
   ctx?: string[];
+  key?: string[];          // 개념 — 원자화 지식 키워드 (CLAUDE 3-3)
+  proj?: string[];         // 활동
+  acad?: string[];         // 학술 단계 (초록<컨퍼런스<국내논문<국외논문)
   source?: string[];
   method?: string[];
   status?: string[];

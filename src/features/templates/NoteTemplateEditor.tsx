@@ -12,7 +12,7 @@ import HslColorPicker from './HslColorPicker';
 import { Toggle } from '../../design-system/components';
 // Hotfix (2026-05-17, HanBin) — chip-based multi-input replaces the
 // comma-separated single-line inputs for tag categories.
-import TagInputSection, { type FacetedTagSelection } from '../shared/TagInputSection';
+import TagInputSection, { type FacetedTagSelection, emptyFacetSelection, seedFacetSelection } from '../shared/TagInputSection';
 
 interface NoteTemplateEditorProps {
   template?: NoteTemplate;
@@ -126,7 +126,7 @@ function NoteTemplateEditor({ template, onSave, onCancel }: NoteTemplateEditorPr
   // 아래 TagInputSection (chip 기반 multi-input) 로만.
   const legacyFlatTags = template?.frontmatter.tags;
   const seededFromFlat = useMemo(() => {
-    const bucket = { domain: [] as string[], who: [] as string[], org: [] as string[], ctx: [] as string[] };
+    const bucket = emptyFacetSelection();   // 🔴 축은 표에서 (2026-08-29)
     if (Array.isArray(legacyFlatTags)) {
       for (const raw of legacyFlatTags) {
         if (typeof raw !== 'string') continue;
@@ -142,11 +142,15 @@ function NoteTemplateEditor({ template, onSave, onCancel }: NoteTemplateEditorPr
     return bucket;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [tagSelection, setTagSelection] = useState<FacetedTagSelection>({
-    domain: [...new Set([...(template?.tagCategories?.domain || []), ...seededFromFlat.domain])],
-    who:    [...new Set([...(template?.tagCategories?.who    || []), ...seededFromFlat.who])],
-    org:    [...new Set([...(template?.tagCategories?.org    || []), ...seededFromFlat.org])],
-    ctx:    [...new Set([...(template?.tagCategories?.ctx    || []), ...seededFromFlat.ctx])],
+  // 🔴 축을 손으로 적지 않는다 (2026-08-29) — 넷만 적어 두어 `key`·`proj`
+  //    ·`acad` 는 템플릿에서 아예 고를 수 없었다.
+  const [tagSelection, setTagSelection] = useState<FacetedTagSelection>(() => {
+    const seed = seedFacetSelection(template?.tagCategories);
+    const out = emptyFacetSelection();
+    for (const k of Object.keys(out) as (keyof FacetedTagSelection)[]) {
+      out[k] = [...new Set([...(seed[k] || []), ...(seededFromFlat[k] || [])])];
+    }
+    return out;
   });
   // v19 (2026-05-16, HanBin) — icon + color now REQUIRED for new templates.
   // Empty initial state forces the user to pick. Editing an existing
@@ -300,12 +304,7 @@ function NoteTemplateEditor({ template, onSave, onCancel }: NoteTemplateEditorPr
       body,
       customColor: useCustomColor && customColor ? customColor : undefined,
       icon,
-      tagCategories: {
-        domain: [...tagSelection.domain],
-        who:    [...tagSelection.who],
-        org:    [...tagSelection.org],
-        ctx:    [...tagSelection.ctx],
-      },
+      tagCategories: { ...tagSelection },
     };
 
     onSave(newTemplate);

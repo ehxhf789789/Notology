@@ -8,11 +8,27 @@ import { useOntologyRefreshTrigger, refreshActions } from '../../core/stores/ref
 import { loadTagOntology, searchTags, addNewTag } from '../tags/tagOntologyUtils';
 import { t } from '../../core/utils/i18n';
 
-export interface FacetedTagSelection {
-  domain: string[];
-  who: string[];
-  org: string[];
-  ctx: string[];
+// 🔴 축을 손으로 적지 않는다 (2026-08-29). 이 꼴이 네 축뿐이라
+//    `key`·`proj`·`acad` 를 새 노트에 붙일 길이 아예 없었다.
+//    축 목록은 `tagOntology.FACET_NAMESPACES` 한 곳이다.
+export type FacetedTagSelection = Record<FacetNamespace, string[]>;
+
+/** 템플릿의 `tagCategories` 로 씨를 뿌린다. 축을 손으로 적지 않는다. */
+export function seedFacetSelection(
+  cats?: Record<string, string[] | undefined> | null,
+): FacetedTagSelection {
+  const out = emptyFacetSelection();
+  for (const [k, v] of Object.entries(cats ?? {})) {
+    if (Array.isArray(v) && k in out) out[k as FacetNamespace] = [...v];
+  }
+  return out;
+}
+
+/** 빈 고름. 🔴 축을 손으로 적지 말고 이것을 부른다 — 축이 늘면 저절로 는다. */
+export function emptyFacetSelection(): FacetedTagSelection {
+  return Object.fromEntries(
+    FACET_INFOS.map((f) => [f.namespace, [] as string[]]),
+  ) as FacetedTagSelection;
 }
 
 interface TagInputSectionProps {

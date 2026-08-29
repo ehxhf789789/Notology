@@ -28,11 +28,23 @@ export interface TagNode {
 
 export type FacetNamespace = 'domain' | 'who' | 'org' | 'ctx' | 'key' | 'proj' | 'acad';
 
-export type FacetIconName = 'BookOpen' | 'Users' | 'Building2' | 'Activity';
+export type FacetIconName = 'BookOpen' | 'Users' | 'Building2' | 'Activity'
+  | 'Hash' | 'Briefcase' | 'GraduationCap';
 
+// 🔴 축 표는 **여기 하나뿐이다** (2026-08-29). 같은 개념이 `FACET_INFOS`
+//    와 두 벌로 갈라져 있었고, 노트 창 패널은 이쪽(네 축·어긋난 이름)을
+//    읽었다 — 실측 **375 노트 중 186(50%)** 이 `key`·`proj`·`acad` 태그를
+//    창 안에서 못 보고 고치지도 못했다. `FACET_INFOS` 는 이제 이 표에서
+//    파생된다 (core/types/index.ts).
+//    이름은 CLAUDE 3-3 의 여섯 축 그대로다 — org=기관 · ctx=맥락이지
+//    「맥락/상태」가 아니다.
+//    label·description 은 **i18n 키**다 (화면에서 t() 로 푼다).
 export const FACET_NAMESPACES: Array<{ namespace: FacetNamespace; label: string; description: string; icon: FacetIconName }> = [
-  { namespace: 'domain', label: '주제', description: '노트의 주요 주제나 분야', icon: 'BookOpen' },
-  { namespace: 'who', label: '대상', description: '관련된 인물, 조직, 프로젝트', icon: 'Users' },
-  { namespace: 'org', label: '맥락', description: '작성 배경, 상황, 용도', icon: 'Building2' },
-  { namespace: 'ctx', label: '상태', description: '진행 상태, 우선순위', icon: 'Activity' },
+  { namespace: 'domain', label: 'facetDomain', description: 'facetDomainDesc', icon: 'BookOpen' },
+  { namespace: 'key', label: 'facetKey', description: 'facetKeyDesc', icon: 'Hash' },
+  { namespace: 'who', label: 'facetWho', description: 'facetWhoDesc', icon: 'Users' },
+  { namespace: 'org', label: 'facetOrg', description: 'facetOrgDesc', icon: 'Building2' },
+  { namespace: 'ctx', label: 'facetCtx', description: 'facetCtxDesc', icon: 'Activity' },
+  { namespace: 'proj', label: 'facetProj', description: 'facetProjDesc', icon: 'Briefcase' },
+  { namespace: 'acad', label: 'facetAcad', description: 'facetAcadDesc', icon: 'GraduationCap' },
 ];

@@ -22,17 +22,12 @@ import { AlertCircle } from 'lucide-react';
 import { useModalStore } from './stores/modalStore';
 import { useSettingsStore } from '../../core/stores/settingsStore';
 import { t } from '../../core/utils/i18n';
-import TagInputSection, { type FacetedTagSelection } from '../shared/TagInputSection';
+import TagInputSection, { emptyFacetSelection, type FacetedTagSelection } from '../shared/TagInputSection';
 import { resolveTemplateIcon } from '../templates/templateIconCatalog';
 import { Type as TypeIcon } from 'lucide-react';
 import { TEMPLATE_VAR_CATALOG, TEMPLATE_VAR_CATEGORIES, type TemplateVarSpec } from '../templates/templateVarCatalog';
 
-const DEFAULT_TAGS: FacetedTagSelection = {
-  domain: [],
-  who: [],
-  org: [],
-  ctx: [],
-};
+const DEFAULT_TAGS: FacetedTagSelection = emptyFacetSelection();
 
 // v18 — semantic HTML input types for known tokens so browsers can offer
 // the right virtual keyboard / autofill / basic validation. Unknown
@@ -155,12 +150,7 @@ function TitleInputModal() {
       return;
     }
     // Capture deep copy of tags BEFORE any state changes to avoid race conditions
-    const capturedTags: FacetedTagSelection = {
-      domain: [...selectedTags.domain],
-      who: [...selectedTags.who],
-      org: [...selectedTags.org],
-      ctx: [...selectedTags.ctx],
-    };
+    const capturedTags: FacetedTagSelection = { ...selectedTags };
     const capturedVarValues = { ...varValues };
     const capturedData = {
       title: inputValue.trim(),

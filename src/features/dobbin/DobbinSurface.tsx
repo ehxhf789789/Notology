@@ -24,6 +24,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Send, Search, Loader2, ArrowDown, Mic } from 'lucide-react';
 import { useDobbinStore, dobbinActions } from './dobbinStore';
+import { onLive } from '../../web/liveSync';
 import { Markdown } from './md';
 import { RefChips, type DobbinRef } from './refs';
 import { useDobbinView, rightActions } from '../../core/stores/rightTabStore';
@@ -51,6 +52,15 @@ function timeLabel(iso: string) {
 
 export function DobbinSurface() {
   const { busy, messages } = useDobbinStore();
+  // 생각 중계 (2026-08-28) — 서버가 실제로 지나는 단계를 SSE 로 흘린다.
+  // 연출이 아니다: agent.think_aloud 가 실값(갈래·건수)만 싣는다.
+  const [thought, setThought] = useState<string | null>(null);
+  useEffect(() => {
+    if (!busy) { setThought(null); return; }
+    return onLive(ev => {
+      if (ev.kind === 'thinking' && typeof ev.text === 'string') setThought(ev.text);
+    });
+  }, [busy]);
   // 🔴 달력·검색은 **공용 머리글**이 켠다 (RightPanel). 여기서 또 그리면
   //    접기 단추와 겹쳐 디자인이 깨진다 — 사용자가 지적한 그 자리다.
   const view = useDobbinView();
@@ -248,7 +258,7 @@ export function DobbinSurface() {
             </div>
           );
         })}
-        {busy && <div className="dsurf__busy"><Loader2 size={13} className="spin" /> 생각하는 중</div>}
+        {busy && <div className="dsurf__busy"><Loader2 size={13} className="spin" /> {thought ?? '생각하는 중'}</div>}
         <div ref={endRef} />
       </div>
 

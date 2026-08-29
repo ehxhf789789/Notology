@@ -170,13 +170,16 @@ function BulkTagModal({ paths, language, onClose, onComplete }: BulkTagModalProp
     }
   }, [selectedTags, paths, vaultPath, ontology, language, onComplete]);
 
+  // 🔴 표에 없으면 만들어낸다 — 축이 늘어도 회색이 생기지 않는다
+  //    (CLAUDE 2-2-0. `searchHelpers.tagColor` 와 같은 셈).
   const getNamespaceColor = (ns: FacetNamespace): string => {
-    switch (ns) {
-      case 'domain': return '#a78bfa';
-      case 'who': return '#22d3ee';
-      case 'org': return '#fb923c';
-      case 'ctx': return '#34d399';
-    }
+    const fixed: Partial<Record<FacetNamespace, string>> = {
+      domain: '#a78bfa', who: '#22d3ee', org: '#fb923c', ctx: '#34d399',
+    };
+    if (fixed[ns]) return fixed[ns] as string;
+    let h = 0;
+    for (let i = 0; i < ns.length; i++) h = (h * 31 + ns.charCodeAt(i)) >>> 0;
+    return `hsl(${h % 360} 42% 66%)`;
   };
 
   return createPortal(

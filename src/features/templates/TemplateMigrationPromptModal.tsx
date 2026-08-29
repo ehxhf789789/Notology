@@ -15,6 +15,8 @@
  * content is preserved under a "기존 내용" section divider so nothing is
  * lost.
  */
+import { seedFacetSelection } from '../shared/TagInputSection';
+import type { FacetedTagSelection } from '../shared/TagInputSection';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, FileText, ArrowRight } from 'lucide-react';
@@ -121,7 +123,7 @@ export function TemplateMigrationPromptModal() {
     target: NoteTemplate,
     titleForBody: string,
     varValues: Record<string, string>,
-    userTags?: { domain: string[]; who: string[]; org: string[]; ctx: string[] },
+    userTags?: FacetedTagSelection,   // 🔴 축을 손으로 적지 않는다 (2026-08-29)
   ) => {
     if (!prompt) return;
     setRunning(true);
@@ -156,10 +158,8 @@ export function TemplateMigrationPromptModal() {
         const oldTags = (merged.tags && typeof merged.tags === 'object') ? merged.tags as Record<string, unknown> : {};
         merged.tags = {
           ...oldTags,
-          domain: [...userTags.domain],
-          who:    [...userTags.who],
-          org:    [...userTags.org],
-          ctx:    [...userTags.ctx],
+          ...Object.fromEntries(
+            Object.entries(userTags).map(([k, v]) => [k, [...(v || [])]])),
         };
       }
 
@@ -272,10 +272,7 @@ export function TemplateMigrationPromptModal() {
         // (oldFm.tags preserved), so this purely surfaces what the user
         // will be adopting from the target template.
         {
-          domain: [...(target.tagCategories?.domain ?? [])],
-          who:    [...(target.tagCategories?.who    ?? [])],
-          org:    [...(target.tagCategories?.org    ?? [])],
-          ctx:    [...(target.tagCategories?.ctx    ?? [])],
+          ...seedFacetSelection(target.tagCategories),
         },
       );
       return;

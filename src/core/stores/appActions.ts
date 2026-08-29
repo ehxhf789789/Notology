@@ -22,6 +22,7 @@ import { uiActions } from './uiStore';
 import { vaultConfigActions, useVaultConfigStore } from '../../features/vault-config/stores/vaultConfigStore';
 import type { RecentVault } from '../../features/vault-config/stores/vaultConfigStore';
 import type { LockAcquireResult } from '../types';
+import { seedFacetSelection } from '../../features/shared/TagInputSection';
 import type { FacetedTagSelection } from '../../features/shared/TagInputSection';
 import { computeLevel } from '../utils/frontmatter';
 import { findTemplateForLevel, applyTemplateVariables, applyNoteTemplateVariables } from '../../features/templates/templates';
@@ -529,10 +530,7 @@ export async function createNoteWithTemplate(
         // the user can see + adjust BEFORE creating, same as the
         // createNoteFromTemplateInteractive flow.
         {
-          domain: [...(template.tagCategories?.domain ?? [])],
-          who:    [...(template.tagCategories?.who    ?? [])],
-          org:    [...(template.tagCategories?.org    ?? [])],
-          ctx:    [...(template.tagCategories?.ctx    ?? [])],
+          ...seedFacetSelection(template.tagCategories),
         },
       );
     });
@@ -660,10 +658,7 @@ export async function createNoteFromTemplateInteractive(
     // creating. Empty arrays per category if the template didn't define
     // any → wizard tag section opens empty, same as before.
     {
-      domain: [...(template.tagCategories?.domain ?? [])],
-      who:    [...(template.tagCategories?.who    ?? [])],
-      org:    [...(template.tagCategories?.org    ?? [])],
-      ctx:    [...(template.tagCategories?.ctx    ?? [])],
+      ...seedFacetSelection(template.tagCategories),
     },
   );
 }

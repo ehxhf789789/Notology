@@ -1279,14 +1279,20 @@ const ko: Record<string, string> = {
   statusOnHold: '보류',
 
   // ── Facet info ──
+  facetKey: '개념',
+  facetKeyDesc: '한 낱말로 원자화한 지식 키워드',
   facetDomain: '주제',
   facetDomainDesc: '노트의 주요 주제나 분야',
   facetWho: '대상',
-  facetWhoDesc: '관련된 인물, 조직, 프로젝트',
-  facetOrg: '맥락',
-  facetOrgDesc: '작성 배경, 상황, 용도',
-  facetCtx: '상태',
-  facetCtxDesc: '진행 상태, 우선순위',
+  facetWhoDesc: '관련된 인물',
+  facetOrg: '기관',
+  facetOrgDesc: '발주처·학회·소속 기관',
+  facetCtx: '맥락',
+  facetProj: '활동',
+  facetProjDesc: '자문회의·발표자료 제작 같은 활동',
+  facetAcad: '학술 단계',
+  facetAcadDesc: '초록 → 컨퍼런스 → 논문집',
+  facetCtxDesc: '어느 과제·학기의 것인가',
 
   // ── Tag color labels ──
   colorRed: '빨강',
@@ -2906,13 +2912,19 @@ const en: Record<string, string> = {
   statusOnHold: 'On Hold',
 
   // ── Facet info ──
+  facetKey: 'Concept',
+  facetKeyDesc: 'Atomic knowledge keyword',
   facetDomain: 'Topic',
   facetDomainDesc: 'Main topic or field of the note',
   facetWho: 'People',
   facetWhoDesc: 'Related people, organizations, projects',
-  facetOrg: 'Context',
-  facetOrgDesc: 'Background, situation, purpose',
-  facetCtx: 'Status',
+  facetOrg: 'Organization',
+  facetOrgDesc: 'Funder, society, affiliation',
+  facetCtx: 'Context',
+  facetProj: 'Activity',
+  facetProjDesc: 'Activity kind',
+  facetAcad: 'Stage',
+  facetAcadDesc: 'Abstract → conference → journal',
   facetCtxDesc: 'Progress status, priority',
 
   // ── Tag color labels ──
