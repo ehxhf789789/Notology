@@ -267,17 +267,19 @@ export function applyNoteTemplateVariables(
   // path), fall back to applying template's tagCategories + flat-tag
   // parsing so the template's defaults still land in the note.
   if (userTags && frontmatter.tags) {
-    frontmatter.tags.domain = [...userTags.domain];
-    frontmatter.tags.who    = [...userTags.who];
-    frontmatter.tags.org    = [...userTags.org];
-    frontmatter.tags.ctx    = [...userTags.ctx];
+    // 🔴 축을 손으로 적지 않는다 (2026-08-29)
+    for (const [k, v] of Object.entries(userTags)) {
+      if (Array.isArray(v)) (frontmatter.tags as Record<string, string[]>)[k] = [...v];
+    }
   } else if (frontmatter.tags) {
     // Apply template tag categories to frontmatter tags
     if (template.tagCategories) {
-      if (template.tagCategories.domain?.length) frontmatter.tags.domain = [...template.tagCategories.domain];
-      if (template.tagCategories.who?.length)    frontmatter.tags.who    = [...template.tagCategories.who];
-      if (template.tagCategories.org?.length)    frontmatter.tags.org    = [...template.tagCategories.org];
-      if (template.tagCategories.ctx?.length)    frontmatter.tags.ctx    = [...template.tagCategories.ctx];
+      // 🔴 축을 손으로 적지 않는다 (2026-08-29)
+      for (const [k, v] of Object.entries(template.tagCategories)) {
+        if (Array.isArray(v) && v.length) {
+          (frontmatter.tags as Record<string, string[]>)[k] = [...v];
+        }
+      }
     }
 
     // Legacy: template.frontmatter.tags (flat array) — kept for templates
@@ -290,16 +292,21 @@ export function applyNoteTemplateVariables(
         if (typeof raw !== 'string') continue;
         const v = raw.trim();
         if (!v) continue;
-        if (v.startsWith('domain/'))      bucket.domain.push(v.slice('domain/'.length));
-        else if (v.startsWith('who/'))    bucket.who.push(v.slice('who/'.length));
-        else if (v.startsWith('org/'))    bucket.org.push(v.slice('org/'.length));
-        else if (v.startsWith('ctx/'))    bucket.ctx.push(v.slice('ctx/'.length));
-        else                              bucket.ctx.push(v);
+        // 🔴 **모르는 축을 ctx 에 밀어 넣지 않는다** (2026-08-29).
+        //    넷만 알아서 `key/Smart_Construction` 이 통째로 ctx 값이 됐다 —
+        //    보관소에서 치운 ctx 축 오염(`solo`·`06_References`)의 발원지다.
+        const slash = v.indexOf('/');
+        const ax = slash > 0 ? v.slice(0, slash) : '';
+        const b = bucket as Record<string, string[]>;
+        if (ax && ax in b) b[ax].push(v.slice(slash + 1));
+        else if (ax) { b[ax] = b[ax] || []; b[ax].push(v.slice(slash + 1)); }
+        else b.ctx.push(v);          // 축이 없는 옛 태그만 ctx 로
       }
-      if (bucket.domain.length) frontmatter.tags.domain = [...new Set([...(frontmatter.tags.domain || []), ...bucket.domain])];
-      if (bucket.who.length)    frontmatter.tags.who    = [...new Set([...(frontmatter.tags.who || []),    ...bucket.who])];
-      if (bucket.org.length)    frontmatter.tags.org    = [...new Set([...(frontmatter.tags.org || []),    ...bucket.org])];
-      if (bucket.ctx.length)    frontmatter.tags.ctx    = [...new Set([...(frontmatter.tags.ctx || []),    ...bucket.ctx])];
+      for (const [k, vs] of Object.entries(bucket)) {
+        if (!vs.length) continue;
+        const ft = frontmatter.tags as Record<string, string[]>;
+        ft[k] = [...new Set([...(ft[k] || []), ...vs])];
+      }
     }
   }
 

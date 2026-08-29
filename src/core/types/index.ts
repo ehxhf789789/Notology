@@ -19,12 +19,13 @@ export interface FileContent {
  * deserializer (see src-tauri/.../frontmatter/types.rs `deserialize_tags`)
  * so old vaults migrate transparently on first read.
  */
-export interface FacetedTags {
-  domain?: string[];
-  who?: string[];
-  org?: string[];
-  ctx?: string[];
-}
+// 🔴 축을 손으로 적지 않는다 (2026-08-29) — 넷만 적어 두어 `key`·`proj`
+//    ·`acad` 태그가 형에서부터 없는 것이 되어 있었다.
+export type FacetedTags = Partial<Record<FacetNamespace, string[]>> & {
+  source?: string[];   // 옛 축 — 읽기만 한다
+  method?: string[];
+  status?: string[];
+};
 /** Legacy flat-array tag shape — pre-FacetedTags vaults. Parsers should
  *  accept it but new writes should always emit FacetedTags. */
 export type LegacyFlatTags = string[];
@@ -126,12 +127,9 @@ export interface NoteTemplate extends BaseTemplate {
   // Extended template configuration
   customColor?: string; // Hex color for custom color
   icon?: string; // Icon identifier
-  tagCategories?: { // Predefined tag categories for this template
-    domain?: string[];
-    who?: string[];
-    org?: string[];
-    ctx?: string[];
-  };
+  // 축을 손으로 적지 않는다 (2026-08-29) — 넷만 적혀 있어 템플릿이
+  // `key`·`proj`·`acad` 를 미리 담아 둘 수 없었다.
+  tagCategories?: Partial<Record<FacetNamespace, string[]>>;
   /**
    * Stage 5.0.5a (2026-05-16) — sub-kinds. If present, the Wizard shows a
    * second step where the user picks a kind, and the resulting note uses
@@ -222,6 +220,9 @@ export interface NoteMetadata {
   title: string;
   note_type: string;
   tags: string[];
+  /** 노트 파일이 실제로 가진 태그. `tags` 의 나머지는 **첨부에서 온 것**이라
+   *  노트 창 패널에는 없다 (2026-08-29). 없으면 전부 자기 것으로 친다. */
+  own_tags?: string[];
   created: string;
   modified: string;
   has_body: boolean;

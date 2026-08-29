@@ -209,12 +209,19 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
             const tagName = tagLabel(tag);
             // Dim tags not in the active sort category
             const isDimmed = tagSortCategory ? !tag.startsWith(tagSortCategory + '/') : false;
+            // 🔴 **첨부에서 온 태그는 노트 자신의 것이 아니다** (2026-08-29
+            //    사용자: «왜 모든 태그가 특정 노트에 보이지 않는가»).
+            //    목록은 일부러 첨부 태그까지 합쳐 보여 주는데(2026-08-11),
+            //    그것이 노트 태그와 똑같이 보여서 창 안 패널과 어긋나 보였다.
+            //    실측 노트 407 중 98 이 이 상태다. 점선으로 갈라 준다.
+            const borrowed = Array.isArray(note.own_tags)
+              && !note.own_tags.includes(tag);
             return (
               <span
                 key={tag}
-                className={`search-tag${categoryClass ? ' ' + categoryClass : ''}${isDimmed ? ' tag-dimmed' : ''}`}
+                className={`search-tag${categoryClass ? ' ' + categoryClass : ''}${isDimmed ? ' tag-dimmed' : ''}${borrowed ? ' search-tag--borrowed' : ''}`}
                 style={tagStyle(tag)}
-                title={tag}
+                title={borrowed ? `${tag} — 걸린 자료에서 온 태그입니다 (노트 자신의 태그가 아닙니다)` : tag}
               >
                 {tagName}
               </span>

@@ -1,4 +1,5 @@
 
+import { FACET_NAMESPACES } from '../../core/types/tagOntology';
 import { useAttachmentStore } from '../attachments/stores/attachmentStore';
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense, type CSSProperties } from 'react';
 import { searchCommands, utilCommands } from '../../core/services/tauriCommands';
@@ -45,10 +46,12 @@ const DEV = import.meta.env.DEV;
 const log = DEV ? console.log.bind(console) : () => {};
 
 function stripTagNamespace(tag: string): string {
-  if (tag.startsWith('domain/')) return tag.substring(7);
-  if (tag.startsWith('who/')) return tag.substring(4);
-  if (tag.startsWith('org/')) return tag.substring(4);
-  if (tag.startsWith('ctx/')) return tag.substring(4);
+  // 🔴 축을 손으로 적지 않는다 (2026-08-29) — 넷만 떼서 `key/…`·`proj/…`
+  //    ·`acad/…` 는 축까지 그대로 화면에 나왔다.
+  const slash = tag.indexOf('/');
+  if (slash > 0 && FACET_NAMESPACES.some((f) => f.namespace === tag.slice(0, slash))) {
+    return tag.slice(slash + 1);
+  }
   return tag;
 }
 
@@ -724,12 +727,10 @@ function Search({ containerPath, refreshTrigger, onCreateNote }: SearchProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showTagCategoryMenu]);
 
-  const TAG_CATEGORIES = [
-    { prefix: 'domain', labelKey: 'facetDomain' },
-    { prefix: 'who', labelKey: 'facetWho' },
-    { prefix: 'org', labelKey: 'facetOrg' },
-    { prefix: 'ctx', labelKey: 'facetCtx' },
-  ] as const;
+  // 축 표에서 (2026-08-29) — 넷만 적혀 있어 개념·활동·학술 단계로는
+  // 정렬·묶기를 할 수 없었다.
+  const TAG_CATEGORIES = FACET_NAMESPACES.map(
+    (f) => ({ prefix: f.namespace, labelKey: f.label }));
 
   const getSortIndicator = (field: string) => {
     const g = sortGlyph(sortBy === field, sortOrder);

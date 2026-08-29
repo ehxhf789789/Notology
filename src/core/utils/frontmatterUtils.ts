@@ -1,3 +1,4 @@
+import { FACET_NAMESPACES } from '../types/tagOntology';
 import { frontmatterCommands } from '../services/tauriCommands';
 import { getCurrentTimestamp } from './frontmatter';
 import type {
@@ -94,15 +95,10 @@ export function createDefaultFrontmatter(noteType: NoteType, title: string): Fro
       confidence: 'unverified' as const,
       maturity: 1,
     },
-    tags: {
-      domain: [],
-      who: [],
-      org: [],
-      ctx: [],
-      source: [],
-      method: [],
-      status: [],
-    },
+    // 축은 표에서 온다 — 여기서 다시 적지 않는다 (2026-08-29)
+    tags: Object.fromEntries(
+      FACET_NAMESPACES.map((f) => [f.namespace, [] as string[]]),
+    ) as FacetedTags,
     relations: [],
     cssclasses: [cssClassMap[noteType]],
   };
@@ -124,27 +120,25 @@ export function updateModifiedTimestamp(frontmatter: Frontmatter): Frontmatter {
  * Merge faceted tags (combines two tag objects)
  */
 export function mergeFacetedTags(tags1: FacetedTags, tags2: FacetedTags): FacetedTags {
-  return {
-    domain: [...(tags1.domain || []), ...(tags2.domain || [])],
-    who: [...(tags1.who || []), ...(tags2.who || [])],
-    org: [...(tags1.org || []), ...(tags2.org || [])],
-    ctx: [...(tags1.ctx || []), ...(tags2.ctx || [])],
-    source: [...(tags1.source || []), ...(tags2.source || [])],
-    method: [...(tags1.method || []), ...(tags2.method || [])],
-    status: [...(tags1.status || []), ...(tags2.status || [])],
-  };
+  // 🔴 축을 손으로 적지 않는다 (2026-08-29). 넷만 적혀 있어 `key`·`proj`
+  //    ·`acad` 가 합칠 때 통째로 사라졌다.
+  const out: Record<string, string[]> = {};
+  for (const src of [tags1, tags2]) {
+    for (const [k, v] of Object.entries(src || {})) {
+      if (Array.isArray(v)) out[k] = [...(out[k] || []), ...v];
+    }
+  }
+  return out as FacetedTags;
 }
 
 /**
  * Get all tags as flat array
  */
 export function getFlatTags(tags: FacetedTags): string[] {
-  return [
-    ...(tags.domain || []),
-    ...(tags.who || []),
-    ...(tags.org || []),
-    ...(tags.ctx || []),
-  ];
+  // 🔴 **여기가 태그를 잃던 자리다** (2026-08-29). 넷만 펼쳐서 노트에
+  //    `key`·`proj`·`acad` 가 있어도 평평하게 만들 때 버려졌다 —
+  //    그 상태로 저장하면 사람이 붙인 태그가 사라진다.
+  return Object.values(tags || {}).flatMap((v) => (Array.isArray(v) ? v : []));
 }
 
 /**
@@ -209,11 +203,9 @@ export const NOTE_TYPE_LABELS: Record<NoteType, string> = {
 /**
  * Facet namespace labels (i18n keys)
  */
+// 축 이름표도 표에서 (2026-08-29). 옛 축(source/method/status)만 남긴다.
 export const FACET_LABELS: Record<string, string> = {
-  'domain': 'facetLabelDomain',
-  'who': 'facetLabelWho',
-  'org': 'facetLabelOrg',
-  'ctx': 'facetLabelCtx',
+  ...Object.fromEntries(FACET_NAMESPACES.map((f) => [f.namespace, f.label])),
   'source': 'facetLabelSource',
   'method': 'facetLabelMethod',
   'status': 'facetLabelStatus',

@@ -132,11 +132,12 @@ function NoteTemplateEditor({ template, onSave, onCancel }: NoteTemplateEditorPr
         if (typeof raw !== 'string') continue;
         const v = raw.trim();
         if (!v) continue;
-        if (v.startsWith('domain/'))   bucket.domain.push(v.slice('domain/'.length));
-        else if (v.startsWith('who/')) bucket.who.push(v.slice('who/'.length));
-        else if (v.startsWith('org/')) bucket.org.push(v.slice('org/'.length));
-        else if (v.startsWith('ctx/')) bucket.ctx.push(v.slice('ctx/'.length));
-        else                            bucket.ctx.push(v);
+        // 🔴 모르는 축을 ctx 에 밀어 넣지 않는다 (2026-08-29)
+        const slash = v.indexOf('/');
+        const ax = slash > 0 ? v.slice(0, slash) : '';
+        const b = bucket as Record<string, string[]>;
+        if (ax) { b[ax] = b[ax] || []; b[ax].push(v.slice(slash + 1)); }
+        else b.ctx.push(v);
       }
     }
     return bucket;

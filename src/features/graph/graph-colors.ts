@@ -178,5 +178,15 @@ export function tagNamespaceColor(palette: GraphColorPalette, tagLabel: string):
   if (tagLabel.startsWith('who/'))    return palette.tagWho;
   if (tagLabel.startsWith('org/'))    return palette.tagOrg;
   if (tagLabel.startsWith('ctx/'))    return palette.tagCtx;
+  // 🔴 표에 없는 축은 **회색으로 두지 않는다** (CLAUDE 2-2-0 — 「색이
+  //    없는 축」이 여기서 네 번째로 재발했다). 축 이름에서 결정론으로
+  //    뽑는다. `searchHelpers.tagColor` 와 같은 셈이라 둘이 어긋나지 않는다.
+  const slash = tagLabel.indexOf('/');
+  if (slash > 0) {
+    const ax = tagLabel.slice(0, slash);
+    let h = 0;
+    for (let i = 0; i < ax.length; i++) h = (h * 31 + ax.charCodeAt(i)) >>> 0;
+    return `hsl(${h % 360} 42% 66%)`;
+  }
   return palette.tagFallback;
 }

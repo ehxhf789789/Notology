@@ -1642,3 +1642,12 @@ html[data-theme="light"] .search-input {
   flex-shrink: 0;
   color: var(--c-warning, #f97316);
 }
+
+/* 🔴 걸린 자료에서 온 태그 — 노트 자신의 것이 아니다 (2026-08-29).
+   목록은 첨부 태그까지 합쳐 보여 주는데(2026-08-11 회복), 그것이 노트
+   태그와 똑같이 보여 창 안 패널과 어긋나 보였다. 점선이 그 차이다.
+   실측: 노트 407 중 98 이 이 상태. */
+.search-tag--borrowed {
+  border-style: dashed !important;
+  opacity: .82;
+}
