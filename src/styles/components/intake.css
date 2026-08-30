@@ -1,0 +1,22 @@
+
+/* 🔴 **투입 걸음 띠** (2026-08-30 사용자: *"자료를 넣었을 때 «처리중» 이라는
+   UI/UX 가 뜨도록 … 정리 중인건지, 어디에 나두었다는건지"*).
+   점 넷이 걸음이고, 지금 걸음만 숨을 쉰다. 끝나면 통째로 사라진다 —
+   끝난 것을 계속 보여주면 그다음부터 안 읽는다 (2-14-2-2). */
+.intake__steps { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.intake__step {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--bg-3); flex: none;
+}
+.intake__step.is-done { background: var(--tx-3); }
+.intake__step.is-now {
+  background: var(--ax-1, #6ea8fe);
+  animation: intake-now 1.1s ease-in-out infinite;
+}
+@keyframes intake-now {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .45; transform: scale(1.5); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intake__step.is-now { animation: none; }
+}

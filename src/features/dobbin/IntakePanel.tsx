@@ -47,6 +47,7 @@ function when(iso: string): string {
 
 const CARD_MAX = 6;   // 카드로 낼 최대 (그 위는 한 줄로)
 
+type Step = { step: string; note?: string; steps: string[] };
 type Recent = { name: string; state: string; at?: string | null;
   folder?: string | null; open?: string | null; note?: string | null; };
 
@@ -66,6 +67,8 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
   const [qs, setQs] = useState<Q[]>([]);
   const [total, setTotal] = useState(0);
   const [recent, setRecent] = useState<Recent[]>([]);
+  // 🔴 지금 무슨 걸음인지 (2026-08-30 사용자: «처리중» UI)
+  const [prog, setProg] = useState<Record<string, Step>>({});
   const [counts, setCounts] = useState<Counts>({});
   const [busy, setBusy] = useState(false);
   const [folders, setFolders] = useState<string[]>([]);
@@ -89,6 +92,12 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
       setTotal(j?.total ?? (j?.questions ?? []).length);
       setRecent(j?.recent ?? []);
       setCounts(j?.counts ?? {});
+      // 🔴 걸음은 투입구가 안다 (`/api/inbox` · intake.progress)
+      try {
+        const ir = await fetch('/api/inbox', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        setProg(((await ir.json())?.progress ?? {}) as Record<string, Step>);
+      } catch { /* 조용히 */ }
     } catch { /* 조용히 */ }
     setBusy(false);
   }, []);
@@ -102,6 +111,15 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
       if (d?.kind === 'inbox-changed') {
         // 🔴 화면이 먼저 반응한다 (P5) — 서버 판정(수 초)을 기다리지 않고
         //    «지금 읽고 있다» 줄부터 세운다. 판정이 오면 load 가 갈아 끼운다.
+        if (d?.path && d?.step) {
+          // 🔴 서버가 걸음을 실어 보내면 **그 자리에서** 갈아 끼운다 —
+          //    load 를 기다리면 한 걸음이 늦는다.
+          setProg((pv) => ({ ...pv, [String(d.path)]: {
+            step: String(d.step), note: d.note ? String(d.note) : '',
+            steps: pv[String(d.path)]?.steps
+                   ?? ['읽는 중', '해석하는 중', '자리 정하는 중', '노트 쓰는 중', '끝'],
+          } }));
+        }
         if (d?.path) {
           const nm = String(d.path).split('/').pop() || String(d.path);
           setRecent((prev) => prev.some((r) => r.name === nm) ? prev
@@ -178,7 +196,25 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
       >{r.name}</span>
       {/* 🔴 점만으로는 무슨 뜻인지 모른다 — 글자로 적는다. 그리고 «최근»
           인데 언제인지가 없었다 (2026-08-27 적대 검토). */}
-      {r.state === 'reading' && <span className="intake__r-at">읽는 중…</span>}
+      {(() => {
+        // 🔴 **무슨 걸음인지 짚어 보여준다** (2026-08-30 사용자 지시).
+        //    「읽는 중…」 하나로 굳어 있으면 멈춘 것과 구별이 안 된다.
+        const pk = Object.keys(prog).find(k => k.split('/').pop() === r.name);
+        const pv = pk ? prog[pk] : null;
+        if (!pv || pv.step === '끝') return null;
+        const i = pv.steps.indexOf(pv.step);
+        return (
+          <span className="intake__steps" title={pv.note || pv.step}>
+            {pv.steps.slice(0, -1).map((st, k) => (
+              <i key={st}
+                 className={'intake__step' + (k < i ? ' is-done' : k === i ? ' is-now' : '')} />
+            ))}
+            <span className="intake__r-at">{pv.step}{pv.note ? ` · ${pv.note}` : ''}</span>
+          </span>
+        );
+      })()}
+      {r.state === 'reading' && !Object.keys(prog).some(k => k.split('/').pop() === r.name)
+        && <span className="intake__r-at">읽는 중…</span>}
       {r.at && r.state !== 'reading' && <span className="intake__r-at">{when(r.at)}</span>}
       {r.folder && (
         <button className="intake__r-loc" title="이 칸으로 이동"
