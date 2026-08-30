@@ -32,6 +32,7 @@ import { filterExternalChanges } from '../../core/utils/selfSaveTracker';
 import { isWindowDirty } from './dirtyRegistry';
 
 type Rev = { hash?: string; mtime?: number; size?: number } | null;
+type Watched = { path: string; gone?: boolean; mtime?: number };
 
 /** 🔴 **자국.** 안 도는 것과 돌았는데 안 먹은 것은 다른 병인데, 자국이
  *  없으면 못 가른다 — 이 자리에서 실제로 한 시간을 잃었다. 마지막 40줄만
@@ -44,7 +45,7 @@ export function mark(s: string): void {
 }
 
 let running = false;
-const seen = new Map<string, string>();          // 경로 → 마지막으로 본 판
+const seen = new Map<string, { stamp: string; mtime: number }>();
 
 /** 객체 판을 견줄 수 있는 한 줄로. */
 function stamp(r: Rev): string {
@@ -63,9 +64,10 @@ async function stampNew(): Promise<void> {
   const wins = useHoverStore.getState().hoverFiles || [];
   for (const path of new Set(wins.map(w => w.filePath).filter(Boolean))) {
     if (seen.has(path)) continue;
-    seen.set(path, '');                          // 겹쳐 부르는 것을 막는다
+    seen.set(path, { stamp: '', mtime: 0 });     // 겹쳐 부르는 것을 막는다
     try {
-      seen.set(path, stamp(await invoke<Rev>('get_file_revision', { path })));
+      const r = await invoke<Rev>('get_file_revision', { path });
+      seen.set(path, { stamp: stamp(r), mtime: (r && r.mtime) || 0 });
     } catch {
       seen.delete(path);
     }
@@ -101,13 +103,16 @@ async function check(): Promise<void> {
         continue;
       }
       let rev = '';
+      let revMtime = 0;
       try {
-        rev = stamp(await invoke<Rev>('get_file_revision', { path }));
+        const r = await invoke<Rev>('get_file_revision', { path });
+        rev = stamp(r);
+        revMtime = (r && r.mtime) || 0;
       } catch {
         continue;
       }
-      const was = seen.get(path);
-      seen.set(path, rev);
+      const was = seen.get(path)?.stamp;
+      seen.set(path, { stamp: rev, mtime: revMtime });
       mark(`판 was=${(was ?? '없음').slice(0, 8)} now=${rev.slice(0, 8)}`);
       // 🔴 처음 본 것은 견줄 것이 없다. 「갈렸다」로 읽으면 창이 열리자마자
       //    한 번 다시 읽는 헛일을 한다.
@@ -122,6 +127,46 @@ async function check(): Promise<void> {
     }
   } finally {
     running = false;
+  }
+}
+
+
+/** 🔴 **열어 둔 것만 3초마다 되묻는다** — 20초짜리 전체 감시를 기다리지 않는다.
+ *
+ * `live.watched()` 가 바로 이 용도로 만들어져 있었다. 그 문서 그대로:
+ *   *"열어 둔 노트는 많아야 몇 개이고, 그 몇 개만 `stat` 하면 밀리초다.
+ *     안 보는 것이 바뀌었는지는 알 필요가 없다 — 볼 때 읽으면 그때 최신이다."*
+ * 그런데 **명령으로 내놓지 않아 아무도 못 불렀다.** 이었다.
+ *
+ * 창이 없으면 아무것도 안 묻는다 — 놀 때 서버를 깨우지 않는다.
+ */
+async function pollWatched(): Promise<void> {
+  const wins = useHoverStore.getState().hoverFiles || [];
+  const paths = [...new Set(wins.map(w => w.filePath).filter(Boolean))];
+  if (!paths.length) return;
+  const known: Record<string, number> = {};
+  for (const p of paths) known[p] = seen.get(p)?.mtime ?? 0;
+
+  let rows: Watched[] = [];
+  try {
+    rows = (await invoke<Watched[]>('watched', { paths, known })) || [];
+  } catch {
+    return;                                      // 옛 서버면 조용히 넘어간다
+  }
+  for (const r of rows) {
+    if (!seen.has(r.path)) continue;             // 바탕을 아직 안 찍었다
+    if (r.gone) {
+      if (wins.filter(w => w.filePath === r.path).some(w => isWindowDirty(w.id))) continue;
+      mark(`되물음: 사라짐 ${r.path.slice(-24)}`);
+      hoverActions.closeByFilePath(r.path);
+      seen.delete(r.path);
+      continue;
+    }
+    if (filterExternalChanges([r.path]).length === 0) continue;   // 내가 방금 저장한 것
+    const cur = seen.get(r.path)!;
+    seen.set(r.path, { stamp: cur.stamp, mtime: r.mtime || cur.mtime });
+    mark(`되물음: 갈림 ${r.path.slice(-24)}`);
+    hoverActions.refreshForFile(r.path);
   }
 }
 
@@ -141,6 +186,8 @@ export function startStaleWatch(): void {
   // 🔴 **창이 열릴 때마다** 바탕을 찍는다. 알림을 기다리면 늦다.
   useHoverStore.subscribe(() => { void stampNew(); });
   void check();                                  // 처음 판을 적어 둔다
+  // 창이 열려 있을 때만 도는 값싼 되묻기 (열린 창 수만큼 stat, 왕복 1회)
+  setInterval(() => { void pollWatched(); }, 3000);
 }
 
 /** 시험용 — 감시를 손으로 한 번 돌린다. */
