@@ -935,3 +935,125 @@ html[data-theme="light"] .wiki-link-inline.wiki-link-orphan {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'%3E%3C/path%3E%3C/svg%3E");
 }
 
+
+/* ============================================================ */
+/* 🔴 **종류 색이 기본 칩 색을 이기게 한다** (2026-08-30)           */
+/*                                                              */
+/* 사용자: *"링크가 … 색 구분도 되어 있지 않다."*                   */
+/*                                                              */
+/* 브라우저에 직접 물어 원인을 짚었다 — 칩에 `note-type-mtg` 가     */
+/* **맞게 붙어 있는데도** 흰 글자였다:                             */
+/*                                                              */
+/*   .wiki-link-inline                → var(--tx-1) !important   */
+/*   .wiki-link-inline.note-type-mtg  → var(--mtg-color)         */
+/*                                                              */
+/* `editor.css` 의 기본 칩 규칙이 `!important` 라 **종류 색이 항상  */
+/* 진다.** 거기 주석은 *"아이콘만 색 신호로 쓴다"* 는 옛 결정인데,  */
+/* 아이콘도 `currentColor` 를 따라 하얘져서 결국 **색 신호가 0** 이 */
+/* 됐다. 실측: 칩 14개 전부 rgba(255,255,255,.95).                */
+/*                                                              */
+/* ⚠️ 처음엔 «읽기 모드에 `wiki-link-inline` 이 안 붙어서» 라고     */
+/*    짚었는데 틀렸다 — 붙어 있었다. 그래도 decoration 만 달고 오는 */
+/*    자리가 있어 두 모드를 함께 적는다.                           */
+/*                                                              */
+/* 🔴 종류를 손으로 다시 적지 않았다. 위 표에서 뽑아 짝지었고,      */
+/*    `probes/link_color_census.py` 가 새는 종류를 잡는다.         */
+/* ============================================================ */
+.wiki-link-inline.note-type-adm,
+.wiki-link-decoration.note-type-adm,
+.wiki-link-inline.wiki-link-decoration.note-type-adm,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-adm {
+  color: var(--adm-color, #d97706) !important;
+  background-color: var(--adm-bg, rgba(0,0,0,.10)) !important;
+}
+.wiki-link-inline.note-type-data,
+.wiki-link-decoration.note-type-data,
+.wiki-link-inline.wiki-link-decoration.note-type-data,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-data {
+  color: var(--data-color) !important;
+  background-color: var(--data-bg) !important;
+}
+.wiki-link-inline.note-type-event,
+.wiki-link-decoration.note-type-event,
+.wiki-link-inline.wiki-link-decoration.note-type-event,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-event {
+  color: var(--event-color) !important;
+  background-color: var(--event-bg) !important;
+}
+.wiki-link-inline.note-type-folder,
+.wiki-link-decoration.note-type-folder,
+.wiki-link-inline.wiki-link-decoration.note-type-folder,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-folder {
+  color: var(--folder-color, #ca8a04) !important;
+  background-color: var(--folder-bg, rgba(0,0,0,.10)) !important;
+}
+.wiki-link-inline.note-type-lit,
+.wiki-link-decoration.note-type-lit,
+.wiki-link-inline.wiki-link-decoration.note-type-lit,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-lit {
+  color: var(--lit-color) !important;
+  background-color: var(--lit-bg) !important;
+}
+.wiki-link-inline.note-type-mtg,
+.wiki-link-decoration.note-type-mtg,
+.wiki-link-inline.wiki-link-decoration.note-type-mtg,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-mtg {
+  color: var(--mtg-color) !important;
+  background-color: var(--mtg-bg) !important;
+}
+.wiki-link-inline.note-type-note,
+.wiki-link-decoration.note-type-note,
+.wiki-link-inline.wiki-link-decoration.note-type-note,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-note {
+  color: var(--note-color) !important;
+  background-color: var(--note-bg) !important;
+}
+.wiki-link-inline.note-type-ofa,
+.wiki-link-decoration.note-type-ofa,
+.wiki-link-inline.wiki-link-decoration.note-type-ofa,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-ofa {
+  color: var(--ofa-color) !important;
+  background-color: var(--ofa-bg) !important;
+}
+.wiki-link-inline.note-type-paper,
+.wiki-link-decoration.note-type-paper,
+.wiki-link-inline.wiki-link-decoration.note-type-paper,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-paper {
+  color: var(--paper-color) !important;
+  background-color: var(--paper-bg) !important;
+}
+.wiki-link-inline.note-type-sem,
+.wiki-link-decoration.note-type-sem,
+.wiki-link-inline.wiki-link-decoration.note-type-sem,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-sem {
+  color: var(--sem-color) !important;
+  background-color: var(--sem-bg) !important;
+}
+.wiki-link-inline.note-type-setup,
+.wiki-link-decoration.note-type-setup,
+.wiki-link-inline.wiki-link-decoration.note-type-setup,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-setup {
+  color: var(--setup-color) !important;
+  background-color: var(--setup-bg) !important;
+}
+.wiki-link-inline.note-type-sketch,
+.wiki-link-decoration.note-type-sketch,
+.wiki-link-inline.wiki-link-decoration.note-type-sketch,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-sketch {
+  color: var(--sketch-color) !important;
+  background-color: var(--sketch-bg) !important;
+}
+.wiki-link-inline.note-type-task,
+.wiki-link-decoration.note-type-task,
+.wiki-link-inline.wiki-link-decoration.note-type-task,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-task {
+  color: var(--task-color, #16a34a) !important;
+  background-color: var(--task-bg, rgba(0,0,0,.10)) !important;
+}
+.wiki-link-inline.note-type-theo,
+.wiki-link-decoration.note-type-theo,
+.wiki-link-inline.wiki-link-decoration.note-type-theo,
+.wiki-link-inline.wiki-link-decoration.resolved.note-type-theo {
+  color: var(--theo-color) !important;
+  background-color: var(--theo-bg) !important;
+}
