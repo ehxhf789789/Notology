@@ -173,8 +173,13 @@ async function pollWatched(): Promise<void> {
   }
 }
 
-/** 화면이 뜰 때 한 번 부른다. */
+let started = false;
+
+/** 화면이 뜰 때 한 번 부른다. **두 번 불러도 한 번만 선다** —
+ *  겹치면 귀가 둘, 타이머가 둘이 되어 같은 일을 두 번 한다. */
 export function startStaleWatch(): void {
+  if (started) return;
+  started = true;
   window.addEventListener('dobbin:live', (e) => {
     const d = ((e as CustomEvent).detail || {}) as { kind?: string };
     if (d.kind && d.kind !== 'vault-changed') return;
