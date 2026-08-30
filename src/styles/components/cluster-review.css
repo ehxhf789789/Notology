@@ -1,0 +1,43 @@
+/* 묶음 검수 — 한 장으로 154건을 끝낸다 (CLAUDE 2-9 · 2026-08-31)
+   🔴 «왜 이 일을 하는가» 를 먼저 보인다 — 그냥 두면 몇 건이 틀린 채
+      남는지. 그것이 없으면 사람은 이 카드를 닫는다. */
+.clrev { display: flex; flex-direction: column; gap: var(--sp-3);
+         margin-bottom: var(--sp-4); }
+.clrev__card {
+  border: 1px solid var(--ui-1); border-radius: var(--rad-2);
+  background: var(--bg-2); padding: var(--sp-3) var(--sp-4);
+}
+.clrev__head { display: flex; flex-wrap: wrap; align-items: baseline;
+               gap: var(--sp-2) var(--sp-3); }
+.clrev__head b { font-size: var(--fs-2); }
+.clrev__why { color: var(--tx-3); font-size: var(--fs-0); }
+.clrev__samples {
+  list-style: none; margin: var(--sp-3) 0; padding: 0;
+  display: grid; grid-template-columns: 1fr; gap: 2px;
+}
+.clrev__samples li { display: flex; gap: var(--sp-2); align-items: baseline;
+                     min-width: 0; }
+.clrev__file {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--tx-1); font-size: var(--fs-0); text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.clrev__file:hover { text-decoration: underline; }
+.clrev__folder { color: var(--tx-3); font-size: var(--fs-00, 11px); flex: none; }
+.clrev__acts { display: flex; flex-wrap: wrap; gap: var(--sp-2);
+               align-items: center; }
+.clrev__ok {
+  background: var(--ax-1, #2f6feb); color: #fff; border: 0;
+  border-radius: var(--rad-1); padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-1); cursor: pointer; min-height: 36px;
+}
+.clrev__ok:disabled { opacity: .5; cursor: default; }
+.clrev__sel {
+  background: var(--bg-3); color: var(--tx-2); border: 1px solid var(--ui-1);
+  border-radius: var(--rad-1); padding: var(--sp-2); min-height: 36px;
+}
+.clrev__fix {
+  background: none; color: var(--tx-1); border: 1px solid var(--ui-2);
+  border-radius: var(--rad-1); padding: var(--sp-2) var(--sp-3);
+  cursor: pointer; min-height: 36px;
+}

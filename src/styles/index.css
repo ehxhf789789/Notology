@@ -41,6 +41,7 @@
 @import './components/container-type-selector.css';
 @import './components/ribbon-bar.css';
 @import './components/sync-failure-banner.css';
+@import './components/cluster-review.css';
 
 /* ── Viewers ── */
 /* 5.0.9a (2026-05-17) — document-viewers-dark.css folded into

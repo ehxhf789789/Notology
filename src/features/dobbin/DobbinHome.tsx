@@ -21,6 +21,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, Search as SearchIcon } from 'lucide-react';
 import { PenguinFace } from './PenguinFace';
 import { IntakePanel } from './IntakePanel';
+import { ClusterReview } from './ClusterReview';
 import { NoticeList } from './NoticeList';
 import { useNotices, markAllSeen } from './noticeStore';
 import { DobbinSurface } from './DobbinSurface';
@@ -110,6 +111,7 @@ export function DobbinHome() {
               <NoticeList list={report} />
             </section>
           )}
+          <ClusterReview />
           <IntakePanel variant="home" />
         </div>
         <div className="dhome__chat">
