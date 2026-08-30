@@ -289,6 +289,9 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--sp-2) var(--sp-3);
+  /* 🔴 자식이 사라져도 머리 높이가 안 바뀐다 — 위 토글 주석의 그 결함을
+     한 번 더 막는다 (32px 단추 + 위아래 padding). */
+  min-height: calc(32px + var(--sp-2) * 2);
   border-bottom: 0.5px solid var(--sep-l);
   flex-shrink: 0;
 }
@@ -298,12 +301,24 @@
   align-items: center;
 }
 
+/* 🔴 **접었다 폈다 할 때 단추가 튀지 않게** (2026-08-30 사용자:
+   *"좌측 슬라이드 닫았을 때 버튼, 열었을 때 버튼 높이 안맞음"*).
+
+   실측으로 원인을 짚었다 — 크기는 24×24 로 같은데 **세로 위치가 8px**
+   달랐다 (펼침 y=12 · 접음 y=4). 접으면 오른쪽 `.sidebar-actions` 가
+   통째로 사라지는데(`{!sidebarCollapsed && …}`) 그 단추들이 32px 라
+   머리의 높이가 32→24 로 줄고, 가운데 맞춤이 따라 올라간 것이다.
+
+   → 토글을 `.sidebar-action-btn` 과 **같은 32×32** 로 맞춘다. 그러면
+     양쪽 상태에서 머리 높이가 같고, 히트 타깃도 규격(2-14-2-5: 아이콘
+     단추 최소 40px)에 가까워진다 — 아래 `::before inset:-4px` 가 40 을
+     만든다. */
 .sidebar-toggle-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   background: none;
   border: none;
   border-radius: var(--r-6);

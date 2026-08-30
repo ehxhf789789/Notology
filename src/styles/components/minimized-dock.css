@@ -1,0 +1,85 @@
+/* ============================================================ */
+/* 접힌 창 독 — 최소화한 노트 창이 돌아올 자리 (2026-08-30)         */
+/*                                                              */
+/* 🔴 **이 파일은 `styles/index.css` 가 읽는다.** 처음엔                */
+/*    `features/hover-windows/hover-windows.css` 에 썼는데 그 파일을   */
+/*    **아무도 import 하지 않았다** — 클래스는 붙는데 스타일이 하나도  */
+/*    안 왔다 (실측: z-index auto · 폭 1400px 전폭 · 높이 21px).      */
+/*    이 저장소가 되풀이하는 「있는데 안 불린다」의 CSS 판이다.        */
+/* ============================================================ */
+
+.mindock {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 1200;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: min(70vw, 720px);
+  /* 창 위에 뜨지만 클릭을 가로채지 않는다 — 칩만 받는다 */
+  pointer-events: none;
+}
+
+.mindock__item {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  height: 32px;                       /* 히트 타깃 (2-14-2-5) */
+  background: var(--bg-2, #23232a);
+  border: 1px solid var(--sep-l, #3a3a44);
+  border-radius: var(--r-6, 8px);
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 35%);
+  transition: transform var(--dur-150, .15s) var(--ease-out, ease),
+              border-color var(--dur-150, .15s) var(--ease-out, ease);
+}
+
+.mindock__item:hover {
+  transform: translateY(-1px);        /* 눌리는 느낌 (2-14-2-2) */
+  border-color: var(--tx-3, #6b6b76);
+}
+
+.mindock__open {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 10px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--tx-1, #e6e6ea);
+  font-family: inherit;
+  font-size: var(--fs-12, 12px);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.mindock__open:hover { background: var(--bg-hover, #2c2c35); }
+
+.mindock__name {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mindock__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 100%;
+  border: 0;
+  border-left: 1px solid var(--sep-l, #3a3a44);
+  background: transparent;
+  color: var(--tx-3, #9a9aa5);
+  cursor: pointer;
+}
+
+.mindock__close:hover {
+  background: var(--bg-hover, #2c2c35);
+  color: var(--tx-1, #e6e6ea);
+}
