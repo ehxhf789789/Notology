@@ -86,6 +86,22 @@ let _pending: string[] = [];
 let _timer: ReturnType<typeof setTimeout> | null = null;
 let _flight: Promise<void> | null = null;
 
+/** 🔴 **버릴 때 여기도 함께 버려야 한다** (2026-08-30).
+ *
+ * `invalidateContent` 가 `state.cache` 만 지우고 이 더미를 그대로 두면,
+ * 바로 뒤의 `getContent` 가 **데워 둔 옛 글자**를 집어 간다. 실측에서
+ * 바깥 변경 되읽기가 통째로 죽었다 — 판도 갈렸고 캐시도 비웠고
+ * `setContent` 도 불렀는데 **넣은 것이 옛 글자**였다.
+ * 미리읽기를 붙이면서 버리는 자리를 안 늘린 것이 원인이다.
+ */
+export function unwarm(path: string): void {
+  _warm.delete(path);
+}
+
+export function unwarmAll(): void {
+  _warm.clear();
+}
+
 export function warmed(path: string): unknown | undefined {
   const v = _warm.get(path);
   if (v !== undefined) _warm.delete(path);      // 한 번만 쓴다
@@ -325,6 +341,7 @@ export const useContentCacheStore = create<ContentCacheState>()((set, get) => ({
 
   // Invalidate specific file (when saved externally)
   invalidateContent: (filePath: string) => {
+    unwarm(filePath);                      // 🔴 데워 둔 것도 함께 버린다
     set((state) => {
       const newCache = new Map(state.cache);
       newCache.delete(filePath);
@@ -334,6 +351,7 @@ export const useContentCacheStore = create<ContentCacheState>()((set, get) => ({
 
   // Invalidate all (when vault changes)
   invalidateAll: () => {
+    unwarmAll();
     set({ cache: new Map(), metadataCache: new Map(), loadingPromises: new Map(), persistentCache: null });
   },
 

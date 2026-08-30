@@ -33,6 +33,16 @@ import { isWindowDirty } from './dirtyRegistry';
 
 type Rev = { hash?: string; mtime?: number; size?: number } | null;
 
+/** 🔴 **자국.** 안 도는 것과 돌았는데 안 먹은 것은 다른 병인데, 자국이
+ *  없으면 못 가른다 — 이 자리에서 실제로 한 시간을 잃었다. 마지막 40줄만
+ *  들고 있으므로 값이 없다. `window.__stale` 로 본다. */
+const trail: string[] = [];
+export function mark(s: string): void {
+  trail.push(`${new Date().toISOString().slice(11, 19)} ${s}`);
+  if (trail.length > 40) trail.shift();
+  (window as unknown as Record<string, unknown>).__stale = trail;
+}
+
 let running = false;
 const seen = new Map<string, string>();          // 경로 → 마지막으로 본 판
 
@@ -42,14 +52,36 @@ function stamp(r: Rev): string {
   return `${r.hash ?? ''}:${r.mtime ?? ''}:${r.size ?? ''}`;
 }
 
+/** 창이 **열리는 순간** 바탕 판을 찍는다.
+ *
+ * 🔴 이것이 없으면 ② 가 통째로 안 된다 (실측 2026-08-30). 창을 연 뒤
+ *    처음 도는 `check()` 가 곧 **그 변경을 알리는 알림**이라, 「견줄 것이
+ *    없다」로 기록만 하고 넘어간다 — 사람 눈에는 아무 일도 안 일어난다.
+ *    바탕은 알림이 아니라 **열림**에 맞춰 찍어야 한다.
+ */
+async function stampNew(): Promise<void> {
+  const wins = useHoverStore.getState().hoverFiles || [];
+  for (const path of new Set(wins.map(w => w.filePath).filter(Boolean))) {
+    if (seen.has(path)) continue;
+    seen.set(path, '');                          // 겹쳐 부르는 것을 막는다
+    try {
+      seen.set(path, stamp(await invoke<Rev>('get_file_revision', { path })));
+    } catch {
+      seen.delete(path);
+    }
+  }
+}
+
 async function check(): Promise<void> {
-  if (running) return;
+  if (running) { mark('겹쳐서 건너뜀'); return; }
   running = true;
   try {
     const wins = useHoverStore.getState().hoverFiles || [];
     const paths = [...new Set(wins.map(w => w.filePath).filter(Boolean))];
     // 이제 안 열려 있는 것은 기억에서 지운다 — 다시 열면 첫 판부터 다시 잰다
     for (const p of [...seen.keys()]) if (!paths.includes(p)) seen.delete(p);
+    mark(`창 ${wins.length} 경로 ${paths.length}`);
+    await stampNew();                            // 방금 연 창의 바탕을 먼저
 
     for (const path of paths) {
       let exists = true;
@@ -58,6 +90,7 @@ async function check(): Promise<void> {
       } catch {
         continue;                                // 못 물으면 아무것도 안 한다
       }
+      mark(`있음 ${exists} ${path.slice(-28)}`);
       if (!exists) {
         // 🔴 **고치던 중인 창은 안 닫는다.** 저장 안 한 글을 밀어내는 것은
         //    도움이 아니라 사고다. 대신 그대로 두면 사람이 저장할 수 있다.
@@ -75,6 +108,7 @@ async function check(): Promise<void> {
       }
       const was = seen.get(path);
       seen.set(path, rev);
+      mark(`판 was=${(was ?? '없음').slice(0, 8)} now=${rev.slice(0, 8)}`);
       // 🔴 처음 본 것은 견줄 것이 없다. 「갈렸다」로 읽으면 창이 열리자마자
       //    한 번 다시 읽는 헛일을 한다.
       // 🔴 **자기가 방금 저장한 것을 「바깥 변화」로 읽으면 안 된다.**
@@ -82,6 +116,7 @@ async function check(): Promise<void> {
       //    이 저장소에 이미 있는 `selfSaveTracker` 가 그 판정을 한다.
       if (was !== undefined && was !== rev
           && filterExternalChanges([path]).length > 0) {
+        mark('되읽기 부름');
         hoverActions.refreshForFile(path);
       }
     }
@@ -99,9 +134,12 @@ export function startStaleWatch(): void {
     //    새로 세고(FolderTree), 노트 목록(`Search.tsx`)은 `refreshTrigger`
     //    가 올라야 다시 묻는데 그것을 올리는 자가 없다 — 그래서 밖에서
     //    만든 노트가 **60초를 기다려도 목록에 안 나타났다** (실측).
+    mark('알림 받음');
     refreshActions.incrementSearchRefresh();
     void check();
   });
+  // 🔴 **창이 열릴 때마다** 바탕을 찍는다. 알림을 기다리면 늦다.
+  useHoverStore.subscribe(() => { void stampNew(); });
   void check();                                  // 처음 판을 적어 둔다
 }
 
