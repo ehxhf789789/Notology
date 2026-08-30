@@ -40,6 +40,14 @@ export const fileCommands = {
   readFile: (path: string) =>
     invoke<FileContent>('read_file', { path }),
 
+  /** 🔴 **여러 개를 한 왕복으로** (2026-08-30). 컨테이너를 한 번 누르면
+   *  `read_file` 이 141번 날아간다 — 노트를 한 개씩 미리 읽기 때문이다.
+   *  서버 안에서는 왕복이 0ms 라 안 보이지만 사람은 Tailscale 너머에 있고,
+   *  왕복 20ms 면 그것만 2.8초다. 그리는 것은 60fps 로 멀쩡했다. */
+  readFiles: (paths: string[]) =>
+    invoke<{ path: string; ok: boolean; file?: FileContent; why?: string }[]>(
+      'read_files', { paths }),
+
   writeFile: (path: string, frontmatter: string | null, body: string) =>
     invoke<void>('write_file', { path, frontmatter, body }).then(() => {
       EventBus.emit('file:saved', { path });

@@ -77,6 +77,48 @@ interface ContentCacheState {
 const CACHE_VERSION = 1;
 const BODY_PREVIEW_LENGTH = 500;
 
+//: 🔴 **미리 읽기를 한 프레임 동안 모은다** (2026-08-30).
+//    `read_files` 한 번으로 미리 데워 두면, 뒤이어 오는 `getContent` 들이
+//    서버를 다시 안 부른다 — HTTP 캐시가 아니라 **브라우저 fetch 중복 제거**
+//    가 아니므로, 데운 것을 여기 담아 두고 `getContent` 가 꺼내 쓴다.
+const _warm = new Map<string, unknown>();
+let _pending: string[] = [];
+let _timer: ReturnType<typeof setTimeout> | null = null;
+let _flight: Promise<void> | null = null;
+
+export function warmed(path: string): unknown | undefined {
+  const v = _warm.get(path);
+  if (v !== undefined) _warm.delete(path);      // 한 번만 쓴다
+  return v;
+}
+
+/** 이 경로가 든 묶음이 끝날 때까지 기다린다.
+ *
+ * ⚠️ **모으면서 동시에 개별로도 읽으면 아무 소용이 없다** (2026-08-30에
+ *    그렇게 짰다가 물렸다 — 왕복이 161로 그대로였다). 모으기를 *기다린 뒤*
+ *    읽어야 그때는 이미 데워져 있다. */
+function _batchPreload(path: string): Promise<void> {
+  if (!_pending.includes(path)) _pending.push(path);
+  if (!_timer) {
+    _flight = new Promise<void>((done) => {
+      _timer = setTimeout(async () => {
+        const paths = _pending.slice(0, 200);
+        _pending = _pending.slice(200);
+        _timer = null;
+        try {
+          const rows = await fileCommands.readFiles(paths);
+          for (const r of rows) if (r.ok && r.file) _warm.set(r.path, r.file);
+        } catch {
+          /* 못 모으면 옛 길로 — 조용히 느릴 뿐이다 */
+        }
+        done();
+        if (_pending.length) _batchPreload(_pending[0]);
+      }, 16);
+    });
+  }
+  return _flight as Promise<void>;
+}
+
 export const useContentCacheStore = create<ContentCacheState>()((set, get) => ({
   cache: new Map(),
   metadataCache: new Map(),
@@ -182,7 +224,13 @@ export const useContentCacheStore = create<ContentCacheState>()((set, get) => ({
         // Run readFile and mtime fetch in parallel to minimize IPC round-trips
         let rawContent: FileContent;
         let mtime: number;
-        if (cachedMetadata?.mtime) {
+        const _w = warmed(filePath) as FileContent | undefined;
+        if (_w) {
+          rawContent = _w;                     // 모아 읽기가 데워 둔 것
+          mtime = cachedMetadata?.mtime
+            ?? (await cacheCommands.getFilesMtime([filePath]))[0]?.mtime
+            ?? Date.now();
+        } else if (cachedMetadata?.mtime) {
           rawContent = await fileCommands.readFile(filePath);
           mtime = cachedMetadata.mtime;
         } else {
@@ -253,6 +301,14 @@ export const useContentCacheStore = create<ContentCacheState>()((set, get) => ({
   },
 
   // Preload content in background (fire and forget)
+  //
+  // 🔴 **한 왕복으로 모아 보낸다** (2026-08-30). 목록이 그려질 때 노트마다
+  //    이 함수가 불려 `read_file` 이 141번 날아갔다 — 서버 안에서는 0ms 라
+  //    안 보이지만 망 너머에서는 왕복마다 값을 낸다 (20ms × 141 = 2.8초).
+  //    16ms(한 프레임) 동안 모았다가 `read_files` 한 번으로 보낸다.
+  //    ⚠️ 캐시에 넣는 길은 `getContent` 하나뿐이다 — 여기서 따로 넣으면
+  //       파싱·mtime 규칙이 두 벌이 된다. 그래서 **미리 데워만 두고**
+  //       해석은 그대로 `getContent` 에 맡긴다.
   preloadContent: (filePath: string) => {
     const state = get();
 
@@ -260,9 +316,9 @@ export const useContentCacheStore = create<ContentCacheState>()((set, get) => ({
     if (state.cache.has(filePath) || state.loadingPromises.has(filePath)) {
       return;
     }
-
-    // Start loading in background
-    state.getContent(filePath).catch(() => {
+    // 🔴 **모아 읽기가 끝난 뒤에** 읽는다 — 동시에 하면 경주가 되어
+    //    개별 왕복이 그대로 난다 (실측으로 물렸다).
+    _batchPreload(filePath).then(() => state.getContent(filePath)).catch(() => {
       // Silently ignore preload errors
     });
   },
@@ -496,10 +552,25 @@ export const useContentCacheStore = create<ContentCacheState>()((set, get) => ({
       const batch = filesToReload.slice(i, i + BATCH_SIZE);
       const batchResults: { filePath: string; content: CachedContent }[] = [];
 
+      // 🔴 **묶음을 한 왕복으로 읽는다** (2026-08-30). 여기가 컨테이너를
+      //    누를 때 `read_file` 이 141번 날아가던 자리다 — `BATCH_SIZE` 로
+      //    나누기는 했지만 **묶음 안에서 파일마다 따로** 불렀다.
+      //    서버 안에서는 왕복이 0ms 라 안 보이고, 사람은 Tailscale 너머라
+      //    왕복 20ms × 141 = 2.8초를 낸다.
+      //    ⚠️ `read_files` 가 없거나 터지면 **옛 길로 돌아간다** — 새 부품이
+      //       옛 기능을 망가뜨리면 안 된다.
+      let _bulk: Map<string, FileContent> | null = null;
+      try {
+        const rows = await fileCommands.readFiles(batch);
+        _bulk = new Map(rows.filter(r => r.ok && r.file).map(r => [r.path, r.file as FileContent]));
+      } catch {
+        _bulk = null;
+      }
+
       await Promise.all(
         batch.map(async (filePath) => {
           try {
-            const rawContent = await fileCommands.readFile(filePath);
+            const rawContent = _bulk?.get(filePath) ?? await fileCommands.readFile(filePath);
             const frontmatter = rawContent.frontmatter ? parseFrontmatter(rawContent.frontmatter) : null;
             const mtime = mtimeMap.get(filePath) || Date.now();
 
