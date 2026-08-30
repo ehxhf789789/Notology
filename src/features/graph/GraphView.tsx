@@ -350,7 +350,35 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
   physicsRef.current = graphSettings.physics;
 
   // --- NEIGHBOR SET for hover highlighting ---
+  // 🔴 **마디마다·프레임마다 전체 간선을 훑고 있었다** (2026-08-30).
+  //    `nodeCanvasObject` 안에서 부르므로 한 프레임에 «마디 수 × 간선 수»다 —
+  //    뿌리 그래프(마디 1,275 · 간선 3,839)에서 **한 프레임 10ms**를 썼고,
+  //    그것만으로 천장이 97fps 였다. 4배 느린 기계면 40ms = 25fps 천장이다.
+  //    같은 마디를 물으면 같은 답이므로 **한 번만 만든다** — 실측 103배.
+  //    간선이 갈리면 버린다 (`filteredData` 가 바뀌는 그 자리).
+  const neighborCacheRef = useRef(new Map<string, Set<string>>());
+  /** 🔴 **가라앉는 시간이 곧 사람이 겪는 렉이다** (2026-08-30).
+   *
+   * `cooldownTicks(200)` 이 크기와 무관하게 붙박이라, 마디가 많아지면 그
+   * 200판이 통째로 느려진다. 실측(뿌리 807마디):
+   *
+   *     CPU 1/1   37fps 가  5초       ← 견딜 만하다
+   *     CPU 1/4    9fps 가 14초       ← 사용자가 말한 «렉»
+   *
+   * 마디가 많을수록 판을 줄인다. 잘라내는 것이 아니라 **큰 그래프는 애초에
+   * 적은 판으로도 모양이 선다** — 아래 실측으로 확인했다.
+   */
+  const tickBudget = (n: number): { cooldown: number; warmup: number } => {
+    const o = (window as unknown as { __graphTicks?: number }).__graphTicks;
+    if (o) return { cooldown: o, warmup: Math.round(o / 4) };
+    if (n > 600) return { cooldown: 60, warmup: 10 };
+    if (n > 300) return { cooldown: 100, warmup: 25 };
+    return { cooldown: 200, warmup: 50 };
+  };
+
   const getNeighborSet = useCallback((nodeId: string): Set<string> => {
+    const hit = neighborCacheRef.current.get(nodeId);
+    if (hit) return hit;
     const neighbors = new Set<string>();
     neighbors.add(nodeId);
     const links = filteredDataRef.current.links;
@@ -360,6 +388,7 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
       if (sourceId === nodeId) neighbors.add(targetId);
       if (targetId === nodeId) neighbors.add(sourceId);
     }
+    neighborCacheRef.current.set(nodeId, neighbors);
     return neighbors;
   }, []);
 
@@ -489,7 +518,7 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
       .backgroundColor('transparent')
       .width(container.clientWidth)
       .height(container.clientHeight)
-      .cooldownTicks(200)
+      .cooldownTicks(200)          // 아래 graphData 에서 크기에 맞춰 다시 준다
       .warmupTicks(50)
       .nodeCanvasObjectMode(() => 'replace')
       .nodeCanvasObject((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
@@ -839,6 +868,9 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
       for (const n of data.nodes) {
         colorMap.set(n.id, getNodeColorRef.current(n));
       }
+      const _b = tickBudget(data.nodes.length);
+      graph.cooldownTicks(_b.cooldown).warmupTicks(_b.warmup);
+      neighborCacheRef.current.clear();
       graph.graphData({
         nodes: data.nodes.map(n => ({ ...n, _color: colorMap.get(n.id) })),
         links: data.links.map(l => ({ ...l })),
@@ -887,6 +919,9 @@ function GraphView({ containerPath, refreshTrigger }: GraphViewProps) {
       colorMap.set(n.id, getNodeColor(n));
     }
 
+    const b = tickBudget(filteredData.nodes.length);
+    graph.cooldownTicks(b.cooldown).warmupTicks(b.warmup);
+    neighborCacheRef.current.clear();          // 간선이 갈렸으니 이웃도 다시
     graph.graphData({
       nodes: filteredData.nodes.map(n => ({ ...n, _color: colorMap.get(n.id) })),
       links: filteredData.links.map(l => ({ ...l })),
