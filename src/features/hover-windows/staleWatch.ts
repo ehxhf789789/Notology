@@ -38,7 +38,7 @@ type Watched = { path: string; gone?: boolean; mtime?: number };
  *  없으면 못 가른다 — 이 자리에서 실제로 한 시간을 잃었다. 마지막 40줄만
  *  들고 있으므로 값이 없다. `window.__stale` 로 본다. */
 const trail: string[] = [];
-export function mark(s: string): void {
+function mark(s: string): void {
   trail.push(`${new Date().toISOString().slice(11, 19)} ${s}`);
   if (trail.length > 40) trail.shift();
   (window as unknown as Record<string, unknown>).__stale = trail;
@@ -154,7 +154,11 @@ async function pollWatched(): Promise<void> {
     return;                                      // 옛 서버면 조용히 넘어간다
   }
   for (const r of rows) {
-    if (!seen.has(r.path)) continue;             // 바탕을 아직 안 찍었다
+    const base = seen.get(r.path);
+    // 🔴 **바탕을 아직 못 찍었으면 아무것도 안 한다.** `stampNew` 가 판을
+    //    묻는 동안 mtime 은 0 인데, 그 0 을 「알고 있는 값」으로 넘기면
+    //    서버가 «갈렸다» 고 답한다 — 창을 열자마자 한 번 되읽어 글자가 튄다.
+    if (!base || !base.mtime) continue;
     if (r.gone) {
       if (wins.filter(w => w.filePath === r.path).some(w => isWindowDirty(w.id))) continue;
       mark(`되물음: 사라짐 ${r.path.slice(-24)}`);
@@ -163,8 +167,7 @@ async function pollWatched(): Promise<void> {
       continue;
     }
     if (filterExternalChanges([r.path]).length === 0) continue;   // 내가 방금 저장한 것
-    const cur = seen.get(r.path)!;
-    seen.set(r.path, { stamp: cur.stamp, mtime: r.mtime || cur.mtime });
+    seen.set(r.path, { stamp: base.stamp, mtime: r.mtime || base.mtime });
     mark(`되물음: 갈림 ${r.path.slice(-24)}`);
     hoverActions.refreshForFile(r.path);
   }
