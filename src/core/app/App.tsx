@@ -43,6 +43,7 @@ import { DobbinHome } from '../../features/dobbin/DobbinHome';
 import Search from '../../features/search/Search';
 import HoverEditorLayer from '../../features/hover-windows/HoverEditorLayer';
 import MinimizedDock from '../../features/hover-windows/MinimizedDock';
+import { startStaleWatch } from '../../features/hover-windows/staleWatch';
 import RightPanel from '../layout/RightPanel';
 import ContextMenu from '../../features/context-menu/ContextMenu';
 import { Slot } from '../infrastructure/slotRegistry';
@@ -82,6 +83,9 @@ function AppLayout() {
   // (rare but possible: settings opened from a hover, future features).
   // Self-emits are filtered inside onTemplatesChanged, so the loopback is
   // a no-op and we don't trigger our own reload.
+  // 🔴 열어 둔 창이 바깥 변화를 따라가게 (2026-08-30)
+  useEffect(() => { startStaleWatch(); }, []);
+
   useEffect(() => {
     let unlisten: (() => void) | null = null;
     (async () => {

@@ -16,6 +16,7 @@ import { t } from '../../core/utils/i18n';
 import type { NoteFrontmatter, NoteComment, SketchData, SketchSelection } from '../../core/types';
 import { serializeFrontmatter, getCurrentTimestamp } from '../../core/utils/frontmatter';
 import { markAsSelfSaved } from '../../core/utils/selfSaveTracker';
+import { setWindowDirty, forgetWindow } from './dirtyRegistry';
 import { registerEditorSave, unregisterEditorSave } from '../../core/editor/editorSaveRegistry';
 import { notifyFileSaved, notifySearchIndexUpdated } from '../../core/utils/windowSync';
 import { saveComments } from '../comments/comments';
@@ -127,6 +128,7 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   const [body, setBody] = useState('');
   const isSketchNote = !!((frontmatter as any)?.sketch || (frontmatter as any)?.canvas || (!frontmatter && body.trimStart().startsWith('{') && body.includes('"nodes":')));
   const [isDirty, setIsDirty] = useState(false);
+  useEffect(() => () => forgetWindow(win.id), [win.id]);
 
   // Round 2 R3 — paper pattern for this note. Per-note override via
   // frontmatter `paper:`, falling back to the global settingsStore default.
@@ -510,6 +512,8 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
   // ========== EMERGENCY SAVE REGISTRY ==========
   const isDirtyRef = useRef(false);
   isDirtyRef.current = isDirty;
+  // 🔴 감시자가 「고치던 중인 창」을 알아야 지우기에 안 닫는다 (dirtyRegistry)
+  setWindowDirty(win.id, isDirty);
 
   useEffect(() => {
     registerEditorSave(win.id, () => {
