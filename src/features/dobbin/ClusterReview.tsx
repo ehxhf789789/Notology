@@ -22,6 +22,15 @@ type Cluster = {
   count: number; expected_wrong: number; samples: Sample[];
 };
 
+/** 🔴 받침에 따라 «로/으로» 를 고른다. 「논문로」 는 사람이 안 쓰는 말이다. */
+function ro(w: string): string {
+  const ch = (w || '').slice(-1);
+  const code = ch.charCodeAt(0) - 0xac00;
+  if (code < 0 || code > 11171) return '로';
+  const jong = code % 28;
+  return jong === 0 || jong === 8 ? '로' : '으로';   // 받침 없거나 ㄹ → 로
+}
+
 const TYPES = ['보고서', '계획서', '회의록', '청구서', '영수증', '공문', '논문',
                '발표자료', '제안서', '양식', '데이터셋', '매뉴얼', '이미지', '기타'];
 
@@ -50,9 +59,9 @@ export function ClusterReview() {
       {cs.map((c) => (
         <div className="clrev__card" key={c.key}>
           <div className="clrev__head">
-            <b>「{c.doc_type}」로 보이는 자료 {c.count}건</b>
+            <b>「{c.doc_type}」{ro(c.doc_type)} 보이는 자료 {c.count}건</b>
             <span className="clrev__why">
-              이 조합은 실측 {Math.round(c.confidence * 100)}% —
+              {'\u00a0'}· 이 조합은 실측 {Math.round(c.confidence * 100)}% —
               그냥 두면 {c.expected_wrong}건이 틀린 채 남습니다
             </span>
           </div>
