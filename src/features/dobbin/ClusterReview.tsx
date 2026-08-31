@@ -69,8 +69,17 @@ export function ClusterReview() {
             {c.samples.map((s) => (
               <li key={s.id}>
                 <button className="clrev__file"
-                        onClick={() => { if (s.folder) void hoverActions.open(s.name); }}
-                        title={s.folder || ''}>{s.name}</button>
+                        onClick={() => {
+                          // 🔴 **이름만 넘기면 서버가 보관함을 못 찾는다**
+                          //    (실측: `{"error":"forbidden","detail":"모르는
+                          //    보관함: …pdf"}`). 첨부는 `{서가}/attachments/`
+                          //    아래에 있고 뿌리표가 붙어야 열린다.
+                          if (!s.folder) return;
+                          void hoverActions.open(
+                            `library:${s.folder}/attachments/${s.name}`);
+                        }}
+                        title={s.folder ? `${s.folder}/attachments/${s.name}` : ''}
+                >{s.name}</button>
                 {s.folder && <span className="clrev__folder">{s.folder}</span>}
               </li>
             ))}
