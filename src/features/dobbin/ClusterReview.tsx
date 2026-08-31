@@ -18,7 +18,7 @@ import { hoverActions } from '../hover-windows/stores/hoverStore';
 
 type Sample = { id: number; name: string; folder: string | null };
 type Cluster = {
-  key: string; doc_type: string; confidence: number;
+  key: string; doc_type: string; confidence: number; role?: string | null;
   count: number; expected_wrong: number; samples: Sample[];
 };
 
@@ -79,7 +79,12 @@ export function ClusterReview() {
       {cs.map((c) => (
         <div className="clrev__card" key={c.key}>
           <div className="clrev__head">
-            <b>「{c.doc_type}」{ro(c.doc_type)} 보이는 자료 {c.count}건</b>
+            {/* 🔴 **왜 이 카드가 셋으로 갈렸는지 보여야 한다** (2026-08-31).
+                역할로 갈라 놓고 화면이 그 말을 안 하면, 사람 눈에는 똑같은
+                「보고서」 카드가 셋 있는 것으로만 보인다. */}
+            <b>「{c.doc_type}」{ro(c.doc_type)} 보이는 자료 {c.count}건
+              {c.role && <span className="clrev__role"> · {c.role}</span>}
+            </b>
             <span className="clrev__why">
               {'\u00a0'}· 이 조합은 실측 {Math.round(c.confidence * 100)}% —
               그냥 두면 {c.expected_wrong}건이 틀린 채 남습니다
@@ -107,7 +112,7 @@ export function ClusterReview() {
           <div className="clrev__acts">
             <button className="clrev__ok" disabled={busy === c.key}
                     onClick={() => void answer(c.key, 'ok')}>
-              네, {c.count}건 모두 「{c.doc_type}」입니다
+              네, {c.count}건 모두 「{c.doc_type}」입니다{c.role ? ` (${c.role})` : ''}
             </button>
             <select className="clrev__sel" value={pick[c.key] || ''}
                     onChange={(e) => setPick((p) => ({ ...p, [c.key]: e.target.value }))}>

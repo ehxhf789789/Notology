@@ -41,3 +41,5 @@
   border-radius: var(--rad-1); padding: var(--sp-2) var(--sp-3);
   cursor: pointer; min-height: 36px;
 }
+/* 무리를 가른 까닭(역할)을 표제 옆에 — 셋이 똑같아 보이면 안 된다 */
+.clrev__role { color: var(--ax-1, #6ea8fe); font-weight: 500; }
