@@ -43,13 +43,33 @@ export function ClusterReview() {
     try { setCs((await invoke<Cluster[]>('review_clusters')) || []); }
     catch { setCs([]); }
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  // 🔴 **한 번 읽고 끝이면 사람이 F5 를 누른다** (2026-08-31 사용자:
+  //    *"왜 내가 계속 f5를 눌러야하지? 변화시 자동 실시간 최신화를 못하나?"*).
+  //    맞다 — 내가 이 카드를 짓고 알림을 안 들었다. 오늘 아홉 번째로
+  //    만나는 「있는데 안 불린다」이고, 이번엔 내 손이다.
+  useEffect(() => {
+    void load();
+    const h = (e: Event) => {
+      const k = (e as CustomEvent).detail?.kind;
+      if (!k || k === 'vault-changed' || k === 'tended' || k === 'inbox-changed') {
+        void load();
+      }
+    };
+    window.addEventListener('dobbin:live', h);
+    return () => window.removeEventListener('dobbin:live', h);
+  }, [load]);
 
   const answer = useCallback(async (key: string, value: string) => {
     setBusy(key);
     try {
       await invoke('review_resolve', { key, answer: value });
       await load();
+      // 🔴 답 하나가 수백 건을 바꾼다 — 목록·안내판도 따라와야 한다
+      try {
+        await fetch('/api/publish', { method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'vault-changed', scope: '검수' }) });
+      } catch { /* 알림이 안 가도 화면은 이미 갈렸다 */ }
     } finally { setBusy(null); }
   }, [load]);
 
