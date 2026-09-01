@@ -1165,6 +1165,24 @@ input.search-row-checkbox:indeterminate {
   font-weight: 500;
 }
 
+/* 🔴 **꼬리를 지킨다.** `.search-td` 는 뒤를 자르는데(ellipsis) 이 서재의
+   제목은 뒤에서 갈린다 — 아홉 권이 한 줄로 보였다. 머리만 줄인다. */
+.search-title {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+.search-title__head {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.search-title__tail {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .search-type {
   color: var(--tx-3);
   font-size: var(--fs-11);

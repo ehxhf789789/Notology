@@ -1,5 +1,29 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
+
+/** 긴 제목을 «머리 + 지킬 꼬리» 로 가른다. 짧으면 안 가른다(꼬리 빈 문자열).
+ *
+ *  🔴 자르는 자리는 **낱말 경계**다 — 글자 수로만 끊으면 `…4 March 2024` 처럼
+ *     말이 잘려 오히려 못 읽는다. 뒤에서 `TAIL_MAX` 안쪽의 첫 공백을 찾는다.
+ */
+const TITLE_MIN = 28;   // 이보다 짧으면 어차피 안 잘린다
+const TAIL_MAX = 20;    // 지킬 꼬리의 최대 길이 (실측: 90%가 6자면 갈린다 · 읽히려면 한두 마디)
+function splitKeepingTail(s: string): [string, string] {
+  if (!s || s.length <= TITLE_MIN) return [s, ''];
+  // 🔴 공백을 **앞쪽으로** 찾는다. 뒤로 찾으면 경계에 걸린 마디가 통째로
+  //    떨어져 나간다 — 실측에서 `Vol.3 September 2022`(딱 20자)가
+  //    `September 2022` 로 잘려 판 번호를 잃었다. 앞으로 찾으면 꼬리가
+  //    조금 길어지는 대신 마디가 안 잘린다. 너무 길어지면 원래 자리로.
+  let i = s.length - TAIL_MAX;
+  const sp = s.lastIndexOf(' ', i);
+  if (sp >= 0 && s.length - sp <= TAIL_MAX + 10) i = sp + 1;
+  else {
+    const fwd = s.indexOf(' ', i);
+    if (fwd >= 0 && s.length - fwd <= TAIL_MAX + 8) i = fwd + 1;
+  }
+  if (i <= 0 || i >= s.length) return [s, ''];
+  return [s.slice(0, i), s.slice(i)];
+}
 import type { NoteMetadata, SearchResult } from '../../core/types';
 import type { LanguageSetting } from '../../core/utils/i18n';
 import { t, tf } from '../../core/utils/i18n';
@@ -193,7 +217,29 @@ export const FrontmatterResultRow = React.memo(function FrontmatterResultRow({
           />
         </div>
       )}
-      <div className="search-td search-title">{highlightText(displayName, frontmatterQuery)}</div>
+      {/* 🔴 **꼬리를 지킨다** (2026-09-02 · 한빈님이 「같은 이름이 아홉 줄」이라 했다).
+          `.search-td` 가 `text-overflow: ellipsis` 로 **뒤를 자르는데**, 이 서재의
+          제목은 앞이 같고 **뒤에서 갈린다**:
+
+              Autodesk BIM Report, 공공 및 민간 BIM 동향 보고서 Vol.6 March 2024
+              Autodesk BIM Report, 공공 및 민간 BIM 동향 보고서 Vol.7 August 2024
+
+          서로 다른 아홉 권이 화면에서 한 줄로 보였다. 실측(서가 노트의 형제 제목
+          쌍 53개): **90%가 꼬리 6자면 갈린다.** 다만 「갈린다」와 「읽고 알아본다」는
+          달라서 `2024` 만 보여선 무엇인지 모른다 — 그래서 **낱말 경계**에서
+          끊어 마지막 한두 마디를 통째로 남긴다.
+          머리만 줄이고 꼬리는 안 줄인다 (CSS: `.search-title__tail`). */}
+      <div className="search-td search-title" title={displayName}>
+        {(() => {
+          const [head, tail] = splitKeepingTail(displayName);
+          return tail
+            ? (<>
+                <span className="search-title__head">{highlightText(head, frontmatterQuery)}</span>
+                <span className="search-title__tail">{highlightText(tail, frontmatterQuery)}</span>
+              </>)
+            : highlightText(displayName, frontmatterQuery);
+        })()}
+      </div>
       <div className="search-td search-type">
         {isUnmatched && (
           <AlertTriangle size={11} className="search-type__unmatched-icon" aria-hidden="true" />
