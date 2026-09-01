@@ -188,6 +188,122 @@ export const DEFAULT_NOTE_TEMPLATES: NoteTemplate[] = [
       { key: 'tags', labelI18n: 'tags', kind: 'tags' },
     ],
   },
+  // 🔴 **3-1 의 TYPE 10종은 코드에 박는다** (2026-09-01 · 한빈님이 두 번 물었다).
+  //
+  //    여태 이것들은 `.notology/templates/custom/*.yaml` 로만 있었고, 그 파일
+  //    로딩이 한 번이라도 어긋나면 **모든 노트의 타입 칸이 ⚠️** 가 됐다 —
+  //    `registeredTypes` 가 템플릿의 `frontmatter.type` 만 보기 때문이다.
+  //    서버·번들·목록이 전부 정상인데도 사람 화면에만 ⚠️ 가 남는 일이
+  //    실제로 있었다 (헤드리스로는 ⚠️ 0개, 사람 브라우저는 첫 줄부터 ⚠️).
+  //
+  //    3-1 의 열 종류는 **확정된 설계**다 (보관소 382건에서 잰 것이고
+  //    재논의 금지 항목이다). 파일 하나에 매달 까닭이 없다.
+  //
+  //    🔴 id 를 yaml 과 **같게** 둔다. `loadTemplates` 가
+  //       `filter(t => !DEFAULT_TEMPLATE_IDS.has(t.id))` 로 겹치는 per-file 판을
+  //       버리므로, 같은 종류가 두 벌이 되어 이름이 흔들리는 일이 없다.
+  //       dobbin 이 2-2-0 에 따라 **새로** 만드는 종류는 id 가 달라 그대로 산다.
+  //    ⚠️ `NOTE` 는 위 `tpl-document` 가 이미 맡고 있어 여기 넣지 않는다.
+  {
+    id: 'type-contact',
+    name: '인물',
+    prefix: 'CONTACT',
+    namePattern: '{{prefix}}-{{YYMMDD}}-{{title}}',
+    frontmatter: { type: 'CONTACT', cssclasses: ['contact-type'] },
+    body: '# Overview\n- \n\n---\n# Content\n\n---\n# Files\n\n---\n# Reference\n## Inside Sources\n## Outside Sources\n',
+    icon: 'FileText',
+    fields: [{ key: 'tags', labelI18n: 'tags', kind: 'tags' }],
+  },
+  {
+    id: 'type-mtg',
+    name: '회의',
+    prefix: 'MTG',
+    namePattern: '{{prefix}}-{{YYMMDD}}-{{title}}',
+    frontmatter: { type: 'MTG', cssclasses: ['mtg-type'] },
+    body: '# Overview\n- \n\n---\n# Content\n\n---\n# Files\n\n---\n# Reference\n## Inside Sources\n## Outside Sources\n',
+    icon: 'FileText',
+    fields: [{ key: 'tags', labelI18n: 'tags', kind: 'tags' }],
+  },
+  {
+    id: 'type-data',
+    name: '자료',
+    prefix: 'DATA',
+    namePattern: '{{prefix}}-{{YYMMDD}}-{{title}}',
+    frontmatter: { type: 'DATA', cssclasses: ['data-type'] },
+    body: '# Overview\n- \n\n---\n# Content\n\n---\n# Files\n\n---\n# Reference\n## Inside Sources\n## Outside Sources\n',
+    icon: 'FileText',
+    fields: [{ key: 'tags', labelI18n: 'tags', kind: 'tags' }],
+  },
+  {
+    id: 'type-paper',
+    name: '논문',
+    prefix: 'PAPER',
+    namePattern: '{{prefix}}-{{YYMMDD}}-{{title}}',
+    frontmatter: { type: 'PAPER', cssclasses: ['paper-type'] },
+    body: '# Overview\n- \n\n---\n# Content\n\n---\n# Files\n\n---\n# Reference\n## Inside Sources\n## Outside Sources\n',
+    icon: 'FileText',
+    fields: [{ key: 'tags', labelI18n: 'tags', kind: 'tags' }],
+  },
+  {
+    id: 'type-task',
+    name: '업무',
+    prefix: 'TASK',
+    namePattern: '{{prefix}}-{{YYMMDD}}-{{title}}',
+    frontmatter: { type: 'TASK', cssclasses: ['task-type'] },
+    body: '# Overview\n- \n\n---\n# Content\n\n---\n# Files\n\n---\n# Reference\n## Inside Sources\n## Outside Sources\n',
+    icon: 'FileText',
+    fields: [{ key: 'tags', labelI18n: 'tags', kind: 'tags' }],
+  },
+  {
+    id: 'type-adm',
+    name: '행정',
+    prefix: 'ADM',
+    namePattern: '{{prefix}}-{{YYMMDD}}-{{title}}',
+    frontmatter: { type: 'ADM', cssclasses: ['adm-type'] },
+    body: '# Overview\n- \n\n---\n# Content\n\n---\n# Files\n\n---\n# Reference\n## Inside Sources\n## Outside Sources\n',
+    icon: 'FileText',
+    fields: [{ key: 'tags', labelI18n: 'tags', kind: 'tags' }],
+  },
+  {
+    id: 'type-theo',
+    name: '이론',
+    prefix: 'THEO',
+    namePattern: '{{prefix}}-{{YYMMDD}}-{{title}}',
+    frontmatter: { type: 'THEO', cssclasses: ['theo-type'] },
+    body: '# Overview\n- \n\n---\n# Content\n\n---\n# Files\n\n---\n# Reference\n## Inside Sources\n## Outside Sources\n',
+    icon: 'FileText',
+    fields: [{ key: 'tags', labelI18n: 'tags', kind: 'tags' }],
+  },
+  {
+    id: 'type-sem',
+    name: '세미나',
+    prefix: 'SEM',
+    namePattern: '{{prefix}}-{{YYMMDD}}-{{title}}',
+    frontmatter: { type: 'SEM', cssclasses: ['sem-type'] },
+    body: '# Overview\n- \n\n---\n# Content\n\n---\n# Files\n\n---\n# Reference\n## Inside Sources\n## Outside Sources\n',
+    icon: 'FileText',
+    fields: [{ key: 'tags', labelI18n: 'tags', kind: 'tags' }],
+  },
+  {
+    id: 'type-setup',
+    name: '설정',
+    prefix: 'SETUP',
+    namePattern: '{{prefix}}-{{YYMMDD}}-{{title}}',
+    frontmatter: { type: 'SETUP', cssclasses: ['setup-type'] },
+    body: '# Overview\n- \n\n---\n# Content\n\n---\n# Files\n\n---\n# Reference\n## Inside Sources\n## Outside Sources\n',
+    icon: 'FileText',
+    fields: [{ key: 'tags', labelI18n: 'tags', kind: 'tags' }],
+  },
+  {
+    id: 'type-folder',
+    name: '폴더노트',
+    prefix: 'FOLDER',
+    namePattern: '{{prefix}}-{{YYMMDD}}-{{title}}',
+    frontmatter: { type: 'FOLDER', cssclasses: ['folder-type'] },
+    body: '# Overview\n- \n\n---\n# Content\n\n---\n# Files\n\n---\n# Reference\n## Inside Sources\n## Outside Sources\n',
+    icon: 'FileText',
+    fields: [{ key: 'tags', labelI18n: 'tags', kind: 'tags' }],
+  },
   {
     id: 'tpl-sketch',
     name: '스케치',
