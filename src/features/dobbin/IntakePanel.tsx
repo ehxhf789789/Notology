@@ -52,7 +52,7 @@ type Recent = { name: string; state: string; at?: string | null;
   folder?: string | null; open?: string | null; note?: string | null; };
 
 type Q = {
-  id: number; group: string; count: number; names: string[]; paths: string[];
+  id: number; group: string; title?: string; count: number; names: string[]; paths: string[];
   guess: { folder?: string | null; doc_type?: string | null; stage?: string | null };
   why: string[]; confidence: number; ask: string; excerpt?: string | null;
   options: { label: string; value: string }[];
@@ -282,7 +282,11 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
         return (
           <div key={q.id} className="intake-q">
             <div className="intake-q__head">
-              <span className="intake-q__name">{q.group}</span>
+              {/* 🔴 `group` 은 기계용 묶음 열쇠(소문자·확장자 없음)다.
+                  한빈님이 「manual」만 보고 *"이렇게 보이는게 뭐냐"* 고
+                  물으셨다 — 실물은 `Manual.docx` 였다. 서버가 주는
+                  사람 이름을 쓰되, 옛 서버면 `group` 으로 물러선다. */}
+              <span className="intake-q__name">{q.title ?? q.group}</span>
               {q.count > 1 && <span className="intake-q__n">{q.count}건</span>}
             </div>
 
@@ -290,7 +294,10 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
               {prov ? '우선 여기 두었습니다 · ' : '이렇게 보입니다 · '}
               {where ? <b>{where}</b> : <em>어디에 둘지 모르겠습니다</em>}
               {g.doc_type && <span className="intake-q__meta"> · {g.doc_type}</span>}
-              <span className="intake-q__conf">{Math.round(q.confidence * 100)}%</span>
+              {/* 🔴 확신 %를 안 보인다 (2026-09-01). 한빈님: *"이런 정보를
+                  가지고 뭘 판단하라는건지 모르겠고"* — 그 숫자는 dobbin 의
+                  내부 사정이지 사람이 판단할 재료가 아니다. 근거(`why`)가
+                  그 자리를 대신한다. */}
             </div>
 
             {picking === q.id ? (
@@ -404,7 +411,7 @@ export function IntakePanel({ variant = 'panel' }: { variant?: 'panel' | 'home' 
             const where = g.folder || (g as { provisional?: string }).provisional;
             return (
               <div key={q.id} className="intake__rest-row">
-                <span className="intake__rest-name" title={q.group}>{q.group}</span>
+                <span className="intake__rest-name" title={q.title ?? q.group}>{q.title ?? q.group}</span>
                 <span className="intake__rest-where">{where || '자리 미정'}</span>
                 <button disabled={!where} onClick={() => answer(q.id, 'yes')}>확정</button>
                 <button onClick={() => pickFolders(q.id)}>다른 곳</button>
