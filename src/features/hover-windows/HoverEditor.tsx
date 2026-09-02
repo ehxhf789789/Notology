@@ -21,6 +21,7 @@ import { registerEditorSave, unregisterEditorSave } from '../../core/editor/edit
 import { notifyFileSaved, notifySearchIndexUpdated } from '../../core/utils/windowSync';
 import { saveComments } from '../comments/comments';
 import EditorToolbar from '../note-editor/EditorToolbar';
+import SpeakerBar from '../note-editor/SpeakerBar';
 import EditorBubbleMenu from '../note-editor/EditorBubbleMenu';
 import OutlinePanel from '../outline/OutlinePanel';
 import EditorContextMenu from '../note-editor/EditorContextMenu';
@@ -984,6 +985,12 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
         />
       )}
       {!isSketchNote && <EditorBubbleMenu editor={editor as Editor} />}
+      {/* 회의 화자 칩 — 분리는 dobbin, 이름은 사람 (2026-09-02). 화자 없는
+          노트에서는 스스로 아무것도 안 그린다. */}
+      {win.filePath && (
+        <SpeakerBar notePath={win.filePath}
+          onRenamed={() => { try { (window as { __reloadNote?: (p: string) => void }).__reloadNote?.(win.filePath!); } catch { /* 새로고침 훅 없으면 다음 열람 때 보인다 */ } }} />
+      )}
       {conflictState && (
         <div className="hover-editor-conflict-bar">
           <span className="conflict-bar-message">{t('conflictDetected', language)}</span>

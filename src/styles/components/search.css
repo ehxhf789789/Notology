@@ -1669,3 +1669,17 @@ html[data-theme="light"] .search-input {
   border-style: dashed !important;
   opacity: .82;
 }
+
+/* 회의 화자 칩 (2026-09-02) — 분리는 dobbin, 이름은 사람 */
+.speaker-bar { display:flex; gap:6px; align-items:center; padding:4px 10px;
+  border-bottom:1px solid var(--bg-3, #333); flex-wrap:wrap; }
+.speaker-bar__label { font-size:11px; color:var(--tx-3,#888); }
+.speaker-chip button { border:1px dashed var(--tx-3,#777); border-radius:12px;
+  padding:2px 10px; background:transparent; color:var(--tx-2,#ccc);
+  cursor:pointer; font-size:12px; }
+.speaker-chip button.named { border-style:solid; color:var(--tx-1,#eee);
+  border-color:var(--accent,#4a8); }
+.speaker-chip button em { font-style:normal; color:var(--tx-3,#888); font-size:11px; }
+.speaker-chip input { width:150px; font-size:12px; padding:2px 8px;
+  border-radius:12px; border:1px solid var(--accent,#4a8);
+  background:var(--bg-1,#111); color:var(--tx-1,#eee); }
