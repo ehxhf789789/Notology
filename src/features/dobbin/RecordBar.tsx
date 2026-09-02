@@ -23,7 +23,8 @@
 import { useEffect, useState } from 'react';
 import { Mic, Pause, Play, Square, Trash2 } from 'lucide-react';
 import {
-  isRecording, isPaused, recordingSeconds, recordFolder,
+  isRecording, isPaused, recordingSeconds, recordFolder, recordDevice,
+  listMics, preferredMic, setPreferredMic,
   pauseRecord, resumeRecord, stopRecord, discardRecord,
 } from './clientTools';
 import './recordbar.css';
@@ -31,6 +32,10 @@ import './recordbar.css';
 export function RecordBar() {
   const [, tick] = useState(0);
   const [asking, setAsking] = useState(false);
+  // 장치 고르기 — 목록·선택(다음 녹음부터). 녹음 중 스트림 교체는
+  // 조각이 깨질 수 있어 하지 않는다 — 기억만 하고 그렇게 말한다.
+  const [mics, setMics] = useState<{ id: string; label: string }[] | null>(null);
+  const [picked, setPicked] = useState('');
 
   useEffect(() => {
     const t = setInterval(() => tick((n) => n + 1), 500);
@@ -51,6 +56,27 @@ export function RecordBar() {
         {paused ? '일시정지' : '녹음 중'}
         {folder && <em> · {folder.split('/').pop()}</em>}
       </span>
+      {/* 🔴 어느 장치가 듣는지 늘 보인다 — 엉뚱한 마이크를 뒤늦게 아는
+          것이 가장 비싼 실패다. 누르면 이 기기의 마이크 목록이 열린다. */}
+      {recordDevice() && (
+        <button className="recbar__dev" title="이 기기의 마이크 고르기"
+                onClick={async () => setMics(mics ? null : await listMics())}>
+          {picked ? '다음 녹음부터 적용' : recordDevice().slice(0, 22)}
+        </button>
+      )}
+      {mics && (
+        <span className="recbar__mics" role="listbox">
+          {mics.map((m) => (
+            <button key={m.id}
+                    className={m.id === (picked || preferredMic()) ? 'is-on' : ''}
+                    onClick={() => {
+                      setPreferredMic(m.id); setPicked(m.label); setMics(null);
+                    }}>
+              {m.label.slice(0, 28)}
+            </button>
+          ))}
+        </span>
+      )}
       <span className="recbar__time">{mm}</span>
 
       <button className="recbar__btn" title={paused ? '이어서' : '일시정지'}

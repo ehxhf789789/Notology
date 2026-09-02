@@ -38,8 +38,31 @@ type Live = {
   rec: MediaRecorder; chunks: Blob[]; folder: string;
   started: number; paused: number; pausedAt: number | null;
   say: (t: string) => void; onState?: () => void; discard?: boolean;
+  device?: string;
 };
 let live: Live | null = null;
+
+/** 🔴 어느 장치로 녹음하는가 (사용자 지시, 2026-09-02: *"접속하는
+ *  데스크탑, 노트북의 음성 장치를 탐지해서 … 자동으로 연결"*).
+ *  선호는 기기별이므로 localStorage — 서버가 아니라 이 브라우저의 것이다. */
+const MIC_KEY = 'dobbin.micId';
+export function preferredMic(): string {
+  try { return localStorage.getItem(MIC_KEY) || ''; } catch { return ''; }
+}
+export function setPreferredMic(id: string) {
+  try { id ? localStorage.setItem(MIC_KEY, id) : localStorage.removeItem(MIC_KEY); }
+  catch { /* 사생활 모드 등 — 기억만 못 할 뿐 녹음은 된다 */ }
+}
+/** 지금 소리를 받는 장치 이름 — 녹음 중이 아니면 빈 값. */
+export function recordDevice() { return live?.device || ''; }
+/** 이 기기의 마이크 목록. 🔴 권한 전에는 이름이 비므로 녹음 중에 부른다. */
+export async function listMics(): Promise<{ id: string; label: string }[]> {
+  try {
+    const all = await navigator.mediaDevices.enumerateDevices();
+    return all.filter((d) => d.kind === 'audioinput' && d.deviceId)
+      .map((d, i) => ({ id: d.deviceId, label: d.label || `마이크 ${i + 1}` }));
+  } catch { return []; }
+}
 
 export function isRecording() { return live !== null; }
 export function isPaused() { return live?.pausedAt != null; }
@@ -110,7 +133,12 @@ export async function runTool(
   if (action.tool === 'record') {
     if (live) { say('이미 녹음 중입니다. 「그만」이라고 하시면 멈춥니다.'); return; }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // 🔴 `ideal` 이다 — 기억해 둔 마이크가 뽑혀 없어도 기본 장치로
+      //    물러선다 (exact 면 NotFoundError 로 녹음 자체가 죽는다).
+      const pref = preferredMic();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: pref ? { deviceId: { ideal: pref } } : true,
+      });
       const rec = new MediaRecorder(stream);
       const chunks: Blob[] = [];
       rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
@@ -132,13 +160,21 @@ export async function runTool(
         }
       };
       rec.start(1000);
+      const device = stream.getAudioTracks()[0]?.label || '';
       live = { rec, chunks, folder: args.folder || '', started: Date.now(),
-               paused: 0, pausedAt: null, say, onState };
+               paused: 0, pausedAt: null, say, onState, device };
       onState?.();
-    } catch {
-      // 🔴 권한이 거부되면 **그렇다고 말한다.** 조용히 실패하지 않는다.
-      say('마이크 권한이 거부되어 녹음을 시작하지 못했습니다. '
-        + '주소창의 자물쇠에서 허용해 주시거나, 녹음 파일을 주십시오.');
+      // 🔴 어느 장치가 듣는지 **말한다** — 엉뚱한 마이크로 한 시간을
+      //    녹음하고 나서야 아는 것이 회의록의 가장 비싼 실패다.
+      if (device) say(`녹음을 시작했습니다 — 마이크: ${device}`);
+    } catch (e) {
+      // 🔴 실패는 가른다 — 권한 거부와 장치 없음은 다른 처방이다 (5-1).
+      const name = (e as DOMException)?.name;
+      say(name === 'NotFoundError' || name === 'OverconstrainedError'
+        ? '이 기기에서 마이크를 찾지 못했습니다. 연결을 확인해 주시거나, '
+          + '녹음 파일을 주시면 받아쓰겠습니다.'
+        : '마이크 권한이 거부되어 녹음을 시작하지 못했습니다. '
+          + '주소창의 자물쇠에서 허용해 주시거나, 녹음 파일을 주십시오.');
     }
     return;
   }
