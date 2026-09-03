@@ -25,9 +25,15 @@
   min-width: 48px;
 }
 
+/* 🔴 **홈통은 본문과 같은 글자여야 한다** (2026-09-03).
+   예전엔 홈통이 `--font-base`(12px), 본문이 `--font-md`(13px)였다.
+   줄 높이가 배수(1.6)라 **12×1.6=19.2px vs 13×1.6=20.8px** — 줄마다
+   1.6px 씩 밀린다. 149줄짜리 `run.py` 에서 240px ≈ 본문 11줄만큼 어긋나
+   「150줄까지만 번호가 있다」로 보였다. 잘린 것이 아니라 **번호가 밀린
+   것**이다. 두 칸이 같은 글자를 쓰면 어긋날 수가 없다. */
 .code-line-numbers span {
-  font-size: var(--font-base);
-  line-height: 1.6;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .code-content {

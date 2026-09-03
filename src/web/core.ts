@@ -32,6 +32,29 @@ export async function invoke<T = unknown>(cmd: string, args?: Record<string, unk
   if (cmd.startsWith('plugin:event')) return 0 as T;
   if (NO_OP.test(cmd)) return null as T;
 
+  // 🔴 **이진 파일은 JSON 을 태우지 않는다** (2026-09-03).
+  //    xlsx·docx·pptx 뷰어가 통째로 죽어 있었다. 서버에 `read_binary_file`
+  //    이 없어 여기 43번째 줄이 `null` 을 돌려주었고, 뷰어가 그 null 로
+  //    `bytes.length` 를 읽어 «Cannot read properties of null» 로 터졌다.
+  //    화면에는 「문서 미리보기 실패」만 떠서 파일이 깨진 것처럼 보인다.
+  //
+  //    서버에 명령을 새로 다는 길은 **물렸다.** JSON 숫자 배열은 한 바이트가
+  //    서너 글자가 되어 원본의 4배가 그물을 탄다. 실측: 뷰어가 여는 파일
+  //    173개 중 최대가 **216.6MB** (pptx) 라 JSON 으로는 ~800MB 다.
+  //    어떤 상한을 잡아도 답이 아니다.
+  //
+  //    `/api/file` 이 이미 날바이트를 준다 — 그림이 그 길로 뜬다
+  //    (`convertFileSrc`). 검증된 길을 쓰고 부풀림을 0으로 만든다.
+  //    `Uint8Array` 는 `.length` 도 `new Uint8Array(x)` 도 받으므로
+  //    부르는 쪽 네 자리를 한 글자도 안 고친다.
+  if (cmd === 'read_binary_file') {
+    const path = String((args as any)?.path ?? '');
+    const r = await fetch(convertFileSrc(path));
+    if (r.status === 403) throw new Error('이 기기는 아직 승인되지 않았습니다');
+    if (!r.ok) throw new Error(`파일을 못 읽었다 (${r.status})`);
+    return new Uint8Array(await r.arrayBuffer()) as T;
+  }
+
   const r = await fetch(API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
