@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import JSZip from 'jszip';
 import { useViewerZoom } from '../shared/useViewerZoom';
+import { MIN_ZOOM, MAX_ZOOM } from '../shared/viewerConstants';
 
 import type { SlideData, ThemeColors, ThemeFonts, TableStyleDef, SlideShape, ShapeElement } from './pptxTypes';
 import { parseThemeXml } from './pptxTheme';
@@ -24,7 +25,15 @@ export function PptxViewer({ data }: PptxViewerProps) {
   const [visibleSlide, setVisibleSlide] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const { zoom, setZoom, zoomRef } = useViewerZoom(scrollContainerRef);
+  // 🔴 **100% 는 «1:1» 이지 «창에 맞춤» 이 아니다** (한빈님 2026-09-05:
+  //    *"pptx 가 100% 인데 잘려서 나온다"*). 16:9 와이드 슬라이드는
+  //    12,192,000 EMU ÷ 9525 = **1280px** 인데 호버 창 안쪽은 그보다 좁다.
+  //    PDF 뷰어는 `fitWidth` 를 받았는데(`PdfJsViewer.tsx:80`) pptx 는 못 받았다 —
+  //    **버그가 아니라 빠뜨린 기능**이고, 100% 배지가 「맞음」으로 읽혀 더 헷갈렸다.
+  const [fitWidth, setFitWidth] = useState(true);
+  const { zoom, setZoom, zoomRef } = useViewerZoom(scrollContainerRef, {
+    onZoom: () => { setFitWidth(false); },
+  });
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
   const tableStylesRef = useRef<Map<string, TableStyleDef>>(new Map());
 
@@ -372,6 +381,27 @@ export function PptxViewer({ data }: PptxViewerProps) {
     loadPptx();
   }, [data]);
 
+  // ── 창에 맞춘다 — 너비를 재서 배율을 정한다 ────────────────────
+  //    ⚠️ 슬라이드 크기는 파일을 읽고 나서야 정해진다(`slideSize`). 그래서
+  //       `slideSize` 와 창 너비 **둘 다** 이 효과의 재료다.
+  useEffect(() => {
+    if (!fitWidth) return;
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const apply = () => {
+      const pad = 24;                       // 좌우 여백 — 딱 맞으면 가로 스크롤이 뜬다
+      const avail = el.clientWidth - pad;
+      if (avail <= 0 || !slideSize.width) return;
+      const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, avail / slideSize.width));
+      zoomRef.current = z;
+      setZoom(z);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fitWidth, slideSize.width, setZoom, zoomRef]);
+
   // Zoom via Ctrl+Wheel is handled by useViewerZoom hook
 
   // Zoom via Ctrl+Drag (drag up = zoom in, drag down = zoom out)
@@ -394,7 +424,9 @@ export function PptxViewer({ data }: PptxViewerProps) {
       e.preventDefault();
       const dy = dragZoomRef.current.startY - e.clientY; // up = positive = zoom in
       const sensitivity = 0.008;
-      const newZoom = Math.min(3, Math.max(0.25, dragZoomRef.current.startZoom + dy * sensitivity));
+      const newZoom = Math.min(MAX_ZOOM,
+        Math.max(MIN_ZOOM, dragZoomRef.current.startZoom + dy * sensitivity));
+      setFitWidth(false);          // 손으로 잡으면 맞춤을 놓는다
       setZoom(newZoom);
     };
 
@@ -473,7 +505,20 @@ export function PptxViewer({ data }: PptxViewerProps) {
         <span className="pptx-slide-indicator">
           {visibleSlide + 1} / {slides.length}
         </span>
-        <span className="pptx-zoom-indicator">{Math.round(zoom * 100)}%</span>
+        {/* 🔴 맞춤일 때 «100%» 라 말하면 안 된다 — 그 거짓말이 이 결함을
+            찾기 어렵게 했다. PDF 뷰어와 같은 말을 쓴다 (`fit`/`맞춤`). */}
+        <span className="pptx-zoom-indicator">
+          {fitWidth ? '\uB9DE\uCDA4' : `${Math.round(zoom * 100)}%`}
+        </span>
+        <button
+          type="button"
+          className={`pptx-zoom-indicator pptx-fit-btn${fitWidth ? ' active' : ''}`}
+          onClick={() => setFitWidth(v => !v)}
+          title={'\uCC3D\uC5D0 \uB9DE\uCDA4'}
+          aria-pressed={fitWidth}
+        >
+          {'\u2194'}
+        </button>
       </div>
 
       <div className="pptx-slides-scroll-container" ref={scrollContainerRef}>
