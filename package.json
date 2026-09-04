@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "audit:tokens": "node src/design-system/audit-tokens.mjs"
+    "audit:tokens": "node src/design-system/audit-tokens.mjs",
+    "check:shape": "node src/core/utils/markdownShape.check.mjs"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.19",

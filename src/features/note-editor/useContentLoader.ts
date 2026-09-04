@@ -5,6 +5,7 @@ import { contentCacheActions } from '../content-cache/stores/contentCacheStore';
 import type { NoteFrontmatter, NoteComment, SketchData, HoverWindow } from '../../core/types';
 import { loadComments } from '../comments/comments';
 import { preprocessWikiLinks } from '../../core/utils/wikiLinkPreprocess';
+import { looksSame } from '../../core/utils/markdownShape';
 import type { ConflictState } from './useConflictResolution';
 
 // Conditional logging - only in development
@@ -215,6 +216,17 @@ export function useContentLoader({
           // Use body state as proxy for "last saved/loaded content"
           if (diskBody.trim() === body.trim()) {
             log('[HoverEditor] Disk matches last loaded content -- suppressing conflict');
+            fc.getFileMtime(win.filePath).then(m => { mtimeOnLoadRef.current = m; });
+            return;
+          }
+          // 🔴 꾸밈만 다른 것은 충돌이 아니다 (2026-09-04).
+          //    dobbin 이 쓰는 색 칩(`<span style=…>`, 서가 노트 382/420 = 90%)을
+          //    이 편집기가 되돌려 쓰지 못한다 — 열기만 해도 `on('update')` 가
+          //    돌아 dirty 가 되고, 그러면 이 검사가 늘 「다르다」를 낸다.
+          //    그래서 한빈님 화면에 배너가 **창을 열 때마다** 떴다.
+          //    아래 재적재 갈래가 이미 「Phantom change」로 하는 일과 같다.
+          if (looksSame(diskBody, currentContent)) {
+            log('[HoverEditor] Only formatting differs (span/escape/space) -- suppressing conflict');
             fc.getFileMtime(win.filePath).then(m => { mtimeOnLoadRef.current = m; });
             return;
           }
