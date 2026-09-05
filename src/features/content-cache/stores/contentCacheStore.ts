@@ -559,7 +559,22 @@ export const useContentCacheStore = create<ContentCacheState>()((set, get) => ({
     }
 
     // Step 5: Load ONLY changed files from disk (in background batches)
-    const BATCH_SIZE = 10;
+    // 🔴 **10 은 옛 길의 값이었다** (2026-09-05). `read_files` 로 묶음을 한
+    //    왕복에 읽게 바뀐 뒤(2026-08-30)에도 크기가 그대로라, 노트 창 하나를
+    //    여는 데 **묶음 16번이 줄줄이** 돌았다 — 90ms → 2532ms, **2.4초**가
+    //    순전히 왕복이다 (`tools/speed_probe.mjs` 실측).
+    //
+    //    🔴 값이 왕복인지 처리인지 **서버에 직접 물었다** — 처리는 거의 공짜다:
+    //
+    //          1개 →  56ms (파일당 55.6ms)     60개 →  76ms (파일당 1.3ms)
+    //         10개 →  60ms (파일당  6.0ms)    120개 →  47ms (파일당 0.4ms)
+    //
+    //    120개가 1개보다 빠르다. 그러니 **묶음을 키우는 것이 거의 공짜**다.
+    //
+    // ⚠️ 60 에서 멈춘 까닭: 응답이 약 160KB 라 한 번에 파싱해도 화면이 안 막히고,
+    //    진행 표시(`warmupProgress`)도 몇 번은 갱신된다. 120 이면 더 빠르지만
+    //    **한 덩어리가 커져 첫 갱신까지 아무 소식이 없다.**
+    const BATCH_SIZE = 60;
     const BATCH_DELAY = 5;
 
     let loaded = fromCacheCount; // Count cached files as loaded
