@@ -389,7 +389,11 @@ export function PptxViewer({ data }: PptxViewerProps) {
     const el = scrollContainerRef.current;
     if (!el) return;
     const apply = () => {
-      const pad = 24;                       // 좌우 여백 — 딱 맞으면 가로 스크롤이 뜬다
+      // 🔴 여백을 **짐작하지 않고 읽는다.** 붙박이 24 로 두었더니 실측에서
+      //    그려진 너비는 맞는데(974 ≤ 998) **가로 스크롤이 1006 으로 떴다** —
+      //    이 통의 실제 좌우 여백이 32 였다. CSS 가 바뀌면 또 어긋난다.
+      const cs = getComputedStyle(el);
+      const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) + 2;
       const avail = el.clientWidth - pad;
       if (avail <= 0 || !slideSize.width) return;
       const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, avail / slideSize.width));
@@ -400,7 +404,15 @@ export function PptxViewer({ data }: PptxViewerProps) {
     const ro = new ResizeObserver(apply);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [fitWidth, slideSize.width, setZoom, zoomRef]);
+    // 🔴 `slides.length`·`loading` 이 **재료로 있어야 한다** (실측 2026-09-05).
+    //    없이 두었더니 배지는 「맞춤」인데 **배율이 안 먹었다**:
+    //        창 안쪽 998px · 슬라이드 1280px · **그려진 너비 1280px**
+    //    까닭은 렌더 차례다 — `setSlideSize`(84행)와 `setSlides`(371행)가
+    //    한 비동기 함수 안에서 **따로** 일어나고, 그 사이 화면은 `loading`
+    //    갈래라 `.pptx-slides-scroll-container` 가 **아직 없다.** 효과가
+    //    `ref.current === null` 로 물러난 뒤, `slideSize.width` 는 이미
+    //    1280 이라 **다시 돌지 않는다.**
+  }, [fitWidth, slideSize.width, slides.length, loading, setZoom, zoomRef]);
 
   // Zoom via Ctrl+Wheel is handled by useViewerZoom hook
 

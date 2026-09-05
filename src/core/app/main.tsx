@@ -47,6 +47,47 @@ import { flushAllEditorSaves } from '../editor/editorSaveRegistry'
  * (떠 있는 노트창은 남았다. 그건 OS 창이 아니라 **페이지 안 패널**이라
  *  브라우저에서 그대로 된다 — `features/hover-windows`)
  */
+// ── 🔴 시험 손잡이 — `?e2e=1` 일 때만 (2026-09-05) ──────────────────
+//
+//    한빈님께 같은 결의 결함이 되풀이 보고된다 (pptx 가 잘림 · 뷰어가 뒤에서
+//    열림 · 엑셀이 죽음 · 코드가 150줄에서 끊김). 넷의 공통점은 **첨부를 눌러
+//    뷰어를 여는 길**인데 그 길을 밟는 자동 검사가 **0개**였다 (`tools/*.mjs`
+//    여섯을 «하는 일»로 전수로 세니 첨부를 누르는 자도 뷰어를 여는 자도 없다).
+//
+//    화면 길로만 열려면 시험 자료가 첨부 목록·노트 규약까지 흉내 내야 하고
+//    **그 흉내가 틀리면 「뷰어 결함」이 아닌 것으로 붉어진다.** 재려는 것은
+//    뷰어 자신이므로 손잡이가 옳은 길이다.
+//
+// 🔴 **여는 것과 재는 것을 함께 낸다.** 여는 문만 있으면 탐침이 「무엇이 앞에
+//    있나」를 눈대중해야 한다 — `windows()` 가 창의 자리·층을 그대로 준다.
+//    z 순서 결함은 눈대중으로 못 가른다.
+//
+// 🔴 **모듈이 뜨자마자 단다.** `initializeApp()` 안(= `await` 들 뒤)에 두었더니
+//    `load` 직후 한 번만 묻는 탐침이 «손잡이가 없다» 로 조용히 물러났다.
+//
+// ⚠️ `?e2e=1` 이 붙어야만 달린다. 하는 일은 **사람이 클릭으로 이미 할 수 있는
+//    것**뿐이고(같은 `openHoverFile`), 읽는 것도 창의 자리·층뿐이다.
+if (new URLSearchParams(window.location.search).get('e2e') === '1') {
+  const store = () => import('../../features/hover-windows/stores/hoverStore');
+  const openViewer = async (path: string) => {
+    const { useHoverStore } = await store();
+    useHoverStore.getState().openHoverFile(path);
+  };
+  (window as any).__DOBBIN_E2E__ = {
+    openViewer,
+    windows: async () => {
+      const { useHoverStore } = await store();
+      return useHoverStore.getState().hoverFiles.map(w => ({
+        id: w.id, filePath: w.filePath, type: w.type,
+        zIndex: w.zIndex, minimized: !!w.minimized, cached: !!w.cached,
+      }));
+    },
+  };
+  // 딴 세션의 `tools/viewer_probe.mjs` 가 찾는 이름 — 한 줄로 두 자를 다 살린다
+  (window as any).__DOBBIN_OPEN_VIEWER__ = openViewer;
+}
+
+
 async function initializeApp() {
   const urlParams = new URLSearchParams(window.location.search);
 
@@ -67,32 +108,6 @@ async function initializeApp() {
     root.render(<App />);
   }
 
-  // ── 🔴 시험 손잡이 — `?e2e=1` 일 때만 (2026-09-05) ──────────────
-  //
-  //    한빈님께 같은 결의 결함이 되풀이 보고된다 (pptx 가 잘림 · 뷰어가 뒤에서
-  //    열림 · 엑셀이 죽음 · 코드가 150줄에서 끊김). 그 넷의 공통점은 **첨부를
-  //    눌러 뷰어를 여는 길**인데, 그 길을 밟는 자동 검사가 **0개**였다
-  //    (`tools/*.mjs` 여섯 중 첨부를 누르는 자가 없다 — 전수로 셌다).
-  //
-  //    화면 길로만 열려면 시험 자료가 첨부 목록·노트 규약까지 흉내 내야 하고,
-  //    **그 흉내가 틀리면 「뷰어 결함」이 아닌 것으로 붉어진다.** 재려는 것은
-  //    뷰어 자신이므로 손잡이가 옳은 길이다.
-  //
-  //    🔴 **여는 것과 재는 것을 함께 낸다.** 여는 문만 있으면 탐침이 「무엇이
-  //       앞에 있나」를 눈대중해야 한다 — 창 목록을 그대로 준다.
-  //
-  //    ⚠️ `?e2e=1` 이 붙어야만 달린다. 하는 일은 **사람이 클릭으로 이미 할 수
-  //       있는 것**뿐이고(같은 `openHoverFile`), 읽는 것도 창의 자리·층뿐이다.
-  if (urlParams.get('e2e') === '1') {
-    const { useHoverStore } = await import('../../features/hover-windows/stores/hoverStore');
-    (window as any).__DOBBIN_E2E__ = {
-      openViewer: (path: string) => useHoverStore.getState().openHoverFile(path),
-      windows: () => useHoverStore.getState().hoverFiles.map(w => ({
-        id: w.id, filePath: w.filePath, type: w.type,
-        zIndex: w.zIndex, minimized: !!w.minimized, cached: !!w.cached,
-      })),
-    };
-  }
 
   // 🔴 첫 화면을 걷는다. **그린 다음에** 걷어야 한 프레임도 안 빈다 —
   //    바로 지우면 React가 그리기 전이라 검은 화면이 그대로 보인다.
