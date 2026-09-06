@@ -4,6 +4,7 @@ import { useAttachmentStore } from '../attachments/stores/attachmentStore';
 import { removeOrphanWikiLinkNodes, consumeFailedAdds } from '../attachments/orphanRemoval';
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { EditorContent } from '@tiptap/react';
+import Infobox from './components/Infobox';
 import type { Editor } from '@tiptap/core';
 import { fileCommands, searchCommands, memoCommands } from '../../core/services/tauriCommands';
 import { editorPool } from '../../core/editor/editorPool';
@@ -1044,6 +1045,12 @@ export const HoverEditorWindow = memo(function HoverEditorWindow({ window: win }
           data-paper={!isSketchNote ? paperStyle : undefined}
           style={isSketchNote ? undefined : { zoom: hoverZoomLevel / 100 }}
         >
+          {/* 🔴 정보 상자 — 본문 **위**. 값은 서버가 표에서 준다(`/api/note/meta`)
+              이지 본문 글자가 아니다. 본문에 쓰면 편집기가 되돌려 쓰지 못해
+              노트가 열자마자 dirty 가 되고 「다른 기기에서 수정되었습니다」가
+              뜬다 — 2026-09-06 한빈 지시의 뿌리가 그 자리다.
+              그림 노트(sketch)에는 안 그린다 — 본문이 글이 아니다. */}
+          {!isSketchNote && <Infobox notePath={win.filePath} />}
           {(isContentLoading || (!editor && !isSketchNote)) ? (
             <div className="hover-editor-skeleton">
               <div className="skeleton-line skeleton-title" />

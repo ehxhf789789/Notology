@@ -1324,3 +1324,77 @@
   background: transparent;
 }
 
+/* ── 노트 머리의 정보 상자 (나무위키 꼴 · 2026-09-06 한빈 지시) ──────────
+   🔴 값은 서버(`/api/note/meta`)가 표에서 준다. 본문 글자가 아니다 —
+      본문에 쓰면 편집기가 되돌려 쓰지 못해 노트가 열자마자 dirty 가 된다.
+   🔴 칩 색은 여기서 안 정한다. `tagStyle()` 이 인라인으로 얹는다. */
+.infobox {
+  margin: 0 0 1.1em;
+  border: 1px solid var(--sep-l, rgba(128, 128, 128, 0.28));
+  border-radius: var(--radius-lg, 8px);
+  background: var(--bg-elev-1, rgba(128, 128, 128, 0.05));
+  overflow: hidden;
+  font-size: 0.88em;
+  line-height: 1.5;
+}
+.infobox-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  padding: 0.5em 0.75em;
+  background: var(--bg-elev-2, rgba(128, 128, 128, 0.09));
+  border-bottom: 1px solid var(--sep-l, rgba(128, 128, 128, 0.22));
+}
+.infobox-title { font-weight: 600; color: var(--tx-1, inherit); }
+.infobox-type {
+  margin-left: auto;
+  padding: 0.05em 0.5em;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--bg-hover, rgba(128, 128, 128, 0.16));
+  color: var(--tx-3, #8a8f99);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+.infobox-rows { margin: 0; padding: 0.15em 0; }
+/* 🔴 이름 칸을 고정폭으로 — 나무위키 상자의 읽기 리듬이 여기서 난다 */
+.infobox-row {
+  display: grid;
+  grid-template-columns: minmax(3.6em, 5.5em) 1fr;
+  gap: 0.5em;
+  padding: 0.22em 0.75em;
+}
+.infobox-row dt { color: var(--tx-3, #8a8f99); white-space: nowrap; }
+.infobox-row dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  align-items: center;
+  min-width: 0;
+}
+.infobox-chip {
+  padding: 0.02em 0.5em;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill, 999px);
+  font-size: 0.92em;
+  white-space: nowrap;
+}
+.infobox-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.infobox-link:hover { opacity: 0.75; }
+/* 자리·셈은 줄바꿈이 나면 못 읽는다 — 길면 줄여 보여준다 */
+.infobox-path {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+  color: var(--tx-3, #8a8f99);
+  overflow-wrap: anywhere;
+}
+.infobox-num { font-variant-numeric: tabular-nums; }
