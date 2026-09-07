@@ -1328,52 +1328,68 @@
    🔴 값은 서버(`/api/note/meta`)가 표에서 준다. 본문 글자가 아니다 —
       본문에 쓰면 편집기가 되돌려 쓰지 못해 노트가 열자마자 dirty 가 된다.
    🔴 칩 색은 여기서 안 정한다. `tagStyle()` 이 인라인으로 얹는다. */
+/* ── 정보 상자 규격표 (2026-09-08 한빈 지적 즉응 · 2-14-2-5 방식) ──────
+   지적: ① 상자 배경이 노트 색·커버를 가린다 ② 여백이 없다.
+   규격(숫자가 규칙이다 — 감으로 바꾸지 말 것):
+     상자   배경 **투명** · 테두리 1px 반투명 괘선 · 반지름 8px
+            폭 최대 420px(전폭 판 금지) · 바깥 0 0 20px · 안 14px 16px
+     머리   배경 없음 · 아래 괘선 1px · 아래 여백 10px · 제목 600
+     행     grid 8px 세로 간격 · 이름칸 84px 고정 · 이름↔값 14px
+     칩     2px 10px · 값끼리 6px
+   표시 정책(D-3)은 서버(note_meta.py)가 정한다 — 누르거나 판단할 것만. */
 .infobox {
-  margin: 0 0 1.1em;
+  margin: 0 0 20px;
   border: 1px solid var(--sep-l, rgba(128, 128, 128, 0.28));
-  border-radius: var(--radius-lg, 8px);
-  background: var(--bg-elev-1, rgba(128, 128, 128, 0.05));
-  overflow: hidden;
+  border-radius: 8px;
+  background: transparent;            /* 노트의 색·커버가 비쳐야 한다 */
+  max-width: 420px;
+  padding: 14px 16px;
   font-size: 0.88em;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 .infobox-head {
   display: flex;
   align-items: baseline;
-  gap: 0.5em;
-  padding: 0.5em 0.75em;
-  background: var(--bg-elev-2, rgba(128, 128, 128, 0.09));
+  gap: 8px;
+  padding: 0 0 10px;
+  margin-bottom: 10px;
+  background: none;
   border-bottom: 1px solid var(--sep-l, rgba(128, 128, 128, 0.22));
 }
 .infobox-title { font-weight: 600; color: var(--tx-1, inherit); }
 .infobox-type {
   margin-left: auto;
-  padding: 0.05em 0.5em;
+  padding: 1px 8px;
   border-radius: var(--radius-pill, 999px);
-  background: var(--bg-hover, rgba(128, 128, 128, 0.16));
+  border: 1px solid var(--sep-l, rgba(128, 128, 128, 0.25));
+  background: none;
   color: var(--tx-3, #8a8f99);
   font-size: 0.85em;
   white-space: nowrap;
 }
-.infobox-rows { margin: 0; padding: 0.15em 0; }
-/* 🔴 이름 칸을 고정폭으로 — 나무위키 상자의 읽기 리듬이 여기서 난다 */
+.infobox-rows {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  row-gap: 8px;                       /* 행간은 여기 한 곳이 정한다 */
+}
 .infobox-row {
   display: grid;
-  grid-template-columns: minmax(3.6em, 5.5em) 1fr;
-  gap: 0.5em;
-  padding: 0.22em 0.75em;
+  grid-template-columns: 84px 1fr;
+  gap: 14px;
+  padding: 0;
 }
 .infobox-row dt { color: var(--tx-3, #8a8f99); white-space: nowrap; }
 .infobox-row dd {
   margin: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3em;
+  gap: 6px;
   align-items: center;
   min-width: 0;
 }
 .infobox-chip {
-  padding: 0.02em 0.5em;
+  padding: 2px 10px;
   border: 1px solid transparent;
   border-radius: var(--radius-pill, 999px);
   font-size: 0.92em;
