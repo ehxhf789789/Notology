@@ -7,7 +7,6 @@
 import { useState, useCallback, useEffect, lazy, Suspense } from 'react';
 import { TabBar, type TabId } from './TabBar';
 import { NavBar } from './NavBar';
-import { MobileSyncBanner } from './components/MobileSyncBanner';
 import { isTablet, isNativeMobile } from '../../core/utils/platform';
 import { useTheme, useSettingsStore } from '../../core/stores/settingsStore';
 import { useFileTreeStore } from '../../core/stores/fileTreeStore';
@@ -199,7 +198,10 @@ export default function MobileApp() {
           backLabel={routeStack.length > 1 ? routeStack[routeStack.length - 2].title : routeStack.length === 1 ? (activeTab === 'notes' ? '노트' : activeTab === 'calendar' ? '캘린더' : '') : undefined}
         />
       )}
-      <MobileSyncBanner />
+      {/* MobileSyncBanner 제거 (2026-09-08): 데스크톱 sync_v2 잔재 —
+          import 없는 훅(useSyncV2Events)을 불러 **모바일 전체가 부팅에서
+          죽고 있었다** (ReferenceError · 실측). 웹은 서버가 진실 원천 + SSE 라
+          동기화 배너 자체가 뜻이 없다. */}
       {showSidebar && (
         <Suspense fallback={null}>
           <MobileSidebar activeTab={activeTab} onChange={handleTabChange} language={language} />
