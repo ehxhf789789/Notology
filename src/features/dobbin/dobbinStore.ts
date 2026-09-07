@@ -7,10 +7,12 @@ interface DobbinState {
   busy: boolean;
   messages: DobbinMessage[];
   error: string | null;
+  /** 서버가 잰 그 턴의 정서 (v6 ⓐ dobbin_mood.mood) — found 폴짝의 근거 */
+  lastMood: string | null;
 }
 
 export const useDobbinStore = create<DobbinState>(() => ({
-  open: false, busy: false, messages: [], error: null,
+  open: false, busy: false, messages: [], error: null, lastMood: null,
 }));
 
 export const dobbinActions = {
@@ -20,6 +22,7 @@ export const dobbinActions = {
   push: (m: DobbinMessage) =>
     useDobbinStore.setState((s) => ({ messages: [...s.messages, m] })),
   setBusy: (busy: boolean) => useDobbinStore.setState({ busy }),
+  setMood: (lastMood: string | null) => useDobbinStore.setState({ lastMood }),
   setError: (error: string | null) => useDobbinStore.setState({ error }),
   clear: () => useDobbinStore.setState({ messages: [], error: null }),
 };

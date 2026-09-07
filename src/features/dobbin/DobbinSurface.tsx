@@ -126,6 +126,7 @@ export function DobbinSurface() {
         choices: msg?.dobbin_choices ?? undefined,
         // 🔴 짚은 자료 — 누르면 창이 열린다 (refs.tsx)
         refs: msg?.dobbin_refs ?? undefined });
+      dobbinActions.setMood(msg?.dobbin_mood?.mood ?? null);
       // 🔴 **시킨 도구를 실행한다.** 말로 시킨 일이 말로 끝나면 안 된다.
       if (msg?.dobbin_action) {
         runTool(msg.dobbin_action,

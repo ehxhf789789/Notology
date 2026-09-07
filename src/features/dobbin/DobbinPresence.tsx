@@ -51,17 +51,26 @@ export function DobbinPresence() {
   const busy = useDobbinStore((s) => s.busy);
   const open = useDobbinStore((s) => s.open);
   const [mood, setMood] = useState<Mood>('idle');
+  // 바탕(ambient) — 서버가 잰 상태 (v6 ⓐ · 2층 시간축). found 는 여기로
+  // «되돌아온다» — idle 로 떨어지면 기한이 있어도 alert 가 꺼진다 (실측 결함).
+  const ambient = useRef<Mood>('idle');
   const [hello, setHello] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
   const shown = useRef(false);
 
-  // 답을 만드는 동안은 생각한다. 끝나면 한 번 튀고 가라앉는다.
+  // 답을 만드는 동안은 생각한다. 끝나면 한 번 튀고 **바탕으로** 가라앉는다.
+  // 🔴 «기권인데 폴짝»(상태 거짓말 ①)은 상위에서 온다: found 는 서버 정서
+  //    (dobbin_mood=뿌듯)일 때만 — dobbinStore 가 lastMood 를 실어 주면 그걸
+  //    본다. 없으면(옛 화면·오류) 튀지 않는 쪽이 정직하다.
+  const lastMood = useDobbinStore((s: any) => s.lastMood ?? null);
   useEffect(() => {
     if (busy) { setMood('thinking'); return; }
-    setMood((m) => (m === 'thinking' ? 'found' : m));
-    const t = setTimeout(() => setMood((m) => (m === 'found' ? 'idle' : m)), 900);
+    setMood((m) => (m === 'thinking' && lastMood === '뿌듯' ? 'found'
+                    : m === 'thinking' ? ambient.current : m));
+    const t = setTimeout(
+      () => setMood((m) => (m === 'found' ? ambient.current : m)), 900);
     return () => clearTimeout(t);
-  }, [busy]);
+  }, [busy, lastMood]);
 
   // 🔴 접속했을 때 먼저 말을 건다. **할 말이 있을 때만.**
   useEffect(() => {
@@ -74,11 +83,16 @@ export function DobbinPresence() {
         .then((j) => {
           if (dead) return;
           const line = (j?.say || '').split('\n')[0];
-          const greet = j?.overdue
-            ? `지난 기한 ${j.overdue}건이 있습니다`
-            : line || null;
+          // 서버가 잰 바탕 정서·인사를 그대로 쓴다 (v6 ⓐ — 화면이 다시
+          // 재지 않는다). 🔴 옛 판은 j.overdue(접은 기한 포함 총계)로
+          // alert 를 켰다 — 218일짜리가 매일 경보를 울리는 지어낸 걱정.
+          const live = j?.overdue_live ?? 0;
+          const greet = j?.greeting
+            || (live ? `지난 기한 ${live}건이 있습니다` : line || null);
+          if (j?.mood?.mood === '걱정' || live) {
+            ambient.current = 'alert'; setMood('alert');
+          }
           if (!greet) return;                  // 조용할 땐 조용히 있는다
-          if (j?.overdue) setMood('alert');
           setHello(greet);
           setTimeout(() => setLeaving(true), 7000);
           setTimeout(() => { setHello(null); setLeaving(false); }, 8000);
