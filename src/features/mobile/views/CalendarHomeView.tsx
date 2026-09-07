@@ -10,8 +10,9 @@
  *   • Native aria-labels for nav buttons + Today pill route through t().
  */
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { memoCommands } from '../../../core/services/tauriCommands';
+import { ScheduleEditor, type ScheduleEvent } from '../components/ScheduleEditor';
 import { useFileTreeStore } from '../../../core/stores/fileTreeStore';
 import { useLanguage } from '../../../core/stores/settingsStore';
 import { t, tf } from '../../../core/utils/i18n';
@@ -60,6 +61,9 @@ export default function CalendarHomeView({ onOpenNote }: Props) {
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState<number>(today.getDate());
   const [memos, setMemos] = useState<CalendarMemo[]>([]);
+  // 일정 편집기 (2026-09-08 E-Ⅲ) — 3년째 미장착이던 ScheduleEditor 를 단다.
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editEvent, setEditEvent] = useState<ScheduleEvent | null>(null);
   const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef(0);
@@ -87,11 +91,12 @@ export default function CalendarHomeView({ onOpenNote }: Props) {
     return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 7 + i))); // 2024-01-07 was a Sunday
   }, [language]);
 
-  useEffect(() => {
+  const reload = useCallback(() => {
     if (!vaultPath) return;
     memoCommands.collectCalendarMemos(vaultPath)
       .then(setMemos).catch(() => setMemos([]));
-  }, [year, month, vaultPath]);
+  }, [vaultPath]);
+  useEffect(() => { reload(); }, [year, month, reload]);
 
   const memosByDate = useMemo(() => {
     const map = new Map<string, CalendarMemo[]>();
@@ -232,6 +237,13 @@ export default function CalendarHomeView({ onOpenNote }: Props) {
           <span className="cal-schedule-count">
             {tf('mCalCount', language, { count: selectedMemos.length })}
           </span>
+          <button
+            className="cal-add-btn"
+            aria-label="일정 추가"
+            onClick={() => { setEditEvent(null); setEditorOpen(true); }}
+          >
+            <Plus size={18} />
+          </button>
         </div>
 
         {selectedMemos.length === 0 ? (
@@ -246,11 +258,26 @@ export default function CalendarHomeView({ onOpenNote }: Props) {
                 key={m.id}
                 className="cal-schedule-item stagger-item"
                 style={{ animationDelay: `${Math.min(i, 10) * 40}ms` }}
-                onClick={() => onOpenNote(m.notePath, m.noteTitle)}
+                onClick={() => {
+                  if (m.kind === 'schedule') {
+                    // 폰이 만든 일정 → 편집기로. CalendarMemo → ScheduleEvent.
+                    setEditEvent({
+                      id: m.id, title: m.content, date: m.date,
+                      time: m.dueTime, endTime: m.endTime,
+                      repeat: (m.repeat as ScheduleEvent['repeat']) || undefined,
+                      reminder: m.reminder, color: m.color || MEMO_COLOR_VARS[0],
+                      memo: m.memo,
+                    });
+                    setEditorOpen(true);
+                  } else if (m.notePath) {
+                    onOpenNote(m.notePath, m.noteTitle);
+                  }
+                  // notePath 없는 문서-기한 줄은 아직 갈 곳이 없다 — 조용히.
+                }}
               >
                 <div
                   className="cal-schedule-item-color"
-                  style={{ background: MEMO_COLOR_VARS[i % MEMO_COLOR_VARS.length] }}
+                  style={{ background: m.color || MEMO_COLOR_VARS[i % MEMO_COLOR_VARS.length] }}
                 />
                 <div className="cal-schedule-item-body">
                   <div className="cal-schedule-item-title">
@@ -268,6 +295,15 @@ export default function CalendarHomeView({ onOpenNote }: Props) {
           </div>
         )}
       </div>
+
+      <ScheduleEditor
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        onSaved={reload}
+        vaultPath={vaultPath ?? ''}
+        date={selectedDate}
+        editEvent={editEvent}
+      />
     </div>
   );
 }

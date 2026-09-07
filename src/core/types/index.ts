@@ -467,6 +467,14 @@ export interface CalendarMemo {
   /** "HH:MM" for tasks with a time set; undefined otherwise.
    *  Drives Day-view 24-hour timeline placement. Undefined → "시간 미정" group. */
   dueTime?: string;
+  /** 'schedule' = phone-created event (editable via ScheduleEditor).
+   *  Server: note_memos.kind (2026-09-08 E-Ⅲ). Absent for note memos/tasks. */
+  kind?: string;
+  endTime?: string;
+  color?: string;
+  reminder?: number;
+  repeat?: string;
+  memo?: string;
 }
 
 /** Memo type filter (task vs free-form memo) — NOT a calendar layout mode.

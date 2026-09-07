@@ -5439,3 +5439,17 @@ body.keyboard-open .mobile-sheet {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 일정 추가 단추 (2026-09-08 E-Ⅲ) — 히트 40px 규격 (CLAUDE.md 2-14-2-5) */
+.cal-schedule-header .cal-schedule-count { margin-left: auto; } /* 단추가 셋째로 서도 셈은 오른쪽 무리 */
+.cal-add-btn {
+  margin-left: 8px;
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--sep-l, rgba(128,128,128,.3));
+  border-radius: 8px;
+  background: none; color: var(--tx-2, inherit);
+  position: relative; cursor: pointer;
+}
+.cal-add-btn::before { content: ''; position: absolute; inset: -4px; }
+.cal-add-btn:active { transform: translateY(1px); }
