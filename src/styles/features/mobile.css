@@ -5453,3 +5453,7 @@ body.keyboard-open .mobile-sheet {
 }
 .cal-add-btn::before { content: ''; position: absolute; inset: -4px; }
 .cal-add-btn:active { transform: translateY(1px); }
+
+/* v7 3단계 — 모바일 dobbin 탭: 대화 표면이 화면을 꽉 채운다 */
+.mobile-dobbin { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.mobile-dobbin .dsurf { flex: 1; min-height: 0; }

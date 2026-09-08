@@ -1523,6 +1523,7 @@ const ko: Record<string, string> = {
 
   // ── Mobile UI ──
   mCalendar: '캘린더',
+  mDobbin: 'dobbin',
   mNotes: '노트',
   mSearch: '검색',
   mGraph: '그래프',
@@ -3156,6 +3157,7 @@ const en: Record<string, string> = {
 
   // ── Mobile UI ──
   mCalendar: 'Calendar',
+  mDobbin: 'dobbin',
   mNotes: 'Notes',
   mSearch: 'Search',
   mGraph: 'Graph',

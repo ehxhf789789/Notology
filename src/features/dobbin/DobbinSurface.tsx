@@ -33,7 +33,8 @@ import './surface.css';
 
 type Msg = { role: string; content: string; at: string;
              choices?: { label: string; send: string }[];
-             refs?: DobbinRef[] };
+             refs?: DobbinRef[];
+             trace?: string[] };
 const DAY = ['일', '월', '화', '수', '목', '금', '토'];
 
 function dayKey(iso: string) { return new Date(iso).toLocaleDateString('sv'); }
@@ -54,11 +55,19 @@ export function DobbinSurface() {
   const { busy, messages } = useDobbinStore();
   // 생각 중계 (2026-08-28) — 서버가 실제로 지나는 단계를 SSE 로 흘린다.
   // 연출이 아니다: agent.think_aloud 가 실값(갈래·건수)만 싣는다.
+  // 🔴 v7 1단계 (한빈 «생각하는 과정을 보여준다던지»): 마지막 한 줄만 보여
+  //    주고 답이 오면 지우던 것을 — **걸음을 배열로 쌓아** 답 밑에 접이로
+  //    남긴다. 서버가 dobbin_trace 를 주면 그것이 우선, 없으면 SSE 축적분.
   const [thought, setThought] = useState<string | null>(null);
+  const stepsRef = useRef<string[]>([]);
   useEffect(() => {
     if (!busy) { setThought(null); return; }
     return onLive(ev => {
-      if (ev.kind === 'thinking' && typeof ev.text === 'string') setThought(ev.text);
+      if (ev.kind === 'thinking' && typeof ev.text === 'string') {
+        const s = stepsRef.current;
+        if (s[s.length - 1] !== ev.text && s.length < 20) s.push(ev.text);
+        setThought(ev.text);
+      }
     });
   }, [busy]);
   // 🔴 달력·검색은 **공용 머리글**이 켠다 (RightPanel). 여기서 또 그리면
@@ -106,6 +115,7 @@ export function DobbinSurface() {
     const t = text.trim();
     if (!t || busy) return;
     setDraft('');
+    stepsRef.current = [];            // 새 물음 — 생각 걸음도 새로 쌓는다
     dobbinActions.push({ role: 'user', content: t });
     dobbinActions.setBusy(true);
     try {
@@ -125,7 +135,10 @@ export function DobbinSurface() {
         // 🔴 되물으면 누를 것을 함께 받는다 (서버 choices.py)
         choices: msg?.dobbin_choices ?? undefined,
         // 🔴 짚은 자료 — 누르면 창이 열린다 (refs.tsx)
-        refs: msg?.dobbin_refs ?? undefined });
+        refs: msg?.dobbin_refs ?? undefined,
+        // 🔴 생각 걸음 — 서버 것이 우선, 없으면 SSE 로 들은 것 (v7 1단계)
+        trace: (msg?.dobbin_trace as string[] | undefined)
+               ?? (stepsRef.current.length ? [...stepsRef.current] : undefined) });
       dobbinActions.setMood(msg?.dobbin_mood?.mood ?? null);
       // 🔴 **시킨 도구를 실행한다.** 말로 시킨 일이 말로 끝나면 안 된다.
       if (msg?.dobbin_action) {
@@ -138,6 +151,16 @@ export function DobbinSurface() {
     }
     dobbinActions.setBusy(false);
   }, [busy]);
+
+  // v7 2단계 — 브리핑 단추가 대화로 말을 보낸다 (DobbinHome → 여기)
+  useEffect(() => {
+    const h = (e: Event) => {
+      const t = (e as CustomEvent).detail;
+      if (typeof t === 'string' && t.trim()) send(t);
+    };
+    window.addEventListener('dobbin:ask', h);
+    return () => window.removeEventListener('dobbin:ask', h);
+  }, [send]);
 
   const search = useCallback(async () => {
     if (!q.trim()) { setHits(null); return; }
@@ -162,7 +185,7 @@ export function DobbinSurface() {
     ...hist,
     ...messages.map(m => ({ role: m.role === 'assistant' ? 'dobbin' : 'user',
                             content: m.content, at: new Date().toISOString(),
-                            choices: m.choices, refs: m.refs })),
+                            choices: m.choices, refs: m.refs, trace: m.trace })),
   ];
   let last = '';
 
@@ -241,6 +264,16 @@ export function DobbinSurface() {
               {/* 🔴 **지난 선택지는 살려 두지 않는다.** 이미 답한 물음의 단추가
                   남아 있으면 눌러도 흐름이 어긋난다 — 마지막 답에만 붙인다. */}
               {!mine && m.refs?.length ? <RefChips refs={m.refs} /> : null}
+              {/* v7 1단계 — 생각 걸음 접이. 답이 온 뒤에도 «어떻게 생각했나»가
+                  남는다 (전에는 busy 가 꺼지는 순간 흔적이 지워졌다). */}
+              {!mine && !!m.trace?.length && (
+                <details className="dsurf__trace">
+                  <summary>어떻게 생각했나 ({m.trace.length}걸음)</summary>
+                  <ol>
+                    {m.trace.map((s, j) => <li key={j}>{s}</li>)}
+                  </ol>
+                </details>
+              )}
               {/* 🔴 **`&&` 사슬에 숫자를 넣지 않는다** (사용자 지적: *"답변에
                   항상 붙는 0은 뭐냐"*). `m.choices` 가 빈 배열이면 `.length`
                   가 `0` 이고, JSX 는 `false` 와 달리 **`0` 을 글자로 그린다.**

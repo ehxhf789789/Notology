@@ -194,3 +194,11 @@
   font-style: normal; color: var(--text-muted, #8a8f99); }
 .vault-picker__edit { margin-left: auto; opacity: .45; cursor: pointer; padding: 0 2px; }
 .vault-picker__edit:hover { opacity: 1; }
+
+/* v7 3단계 — «미안»: 고개를 숙이고 지느러미가 처진다. 색은 그대로다 —
+   붉은색은 경보(alert)의 뜻이라 사과에 쓰면 신호가 섞인다. */
+.peng--sorry .peng-head { transform: rotate(4deg) translateY(1.2px); }
+.peng--sorry .peng-pupil { transform: translateY(1.1px); }
+.peng--sorry .peng-wing--l { transform: rotate(-14deg) translateY(1.5px); }
+.peng--sorry .peng-wing--r { transform: rotate(14deg) translateY(1.5px); }
+.peng--sorry .peng-wing { transition: transform .4s ease; }

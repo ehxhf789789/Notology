@@ -23,6 +23,9 @@ export interface DobbinMessage {
   choices?: DobbinChoice[];
   /** dobbin이 짚은 자료 — 누르면 창이 열린다 (refs.tsx) */
   refs?: unknown[];
+  /** 이 답을 만들며 지난 생각 걸음들 (v7 1단계) — SSE thinking 축적 또는
+   *  서버 dobbin_trace. 연출이 아니라 agent.think_aloud 의 실값이다. */
+  trace?: string[];
 }
 
 /** 답변에 섞인 좌표 — `T01-정보통신-2512-0007` 꼴. 클릭해서 갈 수 있게 뽑는다. */

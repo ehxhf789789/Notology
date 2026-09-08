@@ -36,6 +36,9 @@ const NoteListView = lazy(() => import('./views/NoteListView'));
 const NoteEditorView = lazy(() => import('./views/NoteEditorView'));
 const SearchView = lazy(() => import('./views/SearchView'));
 const SettingsView = lazy(() => import('./views/SettingsView'));
+// v7 3단계 — dobbin 대화는 자립형(자기 fetch·자기 스크롤)이라 탭에 그대로 얹힌다
+const DobbinSurface = lazy(() =>
+  import('../dobbin/DobbinSurface').then(m => ({ default: m.DobbinSurface })));
 
 export interface MobileRoute {
   view: 'container-list' | 'note-list' | 'note-editor';
@@ -46,6 +49,7 @@ export interface MobileRoute {
 
 const TAB_TITLES: Record<TabId, string> = {
   calendar: '캘린더',
+  dobbin: 'dobbin',
   notes: '노트',
   search: '검색',
   settings: '설정',
@@ -211,6 +215,9 @@ export default function MobileApp() {
         <Suspense fallback={<div className="mobile-loading">로딩 중...</div>}>
           {activeTab === 'calendar' && (
             <CalendarHomeView onOpenNote={handleOpenNoteFromCalendar} />
+          )}
+          {activeTab === 'dobbin' && (
+            <div className="mobile-dobbin"><DobbinSurface /></div>
           )}
           {activeTab === 'notes' && renderNotesTab()}
           {activeTab === 'search' && (

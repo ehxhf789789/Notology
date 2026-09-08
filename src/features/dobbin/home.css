@@ -123,3 +123,33 @@
 .dhome__report .ntc { border: 0.5px solid var(--bdr-1); border-radius: 10px;
                       overflow: hidden; background: var(--bg-elev-1); }
 .dhome__report .ntc__row:last-child { border-bottom: none; }
+
+/* ── v7 2단계 — 브리핑 승격(배지·단추) + 두뇌 계기판 ───────────── */
+.dhome__badges { display: flex; gap: 6px; margin-left: auto; align-self: center; }
+.dhome__badge {
+  font-size: 11px; padding: 3px 9px; border-radius: 999px;
+  color: var(--text-secondary, #9aa0ab);
+  background: var(--bg-tertiary, #24262d);
+  border: 1px solid var(--border-color, #2b2f36);
+}
+.dhome__badge b { font-weight: 700; color: var(--text-primary, #d6d9de); }
+.dhome__badge.is-warn { border-color: #a05a52; }
+.dhome__badge.is-warn b { color: #e0796f; }
+
+.dhome__brief-picks { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 6px; }
+.dhome__brief-pick {
+  font-size: 12px; padding: 4px 11px; border-radius: 8px; cursor: pointer;
+  color: var(--text-primary, #d6d9de);
+  background: var(--bg-tertiary, #24262d);
+  border: 1px solid var(--border-color, #2b2f36);
+}
+.dhome__brief-pick:hover { border-color: var(--accent, #4a7dbd); }
+
+.dbrain { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.dbrain__col h3 { font-size: 12px; margin: 0 0 6px; color: var(--text-secondary, #9aa0ab); font-weight: 600; }
+.dbrain__mem { display: flex; gap: 10px; font-size: 12px; margin-bottom: 6px; }
+.dbrain__mem b { font-weight: 700; }
+.dbrain__list { margin: 0; padding-left: 16px; font-size: 12px; display: grid; gap: 3px; }
+.dbrain__list b { font-weight: 700; }
+.dbrain__quiet { font-size: 12px; color: var(--text-secondary, #9aa0ab); margin: 0; }
+.dbrain__starve { font-size: 11px; color: #c9a05a; margin: 6px 0 0; }

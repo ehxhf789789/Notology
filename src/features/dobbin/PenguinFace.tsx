@@ -25,7 +25,20 @@
 //    가로로 늘어서고 펭귄이 움직이지 않았다. 사용자가 본 "디자인이 깨짐"이 이것이다.
 import './penguin.css';
 
-export type Mood = 'idle' | 'reading' | 'thinking' | 'found' | 'alert';
+export type Mood = 'idle' | 'reading' | 'thinking' | 'found' | 'alert' | 'sorry';
+
+/** 서버 정서(한국어 7종 — affect.py) → 얼굴 표정 (v7 3단계).
+ *  🔴 서버는 7종을 계산해 보내는데 화면이 «뿌듯→found» 하나만 쓰고
+ *     있었다 (2026-09-08 감사). 색·모양의 뜻: sorry=고개 숙임(사과),
+ *     alert=붉은 맥박(기한 — 색은 경보에만), found=폴짝(반김·찾음). */
+export function faceOf(mood?: string | null): Mood {
+  switch (mood) {
+    case '미안': return 'sorry';
+    case '걱정': return 'alert';
+    case '반김': case '뿌듯': return 'found';
+    default: return 'idle';           // 차분·빈손·안도 — 조용한 것이 정직하다
+  }
+}
 
 export function PenguinFace({ mood, size = 30 }: { mood: Mood; size?: number }) {
   return (

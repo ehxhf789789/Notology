@@ -19,7 +19,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, Search as SearchIcon } from 'lucide-react';
-import { PenguinFace } from './PenguinFace';
+import { PenguinFace, faceOf } from './PenguinFace';
 import { IntakePanel } from './IntakePanel';
 import { ClusterReview } from './ClusterReview';
 import { NoticeList } from './NoticeList';
@@ -44,9 +44,29 @@ function useNarrow<T extends HTMLElement>(px = 900) {
   return { ref, narrow };
 }
 
+/** /api/briefing 이 이미 보내는 전부 (memos.py:2468~) — v7 2단계에서야
+ *  화면이 소비한다. 감사(2026-09-08): «j?.say 한 칸만 읽고 나머지를 버렸다». */
+type Brief = {
+  say?: string; greeting?: string;
+  mood?: { mood?: string; cause?: string };
+  choices?: { label: string; send: string }[];
+  overdue_live?: number; today?: number; inbox?: number;
+};
+
+/** /api/brain (v7 2단계 신설) — 없으면(옛 서버) 카드가 조용히 빠진다. */
+type Brain = {
+  memory?: { main?: number; volatile?: number; faded?: number; dead?: number;
+             insights?: string[] };
+  tend?: { today?: { label: string; n: number }[]; last?: string;
+           starving?: string[] };
+  bench?: { name: string; value: string }[];
+  senses?: { name: string; ok: boolean; note?: string }[];
+};
+
 export function DobbinHome() {
   const { ref, narrow } = useNarrow<HTMLDivElement>();
-  const [brief, setBrief] = useState<string | null>(null);
+  const [brief, setBrief] = useState<Brief | null>(null);
+  const [brain, setBrain] = useState<Brain | null>(null);
   const [briefOpen, setBriefOpen] = useState(false);
   const { list: notices } = useNotices();
   const report = notices;
@@ -67,21 +87,43 @@ export function DobbinHome() {
     let dead = false;
     fetch('/api/briefing')
       .then(r => r.json())
-      .then(j => { if (!dead) setBrief((j?.say || '').trim() || null); })
+      .then(j => { if (!dead && j) setBrief(j as Brief); })
       .catch(() => { /* 브리핑이 없으면 그 줄은 없다 — 빈 인사를 만들지 않는다 */ });
+    fetch('/api/brain')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (!dead && j) setBrain(j as Brain); })
+      .catch(() => { /* 두뇌 계기판은 덤이다 — 옛 서버면 카드가 없다 */ });
     return () => { dead = true; };
   }, []);
+  const say = (brief?.say || '').trim() || null;
+  const badges: { k: string; n: number; tone: string }[] = [
+    { k: '지난 기한', n: brief?.overdue_live ?? 0, tone: 'warn' },
+    { k: '오늘·내일', n: brief?.today ?? 0, tone: 'info' },
+    { k: '투입구', n: brief?.inbox ?? 0, tone: 'info' },
+  ].filter(b => b.n > 0);
 
   return (
     <div ref={ref} className={`dhome${narrow ? ' is-narrow' : ''}`}>
       <header className="dhome__hero">
-        <span className="dhome__icon" aria-hidden="true">
-          <PenguinFace mood="idle" size={34} />
+        {/* v7: idle 붙박이 → 브리핑의 바탕 정서 (걱정=alert · 반김=found …).
+            cause 는 툴팁 — «왜 그 표정인가»의 근거 숫자가 서버에서 온다. */}
+        <span className="dhome__icon" aria-hidden="true"
+              title={brief?.mood?.cause || undefined}>
+          <PenguinFace mood={faceOf(brief?.mood?.mood)} size={34} />
         </span>
         <div className="dhome__text">
           <h1 className="dhome__title">dobbin</h1>
-          <p className="dhome__sub">이 서재를 관리합니다</p>
+          <p className="dhome__sub">{brief?.greeting || '이 서재를 관리합니다'}</p>
         </div>
+        {badges.length > 0 && (
+          <div className="dhome__badges">
+            {badges.map(b => (
+              <span key={b.k} className={`dhome__badge is-${b.tone}`}>
+                {b.k} <b>{b.n}</b>
+              </span>
+            ))}
+          </div>
+        )}
         {/* 🔴 두 자리를 오가는 길을 **각 화면에 하나씩** 둔다 (숨은 조작 금지).
             여기서는 «곁에 두기» — 노트를 보면서 흘끗 볼 때. */}
         {/* 🔴 닫기 단추를 두지 않는다 (2026-08-27 사용자) — 컨테이너를
@@ -92,12 +134,24 @@ export function DobbinHome() {
       {/* 브리핑 — 할 말이 있을 때만 (2-10-1: 빈 인사는 하지 않는다).
           🔴 죽은 줄이었다: 잘려 보이는데 눌러도 아무 일이 없었다.
              누르면 펼친다 — 잘린 글을 보는 것이 사람이 원한 일이다. */}
-      {brief && (
+      {say && (
         <button className={`dhome__brief${briefOpen ? ' is-open' : ''}`}
                 title={briefOpen ? '접기' : '전부 보기'}
                 onClick={() => setBriefOpen(v => !v)}>
-          {briefOpen ? brief : brief.split('\n')[0]}
+          {briefOpen ? say : say.split('\n')[0]}
         </button>
+      )}
+      {/* 브리핑이 주는 단추 — 누르면 그 말이 대화로 들어간다 (v7 2단계) */}
+      {!!brief?.choices?.length && (
+        <div className="dhome__brief-picks">
+          {brief.choices.map(c => (
+            <button key={c.label} className="dhome__brief-pick"
+                    onClick={() => window.dispatchEvent(
+                      new CustomEvent('dobbin:ask', { detail: c.send || c.label }))}>
+              {c.label}
+            </button>
+          ))}
+        </div>
       )}
 
       <div className="dhome__body">
@@ -109,6 +163,55 @@ export function DobbinHome() {
             <section className="dhome__report">
               <h2 className="dhome__h2">알림</h2>
               <NoticeList list={report} />
+            </section>
+          )}
+          {/* v7 2단계 — 두뇌 계기판: 전부 서버가 잰 값이다 (/api/brain).
+              기억 3층·오늘 일과가 한 일·관문 수치. 옛 서버면 카드가 없다. */}
+          {brain && (
+            <section className="dhome__report dhome__brain">
+              <h2 className="dhome__h2">두뇌</h2>
+              <div className="dbrain">
+                {brain.memory && (
+                  <div className="dbrain__col">
+                    <h3>기억</h3>
+                    <div className="dbrain__mem">
+                      <span title="자주 꺼내 단단해진 기억">주기억 <b>{brain.memory.main ?? 0}</b></span>
+                      <span title="쓰면 남고 안 쓰면 흐려지는 층">휘발성 <b>{brain.memory.volatile ?? 0}</b></span>
+                      <span title="흐려져 잊힘 문턱 아래">망각 <b>{brain.memory.faded ?? 0}</b></span>
+                    </div>
+                    {!!brain.memory.insights?.length && (
+                      <ul className="dbrain__list">
+                        {brain.memory.insights.slice(0, 3).map((s, i) =>
+                          <li key={i} title="잠(sleep) 회고가 근거 기억을 인용해 만든 통찰">{s}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                )}
+                {brain.tend && (
+                  <div className="dbrain__col">
+                    <h3>오늘 일과{brain.tend.last ? ` · ${brain.tend.last}` : ''}</h3>
+                    {brain.tend.today?.length ? (
+                      <ul className="dbrain__list">
+                        {brain.tend.today.slice(0, 6).map((t, i) =>
+                          <li key={i}>{t.label} <b>{t.n}</b></li>)}
+                      </ul>
+                    ) : <p className="dbrain__quiet">오늘은 아직 한 일이 없습니다</p>}
+                    {!!brain.tend.starving?.length && (
+                      <p className="dbrain__starve" title="자리를 못 받아 오래 물러선 걸음">
+                        ⏳ 굶는 걸음: {brain.tend.starving.join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {!!brain.bench?.length && (
+                  <div className="dbrain__col">
+                    <h3>관문</h3>
+                    <ul className="dbrain__list">
+                      {brain.bench.map((b, i) => <li key={i}>{b.name} <b>{b.value}</b></li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </section>
           )}
           <ClusterReview />

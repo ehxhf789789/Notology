@@ -205,3 +205,25 @@
 
 /* 기본(13.33px) 글자가 새지 않게 — 클래스 없는 단추들 (달력 ‹›, 접기 등) */
 .dsurf button { font-size: 12px; }
+
+/* v7 1단계 — 생각 걸음 접이 («어떻게 생각했나»). 답 밑에 조용히 접혀 있고
+   누르면 서버가 실제로 지난 단계가 차례로 보인다 (연출 금지 — 실값만). */
+.dsurf__trace {
+  margin: 2px 0 8px; font-size: 11px;
+  color: var(--text-secondary, #9aa0ab);
+}
+.dsurf__trace summary {
+  cursor: pointer; user-select: none; list-style: none;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 6px;
+  border: 1px dashed var(--border-color, #2b2f36);
+}
+.dsurf__trace summary::before { content: '▸'; font-size: 10px; }
+.dsurf__trace[open] summary::before { content: '▾'; }
+.dsurf__trace summary:hover { color: var(--accent, #4a7dbd); }
+.dsurf__trace ol {
+  margin: 6px 0 0; padding-left: 20px;
+  border-left: 2px solid var(--border-color, #2b2f36);
+  margin-left: 7px; display: grid; gap: 3px;
+}
+.dsurf__trace li::marker { color: var(--accent, #4a7dbd); }

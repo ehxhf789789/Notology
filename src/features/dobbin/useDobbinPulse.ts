@@ -15,24 +15,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDobbinStore } from './dobbinStore';
 import { useUnseen } from './noticeStore';
+import type { Mood } from './PenguinFace';
 
 export function useDobbinPulse() {
   const busy = useDobbinStore((s) => s.busy);
   const lastMood = useDobbinStore((s) => s.lastMood);
   const unseen = useUnseen();
-  const [bounce, setBounce] = useState(false);
+  // v7 3단계: 반응 표정 표 — 서버 정서 7종을 소비한다 (전에는 뿌듯 하나만).
+  // 미안은 «사과하는 동안»(4초) 고개를 숙인다 — 사과하며 폴짝 금지 (v6 ⓐ).
+  const [react, setReact] = useState<Mood | null>(null);
   const was = useRef(busy);
   useEffect(() => {
-    if (was.current && !busy && lastMood === '뿌듯') {
-      setBounce(true);
-      const t = setTimeout(() => setBounce(false), 900);
-      return () => clearTimeout(t);
+    if (was.current && !busy && lastMood) {
+      const f: Mood | null =
+        lastMood === '뿌듯' ? 'found' : lastMood === '미안' ? 'sorry' : null;
+      if (f) {
+        setReact(f);
+        const t = setTimeout(() => setReact(null), f === 'sorry' ? 4000 : 900);
+        was.current = busy;
+        return () => clearTimeout(t);
+      }
     }
     was.current = busy;
   }, [busy, lastMood]);
-  useEffect(() => { was.current = busy; }, [busy]);
-  const ambient: 'idle' | 'alert' = unseen > 0 ? 'alert' : 'idle';
-  const mood: 'idle' | 'thinking' | 'alert' | 'found' =
-    busy ? 'thinking' : bounce ? 'found' : ambient;
+  const ambient: Mood = unseen > 0 ? 'alert' : 'idle';
+  const mood: Mood = busy ? 'thinking' : react ?? ambient;
   return { mood, unseen, busy };
 }
