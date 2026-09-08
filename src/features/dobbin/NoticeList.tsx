@@ -9,7 +9,7 @@
  *    읽었는지는 사람이 정한다 (마지막으로 본 시각 이후가 «새 것»).
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Check, HelpCircle, CalendarClock, Archive } from 'lucide-react';
+import { Check, HelpCircle, CalendarClock, Archive, MessageCircle } from 'lucide-react';
 import { uiActions } from '../../core/stores/uiStore';
 import { markAllSeen } from './noticeStore';
 import { hoverActions } from '../hover-windows/stores/hoverStore';
@@ -30,6 +30,7 @@ const ICON: Record<string, React.ReactNode> = {
   due: <CalendarClock size={13} />,
   today: <CalendarClock size={13} />,
   kept: <Archive size={13} />,
+  hello: <MessageCircle size={13} />,   // v8 T8 — dobbin 의 선말
 };
 
 export function NoticeList({ list }: { list: Notice[] }) {

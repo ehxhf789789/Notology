@@ -162,6 +162,14 @@ export function DobbinSurface() {
     return () => window.removeEventListener('dobbin:ask', h);
   }, [send]);
 
+  // v8 T8 — dobbin 의 선말: 화면이 열려 있으면 말풍선으로 바로 닿는다
+  // (닫혀 있으면 알림함이 두 번째 길 — notices kind:hello)
+  useEffect(() => onLive(ev => {
+    if (ev.kind === 'initiate' && typeof ev.text === 'string' && ev.text.trim()) {
+      dobbinActions.push({ role: 'assistant', content: ev.text });
+    }
+  }), []);
+
   const search = useCallback(async () => {
     if (!q.trim()) { setHits(null); return; }
     const r = await fetch('/api/conversation', { method: 'POST',
