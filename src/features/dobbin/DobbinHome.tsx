@@ -58,7 +58,7 @@ type Brain = {
   memory?: { main?: number; volatile?: number; faded?: number; dead?: number;
              insights?: string[] };
   tend?: { today?: { label: string; n: number }[]; last?: string;
-           starving?: string[] };
+           quiet?: string[] };
   bench?: { name: string; value: string }[];
   senses?: { name: string; ok: boolean; note?: string }[];
 };
@@ -196,9 +196,11 @@ export function DobbinHome() {
                           <li key={i}>{t.label} <b>{t.n}</b></li>)}
                       </ul>
                     ) : <p className="dbrain__quiet">오늘은 아직 한 일이 없습니다</p>}
-                    {!!brain.tend.starving?.length && (
-                      <p className="dbrain__starve" title="자리를 못 받아 오래 물러선 걸음">
-                        ⏳ 굶는 걸음: {brain.tend.starving.join(' · ')}
+                    {!!brain.tend.quiet?.length && (
+                      <p className="dbrain__starve"
+                         title="최근 40회차에 자국이 없는 걸음 — 할 일이 없었거나 자리를 못 받았다">
+                        조용한 걸음 {brain.tend.quiet.length}개
+                        {brain.tend.quiet.length <= 6 ? ` — ${brain.tend.quiet.join(' · ')}` : ''}
                       </p>
                     )}
                   </div>
